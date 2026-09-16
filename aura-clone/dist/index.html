@@ -45,7 +45,6 @@ button { font-family: inherit; color: inherit; }
 canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; }
 #scrim { position: fixed; inset: 0; z-index: 1; pointer-events: none; transition: opacity 0.6s ease;
   background: linear-gradient(180deg, rgba(4,10,16,0.55) 0%, rgba(4,10,16,0.1) 30%, rgba(4,10,16,0.15) 65%, rgba(4,10,16,0.7) 100%), radial-gradient(ellipse 80% 70% at 20% 55%, rgba(4,10,16,0.5), transparent 68%); }
-body.is-travel #scrim { opacity: 0.45; }
 
 /* ---------- loader ---------- */
 #veil { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; background: #06101a; transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1), visibility 0.9s; }
@@ -66,22 +65,14 @@ body.is-travel #scrim { opacity: 0.45; }
 .logo-tile b { font: 700 0.36rem var(--font-display); letter-spacing: 0.12em; }
 .logo-tile small { font: 600 0.22rem var(--font-body); letter-spacing: 0.32em; margin-top: -1px; }
 
-/* ---------- content layer ---------- */
-#content { position: fixed; inset: 0; z-index: 10; pointer-events: none; transition: opacity 0.55s var(--ease), filter 0.55s var(--ease), transform 0.65s var(--ease); }
-body.is-travel #content { opacity: 0.16; filter: blur(9px); transform: scale(0.98); }
-.chapter { position: absolute; inset: 0; display: flex; align-items: center; padding: calc(96px + env(safe-area-inset-top, 0px)) clamp(20px, 5vw, 72px) calc(76px + env(safe-area-inset-bottom, 0px)); opacity: 0; visibility: hidden; pointer-events: none; }
-.chapter.is-active { opacity: 1; visibility: visible; pointer-events: auto; z-index: 2; }
-.chapter-inner { width: 100%; max-width: 1200px; margin: 0 auto; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none; }
-.chapter-inner::-webkit-scrollbar { display: none; }
-@keyframes cineInUp { from { opacity: 0; transform: translate3d(0, 60px, 0) scale(0.97); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
-@keyframes cineInDown { from { opacity: 0; transform: translate3d(0, -60px, 0) scale(0.97); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
-@keyframes cineOutUp { from { opacity: 1; } to { opacity: 0; transform: translate3d(0, -50px, 0) scale(0.975); filter: blur(8px); } }
-@keyframes cineOutDown { from { opacity: 1; } to { opacity: 0; transform: translate3d(0, 50px, 0) scale(0.975); filter: blur(8px); } }
-.chapter.in-fwd > .chapter-inner { animation: cineInUp 0.9s var(--ease) both; }
-.chapter.in-back > .chapter-inner { animation: cineInDown 0.9s var(--ease) both; }
-.chapter.out-fwd, .chapter.out-back { opacity: 1; visibility: visible; z-index: 1; }
-.chapter.out-fwd > .chapter-inner { animation: cineOutUp 0.55s var(--ease) both; }
-.chapter.out-back > .chapter-inner { animation: cineOutDown 0.55s var(--ease) both; }
+/* ---------- content layer: one tall stack that glides with the scroll ----------
+   The chapters sit one under the other; the stack is moved with the eased
+   scroll value, the frames scrub in step, and each chapter leans away and
+   fades as it leaves the middle of the screen. */
+#content { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; perspective: 1400px; }
+#stack { will-change: transform; }
+.chapter { position: relative; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; padding: calc(96px + env(safe-area-inset-top, 0px)) clamp(20px, 5vw, 72px) calc(76px + env(safe-area-inset-bottom, 0px)); }
+.chapter-inner { width: 100%; max-width: 1200px; margin: 0 auto; pointer-events: auto; will-change: transform, opacity; transform-origin: 50% 50%; }
 .rise { opacity: 0; transform: translate3d(0, 24px, 0); }
 .chapter.is-active .rise { opacity: 1; transform: none; transition: opacity 0.8s var(--ease), transform 0.8s var(--ease); transition-delay: calc(var(--i, 0) * 80ms + 140ms); }
 
@@ -117,7 +108,6 @@ body.is-travel #content { opacity: 0.16; filter: blur(9px); transform: scale(0.9
 .navbar { position: fixed; top: max(14px, env(safe-area-inset-top)); left: clamp(16px, 3vw, 40px); right: clamp(16px, 3vw, 40px); z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 12px; pointer-events: none; transition: opacity 0.6s var(--ease), transform 0.6s var(--ease); }
 .navbar > * { pointer-events: auto; }
 body[data-stage="boot"] .navbar { opacity: 0; transform: translateY(-16px); }
-body.is-travel .navbar { transform: scale(0.97); opacity: 0.85; }
 .nav-links { display: none; align-items: center; gap: 4px; padding: 6px; border-radius: var(--r-pill); background: rgba(6, 14, 22, 0.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.08); }
 @media (min-width: 900px) { .nav-links { display: flex; } .nav-menu-btn { display: none !important; } }
 .nav-link { padding: 8px 13px; border-radius: var(--r-pill); color: var(--fg-muted); font-size: var(--fs-small); font-weight: 600; background: none; border: none; cursor: pointer; white-space: nowrap; transition: color var(--d-fast), background var(--d-fast); }
@@ -236,6 +226,9 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .ws-nav span { font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
 
 /* ---------- chapter 04: about ---------- */
+.about-head { display: flex; align-items: center; gap: 22px; margin-bottom: 8px; }
+.logo-round { flex-shrink: 0; width: 76px; height: 76px; border-radius: 50%; }
+.logo-round b { font-size: 0.42rem; } .logo-round small { font-size: 0.26rem; }
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
 @media (max-width: 820px) { .about-grid { grid-template-columns: 1fr; } }
 .panel h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; margin-bottom: 6px; }
@@ -335,9 +328,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chapter.in-fwd > .chapter-inner, .chapter.in-back > .chapter-inner, .chapter.out-fwd > .chapter-inner, .chapter.out-back > .chapter-inner { animation: none; }
+  .chapter-inner { transform: none !important; opacity: 1 !important; }
   .rise { opacity: 1; transform: none; }
-  body.is-travel #content { filter: none; transform: none; opacity: 0.5; }
   .hint i, .veil-line i { animation: none; }
   .quote-card { transition: opacity 0.3s; }
 }
@@ -367,6 +359,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 
 <!-- chapters -->
 <main id="content">
+<div id="stack">
 
   <!-- 01 · Get started -->
   <section class="chapter" data-index="0">
@@ -457,7 +450,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
   <section class="chapter" data-index="3">
     <div class="chapter-inner">
       <p class="eyebrow rise" style="--i:0">04 / A little about us</p>
-      <h2 class="h2 rise" style="--i:1">Made by curious <em>grown-ups</em>.</h2>
+      <div class="about-head rise" style="--i:1"><div class="logo-tile logo-round" data-logo aria-hidden="true"></div><h2 class="h2" style="margin:0">Little questions.<br><em>Lifelong curiosity.</em></h2></div>
       <p class="lede rise" style="--i:2">Learn With Why is a small studio drawing calm, ink-light sheets for children aged three to eight. Every page is tested at a real kitchen table and in a real classroom before it reaches the shelf.</p>
       <div class="about-grid rise" style="--i:3">
         <div class="panel"><h3>Why we started</h3><p>We kept printing worksheets that were loud, cluttered and full of clip art. So we drew our own: one idea per page, generous white space, and a question at the bottom that starts with why.</p>
@@ -494,8 +487,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
   <!-- 06 · Testimonials -->
   <section class="chapter" data-index="5">
     <div class="chapter-inner">
-      <p class="eyebrow rise" style="--i:0">06 / Kind words</p>
-      <h2 class="h2 rise" style="--i:1;text-align:center">Lovely words. <em>Little moments.</em></h2>
+      <p class="eyebrow rise" style="--i:0;text-align:center">06 / A community of curious minds</p>
+      <h2 class="h2 rise" style="--i:1;text-align:center">Little moments. <em>Lovely words.</em></h2>
       <div class="flow rise" id="flow" style="--i:2"></div>
       <div class="flow-ctrl rise" style="--i:3">
         <button type="button" class="icon-btn" id="qPrev" aria-label="Previous story">←</button>
@@ -506,6 +499,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
       <p class="flow-more rise" style="--i:4"><button type="button" class="arrow-link" data-go="1">A new adventure starts here <span>→</span></button></p>
     </div>
   </section>
+</div>
 </main>
 
 <!-- chrome -->
@@ -599,7 +593,11 @@ const ctx = scene.getContext('2d', { alpha: false });
 const TOTAL = 960, KEY = 24, WINDOW = 32, MAX_RESIDENT = 96, CONCURRENCY = 6;
 const frames = new Array(TOTAL), status = new Uint8Array(TOTAL), tries = new Uint8Array(TOTAL);
 let current = 0, target = 0, lastDrawn = -1, touchY = 0, readyCount = 0, inflight = 0, painted = false, tick = 0;
-const clamp = v => Math.max(0, Math.min(TOTAL - 1, v));
+/* the scroll position is in pixels through the chapter stack; the frame
+   under it follows from how far along the stack we are */
+let maxScroll = 1;
+const clamp = v => Math.max(0, Math.min(maxScroll, v));
+const frameAt = () => Math.round(Math.min(1, Math.max(0, current / maxScroll)) * (TOTAL - 1));
 const srcOf = i => 'frames-webp/frame_' + String(i + 1).padStart(6, '0') + '.webp';
 const decodeWidth = () => Math.max(1024, Math.min(1440, innerWidth || 1280));
 function release(i) { const f = frames[i]; if (!f) return; if (f.close) f.close(); frames[i] = undefined; status[i] = 0; readyCount--; }
@@ -617,7 +615,7 @@ function loadFrame(i) {
   img.src = srcOf(i);
 }
 function nextWanted() {
-  const c = Math.round(current);
+  const c = frameAt();
   if (status[c] === 0) return c;
   for (let i = 0; i < TOTAL; i += KEY) if (status[i] === 0) return i;
   for (let d = 1; d <= WINDOW; d++) { if (c - d >= 0 && status[c - d] === 0) return c - d; if (c + d < TOTAL && status[c + d] === 0) return c + d; }
@@ -626,16 +624,17 @@ function nextWanted() {
 function pump() { while (inflight < CONCURRENCY) { const i = nextWanted(); if (i < 0) break; loadFrame(i); } }
 function evict() {
   if (readyCount <= MAX_RESIDENT) return;
-  const c = Math.round(current), spare = [];
+  const c = frameAt(), spare = [];
   for (let i = 0; i < TOTAL; i++) if (status[i] === 2 && i % KEY && Math.abs(i - c) > WINDOW) spare.push(i);
   spare.sort((a, b) => Math.abs(b - c) - Math.abs(a - c));
   for (let k = 0; k < spare.length && readyCount > MAX_RESIDENT; k++) release(spare[k]);
 }
-function retry() { for (let i = 0; i < TOTAL; i++) if (status[i] === 3 && tries[i] < 3 && (i % KEY === 0 || Math.abs(i - current) <= WINDOW)) status[i] = 0; }
+function retry() { const c = frameAt(); for (let i = 0; i < TOTAL; i++) if (status[i] === 3 && tries[i] < 3 && (i % KEY === 0 || Math.abs(i - c) <= WINDOW)) status[i] = 0; }
 function resize() { const dpr = Math.min(devicePixelRatio || 1, 2); scene.width = Math.floor(innerWidth * dpr); scene.height = Math.floor(innerHeight * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); lastDrawn = -1; }
 function draw() {
-  current += (target - current) * 0.1;
-  let i = Math.round(current);
+  current += (target - current) * 0.09;
+  if (Math.abs(target - current) < 0.05) current = target;
+  let i = frameAt();
   if (status[i] !== 2) for (let d = 1; d < TOTAL; d++) { if (i - d >= 0 && status[i - d] === 2) { i -= d; break; } if (i + d < TOTAL && status[i + d] === 2) { i += d; break; } }
   const img = status[i] === 2 ? frames[i] : null;
   if (img && i !== lastDrawn) {
@@ -650,30 +649,51 @@ function draw() {
 }
 
 /* =====================================================================
-   CHAPTERS — six stops on the 960-frame journey
+   CHAPTERS — one continuous glide through six screens
    ===================================================================== */
-const CHAPTERS = NAV.length, CAP = TOTAL - 1, SEG = CAP / CHAPTERS;
+const CHAPTERS = NAV.length, CAP = TOTAL - 1;
 const chapters = Array.from(document.querySelectorAll('.chapter'));
-let section = -1, travelling = false, lastProgress = -1, settleTimer = 0, hintTimer = 0;
+const inners = chapters.map(c => c.querySelector('.chapter-inner'));
+const stack = document.getElementById('stack');
+let section = -1, lastProgress = -1, hintTimer = 0, lastY = -1;
 const body = document.body, content = document.getElementById('content');
-function goTo(n) { n = Math.max(0, Math.min(CHAPTERS - 1, n)); target = (n + 0.5) * SEG; hideHint(); }
-function scheduleSettle() { clearTimeout(settleTimer); settleTimer = setTimeout(() => { const n = Math.max(0, Math.min(CHAPTERS - 1, Math.round(target / SEG - 0.5))); target = (n + 0.5) * SEG; }, 280); }
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function measure() {
+  maxScroll = Math.max(1, stack.offsetHeight - innerHeight);
+  target = clamp(target); current = clamp(current); lastY = -1;
+}
+function goTo(n) { n = Math.max(0, Math.min(CHAPTERS - 1, n)); measure(); target = clamp(chapters[n].offsetTop); hideHint(); }
 function setSection(n) {
   if (n === section) return;
-  const from = section; section = n;
-  chapters.forEach(c => c.classList.remove('is-active', 'in-fwd', 'in-back', 'out-fwd', 'out-back'));
-  const dir = from === -1 || n > from ? 'fwd' : 'back';
-  chapters[n].classList.add('is-active'); if (from !== -1) chapters[n].classList.add('in-' + dir);
-  if (from >= 0) { const c = chapters[from]; c.classList.add('out-' + dir); setTimeout(() => c.classList.remove('out-' + dir), 560); }
+  section = n;
   document.getElementById('counter').innerHTML = '<b>' + String(n + 1).padStart(2, '0') + '</b> / ' + esc(NAV[n]);
   document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', +b.dataset.nav === n));
   if (n === 1) preview.play(); else preview.pause();
   if (n === 5) flow.start(); else flow.stop();
 }
+/* Once per frame: move the stack, lean the chapters, pick the one in the middle. */
 function onFrame() {
-  const p = Math.min(1, Math.max(0, current / CAP));
-  if (Math.abs(p - lastProgress) > 0.0004) { lastProgress = p; document.documentElement.style.setProperty('--scroll', p); if (body.dataset.stage === 'site') setSection(Math.min(CHAPTERS - 1, Math.floor(p * CHAPTERS))); }
-  if (body.dataset.stage === 'site') { const moving = Math.abs(target - current) > CAP * 0.012; if (moving !== travelling) { travelling = moving; body.classList.toggle('is-travel', moving); } }
+  if (body.dataset.stage !== 'site') return;
+  const p = Math.min(1, Math.max(0, current / maxScroll));
+  if (Math.abs(p - lastProgress) > 0.0004) { lastProgress = p; document.documentElement.style.setProperty('--scroll', p); }
+  if (Math.abs(current - lastY) < 0.01) return;
+  lastY = current;
+  stack.style.transform = 'translate3d(0,' + (-current).toFixed(2) + 'px,0)';
+  let nearest = 0, nearestD = Infinity;
+  const mid = innerHeight / 2;
+  chapters.forEach((c, i) => {
+    const centre = c.offsetTop + c.offsetHeight / 2 - current;
+    const d = (centre - mid) / innerHeight;                 /* 0 in the middle, ±1 a screen away */
+    const a = Math.min(1, Math.abs(d));
+    if (!reduceMotion) {
+      const el = inners[i];
+      el.style.transform = 'rotateX(' + (-d * 9).toFixed(2) + 'deg) scale(' + (1 - a * 0.07).toFixed(3) + ')';
+      el.style.opacity = (1 - a * 0.6).toFixed(3);
+    }
+    if (a < nearestD) { nearestD = a; nearest = i; }
+    c.classList.toggle('is-active', a < 0.62 || (c.classList.contains('is-active') && a < 0.9));
+  });
+  setSection(nearest);
 }
 /* input: wheel / touch / keys drive the playhead unless a panel needs it */
 let hoverScroller = null, innerScroller = null;
@@ -685,16 +705,17 @@ function locked(delta, touch) {
   if (delta < 0 && atTop) return false; if (delta > 0 && atBottom) return false; return true;
 }
 const typing = el => el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
-addEventListener('wheel', e => { const d = e.deltaY * (e.deltaMode === 1 ? 30 : e.deltaMode === 2 ? innerHeight : 1); if (locked(d, false)) return; target = clamp(target + d * 0.15); hideHint(); scheduleSettle(); }, { passive: true });
+addEventListener('wheel', e => { const d = e.deltaY * (e.deltaMode === 1 ? 30 : e.deltaMode === 2 ? innerHeight : 1); if (locked(d, false)) return; target = clamp(target + d); hideHint(); }, { passive: true });
 addEventListener('touchstart', e => { touchY = e.touches[0].clientY; innerScroller = scrollableAncestor(e.target); }, { passive: true });
-addEventListener('touchmove', e => { const y = e.touches[0].clientY, dy = touchY - y; if (locked(dy, true)) { touchY = y; return; } target = clamp(target + dy * 0.65); touchY = y; hideHint(); scheduleSettle(); }, { passive: true });
+addEventListener('touchmove', e => { const y = e.touches[0].clientY, dy = touchY - y; if (locked(dy, true)) { touchY = y; return; } target = clamp(target + dy * 1.6); touchY = y; hideHint(); }, { passive: true });
 addEventListener('keydown', e => {
   if (typing(e.target) || document.querySelector('.drawer.open') || document.getElementById('modalScrim').classList.contains('open')) return;
-  if (['ArrowDown', 'ArrowRight', 'PageDown', ' '].includes(e.key)) goTo(section + 1); else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) goTo(section - 1); else if (e.key === 'Home') goTo(0); else if (e.key === 'End') goTo(CHAPTERS - 1); else return;
-  e.preventDefault();
+  if (['ArrowDown', 'PageDown', ' '].includes(e.key)) target = clamp(target + innerHeight * 0.85); else if (['ArrowUp', 'PageUp'].includes(e.key)) target = clamp(target - innerHeight * 0.85); else if (e.key === 'ArrowRight') goTo(section + 1); else if (e.key === 'ArrowLeft') goTo(section - 1); else if (e.key === 'Home') target = 0; else if (e.key === 'End') target = maxScroll; else return;
+  e.preventDefault(); hideHint();
 });
 document.addEventListener('mouseover', e => { hoverScroller = scrollableAncestor(e.target); }, { passive: true });
-addEventListener('resize', resize);
+addEventListener('resize', () => { resize(); measure(); });
+new ResizeObserver(measure).observe(stack);
 function hideHint() { const h = document.getElementById('hint'); h.style.opacity = 0; h.style.transform = 'translate(-50%, 10px)'; h.style.pointerEvents = 'none'; }
 document.getElementById('hint').addEventListener('click', () => goTo(section + 1));
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { closeDrawers(); goTo(+b.dataset.go); } });
@@ -848,7 +869,7 @@ function renderWorksheets() {
   document.getElementById('wsRow').innerHTML = list.map((w, n) => `<article class="panel ws-card" data-open="${w.id}" style="--n:${n}" tabindex="0"><div class="paper"><small>${esc(w.kicker)}</small><div class="glyph">${esc(w.glyph)}</div><small>Learn With Why · Preview</small></div><p class="meta">${esc(w.cat)} · Ages ${esc(w.ages)}</p><h3 class="card-title">${esc(w.title)}</h3><p>${esc(w.blurb)}</p><p class="price${w.price === 0 ? ' free' : ''}">${owned.includes(w.id) ? 'Unlocked ✓' : priceLabel(w)}</p></article>`).join('');
   document.getElementById('wsCount').textContent = list.length + (list.length === 1 ? ' worksheet' : ' worksheets');
 }
-document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); } });
+document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
 document.getElementById('wsPrev').addEventListener('click', () => document.getElementById('wsRow').scrollBy({ left: -320, behavior: 'smooth' }));
 document.getElementById('wsNext').addEventListener('click', () => document.getElementById('wsRow').scrollBy({ left: 320, behavior: 'smooth' }));
 
@@ -960,7 +981,7 @@ resize(); loadFrame(0); pump(); requestAnimationFrame(draw);
       clearInterval(t);
       document.getElementById('veil').classList.add('gone');
       body.dataset.stage = 'site';
-      target = 0.5 * SEG; current = target; setSection(0);
+      measure(); target = 0; current = 0; lastY = -1; onFrame();
       clearTimeout(hintTimer); hintTimer = setTimeout(hideHint, 6000);
     }
   }, 100);
