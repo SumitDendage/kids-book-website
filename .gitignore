@@ -1,0 +1,20 @@
+# dependencies & builds
+node_modules/
+.next/
+out/
+papercub-react/dist/
+
+# secrets / local
+.env
+.env.local
+*.local
+.DS_Store
+
+# archives and duplicates of the 960 landscape frames (kept once, in aura-clone/dist/frames-webp)
+*.zip
+aura-clone-new
+papercub-react/public/frames-webp/
+
+# editor / tooling
+.claude/
+__pycache__/

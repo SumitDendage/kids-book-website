@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Scroll Animation</title>
+<link rel="preload" as="image" href="frames-webp/frame_000001.webp">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas aria-label="Landscape animation controlled by scrolling"></canvas>
+<script>
+const canvas=document.querySelector('canvas');
+const ctx=canvas.getContext('2d',{alpha:false});
+const total=960,images=new Array(total);
+let current=0,target=0,lastDrawn=-1,touchY=0;
+const clamp=value=>Math.max(0,Math.min(total-1,value));
+function resize(){
+ const dpr=Math.min(devicePixelRatio||1,2);
+ canvas.width=Math.floor(innerWidth*dpr);canvas.height=Math.floor(innerHeight*dpr);
+ ctx.setTransform(dpr,0,0,dpr,0,0);lastDrawn=-1;
+}
+function draw(){
+ current+=(target-current)*0.1;
+ let index=Math.round(current);
+ if(!images[index]){
+  for(let distance=1;distance<total;distance++){
+   if(images[index-distance]){index-=distance;break;}
+   if(images[index+distance]){index+=distance;break;}
+  }
+ }
+ const image=images[index];
+ if(image&&index!==lastDrawn){
+  const scale=Math.max(innerWidth/image.naturalWidth,innerHeight/image.naturalHeight);
+  const w=image.naturalWidth*scale,h=image.naturalHeight*scale;
+  ctx.drawImage(image,(innerWidth-w)/2,(innerHeight-h)/2,w,h);lastDrawn=index;
+ }
+ requestAnimationFrame(draw);
+}
+async function load(index){
+ const image=new Image();image.decoding='async';
+ image.src='frames-webp/frame_'+String(index+1).padStart(6,'0')+'.webp';
+ try{await image.decode();images[index]=image;}catch(_){}
+}
+async function init(){
+ resize();requestAnimationFrame(draw);await load(0);
+ let next=1;
+ await Promise.all(Array.from({length:48},async()=>{while(next<total)await load(next++);}));
+}
+addEventListener('resize',resize);
+addEventListener('wheel',event=>{
+ const delta=event.deltaY*(event.deltaMode===1?30:event.deltaMode===2?innerHeight:1);
+ target=clamp(target+delta*0.15);
+},{passive:true});
+addEventListener('touchstart',event=>{touchY=event.touches[0].clientY;},{passive:true});
+addEventListener('touchmove',event=>{
+ const y=event.touches[0].clientY;target=clamp(target+(touchY-y)*0.65);touchY=y;
+},{passive:true});
+addEventListener('keydown',event=>{
+ if(['ArrowDown','ArrowRight','PageDown',' '].includes(event.key))target=clamp(target+60);
+ else if(['ArrowUp','ArrowLeft','PageUp'].includes(event.key))target=clamp(target-60);
+ else if(event.key==='Home')target=0;
+ else if(event.key==='End')target=total-1;
+ else return;
+ event.preventDefault();
+});
+init();
+</script>
+</body>
+</html>
