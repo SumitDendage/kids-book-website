@@ -170,11 +170,9 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .site-foot a { color: var(--fg-muted); text-decoration: none; }
 .site-foot a:hover { color: #fff; }
 .site-foot nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
-.staff-links { flex-basis: 100%; display: flex; gap: 14px; }
-.staff-links a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); border: 1px solid rgba(255,255,255,0.18); color: var(--fg-muted); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.staff-links a::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-dim); }
-.staff-links a[data-portal="admin"]::before { background: #f0b455; }
-.staff-links a[data-portal="developer"]::before { background: #8fd6d2; }
+.staff-links { flex-basis: 100%; display: flex; gap: 18px; }
+.staff-links a { color: var(--fg-muted); font-size: var(--fs-small); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); }
+.staff-links a:hover { color: #fff; text-decoration-color: #fff; }
 /* staff pages */
 .portal-body { position: relative; z-index: 2; width: min(100% - 36px, 1040px); margin: 10px auto 60px; display: grid; gap: 18px; }
 .portal-login { max-width: 440px; }
