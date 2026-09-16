@@ -1124,10 +1124,13 @@ const overlayOpen = () => checkoutEl.classList.contains('open') || portalEl.clas
    Demo credentials live here until real auth (Supabase) is connected.
    ===================================================================== */
 const STAFF = {
-  admin: { title: 'Admin account', kicker: 'Staff · admin', email: 'admin@learnwithwhy.in', pass: 'Admin@2026', blurb: 'Customers, unlocked sheets, prices and licences.' },
-  developer: { title: 'Developer', kicker: 'Staff · developer', email: 'dev@learnwithwhy.in', pass: 'Dev@2026', blurb: 'Where things live and what plugs in where.' },
+  admin: { title: 'Admin account', kicker: 'Staff · admin', code: 'ADMIN-2026', blurb: 'Customers, unlocked sheets, prices and licences.' },
+  developer: { title: 'Developer', kicker: 'Staff · developer', code: 'DEV-2026', blurb: 'Where things live and what plugs in where.' },
 };
-let portalKind = 'admin';
+/* staff accounts: sign up with the access code for that role, then sign in */
+const staffUsers = () => read('lww_staff_users', []);
+const findStaff = (kind, email) => staffUsers().find(u => u.kind === kind && u.email === email) || null;
+let portalKind = 'admin', portalView = 'signin';
 const staffSession = () => { try { return JSON.parse(sessionStorage.getItem('lww_staff') || 'null'); } catch (_) { return null; } };
 function openPortal(kind) {
   portalKind = kind; closeDrawers(); closeModal(); closeCheckout();
@@ -1140,17 +1143,33 @@ function renderPortal() {
   document.getElementById('portalOut').hidden = !inn;
   const body = document.getElementById('portalBody');
   if (!inn) {
-    body.innerHTML = `<form class="panel portal-login" id="portalForm" novalidate><h3 class="card-title" style="margin-bottom:6px">Sign in as ${portalKind}</h3><p class="auth-sub">${esc(cfg.blurb)}</p><div id="portalAlert"></div>
-      <div class="field"><label for="stEmail">Email</label><input id="stEmail" type="email" autocomplete="username" placeholder="${cfg.email}"><div class="err"></div></div>
-      <div class="field"><label for="stPass">Password</label><input id="stPass" type="password" autocomplete="current-password" placeholder="••••••••"><div class="err"></div></div>
-      <button type="submit" class="btn btn-primary btn-block">Sign in →</button>
-      <div class="demo-chip">Demo: <b style="letter-spacing:0">${cfg.email} · ${cfg.pass}</b></div></form>`;
+    const up = portalView === 'signup';
+    body.innerHTML = `<form class="panel portal-login" id="portalForm" novalidate>
+      <div class="tabs" style="grid-template-columns:1fr 1fr"><button type="button" class="tab${up ? ' on' : ''}" data-portal-view="signup">Sign up</button><button type="button" class="tab${up ? '' : ' on'}" data-portal-view="signin">Sign in</button></div>
+      <h3 class="card-title" style="margin-bottom:6px">${up ? 'Create a ' + portalKind + ' account' : 'Sign in as ' + portalKind}</h3><p class="auth-sub">${esc(cfg.blurb)}</p><div id="portalAlert"></div>
+      ${up ? '<div class="field"><label for="stName">Name</label><input id="stName" type="text" autocomplete="name" placeholder="Your name"><div class="err"></div></div>' : ''}
+      <div class="field"><label for="stEmail">Email</label><input id="stEmail" type="email" autocomplete="username" placeholder="you@learnwithwhy.in"><div class="err"></div></div>
+      <div class="field"><label for="stPass">Password</label><input id="stPass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${up ? 'At least 8 characters' : '••••••••'}"><div class="err"></div></div>
+      ${up ? '<div class="field"><label for="stCode">Access code</label><input id="stCode" type="text" placeholder="Given to you by Learn With Why"><div class="err"></div><div class="demo-chip">Demo code: <b>' + cfg.code + '</b></div></div>' : ''}
+      <button type="submit" class="btn btn-primary btn-block">${up ? 'Create account →' : 'Sign in →'}</button>
+      <p class="switch">${up ? 'Already have one? <button type="button" class="link" data-portal-view="signin">Sign in</button>' : 'New here? <button type="button" class="link" data-portal-view="signup">Sign up</button>'}</p></form>`;
     document.getElementById('portalForm').addEventListener('submit', e => {
       e.preventDefault();
-      const em = document.getElementById('stEmail').value.trim().toLowerCase(), pw = document.getElementById('stPass').value;
-      if (em !== cfg.email || pw !== cfg.pass) { document.getElementById('portalAlert').innerHTML = '<div class="alert err">That is not the ' + portalKind + ' email and password.</div>'; return; }
-      try { sessionStorage.setItem('lww_staff', JSON.stringify({ kind: portalKind, at: Date.now() })); } catch (_) {}
-      renderPortal(); toast('Signed in as ' + portalKind);
+      const em = document.getElementById('stEmail').value.trim().toLowerCase(), pw = document.getElementById('stPass').value, alert = m => { document.getElementById('portalAlert').innerHTML = '<div class="alert err">' + esc(m) + '</div>'; };
+      if (!isEmail(em)) return alert('Enter a valid email address.');
+      if (up) {
+        const name = document.getElementById('stName').value.trim(), code = document.getElementById('stCode').value.trim().toUpperCase();
+        if (!name) return alert('Tell us your name.');
+        const weak = strongPass(pw); if (weak) return alert(weak);
+        if (code !== cfg.code) return alert('That access code is not right for a ' + portalKind + ' account.');
+        if (findStaff(portalKind, em)) return alert('That email already has a ' + portalKind + ' account. Sign in instead.');
+        write('lww_staff_users', staffUsers().concat([{ kind: portalKind, name, email: em, pw: hash(pw), created: Date.now() }]));
+      } else {
+        const u = findStaff(portalKind, em);
+        if (!u || u.pw !== hash(pw)) return alert('We could not match that ' + portalKind + ' email and password.');
+      }
+      try { sessionStorage.setItem('lww_staff', JSON.stringify({ kind: portalKind, email: em, at: Date.now() })); } catch (_) {}
+      renderPortal(); toast((up ? 'Account created — signed in as ' : 'Signed in as ') + portalKind);
     });
     return;
   }
@@ -1187,7 +1206,10 @@ PayPal    → https://developer.paypal.com/docs/checkout/
 Stripe    → https://docs.stripe.com/payments/checkout</div></section>
     <section class="panel"><p class="eyebrow">Backend (ready in the repo)</p><div class="dev-list"><div><b>Supabase</b> — <code>learn-with-why/supabase/migrations/</code>: profiles, entitlements, prints, RLS, <code>checkout()</code> and <code>consume_print()</code> functions.</div><div><b>VeryPDF DRM</b> — <code>supabase/functions/drm-protect/</code>: protected copies with the licence's print count.</div><div><b>Staff sign-in</b> — demo credentials in <code>STAFF</code>; replace with Supabase Auth roles before launch.</div></div></section>`;
 }
-document.addEventListener('click', e => { const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); openPortal(a.dataset.portal); } });
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); portalView = 'signin'; openPortal(a.dataset.portal); return; }
+  const v = e.target.closest('[data-portal-view]'); if (v) { portalView = v.dataset.portalView; renderPortal(); }
+});
 document.getElementById('portalClose').addEventListener('click', closePortal);
 document.getElementById('portalOut').addEventListener('click', () => { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); });
 
