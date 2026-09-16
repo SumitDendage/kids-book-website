@@ -170,6 +170,23 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .site-foot a { color: var(--fg-muted); text-decoration: none; }
 .site-foot a:hover { color: #fff; }
 .site-foot nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.staff-links { flex-basis: 100%; display: flex; gap: 14px; }
+.staff-links a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); border: 1px solid rgba(255,255,255,0.18); color: var(--fg-muted); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.staff-links a::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-dim); }
+.staff-links a[data-portal="admin"]::before { background: #f0b455; }
+.staff-links a[data-portal="developer"]::before { background: #8fd6d2; }
+/* staff pages */
+.portal-body { position: relative; z-index: 2; width: min(100% - 36px, 1040px); margin: 10px auto 60px; display: grid; gap: 18px; }
+.portal-login { max-width: 440px; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 4px; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+.table th { text-align: left; font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-dim); padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
+.table td { padding: 10px 8px 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: middle; }
+.table input { width: 82px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff; font: inherit; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(255,255,255,0.1); }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; white-space: pre-wrap; color: #cfe3d6; line-height: 1.55; }
+.dev-list { display: grid; gap: 8px; font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.5; }
+.dev-list b { color: #fff; }
 
 /* ---------- chapter 01: get started ---------- */
 .start-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: clamp(24px, 4vw, 56px); align-items: center; }
@@ -639,6 +656,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
         <div><b>Learn With Why</b> · printable worksheets for kids aged 3–8 · Pune, India</div>
         <nav aria-label="Footer"><a href="#home">Home</a><a href="#about">About us</a><a href="#what-we-do">What we do</a><a href="#sheets">Sheets</a><a href="#contact">Contact us</a><a href="#testimonials">Testimonials</a></nav>
         <div>© <span id="year"></span> Learn With Why · <a href="mailto:hello@learnwithwhy.in">hello@learnwithwhy.in</a></div>
+        <div class="staff-links"><a href="#admin" data-portal="admin">Admin account</a><a href="#developer" data-portal="developer">Developer</a></div>
       </footer>
     </div>
   </section>
@@ -651,6 +669,16 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 <button type="button" class="hint" id="hint">Scroll to discover <i>↓</i></button>
 <div class="progress"><i></i></div>
 <div class="toast" id="toast"></div>
+
+<!-- staff: admin account / developer ---->
+<div class="shop" id="portal" aria-hidden="true">
+  <div class="shop-shade" style="background:#071018"></div>
+  <header class="shop-bar">
+    <div><p class="eyebrow" id="portalKicker">Staff</p><h2 class="card-title" id="portalTitle"></h2></div>
+    <div class="shop-actions"><button type="button" class="btn btn-ghost" id="portalOut" hidden>Sign out</button><button type="button" class="icon-btn" id="portalClose" aria-label="Back to the site">✕</button></div>
+  </header>
+  <div class="portal-body" id="portalBody"></div>
+</div>
 
 <!-- the payment page -->
 <div class="shop" id="checkout" aria-hidden="true">
@@ -922,7 +950,7 @@ addEventListener('resize', () => { resize(); measure(); });
 new ResizeObserver(measure).observe(stack);
 /* anchors in the URL must move our stack, never the layer itself */
 content.addEventListener('scroll', () => { content.scrollTop = 0; });
-addEventListener('hashchange', () => { content.scrollTop = 0; const n = IDS.indexOf(location.hash.slice(1)); if (n >= 0) goTo(n); });
+addEventListener('hashchange', () => { content.scrollTop = 0; const h = location.hash.slice(1); if (STAFF[h]) { openPortal(h); return; } const n = IDS.indexOf(h); if (n >= 0) goTo(n); });
 function hideHint() { const h = document.getElementById('hint'); h.style.opacity = 0; h.style.transform = 'translate(-50%, 10px)'; h.style.pointerEvents = 'none'; }
 document.getElementById('hint').addEventListener('click', () => goTo(section + 1));
 document.addEventListener('click', e => {
@@ -946,7 +974,7 @@ function openDrawer(id) { closeDrawers(); document.getElementById(id).classList.
 function closeDrawers() { document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open')); document.getElementById('drawerScrim').classList.remove('open'); }
 document.getElementById('drawerScrim').addEventListener('click', closeDrawers);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeDrawers));
-addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); });
+addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); else if (portalEl.classList.contains('open')) closePortal(); });
 
 /* =====================================================================
    TOAST
@@ -1090,8 +1118,80 @@ document.getElementById('slidePrev').addEventListener('click', () => { slide = (
 document.getElementById('slideNext').addEventListener('click', () => { slide = (slide + 1) % SHEETS.length; renderPlayer(); });
 document.addEventListener('click', e => { const d = e.target.closest('[data-slide]'); if (d) { slide = +d.dataset.slide; renderPlayer(); } });
 
-const checkoutEl = document.getElementById('checkout');
-const overlayOpen = () => checkoutEl.classList.contains('open');
+const checkoutEl = document.getElementById('checkout'), portalEl = document.getElementById('portal');
+const overlayOpen = () => checkoutEl.classList.contains('open') || portalEl.classList.contains('open');
+
+/* =====================================================================
+   STAFF — Admin account and Developer, each with its own sign-in.
+   Demo credentials live here until real auth (Supabase) is connected.
+   ===================================================================== */
+const STAFF = {
+  admin: { title: 'Admin account', kicker: 'Staff · admin', email: 'admin@learnwithwhy.in', pass: 'Admin@2026', blurb: 'Customers, unlocked sheets, prices and licences.' },
+  developer: { title: 'Developer', kicker: 'Staff · developer', email: 'dev@learnwithwhy.in', pass: 'Dev@2026', blurb: 'Where things live and what plugs in where.' },
+};
+let portalKind = 'admin';
+const staffSession = () => { try { return JSON.parse(sessionStorage.getItem('lww_staff') || 'null'); } catch (_) { return null; } };
+function openPortal(kind) {
+  portalKind = kind; closeDrawers(); closeModal(); closeCheckout();
+  renderPortal(); portalEl.classList.add('open'); portalEl.setAttribute('aria-hidden', 'false'); portalEl.scrollTop = 0;
+}
+function closePortal() { portalEl.classList.remove('open'); portalEl.setAttribute('aria-hidden', 'true'); }
+function renderPortal() {
+  const cfg = STAFF[portalKind], who = staffSession(), inn = who && who.kind === portalKind;
+  document.getElementById('portalKicker').textContent = cfg.kicker; document.getElementById('portalTitle').textContent = cfg.title;
+  document.getElementById('portalOut').hidden = !inn;
+  const body = document.getElementById('portalBody');
+  if (!inn) {
+    body.innerHTML = `<form class="panel portal-login" id="portalForm" novalidate><h3 class="card-title" style="margin-bottom:6px">Sign in as ${portalKind}</h3><p class="auth-sub">${esc(cfg.blurb)}</p><div id="portalAlert"></div>
+      <div class="field"><label for="stEmail">Email</label><input id="stEmail" type="email" autocomplete="username" placeholder="${cfg.email}"><div class="err"></div></div>
+      <div class="field"><label for="stPass">Password</label><input id="stPass" type="password" autocomplete="current-password" placeholder="••••••••"><div class="err"></div></div>
+      <button type="submit" class="btn btn-primary btn-block">Sign in →</button>
+      <div class="demo-chip">Demo: <b style="letter-spacing:0">${cfg.email} · ${cfg.pass}</b></div></form>`;
+    document.getElementById('portalForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const em = document.getElementById('stEmail').value.trim().toLowerCase(), pw = document.getElementById('stPass').value;
+      if (em !== cfg.email || pw !== cfg.pass) { document.getElementById('portalAlert').innerHTML = '<div class="alert err">That is not the ' + portalKind + ' email and password.</div>'; return; }
+      try { sessionStorage.setItem('lww_staff', JSON.stringify({ kind: portalKind, at: Date.now() })); } catch (_) {}
+      renderPortal(); toast('Signed in as ' + portalKind);
+    });
+    return;
+  }
+  body.innerHTML = portalKind === 'admin' ? adminView() : developerView();
+  body.querySelectorAll('[data-price]').forEach(inp => inp.addEventListener('change', () => {
+    const o = read('lww_prices', {}); const v = Math.max(0, parseInt(inp.value, 10) || 0); o[inp.dataset.price] = v; write('lww_prices', o);
+    const it = itemById(inp.dataset.price); if (it) it.price = v;
+    renderPlayer(); renderWorksheets(); renderBag(); toast('Price saved — ' + it.title + ' is now ' + (v === 0 ? 'free' : money(v)));
+  }));
+}
+function adminView() {
+  const us = users(), ownedAll = read('lww_owned', {});
+  const unlocked = Object.values(ownedAll).reduce((n, a) => n + a.length, 0);
+  const paid = Object.values(ownedAll).reduce((n, a) => n + a.filter(id => (itemById(id) || {}).price > 0).length, 0);
+  return `<div class="stat-row"><div class="stat"><b>${us.length}</b><span>Customers</span></div><div class="stat"><b>${unlocked}</b><span>Unlocked sheets</span></div><div class="stat"><b>${paid}</b><span>Paid unlocks</span></div><div class="stat"><b>${ITEMS.length}</b><span>Titles on the shelf</span></div></div>
+    <section class="panel"><p class="eyebrow">Customers</p>${us.length ? `<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Licence</th><th>Unlocked</th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><span class="pill">${esc(roleOf(u.role).label)}</span></td><td>${licence(roleOf(u.role).licence).label} · ${licence(roleOf(u.role).licence).copies}</td><td>${(ownedAll[u.email] || []).map(id => (itemById(id) || {}).title).filter(Boolean).map(esc).join(', ') || '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="cart-empty">No customers yet.</p>'}</section>
+    <section class="panel"><p class="eyebrow">Shelf · prices</p><p class="auth-sub">Change a price and it applies straight away (0 = free access sheet). Stored in this browser for the demo; the real shelf lives in the database.</p>
+      <table class="table"><thead><tr><th>Sheet</th><th>Class / subject</th><th>Ages</th><th>Price ₹</th></tr></thead><tbody>${ITEMS.map(it => `<tr><td>${esc(it.title)}</td><td>${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}</td><td>${esc(it.ages)}</td><td><input type="number" min="0" step="1" value="${it.price}" data-price="${it.id}"></td></tr>`).join('')}</tbody></table></section>
+    <section class="panel"><p class="eyebrow">Licences & roles</p><table class="table"><thead><tr><th>Role</th><th>Default licence</th><th>Copies</th><th>Price factor</th></tr></thead><tbody>${ROLES.map(r => `<tr><td>${r.label}</td><td>${licence(r.licence).label}</td><td>${licence(r.licence).copies}</td><td>× ${licence(r.licence).factor}</td></tr>`).join('')}</tbody></table></section>`;
+}
+function developerView() {
+  return `<section class="panel"><p class="eyebrow">Repository</p><div class="dev-list"><div><b>GitHub</b> — <a href="https://github.com/SumitDendage/kids-book-website" target="_blank" rel="noopener" style="color:#fff">SumitDendage/kids-book-website</a></div><div><b>This site</b> — <code>aura-clone/dist/index.html</code>, one file, no build step. Serve <code>dist/</code> with <code>node server.cjs</code>.</div><div><b>Frames</b> — <code>dist/frames-webp/</code> (960 landscape frames) · <code>dist/preview-frames/</code> (50 fox &amp; rabbit frames).</div></div></section>
+    <section class="panel"><p class="eyebrow">Where things live (top of the script)</p><div class="dev-list">
+      <div><b>CLASSES · SUBJECTS · CATALOGUE</b> — the shelf by class and subject; <code>price: 0</code> makes a free access sheet.</div>
+      <div><b>SHEETS · WORKSHEETS</b> — the player slides and the worksheet row.</div>
+      <div><b>ROLES · LICENCES</b> — Parent / Teacher / Tutor / School → default licence, copies, price factor.</div>
+      <div><b>PAY</b> — the payment methods shown at checkout.</div>
+      <div><b>Storage keys</b> — <code>lww_users</code>, <code>lww_session</code>, <code>lww_bag</code>, <code>lww_owned</code>, <code>lww_prices</code>, <code>lww_staff</code> (demo only, this browser).</div></div></section>
+    <section class="panel"><p class="eyebrow">Plugging in payments</p><div class="code">// checkout page → renderCheckout() → #payNow click
+// today: unlock(order ids)  ← demo
+// live:  create an order on your server, open the gateway, unlock on the webhook
+Razorpay  → https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/
+PayPal    → https://developer.paypal.com/docs/checkout/
+Stripe    → https://docs.stripe.com/payments/checkout</div></section>
+    <section class="panel"><p class="eyebrow">Backend (ready in the repo)</p><div class="dev-list"><div><b>Supabase</b> — <code>learn-with-why/supabase/migrations/</code>: profiles, entitlements, prints, RLS, <code>checkout()</code> and <code>consume_print()</code> functions.</div><div><b>VeryPDF DRM</b> — <code>supabase/functions/drm-protect/</code>: protected copies with the licence's print count.</div><div><b>Staff sign-in</b> — demo credentials in <code>STAFF</code>; replace with Supabase Auth roles before launch.</div></div></section>`;
+}
+document.addEventListener('click', e => { const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); openPortal(a.dataset.portal); } });
+document.getElementById('portalClose').addEventListener('click', closePortal);
+document.getElementById('portalOut').addEventListener('click', () => { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); });
 
 /* ---------- checkout: a page of its own; Razorpay / PayPal / Stripe are shown, not wired yet ---------- */
 const PAY = [
@@ -1244,6 +1344,9 @@ const WHYS = ['Why do foxes have such fluffy tails?', 'Why is the sky blue and n
 })();
 document.getElementById('year').textContent = new Date().getFullYear();
 
+/* prices the admin changed in this browser */
+(function applyPrices() { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); })();
+
 /* =====================================================================
    BOOT
    ===================================================================== */
@@ -1260,7 +1363,7 @@ resize(); loadFrame(0); pump(); requestAnimationFrame(draw);
       clearInterval(t);
       document.getElementById('veil').classList.add('gone');
       body.dataset.stage = 'site';
-      content.scrollTop = 0; measure(); const h = IDS.indexOf(location.hash.slice(1)); target = h > 0 ? clamp(chapters[h].offsetTop) : 0; current = target; lastY = -1; onFrame();
+      content.scrollTop = 0; measure(); if (STAFF[location.hash.slice(1)]) openPortal(location.hash.slice(1)); const h = IDS.indexOf(location.hash.slice(1)); target = h > 0 ? clamp(chapters[h].offsetTop) : 0; current = target; lastY = -1; onFrame();
       clearTimeout(hintTimer); hintTimer = setTimeout(hideHint, 6000);
     }
   }, 100);
