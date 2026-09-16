@@ -134,11 +134,14 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; }
 .navbar { position: fixed; top: max(14px, env(safe-area-inset-top)); left: clamp(16px, 3vw, 40px); right: clamp(16px, 3vw, 40px); z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 12px; pointer-events: none; transition: opacity 0.6s var(--ease), transform 0.6s var(--ease); }
 .navbar > * { pointer-events: auto; }
 body[data-stage="boot"] .navbar { opacity: 0; transform: translateY(-16px); }
-.nav-links { display: none; align-items: center; gap: 4px; padding: 6px; border-radius: var(--r-pill); background: rgba(6, 14, 22, 0.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.08); }
-@media (min-width: 900px) { .nav-links { display: flex; } .nav-menu-btn { display: none !important; } }
-.nav-link { padding: 8px 13px; border-radius: var(--r-pill); color: var(--fg-muted); font-size: var(--fs-small); font-weight: 600; background: none; border: none; cursor: pointer; white-space: nowrap; transition: color var(--d-fast), background var(--d-fast); }
-.nav-link:hover, .nav-link.on { color: #fff; background: rgba(255,255,255,0.1); }
-.nav-link.bag { display: inline-flex; align-items: center; gap: 7px; }
+.nav-links { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); align-items: center; gap: 2px; padding: 7px 8px; border-radius: var(--r-pill); background: rgba(10, 13, 18, 0.86); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 12px 34px rgba(0,0,0,0.45); }
+@media (min-width: 1100px) { .nav-links { display: flex; } .nav-menu-btn { display: none !important; } }
+.nav-link { padding: 9px 14px; border-radius: var(--r-pill); color: #a9afb8; font-size: 0.86rem; font-weight: 500; background: none; border: none; cursor: pointer; white-space: nowrap; text-decoration: none; transition: color var(--d-fast); }
+.nav-link:hover { color: #fff; animation: jump 0.45s var(--ease); }
+.nav-link.on { color: #fff; }
+@keyframes jump { 0% { transform: translateY(0); } 40% { transform: translateY(-5px); } 100% { transform: translateY(0); } }
+.nav-link.bag { display: inline-flex; align-items: center; gap: 8px; margin-left: 6px; padding: 9px 16px; color: #fff; font-weight: 600; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.04); transition: background var(--d-fast), border-color var(--d-fast); }
+.nav-link.bag:hover { background: rgba(255,255,255,0.14); border-color: #fff; animation: none; }
 .nav-link.bag b { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); background: #fff; color: #14181c; font-size: 0.65rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; transition: transform var(--d-base) var(--ease); }
 .nav-link.bag b.pop { transform: scale(1.35); }
 .nav-menu-btn { display: inline-flex; }
@@ -214,7 +217,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 @media (max-width: 440px) { .roles { grid-template-columns: repeat(2, 1fr); } }
 .role { display: grid; gap: 2px; padding: 9px 8px; border-radius: var(--r-md); border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; transition: background var(--d-fast), border-color var(--d-fast); }
-.role input { position: absolute; opacity: 0; pointer-events: none; }
+.role { font-family: inherit; color: inherit; }
+#rolePick { margin-bottom: 14px; }
 .role span { font-size: var(--fs-small); font-weight: 700; }
 .role small { font-size: 0.62rem; color: var(--fg-dim); }
 .role.on { background: #fff; color: #14181c; border-color: #fff; }
@@ -442,6 +446,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
   .chapter-inner { transform: none !important; opacity: 1 !important; }
   .rise { opacity: 1; transform: none; }
   .hint i, .veil-line i { animation: none; }
+  .nav-link:hover { animation: none; }
   .quote-card { transition: opacity 0.3s; }
 }
 </style>
@@ -489,35 +494,33 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
             <div class="tabs" role="tablist">
               <button type="button" class="tab on" data-tab="signup" role="tab">Sign up</button>
               <button type="button" class="tab" data-tab="signin" role="tab">Sign in</button>
-              <button type="button" class="tab" data-tab="create" role="tab">Create account</button>
-              <button type="button" class="tab" data-tab="forgot" role="tab">Forgot password</button>
             </div>
             <form id="authForm" novalidate>
-              <div class="step" id="authStep" data-for="signup create"><i class="on"></i><i></i><span id="authStepText">Step 1 of 2</span></div>
               <h2 class="card-title" id="authTitle">Let curiosity in.</h2>
               <p class="auth-sub" id="authSub">Create your account to find your next adventure.</p>
-              <p class="for-email" id="forEmail" data-for="create" hidden>Creating the account for <b></b></p>
               <div id="authAlert"></div>
-              <div class="field" data-for="signup create"><label for="auName">Parent name</label><input id="auName" type="text" autocomplete="name" placeholder="Your name"><div class="err"></div></div>
-              <div class="field" data-for="signup"><label for="auKid">Child's age</label><input id="auKid" type="text" inputmode="numeric" placeholder="e.g. 5"><div class="err"></div></div>
-              <div class="field" data-for="signup"><label>I am a</label><div class="roles" id="auRoles">
-                <label class="role on"><input type="radio" name="role" value="parent" checked><span>Parent</span><small>1 printed copy</small></label>
-                <label class="role"><input type="radio" name="role" value="teacher"><span>Teacher</span><small>30 copies</small></label>
-                <label class="role"><input type="radio" name="role" value="tutor"><span>Tutor</span><small>10 copies</small></label>
-                <label class="role"><input type="radio" name="role" value="school"><span>School</span><small>120 copies</small></label>
-              </div><div class="err"></div></div>
-              <div class="field" data-for="signup signin create forgot"><label for="auEmail">Email address</label><input id="auEmail" type="email" autocomplete="email" placeholder="you@example.com"><div class="err"></div></div>
-              <div class="field" data-for="signin create reset"><label for="auPass">Password</label><div class="pw-wrap"><input id="auPass" type="password" autocomplete="current-password" placeholder="At least 8 characters"><button type="button" class="pw-toggle" id="pwToggle">SHOW</button></div><div class="err"></div></div>
-              <div class="field" data-for="create reset"><label for="auConfirm">Confirm password</label><input id="auConfirm" type="password" autocomplete="new-password" placeholder="Once more"><div class="err"></div></div>
+              <div class="field" data-for="signup"><label for="auName">Your name</label><input id="auName" type="text" autocomplete="name" placeholder="Your name"><div class="err"></div></div>
+              <div class="field" data-for="signup signin forgot"><label for="auEmail">Email address</label><input id="auEmail" type="email" autocomplete="email" placeholder="you@example.com"><div class="err"></div></div>
+              <div class="field" data-for="signup signin reset"><label for="auPass">Password</label><div class="pw-wrap"><input id="auPass" type="password" autocomplete="current-password" placeholder="At least 8 characters"><button type="button" class="pw-toggle" id="pwToggle">SHOW</button></div><div class="err"></div></div>
+              <div class="field" data-for="signup reset"><label for="auConfirm">Confirm password</label><input id="auConfirm" type="password" autocomplete="new-password" placeholder="Once more"><div class="err"></div></div>
               <div class="field" data-for="code"><label for="auCode">Reset code</label><input id="auCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000"><div class="demo-chip">Demo code: <b id="demoCode">000000</b></div><div class="err"></div></div>
               <div class="between" data-for="signin"><label class="check"><input type="checkbox" id="auRemember" checked> Keep me signed in</label><button type="button" class="link" data-tab="forgot">Forgot password?</button></div>
-              <button type="submit" class="btn btn-primary btn-block" id="authSubmit">Continue to create account →</button>
+              <button type="submit" class="btn btn-primary btn-block" id="authSubmit">Create account →</button>
               <p class="switch" id="authSwitch"></p>
             </form>
           </div>
           <div class="signed">
             <h2 class="card-title">You're in, <span id="signedName"></span>.</h2>
-            <p class="auth-sub"><span id="signedRole"></span> account — your bag and unlocked sheets are kept with it.</p>
+            <div id="rolePick">
+              <p class="auth-sub">One more thing — who are the sheets for? This sets your print licence.</p>
+              <div class="roles" id="auRoles">
+                <button type="button" class="role" data-role="parent"><span>Parent</span><small>1 printed copy</small></button>
+                <button type="button" class="role" data-role="teacher"><span>Teacher</span><small>30 copies</small></button>
+                <button type="button" class="role" data-role="tutor"><span>Tutor</span><small>10 copies</small></button>
+                <button type="button" class="role" data-role="school"><span>School</span><small>120 copies</small></button>
+              </div>
+            </div>
+            <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your bag and unlocked sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
             <div class="btn-row"><button type="button" class="btn btn-primary" data-go="3">Explore the sheets →</button><button type="button" class="btn btn-ghost" id="signOutBtn">Sign out</button></div>
           </div>
         </div>
@@ -577,7 +580,6 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
           <button type="button" class="icon-btn" id="slideNext" aria-label="Next sheet">→</button>
         </div>
       </div>
-      <p class="rise" style="--i:2;text-align:center;margin:18px 0 0"><button type="button" class="btn btn-primary" data-shop="">Browse the whole shelf — every class, every subject →</button></p>
       <div class="ws-block">
       <div class="ws-head">
         <div>
@@ -647,27 +649,6 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 <button type="button" class="hint" id="hint">Scroll to discover <i>↓</i></button>
 <div class="progress"><i></i></div>
 <div class="toast" id="toast"></div>
-
-<!-- the shop: opens over the site, scrolls on its own, the fox and rabbit behind -->
-<div class="shop" id="shop" aria-hidden="true">
-  <canvas class="shop-bg" id="shopBg" aria-hidden="true"></canvas>
-  <div class="shop-shade"></div>
-  <header class="shop-bar">
-    <div><p class="eyebrow">The shelf</p><h2 class="card-title">Pick a class. Pick a subject.</h2></div>
-    <div class="shop-actions"><button type="button" class="btn btn-ghost" id="shopBagBtn">Bag · <b id="shopBagCount">0</b></button><button type="button" class="icon-btn" id="shopClose" aria-label="Back to the story">✕</button></div>
-  </header>
-  <div class="shop-body">
-    <aside class="panel shop-side">
-      <p class="side-title">Classes</p><div class="side-list" id="shopClasses"></div>
-      <p class="side-title">Subjects</p><div class="side-list" id="shopSubjects"></div>
-      <p class="side-note">Every class starts with a free sheet. Try it, then unlock the rest.</p>
-    </aside>
-    <main class="shop-main">
-      <div class="shop-head"><h3 id="shopTitle"></h3><p id="shopSub"></p></div>
-      <div class="shop-grid" id="shopGrid"></div>
-    </main>
-  </div>
-</div>
 
 <!-- the payment page -->
 <div class="shop" id="checkout" aria-hidden="true">
@@ -954,8 +935,8 @@ document.addEventListener('click', e => {
    ===================================================================== */
 const navLinks = document.getElementById('navLinks'), menuList = document.getElementById('menuList');
 const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'testimonials'];
-navLinks.innerHTML = NAV.map((l, i) => `<a class="nav-link" href="#${IDS[i]}" data-nav="${i}" data-go="${i}">${l}</a>`).join('') + '<button type="button" class="nav-link" data-shop="">Shop</button><button type="button" class="nav-link bag" id="bagBtn">Bag <b id="bagCount">0</b></button>';
-menuList.innerHTML = NAV.map((l, i) => `<button type="button" data-nav="${i}" data-go="${i}">${l}</button>`).join('') + '<button type="button" data-shop="">Shop all sheets</button><button type="button" id="bagBtn2">Bag</button>';
+navLinks.innerHTML = NAV.map((l, i) => `<a class="nav-link" href="#${IDS[i]}" data-nav="${i}" data-go="${i}">${l}</a>`).join('') + '<button type="button" class="nav-link bag" id="bagBtn">Bag <b id="bagCount">0</b></button>';
+menuList.innerHTML = NAV.map((l, i) => `<button type="button" data-nav="${i}" data-go="${i}">${l}</button>`).join('') + '<button type="button" id="bagBtn2">Bag</button>';
 document.getElementById('menuBtn').addEventListener('click', () => openDrawer('menuDrawer'));
 document.getElementById('bagBtn').addEventListener('click', () => openDrawer('bagDrawer'));
 document.getElementById('bagBtn2').addEventListener('click', () => openDrawer('bagDrawer'));
@@ -963,7 +944,7 @@ function openDrawer(id) { closeDrawers(); document.getElementById(id).classList.
 function closeDrawers() { document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open')); document.getElementById('drawerScrim').classList.remove('open'); }
 document.getElementById('drawerScrim').addEventListener('click', closeDrawers);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeDrawers));
-addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); else if (shop.classList.contains('open')) closeShop(); });
+addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); });
 
 /* =====================================================================
    TOAST
@@ -975,36 +956,47 @@ function toast(msg) { const t = document.getElementById('toast'); t.textContent 
    CHAPTER 01 — sign up / sign in / forgot (demo accounts in this browser)
    ===================================================================== */
 const authCard = document.getElementById('authCard'), authForm = document.getElementById('authForm');
-let authView = 'signup', resetCode = null, pendingAfterSignIn = null, pendingSignup = null;
-/* Four ways in, side by side: Sign up (who it's for) → Create account (the
-   password), or Create account on its own; Sign in; Forgot password → code
-   → new password. */
+let authView = 'signup', resetCode = null, pendingAfterSignIn = null;
+/* Two ways in: Sign up (name, email, password) and Sign in; Forgot password
+   → code → new password hangs off Sign in. The role is asked after. */
 const COPY = {
-  signup: { title: 'Let curiosity in.', sub: 'Step 1 of 2 — tell us who the sheets are for.', submit: 'Continue to create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button>' },
-  create: { title: 'Create your account.', sub: 'Set a password and you are in — your bag and unlocked sheets stay with it.', submit: 'Create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button>' },
+  signup: { title: 'Let curiosity in.', sub: 'Create your account to find your next adventure.', submit: 'Create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button>' },
   signin: { title: 'Welcome back.', sub: 'Sign in to reach your bag and unlocked sheets.', submit: 'Sign in →', sw: 'New here? <button type="button" class="link" data-tab="signup">Sign up</button>' },
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will send a six-digit code.', submit: 'Send reset code →', sw: 'Remembered it? <button type="button" class="link" data-tab="signin">Sign in</button>' },
   code: { title: 'Enter the six-digit code.', sub: 'Demo: the code appears on screen instead of by email.', submit: 'Verify code →', sw: '<button type="button" class="link" data-tab="forgot">Use a different email</button>' },
   reset: { title: 'Create a new password.', sub: 'Eight characters or more, with a number and a capital letter.', submit: 'Save new password →', sw: '<button type="button" class="link" data-tab="signin">Back to sign in</button>' },
 };
-const TAB_OF = { signup: 'signup', create: 'create', signin: 'signin', forgot: 'forgot', code: 'forgot', reset: 'forgot' };
+const TAB_OF = { signup: 'signup', signin: 'signin', forgot: 'signin', code: 'signin', reset: 'signin' };
 function setAuthView(v) {
   authView = v;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === TAB_OF[v]));
   document.getElementById('authTitle').textContent = COPY[v].title; document.getElementById('authSub').textContent = COPY[v].sub;
   document.getElementById('authSubmit').textContent = COPY[v].submit; document.getElementById('authSwitch').innerHTML = COPY[v].sw;
   authForm.querySelectorAll('[data-for]').forEach(f => { f.style.display = f.dataset.for.split(' ').includes(v) ? '' : 'none'; });
-  /* step marker for the two-step sign up */
-  const dots = document.querySelectorAll('#authStep i'); dots[0].classList.add('on'); dots[1].classList.toggle('on', v === 'create');
-  document.getElementById('authStepText').textContent = v === 'create' ? 'Step 2 of 2' : 'Step 1 of 2';
-  const fe = document.getElementById('forEmail'); fe.hidden = !(v === 'create' && pendingSignup); if (pendingSignup) fe.querySelector('b').textContent = pendingSignup.email;
   document.getElementById('auPass').autocomplete = v === 'signin' ? 'current-password' : 'new-password';
   authAlert(null); authForm.querySelectorAll('.field').forEach(f => { f.classList.remove('bad'); f.querySelector('.err').textContent = ''; });
 }
 function authAlert(a) { document.getElementById('authAlert').innerHTML = a ? `<div class="alert ${a.type}">${esc(a.msg)}</div>` : ''; }
 function fieldError(id, msg) { const f = document.getElementById(id).closest('.field'); f.classList.toggle('bad', !!msg); f.querySelector('.err').textContent = msg || ''; return !!msg; }
 document.addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) setAuthView(t.dataset.tab); });
-document.addEventListener('change', e => { if (e.target.name === 'role') document.querySelectorAll('.role').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); });
+/* the role question: shown once after sign up, changeable later */
+function showRole() {
+  document.getElementById('signedName').textContent = session.name;
+  const has = !!session.role;
+  document.getElementById('rolePick').hidden = has;
+  document.getElementById('roleLine').hidden = !has;
+  if (has) document.getElementById('signedRole').textContent = roleOf(session.role).label;
+  document.querySelectorAll('.role').forEach(b => b.classList.toggle('on', b.dataset.role === session.role));
+}
+document.addEventListener('click', e => {
+  const r = e.target.closest('[data-role]');
+  if (r && session) {
+    session.role = r.dataset.role; const u = findUser(session.email); if (u) { u.role = session.role; saveUser(u); }
+    try { (localStorage.getItem('lww_session') ? localStorage : sessionStorage).setItem('lww_session', JSON.stringify(session)); } catch (_) {}
+    showRole(); toast(roleOf(session.role).label + ' account — ' + licence(roleOf(session.role).licence).copies + ' printed ' + (licence(roleOf(session.role).licence).copies === 1 ? 'copy' : 'copies') + ' per sheet');
+  }
+  if (e.target.id === 'roleChange') { session.role = null; showRole(); }
+});
 document.getElementById('pwToggle').addEventListener('click', () => { const p = document.getElementById('auPass'); p.type = p.type === 'password' ? 'text' : 'password'; document.getElementById('pwToggle').textContent = p.type === 'password' ? 'SHOW' : 'HIDE'; });
 const users = () => read('lww_users', []);
 const findUser = email => users().find(u => u.email === String(email || '').trim().toLowerCase()) || null;
@@ -1012,28 +1004,20 @@ function saveUser(u) { const list = users(); const i = list.findIndex(x => x.ema
 function strongPass(p) { if (p.length < 8) return 'At least 8 characters.'; if (!/[A-Z]/.test(p) || !/[0-9]/.test(p)) return 'Add a capital letter and a number.'; return ''; }
 authForm.addEventListener('submit', e => {
   e.preventDefault(); authAlert(null);
-  const email = document.getElementById('auEmail').value.trim().toLowerCase(), pass = document.getElementById('auPass').value, confirm = document.getElementById('auConfirm').value, name = document.getElementById('auName').value.trim(), kid = document.getElementById('auKid').value.trim();
+  const email = document.getElementById('auEmail').value.trim().toLowerCase(), pass = document.getElementById('auPass').value, confirm = document.getElementById('auConfirm').value, name = document.getElementById('auName').value.trim();
   let bad = false;
   if (authView === 'signup') {
-    bad = fieldError('auName', name ? '' : 'Tell us your name.') | fieldError('auKid', !kid || /^\d{1,2}$/.test(kid) ? '' : 'Age in years, e.g. 5.') | fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.');
-    if (bad) return;
-    if (findUser(email)) { authAlert({ type: 'err', msg: 'That email already has an account. Sign in instead.' }); return; }
-    pendingSignup = { name, kid, email, role: (authForm.querySelector('input[name=role]:checked') || {}).value || 'parent' };
-    setAuthView('create');                       /* step 2: the password */
-  } else if (authView === 'create') {
     bad = fieldError('auName', name ? '' : 'Tell us your name.') | fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', strongPass(pass)) | fieldError('auConfirm', confirm === pass ? '' : 'Both passwords must match.');
     if (bad) return;
     if (findUser(email)) { authAlert({ type: 'err', msg: 'That email already has an account. Sign in instead.' }); return; }
-    const role = pendingSignup && pendingSignup.email === email ? pendingSignup.role : ((authForm.querySelector('input[name=role]:checked') || {}).value || 'parent');
-    saveUser({ name, email, role, kid: pendingSignup && pendingSignup.email === email ? pendingSignup.kid : kid, pw: hash(pass), created: Date.now() });
-    pendingSignup = null;
-    signedIn({ name, email, role }, 'Account created — welcome, ' + name, true);
+    saveUser({ name, email, role: null, pw: hash(pass), created: Date.now() });
+    signedIn({ name, email, role: null }, 'Account created — welcome, ' + name, true);
   } else if (authView === 'signin') {
     bad = fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', pass ? '' : 'Enter your password.');
     if (bad) return;
     const u = findUser(email);
     if (!u || u.pw !== hash(pass)) { authAlert({ type: 'err', msg: 'We could not match that email and password. New here? Sign up instead.' }); return; }
-    signedIn({ name: u.name, email: u.email, role: u.role || 'parent' }, 'Signed in — welcome back, ' + u.name, document.getElementById('auRemember').checked);
+    signedIn({ name: u.name, email: u.email, role: u.role || null }, 'Signed in — welcome back, ' + u.name, document.getElementById('auRemember').checked);
   } else if (authView === 'forgot') {
     if (fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')) return;
     if (!findUser(email)) { authAlert({ type: 'err', msg: 'No account uses that email. Create one instead.' }); return; }
@@ -1052,14 +1036,14 @@ authForm.addEventListener('submit', e => {
 function signedIn(s, msg, remember = true) {
   session = s; authForm.reset();
   try { if (remember) localStorage.setItem('lww_session', JSON.stringify(s)); else { localStorage.removeItem('lww_session'); sessionStorage.setItem('lww_session', JSON.stringify(s)); } } catch (_) {}
-  authCard.classList.add('is-signed'); document.getElementById('signedName').textContent = s.name; document.getElementById('signedRole').textContent = roleOf(s.role).label;
+  authCard.classList.add('is-signed'); showRole();
   renderPlayer(); renderWorksheets(); renderBag(); toast(msg);
   const p = pendingAfterSignIn; pendingAfterSignIn = null;
   if (p) setTimeout(p, 400);
 }
 document.getElementById('signOutBtn').addEventListener('click', () => { session = null; localStorage.removeItem('lww_session'); sessionStorage.removeItem('lww_session'); authCard.classList.remove('is-signed'); setAuthView('signin'); renderPlayer(); renderWorksheets(); toast('Signed out. See you soon.'); });
 /* something that needs an account: remember it, go to chapter 01, say why */
-function requireSignIn(then, why) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(users().length ? 'signin' : 'signup'); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
+function requireSignIn(then, why) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); goTo(0); setAuthView(users().length ? 'signin' : 'signup'); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
 
 /* =====================================================================
    CHAPTER 02 — the fox and rabbit preview + sheet carousel
@@ -1093,61 +1077,19 @@ const preview = (() => {
   btn.addEventListener('click', () => { if (p.playing) p.pause(); else p.play(); btn.textContent = p.playing ? 'Pause preview ‖' : 'Play preview ▶'; });
   return { play() { p.play(); btn.textContent = 'Pause preview ‖'; }, pause() { p.pause(); } };
 })();
-const shopPlayer = makePlayer(document.getElementById('shopBg'), 12);
 let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
   const s = SHEETS[slide], owned = ownedOf().includes(s.id);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p><button type="button" class="btn btn-primary" data-shop="${s.cls || ''}">${owned ? 'Open the shelf →' : 'Explore this sheet →'}</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p><button type="button" class="btn btn-primary" data-open="${s.id}">${owned ? 'Open sheet →' : 'Explore this sheet →'}</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
 document.getElementById('slideNext').addEventListener('click', () => { slide = (slide + 1) % SHEETS.length; renderPlayer(); });
 document.addEventListener('click', e => { const d = e.target.closest('[data-slide]'); if (d) { slide = +d.dataset.slide; renderPlayer(); } });
 
-/* =====================================================================
-   THE SHOP — classes → subjects → sheets, free first. Opens over the
-   site and scrolls on its own; the landscape scroll pauses meanwhile.
-   ===================================================================== */
-const shop = document.getElementById('shop'), checkoutEl = document.getElementById('checkout');
-let shopClass = CLASSES[0].id, shopSubject = 'all';
-const overlayOpen = () => shop.classList.contains('open') || checkoutEl.classList.contains('open');
-function openShop(cls) {
-  if (cls && classById(cls)) { shopClass = cls; shopSubject = 'all'; }
-  closeDrawers(); closeModal();
-  renderShop(); shop.classList.add('open'); shop.setAttribute('aria-hidden', 'false'); shop.scrollTop = 0;
-  shopPlayer.play();
-}
-function closeShop() { shop.classList.remove('open'); shop.setAttribute('aria-hidden', 'true'); shopPlayer.pause(); }
-function renderShop() {
-  const owned = ownedOf();
-  document.getElementById('shopClasses').innerHTML = CLASSES.map(c => `<button type="button" class="side-btn${c.id === shopClass ? ' on' : ''}" data-shop-class="${c.id}">${esc(c.label)}<small>${esc(c.ages)}</small></button>`).join('');
-  const subjectsHere = SUBJECTS.filter(x => CATALOGUE.some(i => i.cls === shopClass && i.subjectId === x.id));
-  document.getElementById('shopSubjects').innerHTML = `<button type="button" class="side-btn${shopSubject === 'all' ? ' on' : ''}" data-shop-subject="all">All subjects</button>` + subjectsHere.map(x => `<button type="button" class="side-btn${x.id === shopSubject ? ' on' : ''}" data-shop-subject="${x.id}">${esc(x.label)}</button>`).join('');
-  const list = CATALOGUE.filter(i => i.cls === shopClass && (shopSubject === 'all' || i.subjectId === shopSubject)).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
-  const c = classById(shopClass);
-  document.getElementById('shopTitle').textContent = c.label + (shopSubject === 'all' ? '' : ' · ' + subjectById(shopSubject).label);
-  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · ages ' + c.ages + ' · the free one comes first';
-  document.getElementById('shopGrid').innerHTML = list.map((it, n) => {
-    const free = it.price === 0, mine = owned.includes(it.id);
-    return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
-      <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · Preview</small>${mine ? '<b class="tag">Unlocked</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Paid</b>'}</div>
-      <p class="meta">${esc(c.label)} · ${esc(it.subject)} · ${it.pages} pages</p>
-      <h3 class="card-title">${esc(it.title)}</h3>
-      <p>${esc(it.blurb)}</p>
-      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? 'Unlocked ✓' : free ? 'Free access sheet' : money(it.price)}</span>
-        ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Unlock</button>`}</div>
-    </article>`;
-  }).join('');
-  document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
-}
-document.addEventListener('click', e => {
-  const o = e.target.closest('[data-shop]'); if (o) { openShop(o.dataset.shop); return; }
-  const c = e.target.closest('[data-shop-class]'); if (c) { shopClass = c.dataset.shopClass; shopSubject = 'all'; renderShop(); return; }
-  const sb = e.target.closest('[data-shop-subject]'); if (sb) { shopSubject = sb.dataset.shopSubject; renderShop(); return; }
-});
-document.getElementById('shopClose').addEventListener('click', closeShop);
-document.getElementById('shopBagBtn').addEventListener('click', () => openDrawer('bagDrawer'));
+const checkoutEl = document.getElementById('checkout');
+const overlayOpen = () => checkoutEl.classList.contains('open');
 
 /* ---------- checkout: a page of its own; Razorpay / PayPal / Stripe are shown, not wired yet ---------- */
 const PAY = [
@@ -1271,7 +1213,7 @@ document.addEventListener('click', e => {
 function unlock(ids, msg, why) {
   if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
   own(ids); ids.forEach(id => delete cart[id]); write('lww_bag', cart);
-  closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
+  closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); toast(msg);
 }
 function addToBag(id, lic) { cart[id] = { qty: (cart[id] ? cart[id].qty : 0) + 1, licence: lic || (cart[id] ? cart[id].licence : defaultLicence()) }; write('lww_bag', cart); renderBag(); toast('Added to your bag — the fox approves'); const b = document.getElementById('bagCount'); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
 function renderBag() {
@@ -1282,7 +1224,6 @@ function renderBag() {
     : rows.map(r => `<div class="cart-row"><div class="paper-mini">${esc(r.it.glyph.slice(0, 5))}</div><div class="nm">${esc(r.it.title)}<span>${esc(r.it.subject)} · ${money(r.it.price * licence(r.q.licence).factor)}</span><select data-lic="${r.it.id}">${LICENCES.map(l => `<option value="${l.id}"${l.id === r.q.licence ? ' selected' : ''}>${l.label} · ${l.copies === 1 ? '1 copy' : l.copies + ' copies'}</option>`).join('')}</select></div><div class="qty"><button type="button" data-qty="${r.it.id}" data-d="-1" aria-label="Remove one">−</button><b>${r.q.qty}</b><button type="button" data-qty="${r.it.id}" data-d="1" aria-label="Add one">+</button></div></div>`).join('')
       + `<div class="cart-total"><span>Total</span><span>${money(total)}</span></div><button type="button" class="btn btn-primary btn-block" id="payBag">Pay now →</button><p class="cart-empty" style="font-size:.78rem">You choose Razorpay, PayPal or Stripe on the next page.</p>`;
   const pay = document.getElementById('payBag'); if (pay) pay.addEventListener('click', () => openCheckout(rows.map(r => ({ id: r.it.id, licence: r.q.licence, qty: r.q.qty }))));
-  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = document.getElementById('bagCount').textContent;
 }
 document.addEventListener('click', e => { const q = e.target.closest('[data-qty]'); if (!q) return; const id = q.dataset.qty, n = (cart[id] ? cart[id].qty : 0) + (+q.dataset.d); if (n <= 0) delete cart[id]; else cart[id].qty = n; write('lww_bag', cart); renderBag(); });
 document.addEventListener('change', e => { const s = e.target.closest('[data-lic]'); if (s && cart[s.dataset.lic]) { cart[s.dataset.lic].licence = s.value; write('lww_bag', cart); renderBag(); } });
@@ -1305,7 +1246,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
    BOOT
    ===================================================================== */
 setAuthView(session ? 'signin' : 'signup');
-if (session) { authCard.classList.add('is-signed'); document.getElementById('signedName').textContent = session.name; document.getElementById('signedRole').textContent = roleOf(session.role).label; }
+if (session) { authCard.classList.add('is-signed'); showRole(); }
 renderPlayer(); renderWorksheets(); renderBag();
 resize(); loadFrame(0); pump(); requestAnimationFrame(draw);
 (function boot() {
