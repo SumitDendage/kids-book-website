@@ -1124,10 +1124,10 @@ const overlayOpen = () => checkoutEl.classList.contains('open') || portalEl.clas
    Demo credentials live here until real auth (Supabase) is connected.
    ===================================================================== */
 const STAFF = {
-  admin: { title: 'Admin account', kicker: 'Staff · admin', code: 'ADMIN-2026', blurb: 'Customers, unlocked sheets, prices and licences.' },
-  developer: { title: 'Developer', kicker: 'Staff · developer', code: 'DEV-2026', blurb: 'Where things live and what plugs in where.' },
+  admin: { title: 'Admin account', kicker: 'Staff · admin', blurb: 'Customers, unlocked sheets, prices and licences.' },
+  developer: { title: 'Developer', kicker: 'Staff · developer', blurb: 'Where things live and what plugs in where.' },
 };
-/* staff accounts: sign up with the access code for that role, then sign in */
+/* staff accounts: sign up, then sign in (admin and developer kept apart) */
 const staffUsers = () => read('lww_staff_users', []);
 const findStaff = (kind, email) => staffUsers().find(u => u.kind === kind && u.email === email) || null;
 let portalKind = 'admin', portalView = 'signin';
@@ -1150,7 +1150,6 @@ function renderPortal() {
       ${up ? '<div class="field"><label for="stName">Name</label><input id="stName" type="text" autocomplete="name" placeholder="Your name"><div class="err"></div></div>' : ''}
       <div class="field"><label for="stEmail">Email</label><input id="stEmail" type="email" autocomplete="username" placeholder="you@learnwithwhy.in"><div class="err"></div></div>
       <div class="field"><label for="stPass">Password</label><input id="stPass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${up ? 'At least 8 characters' : '••••••••'}"><div class="err"></div></div>
-      ${up ? '<div class="field"><label for="stCode">Access code</label><input id="stCode" type="text" placeholder="Given to you by Learn With Why"><div class="err"></div><div class="demo-chip">Demo code: <b>' + cfg.code + '</b></div></div>' : ''}
       <button type="submit" class="btn btn-primary btn-block">${up ? 'Create account →' : 'Sign in →'}</button>
       <p class="switch">${up ? 'Already have one? <button type="button" class="link" data-portal-view="signin">Sign in</button>' : 'New here? <button type="button" class="link" data-portal-view="signup">Sign up</button>'}</p></form>`;
     document.getElementById('portalForm').addEventListener('submit', e => {
@@ -1158,10 +1157,9 @@ function renderPortal() {
       const em = document.getElementById('stEmail').value.trim().toLowerCase(), pw = document.getElementById('stPass').value, alert = m => { document.getElementById('portalAlert').innerHTML = '<div class="alert err">' + esc(m) + '</div>'; };
       if (!isEmail(em)) return alert('Enter a valid email address.');
       if (up) {
-        const name = document.getElementById('stName').value.trim(), code = document.getElementById('stCode').value.trim().toUpperCase();
+        const name = document.getElementById('stName').value.trim();
         if (!name) return alert('Tell us your name.');
         const weak = strongPass(pw); if (weak) return alert(weak);
-        if (code !== cfg.code) return alert('That access code is not right for a ' + portalKind + ' account.');
         if (findStaff(portalKind, em)) return alert('That email already has a ' + portalKind + ' account. Sign in instead.');
         write('lww_staff_users', staffUsers().concat([{ kind: portalKind, name, email: em, pw: hash(pw), created: Date.now() }]));
       } else {
