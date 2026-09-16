@@ -962,7 +962,7 @@ let authView = 'signup', resetCode = null, pendingAfterSignIn = null;
 /* Two ways in: Sign up (name, email, password) and Sign in; Forgot password
    → code → new password hangs off Sign in. The role is asked after. */
 const COPY = {
-  signup: { title: 'Let curiosity in.', sub: 'Create your account to find your next adventure.', submit: 'Create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button>' },
+  signup: { title: 'Let curiosity in.', sub: 'Create your account to find your next adventure.', submit: 'Create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button> &nbsp;·&nbsp; <button type="button" class="link" data-tab="forgot">Forgot password?</button>' },
   signin: { title: 'Welcome back.', sub: 'Sign in to reach your bag and unlocked sheets.', submit: 'Sign in →', sw: 'New here? <button type="button" class="link" data-tab="signup">Sign up</button>' },
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will send a six-digit code.', submit: 'Send reset code →', sw: 'Remembered it? <button type="button" class="link" data-tab="signin">Sign in</button>' },
   code: { title: 'Enter the six-digit code.', sub: 'Demo: the code appears on screen instead of by email.', submit: 'Verify code →', sw: '<button type="button" class="link" data-tab="forgot">Use a different email</button>' },
