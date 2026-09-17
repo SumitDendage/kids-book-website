@@ -840,6 +840,16 @@ const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
 let session = read('lww_session', null) || (() => { try { const r = sessionStorage.getItem('lww_session'); return r ? JSON.parse(r) : null; } catch (_) { return null; } })();
 let cart = read('lww_bag', {});                 /* { id: { qty, licence } } */
+/* telemetry for the staff panels — all in this browser for the demo */
+const SITE_VERSION = '2026.09.17';
+const BOOT_AT = Date.now();
+function pushLog(key, entry, cap = 400) { const l = read(key, []); l.push(entry); if (l.length > cap) l.splice(0, l.length - cap); write(key, l); }
+function logEvent(type, data) { pushLog('lww_events', Object.assign({ type, at: Date.now(), who: session ? session.email : null }, data || {})); }
+function audit(actor, action, detail) { pushLog('lww_audit', { at: Date.now(), actor, action, detail: detail || '' }); }
+addEventListener('error', e => pushLog('lww_errors', { at: Date.now(), msg: String(e.message || e), file: e.filename, line: e.lineno, stack: e.error && e.error.stack ? String(e.error.stack).slice(0, 1200) : '' }, 100));
+addEventListener('unhandledrejection', e => pushLog('lww_errors', { at: Date.now(), msg: 'Unhandled promise: ' + String(e.reason && e.reason.message || e.reason), stack: e.reason && e.reason.stack ? String(e.reason.stack).slice(0, 1200) : '' }, 100));
+const _fetch = window.fetch.bind(window);
+window.fetch = async (url, opt) => { const t0 = performance.now(); try { const r = await _fetch(url, opt); pushLog('lww_api', { at: Date.now(), url: String(url).slice(0, 160), status: r.status, ms: Math.round(performance.now() - t0) }, 200); return r; } catch (err) { pushLog('lww_api', { at: Date.now(), url: String(url).slice(0, 160), status: 0, ms: Math.round(performance.now() - t0), error: String(err.message || err) }, 200); throw err; } };
 const ownedOf = () => (session ? read('lww_owned', {})[session.email] || [] : []);
 const subsOf = () => (session ? read('lww_subs', {})[session.email] || [] : []);
 const activeSubs = () => subsOf().filter(x => x.end > Date.now());
@@ -1087,12 +1097,14 @@ authForm.addEventListener('submit', e => {
     if (bad) return;
     if (findUser(email)) { authAlert({ type: 'err', msg: 'That email already has an account. Sign in instead.' }); return; }
     saveUser({ name, email, role: null, pw: hash(pass), created: Date.now() });
+    logEvent('signup', { email });
     signedIn({ name, email, role: null }, 'Account created — welcome, ' + name, true);
   } else if (authView === 'signin') {
     bad = fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', pass ? '' : 'Enter your password.');
     if (bad) return;
     const u = findUser(email);
-    if (!u || u.pw !== hash(pass)) { authAlert({ type: 'err', msg: 'We could not match that email and password. New here? Sign up instead.' }); return; }
+    if (!u || u.pw !== hash(pass)) { logEvent('signin_failed', { email }); pushLog('lww_security', { at: Date.now(), type: 'failed_login', email, where: 'customer' }, 300); authAlert({ type: 'err', msg: 'We could not match that email and password. New here? Sign up instead.' }); return; }
+    logEvent('signin', { email });
     signedIn({ name: u.name, email: u.email, role: u.role || null }, 'Signed in — welcome back, ' + u.name, document.getElementById('auRemember').checked);
   } else if (authView === 'forgot') {
     if (fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')) return;
@@ -1259,7 +1271,7 @@ function renderPortal() {
       e.preventDefault();
       const em = document.getElementById('stEmail').value.trim().toLowerCase(), pw = document.getElementById('stPass').value, alert = m => { document.getElementById('portalAlert').innerHTML = '<div class="alert err">' + esc(m) + '</div>'; };
       if (!isEmail(em)) return alert('Enter a valid email address.');
-      if (up) {
+      if (up) { audit(em, 'staff signup', portalKind);
         const name = document.getElementById('stName').value.trim();
         if (!name) return alert('Tell us your name.');
         const weak = strongPass(pw); if (weak) return alert(weak);
@@ -1267,49 +1279,15 @@ function renderPortal() {
         write('lww_staff_users', staffUsers().concat([{ kind: portalKind, name, email: em, pw: hash(pw), created: Date.now() }]));
       } else {
         const u = findStaff(portalKind, em);
-        if (!u || u.pw !== hash(pw)) return alert('We could not match that ' + portalKind + ' email and password.');
+        if (!u || u.pw !== hash(pw)) { pushLog('lww_security', { at: Date.now(), type: 'failed_staff_login', email: em, where: portalKind }, 300); return alert('We could not match that ' + portalKind + ' email and password.'); }
+        audit(em, 'staff signin', portalKind);
       }
       try { sessionStorage.setItem('lww_staff', JSON.stringify({ kind: portalKind, email: em, at: Date.now() })); } catch (_) {}
       renderPortal(); toast((up ? 'Account created — signed in as ' : 'Signed in as ') + portalKind);
     });
     return;
   }
-  body.innerHTML = portalKind === 'admin' ? adminView() : developerView();
-  body.querySelectorAll('[data-plan-price]').forEach(inp => inp.addEventListener('change', () => {
-    const o = read('lww_plan_prices', {}); const v = Math.max(0, parseInt(inp.value, 10) || 0); o[inp.dataset.planPrice] = v; write('lww_plan_prices', o); planOf(inp.dataset.planPrice).price = v; toast('Plan price saved');
-  }));
-  body.querySelectorAll('[data-price]').forEach(inp => inp.addEventListener('change', () => {
-    const o = read('lww_prices', {}); const v = Math.max(0, parseInt(inp.value, 10) || 0); o[inp.dataset.price] = v; write('lww_prices', o);
-    const it = itemById(inp.dataset.price); if (it) it.price = v;
-    renderPlayer(); renderWorksheets(); renderBag(); toast('Saved — ' + it.title + ' is now ' + (v === 0 ? 'a free access sheet' : 'part of the class plan'));
-  }));
-}
-function adminView() {
-  const us = users(), ownedAll = read('lww_owned', {}), subsAll = read('lww_subs', {}), now = Date.now();
-  const subs = Object.values(subsAll).flat(), active = subs.filter(x => x.end > now);
-  const revenue = subs.reduce((n, x) => n + planOf(x.plan).price, 0);
-  return `<div class="stat-row"><div class="stat"><b>${us.length}</b><span>Customers</span></div><div class="stat"><b>${active.length}</b><span>Active subscriptions</span></div><div class="stat"><b>${money(revenue)}</b><span>Subscription revenue</span></div><div class="stat"><b>${ITEMS.length}</b><span>Titles on the shelf</span></div></div>
-    <section class="panel"><p class="eyebrow">Customers</p>${us.length ? `<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Subscriptions</th><th>Free sheets</th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><span class="pill">${esc(roleOf(u.role).label)}</span></td><td>${(subsAll[u.email] || []).map(x => esc(classById(x.cls).label) + ' · ' + (x.end > now ? 'until ' + dateOf(x.end) : 'expired')).join('<br>') || '—'}</td><td>${(ownedAll[u.email] || []).map(id => (itemById(id) || {}).title).filter(Boolean).map(esc).join(', ') || '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="cart-empty">No customers yet.</p>'}</section>
-    <section class="panel"><p class="eyebrow">Plans · price per class</p><p class="auth-sub">Change a price and it applies straight away. Stored in this browser for the demo; the real plans live in the database.</p>
-      <table class="table"><thead><tr><th>Plan</th><th>Length</th><th>Price ₹</th></tr></thead><tbody>${PLANS.map(x => `<tr><td>${x.label}</td><td>${x.months} ${x.months === 1 ? 'month' : 'months'}</td><td><input type="number" min="0" step="1" value="${x.price}" data-plan-price="${x.id}"></td></tr>`).join('')}</tbody></table></section>
-    <section class="panel"><p class="eyebrow">Shelf · free access sheets</p><p class="auth-sub">Price 0 = free access sheet (opens without a subscription); anything else = part of the class plan.</p>
-      <table class="table"><thead><tr><th>Sheet</th><th>Class / subject</th><th>Ages</th><th>Free?</th></tr></thead><tbody>${ITEMS.map(it => `<tr><td>${esc(it.title)}</td><td>${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}</td><td>${esc(it.ages)}</td><td><input type="number" min="0" step="1" value="${it.price}" data-price="${it.id}"></td></tr>`).join('')}</tbody></table></section>`;
-}
-function developerView() {
-  return `<section class="panel"><p class="eyebrow">Repository</p><div class="dev-list"><div><b>GitHub</b> — <a href="https://github.com/SumitDendage/kids-book-website" target="_blank" rel="noopener" style="color:#fff">SumitDendage/kids-book-website</a></div><div><b>This site</b> — <code>aura-clone/dist/index.html</code>, one file, no build step. Serve <code>dist/</code> with <code>node server.cjs</code>.</div><div><b>Frames</b> — <code>dist/frames-webp/</code> (960 landscape frames) · <code>dist/preview-frames/</code> (50 fox &amp; rabbit frames).</div></div></section>
-    <section class="panel"><p class="eyebrow">Where things live (top of the script)</p><div class="dev-list">
-      <div><b>CLASSES · SUBJECTS · CATALOGUE</b> — the shelf by class and subject; <code>price: 0</code> makes a free access sheet.</div>
-      <div><b>SHEETS · WORKSHEETS</b> — the player slides and the worksheet row.</div>
-      <div><b>ROLES · PLANS</b> — Parent / Teacher / Tutor / School; subscription plans per class (1 month, 3 months, 1 year). Subscriptions: <code>lww_subs</code>.</div>
-      <div><b>PAY</b> — the payment methods shown at checkout.</div>
-      <div><b>Storage keys</b> — <code>lww_users</code>, <code>lww_session</code>, <code>lww_bag</code>, <code>lww_owned</code>, <code>lww_prices</code>, <code>lww_staff</code> (demo only, this browser).</div></div></section>
-    <section class="panel"><p class="eyebrow">Plugging in payments</p><div class="code">// checkout page → renderCheckout() → #payNow click
-// today: unlock(order ids)  ← demo
-// live:  create an order on your server, open the gateway, unlock on the webhook
-Razorpay  → https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/
-PayPal    → https://developer.paypal.com/docs/checkout/
-Stripe    → https://docs.stripe.com/payments/checkout</div></section>
-    <section class="panel"><p class="eyebrow">Backend (ready in the repo)</p><div class="dev-list"><div><b>Supabase</b> — <code>learn-with-why/supabase/migrations/</code>: profiles, entitlements, prints, RLS, <code>checkout()</code> and <code>consume_print()</code> functions.</div><div><b>VeryPDF DRM</b> — <code>supabase/functions/drm-protect/</code>: protected copies with the licence's print count.</div><div><b>Staff sign-in</b> — demo credentials in <code>STAFF</code>; replace with Supabase Auth roles before launch.</div></div></section>`;
+  body.innerHTML = window.dashRender ? dashRender(portalKind, who) : '<p class="cart-empty">admin.js did not load.</p>';
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); portalView = 'signin'; openPortal(a.dataset.portal); return; }
@@ -1324,7 +1302,15 @@ const PAY = [
   { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card, worldwide', logo: 'PayPal' },
   { id: 'stripe', label: 'Stripe', note: 'Cards and wallets, worldwide', logo: 'stripe' },
 ];
-let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay';
+let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay', coCode = '';
+/* plan price after the class discount and a coupon, if any */
+function checkoutTotal() {
+  let p = planOf(coPlan).price;
+  const d = read('lww_discounts', {})[coCls]; if (d) p = Math.round(p * (1 - d / 100));
+  const cp = coCode && read('lww_coupons', []).find(x => x.code === coCode && x.active !== false && (!x.max || (x.uses || 0) < x.max));
+  if (cp) p = Math.round(p * (1 - cp.pct / 100));
+  return Math.max(0, p);
+}
 function openCheckout(cls) {
   if (!session) { requireSignIn(() => openCheckout(cls), 'Sign in to subscribe — your class is waiting.'); return; }
   if (cls && classById(cls)) coCls = cls;
@@ -1341,16 +1327,25 @@ function renderCheckout() {
       <p class="co-note">${count} sheets and worksheets in ${esc(c.label)} — every one opens and prints while your plan runs. ${cur ? 'You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + '; a new plan adds on after that.' : ''}</p>
       <p class="eyebrow" style="margin-top:18px">How long?</p>
       <div class="pay-methods">${PLANS.map(x => `<label class="pay${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}><span><b>${x.label}</b><small>${x.note || 'per class'}</small></span><span class="logo">${money(x.price)}</span></label>`).join('')}</div>
-      <div class="co-total"><span>${esc(c.label)} · ${plan.label}</span><span>${money(plan.price)}</span></div>
+      <div class="field" style="margin-top:14px"><label for="coCoupon">Coupon code</label><div class="pw-wrap"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder="Have a code?"><button type="button" class="pw-toggle" id="coApply">APPLY</button></div><div class="err" id="coCouponMsg">${coCode ? (checkoutTotal() < planOf(coPlan).price ? 'Coupon applied.' : 'That code is not valid.') : ''}</div></div>
+      <div class="co-total"><span>${esc(c.label)} · ${plan.label}</span><span>${checkoutTotal() < plan.price ? '<s style="color:var(--fg-dim);font-weight:400;margin-right:8px">' + money(plan.price) + '</s>' : ''}${money(checkoutTotal())}</span></div>
       <p class="co-note">Valid until <b>${dateOf(end.getTime())}</b>. Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}.</p>
     </section>
     <section class="panel"><p class="eyebrow">Pay with</p>
       <div class="pay-methods">${PAY.map(m => `<label class="pay${m.id === payMethod ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}><span><b>${m.label}</b><small>${m.note}</small></span><span class="logo">${m.logo}</span></label>`).join('')}</div>
-      <button type="button" class="btn btn-primary btn-block" id="payNow">Subscribe · ${money(plan.price)} with ${PAY.find(m => m.id === payMethod).label} →</button>
+      <button type="button" class="btn btn-primary btn-block" id="payNow">Subscribe · ${money(checkoutTotal())} with ${PAY.find(m => m.id === payMethod).label} →</button>
       <p class="co-note">Payment gateways are not connected yet — this starts a demo subscription so you can try the whole flow. Razorpay, PayPal and Stripe plug in here.</p>
     </section>`;
+  document.getElementById('coApply').addEventListener('click', () => { coCode = document.getElementById('coCoupon').value.trim().toUpperCase(); renderCheckout(); });
   document.getElementById('payNow').addEventListener('click', () => {
     addSub(coCls, coPlan);
+    const amount = checkoutTotal(), oid = 'LWO-' + Math.floor(100000 + Math.random() * 900000), method = PAY.find(m => m.id === payMethod).label;
+    pushLog('lww_orders', { id: oid, at: Date.now(), email: session.email, name: session.name, cls: coCls, plan: coPlan, amount, method, coupon: coCode || null, status: 'paid' }, 1000);
+    pushLog('lww_payments', { at: Date.now(), order: oid, gateway: method, amount, currency: 'INR', status: 'captured', demo: true }, 400);
+    pushLog('lww_webhooks', { at: Date.now(), gateway: method, event: 'payment.captured', order: oid, status: 200, demo: true }, 400);
+    logEvent('subscribe', { order: oid, cls: coCls, plan: coPlan, amount });
+    if (coCode) { const cp = read('lww_coupons', []).find(x => x.code === coCode); if (cp) { cp.uses = (cp.uses || 0) + 1; write('lww_coupons', read('lww_coupons', []).map(x => x.code === cp.code ? cp : x)); } }
+    coCode = '';
     closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
     toast(c.label + ' subscribed for ' + plan.label + ' (demo, no payment taken)');
   });
@@ -1436,7 +1431,7 @@ document.addEventListener('click', e => {
 });
 function unlock(ids, msg, why) {
   if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
-  own(ids);
+  own(ids); ids.forEach(id => logEvent('download', { item: id }));
   closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
 }
 function renderBag() {
@@ -1451,8 +1446,11 @@ function renderBag() {
 function printSheet(id) {
   const it = itemById(id); if (!it) return;
   if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else openCheckout(it.cls); return; }
+  const used = ((read('lww_prints', {})[session.email] || {})[id] || 0); if (it.printLimit && used >= it.printLimit) { toast('Print limit reached for this sheet (' + it.printLimit + ')'); return; }
   const sub = activeSub(it.cls), line = it.price === 0 ? 'Free access sheet' : esc(classById(it.cls).label) + ' plan · valid until ' + dateOf(sub.end);
   document.getElementById('printRoot').innerHTML = `<h1>${esc(it.title)}</h1><p>${esc(it.blurb)}</p><div class="glyph">${esc(it.glyph)}</div><div class="lines"><i></i><i></i><i></i><i></i></div><footer><span>${BRAND} · ${esc(it.subject)} · Ages ${esc(it.ages)}</span><span>${line} · ${esc(session ? session.email : '')}</span></footer>`;
+  const pu = read('lww_prints', {}); pu[session.email] = pu[session.email] || {}; pu[session.email][id] = (pu[session.email][id] || 0) + 1; write('lww_prints', pu);
+  logEvent('print', { item: id });
   setTimeout(() => window.print(), 60);
 }
 
@@ -1466,6 +1464,19 @@ document.getElementById('year').textContent = new Date().getFullYear();
 
 /* prices the admin changed in this browser */
 (function applyPrices() { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); })();
+/* products the admin added, edited or removed; copy the admin changed */
+(function applyAdmin() {
+  const o = read('lww_products', { added: [], edited: {}, deleted: [] });
+  o.added.forEach(x => { if (!ITEMS.some(i => i.id === x.id)) { CATALOGUE.push(x); ITEMS.push(x); } });
+  Object.keys(o.edited).forEach(id => { const it = itemById(id); if (it) Object.assign(it, o.edited[id]); });
+  o.deleted.forEach(id => [CATALOGUE, SHEETS, WORKSHEETS, ITEMS].forEach(a => { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); }));
+  const c = read('lww_content', {});
+  if (c.heroTitle) document.querySelector('h1.display').innerHTML = c.heroTitle;
+  if (c.heroLede) document.querySelector('#home .lede').textContent = c.heroLede;
+  if (c.badge) document.querySelector('#home .eyebrow').textContent = c.badge;
+  if (Array.isArray(c.whys) && c.whys.length) { WHYS.length = 0; c.whys.forEach(w => WHYS.push(w)); }
+  logEvent('visit', { path: location.hash || '/', ref: document.referrer ? new URL(document.referrer).hostname : 'direct', ua: navigator.userAgent.slice(0, 80) });
+})();
 
 /* =====================================================================
    BOOT
@@ -1489,5 +1500,6 @@ resize(); loadFrame(0); pump(); requestAnimationFrame(draw);
   }, 100);
 })();
 </script>
+<script src="admin.js"></script>
 </body>
 </html>
