@@ -537,7 +537,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
                 <button type="button" class="role" data-role="school"><span>School</span><small>120 copies</small></button>
               </div>
             </div>
-            <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your bag and unlocked sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
+            <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your cart and unlocked sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
             <div class="btn-row"><button type="button" class="btn btn-primary" data-shop="all">Explore the sheets →</button><button type="button" class="btn btn-ghost" id="signOutBtn">Sign out</button></div>
           </div>
         </div>
@@ -684,7 +684,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
   <div class="shop-shade"></div>
   <header class="shop-bar">
     <div><p class="eyebrow">The shelf</p><h2 class="card-title">Every sheet we have.</h2></div>
-    <div class="shop-actions"><button type="button" class="btn btn-ghost" id="shopBagBtn">Bag · <b id="shopBagCount">0</b></button><button type="button" class="icon-btn" id="shopClose" aria-label="Back to the story">✕</button></div>
+    <div class="shop-actions"><button type="button" class="btn btn-ghost" id="shopBagBtn">Cart · <b id="shopBagCount">0</b></button><button type="button" class="icon-btn" id="shopClose" aria-label="Back to the story">✕</button></div>
   </header>
   <div class="shop-body">
     <aside class="panel shop-side">
@@ -716,8 +716,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
   <div class="drawer-head"><span class="drawer-title">Menu</span><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
   <div class="nav-list" id="menuList"></div>
 </aside>
-<aside class="drawer" id="bagDrawer" aria-label="Bag">
-  <div class="drawer-head"><span class="drawer-title">Your bag</span><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
+<aside class="drawer" id="bagDrawer" aria-label="Cart">
+  <div class="drawer-head"><span class="drawer-title">Your cart</span><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
   <div id="bagBody"></div>
 </aside>
 
@@ -985,8 +985,8 @@ document.addEventListener('click', e => {
    ===================================================================== */
 const navLinks = document.getElementById('navLinks'), menuList = document.getElementById('menuList');
 const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'testimonials'];
-navLinks.innerHTML = NAV.map((l, i) => `<a class="nav-link" href="#${IDS[i]}" data-nav="${i}" data-go="${i}">${l}</a>`).join('') + '<button type="button" class="nav-link bag" id="bagBtn">Bag <b id="bagCount">0</b></button>';
-menuList.innerHTML = NAV.map((l, i) => `<button type="button" data-nav="${i}" data-go="${i}">${l}</button>`).join('') + '<button type="button" id="bagBtn2">Bag</button>';
+navLinks.innerHTML = NAV.map((l, i) => `<a class="nav-link" href="#${IDS[i]}" data-nav="${i}" data-go="${i}">${l}</a>`).join('') + '<button type="button" class="nav-link bag" id="bagBtn">Cart <b id="bagCount">0</b></button>';
+menuList.innerHTML = NAV.map((l, i) => `<button type="button" data-nav="${i}" data-go="${i}">${l}</button>`).join('') + '<button type="button" id="bagBtn2">Cart</button>';
 document.getElementById('menuBtn').addEventListener('click', () => openDrawer('menuDrawer'));
 document.getElementById('bagBtn').addEventListener('click', () => openDrawer('bagDrawer'));
 document.getElementById('bagBtn2').addEventListener('click', () => openDrawer('bagDrawer'));
@@ -1011,7 +1011,7 @@ let authView = 'signup', resetCode = null, pendingAfterSignIn = null;
    → code → new password hangs off Sign in. The role is asked after. */
 const COPY = {
   signup: { title: 'Let curiosity in.', sub: 'Create your account to find your next adventure.', submit: 'Create account →', sw: 'Already have an account? <button type="button" class="link" data-tab="signin">Sign in</button> &nbsp;·&nbsp; <button type="button" class="link" data-tab="forgot">Forgot password?</button>' },
-  signin: { title: 'Welcome back.', sub: 'Sign in to reach your bag and unlocked sheets.', submit: 'Sign in →', sw: 'New here? <button type="button" class="link" data-tab="signup">Sign up</button>' },
+  signin: { title: 'Welcome back.', sub: 'Sign in to reach your cart and unlocked sheets.', submit: 'Sign in →', sw: 'New here? <button type="button" class="link" data-tab="signup">Sign up</button>' },
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will send a six-digit code.', submit: 'Send reset code →', sw: 'Remembered it? <button type="button" class="link" data-tab="signin">Sign in</button>' },
   code: { title: 'Enter the six-digit code.', sub: 'Demo: the code appears on screen instead of by email.', submit: 'Verify code →', sw: '<button type="button" class="link" data-tab="forgot">Use a different email</button>' },
   reset: { title: 'Create a new password.', sub: 'Eight characters or more, with a number and a capital letter.', submit: 'Save new password →', sw: '<button type="button" class="link" data-tab="signin">Back to sign in</button>' },
@@ -1310,7 +1310,7 @@ function renderCheckout() {
     <section class="panel"><p class="eyebrow">Your order</p>
       ${order.map(l => { const it = itemById(l.id); return `<div class="co-row"><div class="paper-mini">${esc(it.glyph.slice(0, 5))}</div><div class="nm">${esc(it.title)}<span>${esc(it.subject)} · ${licence(l.licence).label} licence · ${licence(l.licence).copies} ${licence(l.licence).copies === 1 ? 'copy' : 'copies'}${l.qty > 1 ? ' × ' + l.qty : ''}</span></div><b>${money(it.price * licence(l.licence).factor * l.qty)}</b></div>`; }).join('')}
       <div class="co-total"><span>Total</span><span>${money(total)}</span></div>
-      <p class="co-note">Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}. Licences are set from your role — change them in the bag if you need more copies.</p>
+      <p class="co-note">Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}. Licences are set from your role — change them in the cart if you need more copies.</p>
     </section>
     <section class="panel"><p class="eyebrow">Pay with</p>
       <div class="pay-methods">${PAY.map(m => `<label class="pay${m.id === payMethod ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}><span><b>${m.label}</b><small>${m.note}</small></span><span class="logo">${m.logo}</span></label>`).join('')}</div>
@@ -1407,7 +1407,7 @@ function renderModal() {
       <div><span>Price</span><b>${owned ? 'Unlocked ✓' : free ? 'Free access sheet' : money(price)}</b></div>
     </div>
     <div class="btn-row">
-      ${owned ? `<button type="button" class="btn btn-primary" data-print="${it.id}">Print sheet</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Unlock for free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay now — ${money(price)}</button><button type="button" class="btn btn-ghost" data-bag="${it.id}">Add to bag</button>`}
+      ${owned ? `<button type="button" class="btn btn-primary" data-print="${it.id}">Print sheet</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Unlock for free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay now — ${money(price)}</button><button type="button" class="btn btn-ghost" data-bag="${it.id}">Add to cart</button>`}
     </div>`;
   const sel = document.getElementById('licSel'); if (sel) sel.addEventListener('change', () => { modalLicence = sel.value; renderModal(); });
 }
@@ -1429,13 +1429,13 @@ function unlock(ids, msg, why) {
   own(ids); ids.forEach(id => delete cart[id]); write('lww_bag', cart);
   closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
 }
-function addToBag(id, lic) { cart[id] = { qty: (cart[id] ? cart[id].qty : 0) + 1, licence: lic || (cart[id] ? cart[id].licence : defaultLicence()) }; write('lww_bag', cart); renderBag(); toast('Added to your bag — the fox approves'); const b = document.getElementById('bagCount'); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
+function addToBag(id, lic) { cart[id] = { qty: (cart[id] ? cart[id].qty : 0) + 1, licence: lic || (cart[id] ? cart[id].licence : defaultLicence()) }; write('lww_bag', cart); renderBag(); toast('Added to your cart — the fox approves'); const b = document.getElementById('bagCount'); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
 function renderBag() {
   const rows = Object.keys(cart).map(id => ({ it: itemById(id), q: cart[id] })).filter(r => r.it);
   document.getElementById('bagCount').textContent = rows.reduce((n, r) => n + r.q.qty, 0);
   const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = document.getElementById('bagCount').textContent;
   const total = rows.reduce((n, r) => n + r.it.price * licence(r.q.licence).factor * r.q.qty, 0);
-  document.getElementById('bagBody').innerHTML = !rows.length ? '<p class="cart-empty">Your bag is as empty as a rabbit’s pocket. Unlock a sheet or a worksheet and it hops in here.</p><button type="button" class="btn btn-primary btn-block" data-go="3">Browse the sheets</button>'
+  document.getElementById('bagBody').innerHTML = !rows.length ? '<p class="cart-empty">Your cart is as empty as a rabbit’s pocket. Unlock a sheet or a worksheet and it hops in here.</p><button type="button" class="btn btn-primary btn-block" data-go="3">Browse the sheets</button>'
     : rows.map(r => `<div class="cart-row"><div class="paper-mini">${esc(r.it.glyph.slice(0, 5))}</div><div class="nm">${esc(r.it.title)}<span>${esc(r.it.subject)} · ${money(r.it.price * licence(r.q.licence).factor)}</span><select data-lic="${r.it.id}">${LICENCES.map(l => `<option value="${l.id}"${l.id === r.q.licence ? ' selected' : ''}>${l.label} · ${l.copies === 1 ? '1 copy' : l.copies + ' copies'}</option>`).join('')}</select></div><div class="qty"><button type="button" data-qty="${r.it.id}" data-d="-1" aria-label="Remove one">−</button><b>${r.q.qty}</b><button type="button" data-qty="${r.it.id}" data-d="1" aria-label="Add one">+</button></div></div>`).join('')
       + `<div class="cart-total"><span>Total</span><span>${money(total)}</span></div><button type="button" class="btn btn-primary btn-block" id="payBag">Pay now →</button><p class="cart-empty" style="font-size:.78rem">You choose Razorpay, PayPal or Stripe on the next page.</p>`;
   const pay = document.getElementById('payBag'); if (pay) pay.addEventListener('click', () => openCheckout(rows.map(r => ({ id: r.it.id, licence: r.q.licence, qty: r.q.qty }))));
