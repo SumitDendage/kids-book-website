@@ -538,7 +538,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
               </div>
             </div>
             <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your bag and unlocked sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
-            <div class="btn-row"><button type="button" class="btn btn-primary" data-go="3">Explore the sheets →</button><button type="button" class="btn btn-ghost" id="signOutBtn">Sign out</button></div>
+            <div class="btn-row"><button type="button" class="btn btn-primary" data-shop="all">Explore the sheets →</button><button type="button" class="btn btn-ghost" id="signOutBtn">Sign out</button></div>
           </div>
         </div>
       </div>
@@ -676,6 +676,28 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
     <div class="shop-actions"><button type="button" class="btn btn-ghost" id="portalOut" hidden>Sign out</button><button type="button" class="icon-btn" id="portalClose" aria-label="Back to the site">✕</button></div>
   </header>
   <div class="portal-body" id="portalBody"></div>
+</div>
+
+<!-- the store: every PDF, on its own page, the fox and rabbit behind -->
+<div class="shop" id="shop" aria-hidden="true">
+  <canvas class="shop-bg" id="shopBg" aria-hidden="true"></canvas>
+  <div class="shop-shade"></div>
+  <header class="shop-bar">
+    <div><p class="eyebrow">The shelf</p><h2 class="card-title">Every sheet we have.</h2></div>
+    <div class="shop-actions"><button type="button" class="btn btn-ghost" id="shopBagBtn">Bag · <b id="shopBagCount">0</b></button><button type="button" class="icon-btn" id="shopClose" aria-label="Back to the story">✕</button></div>
+  </header>
+  <div class="shop-body">
+    <aside class="panel shop-side">
+      <p class="side-title">Browse</p><div class="side-list" id="shopViews"></div>
+      <p class="side-title">Classes</p><div class="side-list" id="shopClasses"></div>
+      <p class="side-title">Subjects</p><div class="side-list" id="shopSubjects"></div>
+      <p class="side-note">Free sheets first. Pay once, print at home, keep forever.</p>
+    </aside>
+    <main class="shop-main">
+      <div class="shop-head"><h3 id="shopTitle"></h3><p id="shopSub"></p></div>
+      <div class="shop-grid" id="shopGrid"></div>
+    </main>
+  </div>
 </div>
 
 <!-- the payment page -->
@@ -972,7 +994,7 @@ function openDrawer(id) { closeDrawers(); document.getElementById(id).classList.
 function closeDrawers() { document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open')); document.getElementById('drawerScrim').classList.remove('open'); }
 document.getElementById('drawerScrim').addEventListener('click', closeDrawers);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeDrawers));
-addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); else if (portalEl.classList.contains('open')) closePortal(); });
+addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.getElementById('modalScrim').classList.contains('open')) closeModal(); else if (document.querySelector('.drawer.open')) closeDrawers(); else if (checkoutEl.classList.contains('open')) closeCheckout(); else if (portalEl.classList.contains('open')) closePortal(); else if (shop.classList.contains('open')) closeShop(); });
 
 /* =====================================================================
    TOAST
@@ -1022,6 +1044,7 @@ document.addEventListener('click', e => {
     session.role = r.dataset.role; const u = findUser(session.email); if (u) { u.role = session.role; saveUser(u); }
     try { (localStorage.getItem('lww_session') ? localStorage : sessionStorage).setItem('lww_session', JSON.stringify(session)); } catch (_) {}
     showRole(); toast(roleOf(session.role).label + ' account — ' + licence(roleOf(session.role).licence).copies + ' printed ' + (licence(roleOf(session.role).licence).copies === 1 ? 'copy' : 'copies') + ' per sheet');
+    setTimeout(() => openShop('all'), 450);
   }
   if (e.target.id === 'roleChange') { session.role = null; showRole(); }
 });
@@ -1071,7 +1094,7 @@ function signedIn(s, msg, remember = true) {
 }
 document.getElementById('signOutBtn').addEventListener('click', () => { session = null; localStorage.removeItem('lww_session'); sessionStorage.removeItem('lww_session'); authCard.classList.remove('is-signed'); setAuthView('signin'); renderPlayer(); renderWorksheets(); toast('Signed out. See you soon.'); });
 /* something that needs an account: remember it, go to chapter 01, say why */
-function requireSignIn(then, why) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); goTo(0); setAuthView(users().length ? 'signin' : 'signup'); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
+function requireSignIn(then, why) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(users().length ? 'signin' : 'signup'); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
 
 /* =====================================================================
    CHAPTER 02 — the fox and rabbit preview + sheet carousel
@@ -1109,15 +1132,70 @@ let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
   const s = SHEETS[slide], owned = ownedOf().includes(s.id);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p><button type="button" class="btn btn-primary" data-open="${s.id}">${owned ? 'Open sheet →' : 'Explore this sheet →'}</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p><button type="button" class="btn btn-primary" data-open="${s.id}">${owned ? 'Open sheet →' : 'Explore this sheet →'}</button> <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
 document.getElementById('slideNext').addEventListener('click', () => { slide = (slide + 1) % SHEETS.length; renderPlayer(); });
 document.addEventListener('click', e => { const d = e.target.closest('[data-slide]'); if (d) { slide = +d.dataset.slide; renderPlayer(); } });
 
-const checkoutEl = document.getElementById('checkout'), portalEl = document.getElementById('portal');
-const overlayOpen = () => checkoutEl.classList.contains('open') || portalEl.classList.contains('open');
+const checkoutEl = document.getElementById('checkout'), portalEl = document.getElementById('portal'), shop = document.getElementById('shop');
+const overlayOpen = () => checkoutEl.classList.contains('open') || portalEl.classList.contains('open') || shop.classList.contains('open');
+
+/* =====================================================================
+   THE STORE — a page of its own over the story. Sidebar: New · Bestselling
+   · Free · Paid, then classes and subjects. The fox and rabbit play behind.
+   ===================================================================== */
+const NEW_IDS = ['c2-sci-why', 'c3-mat-tim', 'kg-eng-rhy', 'c3-art-pat', 'ws-time'];
+const BEST_IDS = ['nur-eng-abc', 'c1-mat-add', 'c2-mat-mul', 'kg-eng-cvc', 'alphabet', 'ws-add', 'c3-mat-fra'];
+const VIEWS = [
+  { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
+  { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Pay & get the PDF', note: 'unlock' },
+];
+let shopView = 'all', shopClass = 'all', shopSubject = 'all';
+const shopPlayer = makePlayer(document.getElementById('shopBg'), 12);
+function openShop(view) {
+  if (view && VIEWS.some(v => v.id === view)) { shopView = view; shopClass = 'all'; shopSubject = 'all'; }
+  closeDrawers(); closeModal();
+  renderShop(); shop.classList.add('open'); shop.setAttribute('aria-hidden', 'false'); shop.scrollTop = 0;
+  shopPlayer.play();
+}
+function closeShop() { shop.classList.remove('open'); shop.setAttribute('aria-hidden', 'true'); shopPlayer.pause(); }
+function renderShop() {
+  const owned = ownedOf();
+  document.getElementById('shopViews').innerHTML = VIEWS.map(v => `<button type="button" class="side-btn${v.id === shopView ? ' on' : ''}" data-shop-view="${v.id}">${v.label}${v.note ? '<small>' + v.note + '</small>' : ''}</button>`).join('');
+  document.getElementById('shopClasses').innerHTML = `<button type="button" class="side-btn${shopClass === 'all' ? ' on' : ''}" data-shop-class="all">All classes</button>` + CLASSES.map(c => `<button type="button" class="side-btn${c.id === shopClass ? ' on' : ''}" data-shop-class="${c.id}">${esc(c.label)}<small>${esc(c.ages)}</small></button>`).join('');
+  document.getElementById('shopSubjects').innerHTML = `<button type="button" class="side-btn${shopSubject === 'all' ? ' on' : ''}" data-shop-subject="all">All subjects</button>` + SUBJECTS.map(x => `<button type="button" class="side-btn${x.id === shopSubject ? ' on' : ''}" data-shop-subject="${x.id}">${esc(x.label)}</button>`).join('');
+  const list = ITEMS.filter(it =>
+    (shopView === 'all' || (shopView === 'new' && NEW_IDS.includes(it.id)) || (shopView === 'best' && BEST_IDS.includes(it.id)) || (shopView === 'free' && it.price === 0) || (shopView === 'paid' && it.price > 0)) &&
+    (shopClass === 'all' || it.cls === shopClass) &&
+    (shopSubject === 'all' || it.subjectId === shopSubject || it.subject.toLowerCase() === subjectById(shopSubject).label.toLowerCase())
+  ).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
+  const v = VIEWS.find(x => x.id === shopView);
+  document.getElementById('shopTitle').textContent = v.label + (shopClass !== 'all' ? ' · ' + classById(shopClass).label : '') + (shopSubject !== 'all' ? ' · ' + subjectById(shopSubject).label : '');
+  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · every one prints at home as a PDF';
+  document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
+    const free = it.price === 0, mine = owned.includes(it.id);
+    const tag = mine ? '<b class="tag">Unlocked</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Paid</b>';
+    return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
+      <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
+      <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
+      <h3 class="card-title">${esc(it.title)}</h3>
+      <p>${esc(it.blurb)}</p>
+      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? 'Unlocked ✓' : free ? 'Free access sheet' : money(it.price)}</span>
+        ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay & get PDF</button>`}</div>
+    </article>`;
+  }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
+  document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
+}
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-shop]'); if (o) { e.preventDefault(); openShop(o.dataset.shop); return; }
+  const v = e.target.closest('[data-shop-view]'); if (v) { shopView = v.dataset.shopView; renderShop(); return; }
+  const c = e.target.closest('[data-shop-class]'); if (c) { shopClass = c.dataset.shopClass; renderShop(); return; }
+  const sb = e.target.closest('[data-shop-subject]'); if (sb) { shopSubject = sb.dataset.shopSubject; renderShop(); }
+});
+document.getElementById('shopClose').addEventListener('click', closeShop);
+document.getElementById('shopBagBtn').addEventListener('click', () => openDrawer('bagDrawer'));
 
 /* =====================================================================
    STAFF — Admin account and Developer, each with its own sign-in.
@@ -1333,12 +1411,13 @@ document.addEventListener('click', e => {
 function unlock(ids, msg, why) {
   if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
   own(ids); ids.forEach(id => delete cart[id]); write('lww_bag', cart);
-  closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); toast(msg);
+  closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
 }
 function addToBag(id, lic) { cart[id] = { qty: (cart[id] ? cart[id].qty : 0) + 1, licence: lic || (cart[id] ? cart[id].licence : defaultLicence()) }; write('lww_bag', cart); renderBag(); toast('Added to your bag — the fox approves'); const b = document.getElementById('bagCount'); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
 function renderBag() {
   const rows = Object.keys(cart).map(id => ({ it: itemById(id), q: cart[id] })).filter(r => r.it);
   document.getElementById('bagCount').textContent = rows.reduce((n, r) => n + r.q.qty, 0);
+  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = document.getElementById('bagCount').textContent;
   const total = rows.reduce((n, r) => n + r.it.price * licence(r.q.licence).factor * r.q.qty, 0);
   document.getElementById('bagBody').innerHTML = !rows.length ? '<p class="cart-empty">Your bag is as empty as a rabbit’s pocket. Unlock a sheet or a worksheet and it hops in here.</p><button type="button" class="btn btn-primary btn-block" data-go="3">Browse the sheets</button>'
     : rows.map(r => `<div class="cart-row"><div class="paper-mini">${esc(r.it.glyph.slice(0, 5))}</div><div class="nm">${esc(r.it.title)}<span>${esc(r.it.subject)} · ${money(r.it.price * licence(r.q.licence).factor)}</span><select data-lic="${r.it.id}">${LICENCES.map(l => `<option value="${l.id}"${l.id === r.q.licence ? ' selected' : ''}>${l.label} · ${l.copies === 1 ? '1 copy' : l.copies + ' copies'}</option>`).join('')}</select></div><div class="qty"><button type="button" data-qty="${r.it.id}" data-d="-1" aria-label="Remove one">−</button><b>${r.q.qty}</b><button type="button" data-qty="${r.it.id}" data-d="1" aria-label="Add one">+</button></div></div>`).join('')
