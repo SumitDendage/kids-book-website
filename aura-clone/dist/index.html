@@ -529,15 +529,16 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
           <div class="signed">
             <h2 class="card-title">You're in, <span id="signedName"></span>.</h2>
             <div id="rolePick">
-              <p class="auth-sub">One more thing — who are the sheets for? This sets your print licence.</p>
+              <p class="auth-sub">One more thing — who are the sheets for?</p>
               <div class="roles" id="auRoles">
-                <button type="button" class="role" data-role="parent"><span>Parent</span><small>1 printed copy</small></button>
-                <button type="button" class="role" data-role="teacher"><span>Teacher</span><small>30 copies</small></button>
-                <button type="button" class="role" data-role="tutor"><span>Tutor</span><small>10 copies</small></button>
-                <button type="button" class="role" data-role="school"><span>School</span><small>120 copies</small></button>
+                <button type="button" class="role" data-role="parent"><span>Parent</span><small>at home</small></button>
+                <button type="button" class="role" data-role="teacher"><span>Teacher</span><small>classroom</small></button>
+                <button type="button" class="role" data-role="tutor"><span>Tutor</span><small>small groups</small></button>
+                <button type="button" class="role" data-role="school"><span>School</span><small>whole school</small></button>
               </div>
             </div>
-            <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your cart and unlocked sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
+            <p class="auth-sub" id="roleLine" hidden><span id="signedRole"></span> account — your subscriptions and free sheets are kept with it. <button type="button" class="link" id="roleChange">Change</button></p>
+            <p class="auth-sub" id="subLine" hidden></p>
             <div class="btn-row"><button type="button" class="btn btn-primary" data-shop="all">Explore the sheets →</button><button type="button" class="btn btn-ghost" id="signOutBtn">Sign out</button></div>
           </div>
         </div>
@@ -603,7 +604,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
           <p class="eyebrow rise" style="--i:0">The shelf · free first, then the rest</p>
           <h2 class="h2 rise" style="--i:1">Grow a little.<br><em>Every day.</em></h2>
         </div>
-        <p class="aside rise" style="--i:2">Pick a class. The free sheet comes first — try it, then unlock the ones beside it. <em>Little sums, big smiles.</em></p>
+        <p class="aside rise" style="--i:2">Pick a class. The free sheet comes first — try it, then subscribe to open the ones beside it. <em>Little sums, big smiles.</em></p>
       </div>
       <div class="chips rise" id="chips" style="--i:2"></div>
       <div class="shop-grid rise" id="wsRow" style="--i:3"></div>
@@ -691,7 +692,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
       <p class="side-title">Browse</p><div class="side-list" id="shopViews"></div>
       <p class="side-title">Classes</p><div class="side-list" id="shopClasses"></div>
       <p class="side-title">Subjects</p><div class="side-list" id="shopSubjects"></div>
-      <p class="side-note">Free sheets first. Pay once, print at home, keep forever.</p>
+      <p class="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
+      <button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:12px">Subscribe to a class</button>
     </aside>
     <main class="shop-main">
       <div class="shop-head"><h3 id="shopTitle"></h3><p id="shopSub"></p></div>
@@ -739,7 +741,14 @@ const ROLES = [
   { id: 'school', label: 'School', licence: 'school' },
 ];
 const roleOf = id => ROLES.find(r => r.id === id) || ROLES[0];
-const defaultLicence = () => roleOf(session && session.role).licence;
+/* Subscriptions: pay for one class for a period, open every sheet in it
+   while it runs. Prices are per class; the admin can change them. */
+const PLANS = [
+  { id: 'm1', label: '1 month', months: 1, price: 199 },
+  { id: 'm3', label: '3 months', months: 3, price: 499, note: 'save 16%' },
+  { id: 'y1', label: '1 year', months: 12, price: 1499, note: 'best value' },
+];
+const planOf = id => PLANS.find(x => x.id === id) || PLANS[0];
 const LICENCES = [
   { id: 'individual', label: 'Individual', copies: 1, factor: 1 },
   { id: 'family', label: 'Family', copies: 3, factor: 2 },
@@ -789,18 +798,18 @@ const CATALOGUE = [
 
 /* the four sheets in the player */
 const SHEETS = [
-  { id: 'counting', kind: 'sheet', glyph: '1 2 3', title: 'A little counting magic', subject: 'Maths', ages: '3–5 years', price: 0, was: 79, blurb: 'Count, trace and colour 1 to 10 with friendly forest creatures — one number per page.', bullets: ['Ten A4 activity pages', 'Ten-frames and number tracing', 'Parent, teacher or tutor print licence'] },
-  { id: 'alphabet', kind: 'sheet', glyph: 'Aa Bb', title: 'Alphabet explorers', subject: 'Phonics', ages: '4–6 years', price: 99, was: 129, blurb: 'Give little hands a happy start with letter shapes and early writing practice.', bullets: ['One A4 activity sheet per letter', 'Uppercase and lowercase practice', 'Parent, teacher or tutor print licence'] },
-  { id: 'shapes', kind: 'sheet', glyph: '○ △ □', title: 'Shape spotters', subject: 'Maths', ages: '3–5 years', price: 79, was: null, blurb: 'Trace, sort and name eight shapes, then find one like it somewhere at home.', bullets: ['Eight A4 activity pages', 'Cut-and-sort shape cards', 'Parent, teacher or tutor print licence'] },
-  { id: 'colours', kind: 'sheet', glyph: '✿', title: 'Colour the forest', subject: 'Art', ages: '3–6 years', price: 59, was: null, blurb: 'Fox, rabbit, mushrooms and a very tall tree — big shapes, thick lines, no fiddly bits.', bullets: ['Six A4 colouring pages', 'Colour-name practice', 'Parent, teacher or tutor print licence'] },
+  { id: 'counting', cls: 'nursery', kind: 'sheet', glyph: '1 2 3', title: 'A little counting magic', subject: 'Maths', ages: '3–5 years', price: 0, was: 79, blurb: 'Count, trace and colour 1 to 10 with friendly forest creatures — one number per page.', bullets: ['Ten A4 activity pages', 'Ten-frames and number tracing', 'Parent, teacher or tutor print licence'] },
+  { id: 'alphabet', cls: 'kg', kind: 'sheet', glyph: 'Aa Bb', title: 'Alphabet explorers', subject: 'Phonics', ages: '4–6 years', price: 99, was: 129, blurb: 'Give little hands a happy start with letter shapes and early writing practice.', bullets: ['One A4 activity sheet per letter', 'Uppercase and lowercase practice', 'Parent, teacher or tutor print licence'] },
+  { id: 'shapes', cls: 'nursery', kind: 'sheet', glyph: '○ △ □', title: 'Shape spotters', subject: 'Maths', ages: '3–5 years', price: 79, was: null, blurb: 'Trace, sort and name eight shapes, then find one like it somewhere at home.', bullets: ['Eight A4 activity pages', 'Cut-and-sort shape cards', 'Parent, teacher or tutor print licence'] },
+  { id: 'colours', cls: 'nursery', kind: 'sheet', glyph: '✿', title: 'Colour the forest', subject: 'Art', ages: '3–6 years', price: 59, was: null, blurb: 'Fox, rabbit, mushrooms and a very tall tree — big shapes, thick lines, no fiddly bits.', bullets: ['Six A4 colouring pages', 'Colour-name practice', 'Parent, teacher or tutor print licence'] },
 ];
 const WORKSHEETS = [
-  { id: 'ws-add', kind: 'worksheet', cat: 'Maths', kicker: 'Little sums everywhere', glyph: '2 + 3', title: 'Woodland addition', subject: 'Maths', ages: '5–7 years', price: 0, was: 99, blurb: 'Build confidence with friendly addition problems and space to work things out.', bullets: ['Twenty A4 worksheet pages', 'Pictures first, numerals second', 'Answer key at the back'] },
-  { id: 'ws-story', kind: 'worksheet', cat: 'Stories', kicker: 'Once upon a page', glyph: 'Once…', title: 'My first story', subject: 'Stories', ages: '6–8 years', price: 89, was: null, blurb: "Three gentle story prompts to bring a little learner's imagination to the page.", bullets: ['Twelve A4 worksheet pages', 'Story starters and picture boxes', 'Parent, teacher or tutor print licence'] },
-  { id: 'ws-nature', kind: 'worksheet', cat: 'Nature', kicker: 'A walk full of why', glyph: '🌱', title: 'Backyard discoveries', subject: 'Nature', ages: '4–8 years', price: 69, was: null, blurb: 'Explore the outdoors with a grown-up and notice big wonder hiding in everyday things.', bullets: ['Eight take-outside pages', 'Notice five things, ask five whys', 'Parent, teacher or tutor print licence'] },
-  { id: 'ws-phon', kind: 'worksheet', cat: 'Phonics', kicker: 'Sounds in the forest', glyph: 'c-a-t', title: 'Phonics forest', subject: 'Phonics', ages: '4–6 years', price: 99, was: 129, blurb: 'Blend three sounds into a word, match it to a picture, write it once more.', bullets: ['Sixteen A4 worksheet pages', 'CVC words and rhyme families', 'Parent guide in front'] },
-  { id: 'ws-sub', kind: 'worksheet', cat: 'Maths', kicker: 'Take one away', glyph: '7 − 2', title: 'Subtraction stories', subject: 'Maths', ages: '5–7 years', price: 79, was: null, blurb: 'Every page is a tiny story with something taken away — cross it out, count what is left.', bullets: ['Sixteen A4 worksheet pages', 'Counting back on a number line', 'Answer key at the back'] },
-  { id: 'ws-time', kind: 'worksheet', cat: 'Maths', kicker: 'What time is it, fox?', glyph: '⏰', title: 'Telling the time', subject: 'Maths', ages: '6–8 years', price: 89, was: null, blurb: "O'clock, half past and quarter past — draw the hands, read the clock, plan a fox's day.", bullets: ['Fourteen A4 worksheet pages', 'Analogue and digital', 'Parent, teacher or tutor print licence'] },
+  { id: 'ws-add', cls: 'c1', kind: 'worksheet', cat: 'Maths', kicker: 'Little sums everywhere', glyph: '2 + 3', title: 'Woodland addition', subject: 'Maths', ages: '5–7 years', price: 0, was: 99, blurb: 'Build confidence with friendly addition problems and space to work things out.', bullets: ['Twenty A4 worksheet pages', 'Pictures first, numerals second', 'Answer key at the back'] },
+  { id: 'ws-story', cls: 'c2', kind: 'worksheet', cat: 'Stories', kicker: 'Once upon a page', glyph: 'Once…', title: 'My first story', subject: 'Stories', ages: '6–8 years', price: 89, was: null, blurb: "Three gentle story prompts to bring a little learner's imagination to the page.", bullets: ['Twelve A4 worksheet pages', 'Story starters and picture boxes', 'Parent, teacher or tutor print licence'] },
+  { id: 'ws-nature', cls: 'kg', kind: 'worksheet', cat: 'Nature', kicker: 'A walk full of why', glyph: '🌱', title: 'Backyard discoveries', subject: 'Nature', ages: '4–8 years', price: 69, was: null, blurb: 'Explore the outdoors with a grown-up and notice big wonder hiding in everyday things.', bullets: ['Eight take-outside pages', 'Notice five things, ask five whys', 'Parent, teacher or tutor print licence'] },
+  { id: 'ws-phon', cls: 'kg', kind: 'worksheet', cat: 'Phonics', kicker: 'Sounds in the forest', glyph: 'c-a-t', title: 'Phonics forest', subject: 'Phonics', ages: '4–6 years', price: 99, was: 129, blurb: 'Blend three sounds into a word, match it to a picture, write it once more.', bullets: ['Sixteen A4 worksheet pages', 'CVC words and rhyme families', 'Parent guide in front'] },
+  { id: 'ws-sub', cls: 'c1', kind: 'worksheet', cat: 'Maths', kicker: 'Take one away', glyph: '7 − 2', title: 'Subtraction stories', subject: 'Maths', ages: '5–7 years', price: 79, was: null, blurb: 'Every page is a tiny story with something taken away — cross it out, count what is left.', bullets: ['Sixteen A4 worksheet pages', 'Counting back on a number line', 'Answer key at the back'] },
+  { id: 'ws-time', cls: 'c3', kind: 'worksheet', cat: 'Maths', kicker: 'What time is it, fox?', glyph: '⏰', title: 'Telling the time', subject: 'Maths', ages: '6–8 years', price: 89, was: null, blurb: "O'clock, half past and quarter past — draw the hands, read the clock, plan a fox's day.", bullets: ['Fourteen A4 worksheet pages', 'Analogue and digital', 'Parent, teacher or tutor print licence'] },
 ];
 const CATS = ['All worksheets', 'Maths', 'Phonics', 'Stories', 'Nature'];
 const QUOTES = [
@@ -832,6 +841,20 @@ const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim()
 let session = read('lww_session', null) || (() => { try { const r = sessionStorage.getItem('lww_session'); return r ? JSON.parse(r) : null; } catch (_) { return null; } })();
 let cart = read('lww_bag', {});                 /* { id: { qty, licence } } */
 const ownedOf = () => (session ? read('lww_owned', {})[session.email] || [] : []);
+const subsOf = () => (session ? read('lww_subs', {})[session.email] || [] : []);
+const activeSubs = () => subsOf().filter(x => x.end > Date.now());
+const activeSub = cls => activeSubs().find(x => x.cls === cls) || null;
+const dateOf = ms => new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const daysLeft = ms => Math.max(0, Math.ceil((ms - Date.now()) / 86400000));
+function addSub(cls, planId) {
+  const all = read('lww_subs', {}), list = all[session.email] || [], plan = planOf(planId);
+  const cur = list.find(x => x.cls === cls && x.end > Date.now());
+  const start = cur ? cur.end : Date.now(), end = new Date(start); end.setMonth(end.getMonth() + plan.months);
+  list.push({ cls, plan: plan.id, start, end: end.getTime(), at: Date.now() });
+  all[session.email] = list; write('lww_subs', all);
+}
+/* free sheets are unlocked one by one; everything else opens with the class subscription */
+const canOpen = it => (it.price === 0 ? ownedOf().includes(it.id) : !!activeSub(it.cls));
 const own = ids => { const all = read('lww_owned', {}); all[session.email] = Array.from(new Set((all[session.email] || []).concat(ids))); write('lww_owned', all); };
 
 /* =====================================================================
@@ -1037,13 +1060,15 @@ function showRole() {
   document.getElementById('roleLine').hidden = !has;
   if (has) document.getElementById('signedRole').textContent = roleOf(session.role).label;
   document.querySelectorAll('.role').forEach(b => b.classList.toggle('on', b.dataset.role === session.role));
+  const subs = activeSubs(), sl = document.getElementById('subLine');
+  sl.hidden = !has; sl.innerHTML = subs.length ? 'Subscribed to ' + subs.map(x => '<b>' + esc(classById(x.cls).label) + '</b> until ' + dateOf(x.end)).join(', ') + '.' : 'No class subscription yet — <button type="button" class="link" data-subscribe="">choose a class</button>.';
 }
 document.addEventListener('click', e => {
   const r = e.target.closest('[data-role]');
   if (r && session) {
     session.role = r.dataset.role; const u = findUser(session.email); if (u) { u.role = session.role; saveUser(u); }
     try { (localStorage.getItem('lww_session') ? localStorage : sessionStorage).setItem('lww_session', JSON.stringify(session)); } catch (_) {}
-    showRole(); toast(roleOf(session.role).label + ' account — ' + licence(roleOf(session.role).licence).copies + ' printed ' + (licence(roleOf(session.role).licence).copies === 1 ? 'copy' : 'copies') + ' per sheet');
+    showRole(); toast(roleOf(session.role).label + ' account — pick a class to subscribe to');
     setTimeout(() => openShop('all'), 450);
   }
   if (e.target.id === 'roleChange') { session.role = null; showRole(); }
@@ -1131,8 +1156,8 @@ const preview = (() => {
 let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
-  const s = SHEETS[slide], owned = ownedOf().includes(s.id);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p>${owned ? `<button type="button" class="btn btn-primary" data-print="${s.id}">Print sheet →</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-pay="${s.id}">Pay & get PDF →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
+  const s = SHEETS[slide], owned = canOpen(s);
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Unlocked ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'With the ' + esc(classById(s.cls).label) + ' plan'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-print="${s.id}">Open & print →</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${s.cls}">Subscribe to ${esc(classById(s.cls).label)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
@@ -1150,7 +1175,7 @@ const NEW_IDS = ['c2-sci-why', 'c3-mat-tim', 'kg-eng-rhy', 'c3-art-pat', 'ws-tim
 const BEST_IDS = ['nur-eng-abc', 'c1-mat-add', 'c2-mat-mul', 'kg-eng-cvc', 'alphabet', 'ws-add', 'c3-mat-fra'];
 const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
-  { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Pay & get the PDF', note: 'unlock' },
+  { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
 ];
 let shopView = 'all', shopClass = 'all', shopSubject = 'all';
 const shopPlayer = makePlayer(document.getElementById('shopBg'), 12);
@@ -1173,17 +1198,17 @@ function renderShop() {
   ).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === shopView);
   document.getElementById('shopTitle').textContent = v.label + (shopClass !== 'all' ? ' · ' + classById(shopClass).label : '') + (shopSubject !== 'all' ? ' · ' + subjectById(shopSubject).label : '');
-  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · every one prints at home as a PDF';
+  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · subscribe to a class to open and print them all';
   document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
-    const free = it.price === 0, mine = owned.includes(it.id);
-    const tag = mine ? '<b class="tag">Unlocked</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Paid</b>';
+    const free = it.price === 0, mine = canOpen(it);
+    const tag = mine ? '<b class="tag">' + (free ? 'Unlocked' : 'Subscribed') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Subscribe</b>';
     return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
       <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
       <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
       <h3 class="card-title">${esc(it.title)}</h3>
       <p>${esc(it.blurb)}</p>
-      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? 'Unlocked ✓' : free ? 'Free access sheet' : money(it.price)}</span>
-        ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay & get PDF</button>`}</div>
+      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
+        ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Open & print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
     </article>`;
   }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
   document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
@@ -1250,28 +1275,32 @@ function renderPortal() {
     return;
   }
   body.innerHTML = portalKind === 'admin' ? adminView() : developerView();
+  body.querySelectorAll('[data-plan-price]').forEach(inp => inp.addEventListener('change', () => {
+    const o = read('lww_plan_prices', {}); const v = Math.max(0, parseInt(inp.value, 10) || 0); o[inp.dataset.planPrice] = v; write('lww_plan_prices', o); planOf(inp.dataset.planPrice).price = v; toast('Plan price saved');
+  }));
   body.querySelectorAll('[data-price]').forEach(inp => inp.addEventListener('change', () => {
     const o = read('lww_prices', {}); const v = Math.max(0, parseInt(inp.value, 10) || 0); o[inp.dataset.price] = v; write('lww_prices', o);
     const it = itemById(inp.dataset.price); if (it) it.price = v;
-    renderPlayer(); renderWorksheets(); renderBag(); toast('Price saved — ' + it.title + ' is now ' + (v === 0 ? 'free' : money(v)));
+    renderPlayer(); renderWorksheets(); renderBag(); toast('Saved — ' + it.title + ' is now ' + (v === 0 ? 'a free access sheet' : 'part of the class plan'));
   }));
 }
 function adminView() {
-  const us = users(), ownedAll = read('lww_owned', {});
-  const unlocked = Object.values(ownedAll).reduce((n, a) => n + a.length, 0);
-  const paid = Object.values(ownedAll).reduce((n, a) => n + a.filter(id => (itemById(id) || {}).price > 0).length, 0);
-  return `<div class="stat-row"><div class="stat"><b>${us.length}</b><span>Customers</span></div><div class="stat"><b>${unlocked}</b><span>Unlocked sheets</span></div><div class="stat"><b>${paid}</b><span>Paid unlocks</span></div><div class="stat"><b>${ITEMS.length}</b><span>Titles on the shelf</span></div></div>
-    <section class="panel"><p class="eyebrow">Customers</p>${us.length ? `<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Licence</th><th>Unlocked</th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><span class="pill">${esc(roleOf(u.role).label)}</span></td><td>${licence(roleOf(u.role).licence).label} · ${licence(roleOf(u.role).licence).copies}</td><td>${(ownedAll[u.email] || []).map(id => (itemById(id) || {}).title).filter(Boolean).map(esc).join(', ') || '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="cart-empty">No customers yet.</p>'}</section>
-    <section class="panel"><p class="eyebrow">Shelf · prices</p><p class="auth-sub">Change a price and it applies straight away (0 = free access sheet). Stored in this browser for the demo; the real shelf lives in the database.</p>
-      <table class="table"><thead><tr><th>Sheet</th><th>Class / subject</th><th>Ages</th><th>Price ₹</th></tr></thead><tbody>${ITEMS.map(it => `<tr><td>${esc(it.title)}</td><td>${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}</td><td>${esc(it.ages)}</td><td><input type="number" min="0" step="1" value="${it.price}" data-price="${it.id}"></td></tr>`).join('')}</tbody></table></section>
-    <section class="panel"><p class="eyebrow">Licences & roles</p><table class="table"><thead><tr><th>Role</th><th>Default licence</th><th>Copies</th><th>Price factor</th></tr></thead><tbody>${ROLES.map(r => `<tr><td>${r.label}</td><td>${licence(r.licence).label}</td><td>${licence(r.licence).copies}</td><td>× ${licence(r.licence).factor}</td></tr>`).join('')}</tbody></table></section>`;
+  const us = users(), ownedAll = read('lww_owned', {}), subsAll = read('lww_subs', {}), now = Date.now();
+  const subs = Object.values(subsAll).flat(), active = subs.filter(x => x.end > now);
+  const revenue = subs.reduce((n, x) => n + planOf(x.plan).price, 0);
+  return `<div class="stat-row"><div class="stat"><b>${us.length}</b><span>Customers</span></div><div class="stat"><b>${active.length}</b><span>Active subscriptions</span></div><div class="stat"><b>${money(revenue)}</b><span>Subscription revenue</span></div><div class="stat"><b>${ITEMS.length}</b><span>Titles on the shelf</span></div></div>
+    <section class="panel"><p class="eyebrow">Customers</p>${us.length ? `<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Subscriptions</th><th>Free sheets</th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><span class="pill">${esc(roleOf(u.role).label)}</span></td><td>${(subsAll[u.email] || []).map(x => esc(classById(x.cls).label) + ' · ' + (x.end > now ? 'until ' + dateOf(x.end) : 'expired')).join('<br>') || '—'}</td><td>${(ownedAll[u.email] || []).map(id => (itemById(id) || {}).title).filter(Boolean).map(esc).join(', ') || '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="cart-empty">No customers yet.</p>'}</section>
+    <section class="panel"><p class="eyebrow">Plans · price per class</p><p class="auth-sub">Change a price and it applies straight away. Stored in this browser for the demo; the real plans live in the database.</p>
+      <table class="table"><thead><tr><th>Plan</th><th>Length</th><th>Price ₹</th></tr></thead><tbody>${PLANS.map(x => `<tr><td>${x.label}</td><td>${x.months} ${x.months === 1 ? 'month' : 'months'}</td><td><input type="number" min="0" step="1" value="${x.price}" data-plan-price="${x.id}"></td></tr>`).join('')}</tbody></table></section>
+    <section class="panel"><p class="eyebrow">Shelf · free access sheets</p><p class="auth-sub">Price 0 = free access sheet (opens without a subscription); anything else = part of the class plan.</p>
+      <table class="table"><thead><tr><th>Sheet</th><th>Class / subject</th><th>Ages</th><th>Free?</th></tr></thead><tbody>${ITEMS.map(it => `<tr><td>${esc(it.title)}</td><td>${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}</td><td>${esc(it.ages)}</td><td><input type="number" min="0" step="1" value="${it.price}" data-price="${it.id}"></td></tr>`).join('')}</tbody></table></section>`;
 }
 function developerView() {
   return `<section class="panel"><p class="eyebrow">Repository</p><div class="dev-list"><div><b>GitHub</b> — <a href="https://github.com/SumitDendage/kids-book-website" target="_blank" rel="noopener" style="color:#fff">SumitDendage/kids-book-website</a></div><div><b>This site</b> — <code>aura-clone/dist/index.html</code>, one file, no build step. Serve <code>dist/</code> with <code>node server.cjs</code>.</div><div><b>Frames</b> — <code>dist/frames-webp/</code> (960 landscape frames) · <code>dist/preview-frames/</code> (50 fox &amp; rabbit frames).</div></div></section>
     <section class="panel"><p class="eyebrow">Where things live (top of the script)</p><div class="dev-list">
       <div><b>CLASSES · SUBJECTS · CATALOGUE</b> — the shelf by class and subject; <code>price: 0</code> makes a free access sheet.</div>
       <div><b>SHEETS · WORKSHEETS</b> — the player slides and the worksheet row.</div>
-      <div><b>ROLES · LICENCES</b> — Parent / Teacher / Tutor / School → default licence, copies, price factor.</div>
+      <div><b>ROLES · PLANS</b> — Parent / Teacher / Tutor / School; subscription plans per class (1 month, 3 months, 1 year). Subscriptions: <code>lww_subs</code>.</div>
       <div><b>PAY</b> — the payment methods shown at checkout.</div>
       <div><b>Storage keys</b> — <code>lww_users</code>, <code>lww_session</code>, <code>lww_bag</code>, <code>lww_owned</code>, <code>lww_prices</code>, <code>lww_staff</code> (demo only, this browser).</div></div></section>
     <section class="panel"><p class="eyebrow">Plugging in payments</p><div class="code">// checkout page → renderCheckout() → #payNow click
@@ -1295,34 +1324,39 @@ const PAY = [
   { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card, worldwide', logo: 'PayPal' },
   { id: 'stripe', label: 'Stripe', note: 'Cards and wallets, worldwide', logo: 'stripe' },
 ];
-let order = [], payMethod = 'razorpay';
-function openCheckout(lines) {
-  if (!session) { requireSignIn(() => openCheckout(lines), 'Sign in to pay — your order is waiting.'); return; }
-  order = lines.map(l => ({ ...l, licence: l.licence || defaultLicence(), qty: l.qty || 1 })).filter(l => itemById(l.id));
-  if (!order.length) return;
+let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay';
+function openCheckout(cls) {
+  if (!session) { requireSignIn(() => openCheckout(cls), 'Sign in to subscribe — your class is waiting.'); return; }
+  if (cls && classById(cls)) coCls = cls;
   renderCheckout(); closeDrawers(); closeModal();
   checkoutEl.classList.add('open'); checkoutEl.setAttribute('aria-hidden', 'false'); checkoutEl.scrollTop = 0;
 }
 function closeCheckout() { checkoutEl.classList.remove('open'); checkoutEl.setAttribute('aria-hidden', 'true'); }
 function renderCheckout() {
-  const total = order.reduce((n, l) => n + itemById(l.id).price * licence(l.licence).factor * l.qty, 0);
+  const c = classById(coCls), plan = planOf(coPlan), cur = activeSub(coCls), count = ITEMS.filter(i => i.cls === coCls).length;
+  const end = new Date(cur ? cur.end : Date.now()); end.setMonth(end.getMonth() + plan.months);
   document.getElementById('checkoutBody').innerHTML = `
-    <section class="panel"><p class="eyebrow">Your order</p>
-      ${order.map(l => { const it = itemById(l.id); return `<div class="co-row"><div class="paper-mini">${esc(it.glyph.slice(0, 5))}</div><div class="nm">${esc(it.title)}<span>${esc(it.subject)} · ${licence(l.licence).label} licence · ${licence(l.licence).copies} ${licence(l.licence).copies === 1 ? 'copy' : 'copies'}${l.qty > 1 ? ' × ' + l.qty : ''}</span></div><b>${money(it.price * licence(l.licence).factor * l.qty)}</b></div>`; }).join('')}
-      <div class="co-total"><span>Total</span><span>${money(total)}</span></div>
-      <p class="co-note">Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}. Licences are set from your role — change them in the cart if you need more copies.</p>
+    <section class="panel"><p class="eyebrow">Which class do you want to subscribe to?</p>
+      <div class="roles" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">${CLASSES.map(x => `<button type="button" class="role${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><span>${esc(x.label)}</span><small>${esc(x.ages)}${activeSub(x.id) ? ' · active' : ''}</small></button>`).join('')}</div>
+      <p class="co-note">${count} sheets and worksheets in ${esc(c.label)} — every one opens and prints while your plan runs. ${cur ? 'You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + '; a new plan adds on after that.' : ''}</p>
+      <p class="eyebrow" style="margin-top:18px">How long?</p>
+      <div class="pay-methods">${PLANS.map(x => `<label class="pay${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}><span><b>${x.label}</b><small>${x.note || 'per class'}</small></span><span class="logo">${money(x.price)}</span></label>`).join('')}</div>
+      <div class="co-total"><span>${esc(c.label)} · ${plan.label}</span><span>${money(plan.price)}</span></div>
+      <p class="co-note">Valid until <b>${dateOf(end.getTime())}</b>. Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}.</p>
     </section>
     <section class="panel"><p class="eyebrow">Pay with</p>
       <div class="pay-methods">${PAY.map(m => `<label class="pay${m.id === payMethod ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}><span><b>${m.label}</b><small>${m.note}</small></span><span class="logo">${m.logo}</span></label>`).join('')}</div>
-      <button type="button" class="btn btn-primary btn-block" id="payNow">Pay ${money(total)} with ${PAY.find(m => m.id === payMethod).label} →</button>
-      <p class="co-note">Payment gateways are not connected yet — this places a demo order and unlocks the sheets so you can try the whole flow. Razorpay, PayPal and Stripe plug in here.</p>
+      <button type="button" class="btn btn-primary btn-block" id="payNow">Subscribe · ${money(plan.price)} with ${PAY.find(m => m.id === payMethod).label} →</button>
+      <p class="co-note">Payment gateways are not connected yet — this starts a demo subscription so you can try the whole flow. Razorpay, PayPal and Stripe plug in here.</p>
     </section>`;
   document.getElementById('payNow').addEventListener('click', () => {
-    unlock(order.map(l => l.id), 'Demo order placed with ' + PAY.find(m => m.id === payMethod).label + ' — your sheets are unlocked', 'Sign in to pay.');
-    closeCheckout();
+    addSub(coCls, coPlan);
+    closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
+    toast(c.label + ' subscribed for ' + plan.label + ' (demo, no payment taken)');
   });
 }
-document.addEventListener('change', e => { if (e.target.name === 'pay') { payMethod = e.target.value; renderCheckout(); } });
+document.addEventListener('change', e => { if (e.target.name === 'pay') { payMethod = e.target.value; renderCheckout(); } if (e.target.name === 'plan') { coPlan = e.target.value; renderCheckout(); } });
+document.addEventListener('click', e => { const b = e.target.closest('[data-co-class]'); if (b) { coCls = b.dataset.coClass; renderCheckout(); } });
 document.getElementById('checkoutBack').addEventListener('click', closeCheckout);
 
 /* =====================================================================
@@ -1332,15 +1366,15 @@ document.getElementById('checkoutBack').addEventListener('click', closeCheckout)
 const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label, small: c.ages })).concat([{ id: 'worksheets', label: 'Worksheets', small: 'week by week' }]);
 let cat = SHELF_TABS[0].id;
 function shelfCard(it, n, owned) {
-  const free = it.price === 0, mine = owned.includes(it.id);
-  const tag = mine ? '<b class="tag">Unlocked</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Paid</b>';
+  const free = it.price === 0, mine = canOpen(it);
+  const tag = mine ? '<b class="tag">' + (free ? 'Unlocked' : 'Subscribed') + '</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Subscribe</b>';
   return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
     <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
     <p class="meta">${esc(it.cls ? classById(it.cls).label : it.cat || '')} · Ages ${esc(it.ages)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
     <h3 class="card-title">${esc(it.title)}</h3>
     <p>${esc(it.blurb)}</p>
-    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? 'Unlocked ✓' : free ? 'Free access sheet' : money(it.price)}</span>
-      ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay & get PDF</button>`}</div>
+    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your ' + esc(classById(it.cls).label) + ' plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
+      ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Open & print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
   </article>`;
 }
 function renderWorksheets() {
@@ -1349,7 +1383,7 @@ function renderWorksheets() {
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
   document.getElementById('wsRow').innerHTML = list.map((it, n) => shelfCard(it, n, owned)).join('');
   const free = list.filter(i => i.price === 0).length;
-  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to unlock';
+  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' with the ' + (cat === 'worksheets' ? 'class' : classById(cat).label) + ' plan';
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
 
@@ -1388,64 +1422,37 @@ const flow = (() => {
    SHEET MODAL · BAG · UNLOCK (demo checkout — no payment is taken)
    ===================================================================== */
 const modalScrim = document.getElementById('modalScrim'), modal = document.getElementById('modal');
-let modalItem = null, modalLicence = 'individual';
-function openModal(id) {
-  const it = itemById(id); if (!it) return; modalItem = it; modalLicence = defaultLicence();
-  renderModal(); modalScrim.classList.add('open');
-}
-function renderModal() {
-  const it = modalItem, owned = ownedOf().includes(it.id), free = it.price === 0, price = it.price * licence(modalLicence).factor;
-  modal.innerHTML = `<div class="modal-head"><p class="eyebrow">Learn With Why · ${it.kind}</p><button type="button" class="icon-btn" data-modal-close aria-label="Close">✕</button></div>
-    <h3>${esc(it.title)}</h3>
-    <div class="preview">${esc(it.glyph)}</div>
-    <p>${esc(it.blurb)}</p>
-    <ul>${it.bullets.map(b => '<li>' + esc(b) + '</li>').join('')}</ul>
-    <div class="rows">
-      <div><span>Age range</span><b>${esc(it.ages)}</b></div>
-      <div><span>Subject</span><b>${esc(it.subject)}</b></div>
-      ${free || owned ? '' : `<div><span>Licence</span><b><select id="licSel">${LICENCES.map(l => `<option value="${l.id}"${l.id === modalLicence ? ' selected' : ''}>${l.label} · ${l.copies === 1 ? '1 copy' : l.copies + ' copies'}</option>`).join('')}</select></b></div>`}
-      <div><span>Price</span><b>${owned ? 'Unlocked ✓' : free ? 'Free access sheet' : money(price)}</b></div>
-    </div>
-    <div class="btn-row">
-      ${owned ? `<button type="button" class="btn btn-primary" data-print="${it.id}">Print sheet</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Unlock for free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay now — ${money(price)}</button><button type="button" class="btn btn-ghost" data-bag="${it.id}">Add to cart</button>`}
-    </div>`;
-  const sel = document.getElementById('licSel'); if (sel) sel.addEventListener('change', () => { modalLicence = sel.value; renderModal(); });
-}
 function closeModal() { modalScrim.classList.remove('open'); }
 modalScrim.addEventListener('click', e => { if (e.target === modalScrim) closeModal(); });
 document.addEventListener('click', e => {
   if (e.target.closest('[data-modal-close]')) { closeModal(); return; }
   /* buttons inside a clickable card win over the card itself */
   const u = e.target.closest('[data-unlock]'); if (u) { unlock([u.dataset.unlock], 'Unlocked — ' + itemById(u.dataset.unlock).title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); return; }
-  const p = e.target.closest('[data-pay]'); if (p) { openCheckout([{ id: p.dataset.pay, licence: modalItem && modalItem.id === p.dataset.pay ? modalLicence : defaultLicence() }]); return; }
-  const b = e.target.closest('[data-bag]'); if (b) { addToBag(b.dataset.bag, modalLicence); closeModal(); return; }
+  const sub = e.target.closest('[data-subscribe]'); if (sub) { openCheckout(sub.dataset.subscribe); return; }
   const pr = e.target.closest('[data-print]'); if (pr) { printSheet(pr.dataset.print); return; }
   const o = e.target.closest('[data-open]');
-  if (o) { const it = itemById(o.dataset.open); if (!it) return; const mine = ownedOf().includes(it.id);
-    if (mine) printSheet(it.id); else if (it.price === 0) unlock([it.id], 'Unlocked — ' + it.title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); else openCheckout([{ id: it.id, licence: defaultLicence() }]); }
+  if (o) { const it = itemById(o.dataset.open); if (!it) return;
+    if (canOpen(it)) printSheet(it.id); else if (it.price === 0) unlock([it.id], 'Unlocked — ' + it.title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); else openCheckout(it.cls); }
 });
 function unlock(ids, msg, why) {
   if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
-  own(ids); ids.forEach(id => delete cart[id]); write('lww_bag', cart);
+  own(ids);
   closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
 }
-function addToBag(id, lic) { cart[id] = { qty: (cart[id] ? cart[id].qty : 0) + 1, licence: lic || (cart[id] ? cart[id].licence : defaultLicence()) }; write('lww_bag', cart); renderBag(); toast('Added to your cart — the fox approves'); const b = document.getElementById('bagCount'); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
 function renderBag() {
-  const rows = Object.keys(cart).map(id => ({ it: itemById(id), q: cart[id] })).filter(r => r.it);
-  document.getElementById('bagCount').textContent = rows.reduce((n, r) => n + r.q.qty, 0);
-  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = document.getElementById('bagCount').textContent;
-  const total = rows.reduce((n, r) => n + r.it.price * licence(r.q.licence).factor * r.q.qty, 0);
-  document.getElementById('bagBody').innerHTML = !rows.length ? '<p class="cart-empty">Your cart is as empty as a rabbit’s pocket. Unlock a sheet or a worksheet and it hops in here.</p><button type="button" class="btn btn-primary btn-block" data-go="3">Browse the sheets</button>'
-    : rows.map(r => `<div class="cart-row"><div class="paper-mini">${esc(r.it.glyph.slice(0, 5))}</div><div class="nm">${esc(r.it.title)}<span>${esc(r.it.subject)} · ${money(r.it.price * licence(r.q.licence).factor)}</span><select data-lic="${r.it.id}">${LICENCES.map(l => `<option value="${l.id}"${l.id === r.q.licence ? ' selected' : ''}>${l.label} · ${l.copies === 1 ? '1 copy' : l.copies + ' copies'}</option>`).join('')}</select></div><div class="qty"><button type="button" data-qty="${r.it.id}" data-d="-1" aria-label="Remove one">−</button><b>${r.q.qty}</b><button type="button" data-qty="${r.it.id}" data-d="1" aria-label="Add one">+</button></div></div>`).join('')
-      + `<div class="cart-total"><span>Total</span><span>${money(total)}</span></div><button type="button" class="btn btn-primary btn-block" id="payBag">Pay now →</button><p class="cart-empty" style="font-size:.78rem">You choose Razorpay, PayPal or Stripe on the next page.</p>`;
-  const pay = document.getElementById('payBag'); if (pay) pay.addEventListener('click', () => openCheckout(rows.map(r => ({ id: r.it.id, licence: r.q.licence, qty: r.q.qty }))));
+  const subs = subsOf().slice().sort((a, b) => b.end - a.end), active = subs.filter(x => x.end > Date.now());
+  document.getElementById('bagCount').textContent = active.length;
+  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = active.length;
+  document.getElementById('bagBody').innerHTML = (!subs.length ? '<p class="cart-empty">No subscription yet. Pick a class and every sheet in it opens for as long as your plan runs.</p>'
+    : subs.map(x => `<div class="cart-row"><div class="paper-mini">${esc(classById(x.cls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div class="nm">${esc(classById(x.cls).label)}<span>${planOf(x.plan).label} · ${x.end > Date.now() ? 'until ' + dateOf(x.end) + ' · ' + daysLeft(x.end) + ' days left' : 'expired ' + dateOf(x.end)}</span></div><span class="pill">${x.end > Date.now() ? 'Active' : 'Expired'}</span></div>`).join(''))
+    + '<button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:16px">Subscribe to a class →</button><p class="cart-empty" style="font-size:.78rem">You choose the class, the length and Razorpay / PayPal / Stripe on the next page.</p>';
 }
-document.addEventListener('click', e => { const q = e.target.closest('[data-qty]'); if (!q) return; const id = q.dataset.qty, n = (cart[id] ? cart[id].qty : 0) + (+q.dataset.d); if (n <= 0) delete cart[id]; else cart[id].qty = n; write('lww_bag', cart); renderBag(); });
-document.addEventListener('change', e => { const s = e.target.closest('[data-lic]'); if (s && cart[s.dataset.lic]) { cart[s.dataset.lic].licence = s.value; write('lww_bag', cart); renderBag(); } });
-/* an unlocked sheet prints as an A4 page with the licence line */
+/* a sheet you can open prints as an A4 page with the plan line */
 function printSheet(id) {
-  const it = itemById(id), lic = 'LW-' + Math.floor(100000 + Math.random() * 900000);
-  document.getElementById('printRoot').innerHTML = `<h1>${esc(it.title)}</h1><p>${esc(it.blurb)}</p><div class="glyph">${esc(it.glyph)}</div><div class="lines"><i></i><i></i><i></i><i></i></div><footer><span>${BRAND} · ${esc(it.subject)} · Ages ${esc(it.ages)}</span><span>Licensed copy ${lic} · ${esc(session ? session.email : '')}</span></footer>`;
+  const it = itemById(id); if (!it) return;
+  if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else openCheckout(it.cls); return; }
+  const sub = activeSub(it.cls), line = it.price === 0 ? 'Free access sheet' : esc(classById(it.cls).label) + ' plan · valid until ' + dateOf(sub.end);
+  document.getElementById('printRoot').innerHTML = `<h1>${esc(it.title)}</h1><p>${esc(it.blurb)}</p><div class="glyph">${esc(it.glyph)}</div><div class="lines"><i></i><i></i><i></i><i></i></div><footer><span>${BRAND} · ${esc(it.subject)} · Ages ${esc(it.ages)}</span><span>${line} · ${esc(session ? session.email : '')}</span></footer>`;
   setTimeout(() => window.print(), 60);
 }
 
@@ -1458,7 +1465,7 @@ const WHYS = ['Why do foxes have such fluffy tails?', 'Why is the sky blue and n
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* prices the admin changed in this browser */
-(function applyPrices() { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); })();
+(function applyPrices() { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); })();
 
 /* =====================================================================
    BOOT
