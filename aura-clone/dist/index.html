@@ -600,14 +600,14 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
       <div class="ws-block">
       <div class="ws-head">
         <div>
-          <p class="eyebrow rise" style="--i:0">Worksheets · practise with a little play</p>
+          <p class="eyebrow rise" style="--i:0">The shelf · free first, then the rest</p>
           <h2 class="h2 rise" style="--i:1">Grow a little.<br><em>Every day.</em></h2>
         </div>
-        <p class="aside rise" style="--i:2">Pick an adventure. Explore what's inside. Find the right fit for your learner. <em>Little sums, big smiles.</em></p>
+        <p class="aside rise" style="--i:2">Pick a class. The free sheet comes first — try it, then unlock the ones beside it. <em>Little sums, big smiles.</em></p>
       </div>
       <div class="chips rise" id="chips" style="--i:2"></div>
-      <div class="ws-row rise" id="wsRow" style="--i:3"></div>
-      <div class="ws-nav rise" style="--i:4"><button type="button" class="icon-btn" id="wsPrev" aria-label="Scroll back">←</button><button type="button" class="icon-btn" id="wsNext" aria-label="Scroll forward">→</button><span id="wsCount"></span></div>
+      <div class="shop-grid rise" id="wsRow" style="--i:3"></div>
+      <div class="ws-nav rise" style="--i:4"><span id="wsCount"></span><button type="button" class="btn btn-ghost" data-shop="all" style="margin-left:auto">See every sheet →</button></div>
       </div>
     </div>
   </section>
@@ -1328,16 +1328,30 @@ document.getElementById('checkoutBack').addEventListener('click', closeCheckout)
 /* =====================================================================
    CHAPTER 03 — worksheets: filter chips + a row of paper cards
    ===================================================================== */
-let cat = CATS[0];
+/* One shelf per class: the free sheet first, the paid ones right beside it. */
+const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label, small: c.ages })).concat([{ id: 'worksheets', label: 'Worksheets', small: 'week by week' }]);
+let cat = SHELF_TABS[0].id;
+function shelfCard(it, n, owned) {
+  const free = it.price === 0, mine = owned.includes(it.id);
+  const tag = mine ? '<b class="tag">Unlocked</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Paid</b>';
+  return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
+    <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
+    <p class="meta">${esc(it.cls ? classById(it.cls).label : it.cat || '')} · Ages ${esc(it.ages)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
+    <h3 class="card-title">${esc(it.title)}</h3>
+    <p>${esc(it.blurb)}</p>
+    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? 'Unlocked ✓' : free ? 'Free access sheet' : money(it.price)}</span>
+      ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${it.id}">Pay & get PDF</button>`}</div>
+  </article>`;
+}
 function renderWorksheets() {
-  document.getElementById('chips').innerHTML = CATS.map(c => `<button type="button" class="chip${c === cat ? ' on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
-  const list = WORKSHEETS.filter(w => cat === CATS[0] || w.cat === cat), owned = ownedOf();
-  document.getElementById('wsRow').innerHTML = list.map((w, n) => `<article class="panel ws-card" data-open="${w.id}" style="--n:${n}" tabindex="0"><div class="paper"><small>${esc(w.kicker)}</small><div class="glyph">${esc(w.glyph)}</div><small>Learn With Why · Preview</small></div><p class="meta">${esc(w.cat)} · Ages ${esc(w.ages)}</p><h3 class="card-title">${esc(w.title)}</h3><p>${esc(w.blurb)}</p><p class="price${w.price === 0 ? ' free' : ''}">${owned.includes(w.id) ? 'Unlocked ✓' : priceLabel(w)}</p>${owned.includes(w.id) ? `<button type="button" class="btn btn-ghost" data-print="${w.id}">Print</button>` : w.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${w.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${w.id}">Pay & get PDF</button>`}</article>`).join('');
-  document.getElementById('wsCount').textContent = list.length + (list.length === 1 ? ' worksheet' : ' worksheets');
+  document.getElementById('chips').innerHTML = SHELF_TABS.map(t => `<button type="button" class="chip${t.id === cat ? ' on' : ''}" data-cat="${t.id}">${esc(t.label)}</button>`).join('');
+  const pool = cat === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === cat);
+  const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
+  document.getElementById('wsRow').innerHTML = list.map((it, n) => shelfCard(it, n, owned)).join('');
+  const free = list.filter(i => i.price === 0).length;
+  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to unlock';
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
-document.getElementById('wsPrev').addEventListener('click', () => document.getElementById('wsRow').scrollBy({ left: -320, behavior: 'smooth' }));
-document.getElementById('wsNext').addEventListener('click', () => document.getElementById('wsRow').scrollBy({ left: 320, behavior: 'smooth' }));
 
 /* =====================================================================
    CHAPTER 05 — contact (demo)
