@@ -1132,7 +1132,7 @@ let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
   const s = SHEETS[slide], owned = ownedOf().includes(s.id);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p><button type="button" class="btn btn-primary" data-open="${s.id}">${owned ? 'Open sheet →' : 'Explore this sheet →'}</button> <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? 'Unlocked ✓' : priceLabel(s)}</p>${owned ? `<button type="button" class="btn btn-primary" data-print="${s.id}">Print sheet →</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-pay="${s.id}">Pay & get PDF →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
@@ -1332,7 +1332,7 @@ let cat = CATS[0];
 function renderWorksheets() {
   document.getElementById('chips').innerHTML = CATS.map(c => `<button type="button" class="chip${c === cat ? ' on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
   const list = WORKSHEETS.filter(w => cat === CATS[0] || w.cat === cat), owned = ownedOf();
-  document.getElementById('wsRow').innerHTML = list.map((w, n) => `<article class="panel ws-card" data-open="${w.id}" style="--n:${n}" tabindex="0"><div class="paper"><small>${esc(w.kicker)}</small><div class="glyph">${esc(w.glyph)}</div><small>Learn With Why · Preview</small></div><p class="meta">${esc(w.cat)} · Ages ${esc(w.ages)}</p><h3 class="card-title">${esc(w.title)}</h3><p>${esc(w.blurb)}</p><p class="price${w.price === 0 ? ' free' : ''}">${owned.includes(w.id) ? 'Unlocked ✓' : priceLabel(w)}</p></article>`).join('');
+  document.getElementById('wsRow').innerHTML = list.map((w, n) => `<article class="panel ws-card" data-open="${w.id}" style="--n:${n}" tabindex="0"><div class="paper"><small>${esc(w.kicker)}</small><div class="glyph">${esc(w.glyph)}</div><small>Learn With Why · Preview</small></div><p class="meta">${esc(w.cat)} · Ages ${esc(w.ages)}</p><h3 class="card-title">${esc(w.title)}</h3><p>${esc(w.blurb)}</p><p class="price${w.price === 0 ? ' free' : ''}">${owned.includes(w.id) ? 'Unlocked ✓' : priceLabel(w)}</p>${owned.includes(w.id) ? `<button type="button" class="btn btn-ghost" data-print="${w.id}">Print</button>` : w.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${w.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-pay="${w.id}">Pay & get PDF</button>`}</article>`).join('');
   document.getElementById('wsCount').textContent = list.length + (list.length === 1 ? ' worksheet' : ' worksheets');
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
@@ -1406,7 +1406,9 @@ document.addEventListener('click', e => {
   const p = e.target.closest('[data-pay]'); if (p) { openCheckout([{ id: p.dataset.pay, licence: modalItem && modalItem.id === p.dataset.pay ? modalLicence : defaultLicence() }]); return; }
   const b = e.target.closest('[data-bag]'); if (b) { addToBag(b.dataset.bag, modalLicence); closeModal(); return; }
   const pr = e.target.closest('[data-print]'); if (pr) { printSheet(pr.dataset.print); return; }
-  const o = e.target.closest('[data-open]'); if (o) { openModal(o.dataset.open); }
+  const o = e.target.closest('[data-open]');
+  if (o) { const it = itemById(o.dataset.open); if (!it) return; const mine = ownedOf().includes(it.id);
+    if (mine) printSheet(it.id); else if (it.price === 0) unlock([it.id], 'Unlocked — ' + it.title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); else openCheckout([{ id: it.id, licence: defaultLicence() }]); }
 });
 function unlock(ids, msg, why) {
   if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
