@@ -23,6 +23,7 @@
   .dash { display: grid; grid-template-columns: 230px 1fr; gap: 18px; align-items: start; }
   @media (max-width: 860px) { .dash { grid-template-columns: 1fr; } }
   .dash-nav { position: sticky; top: 96px; }
+  .dash-nav .side-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dash-main { display: grid; gap: 18px; min-width: 0; }
   .side-btn.off { opacity: 0.4; }
   .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -51,7 +52,43 @@
   .err-item summary small { color: var(--fg-dim); margin-left: 8px; }
   .err-item .code { margin-top: 8px; }
   .chip small { margin-left: 6px; color: var(--fg-dim); }
-  .table td small { color: var(--fg-dim); }`;
+  .table td small { color: var(--fg-dim); }
+  .table th { padding: 10px 12px 10px 0; } .table td { padding: 12px 12px 12px 0; }
+  .search { min-width: 200px; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); padding: 10px 14px; border-radius: var(--r-pill); color: #fff; font: inherit; }
+  .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .book-card { display: flex; flex-direction: column; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); overflow: hidden; cursor: pointer; transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s; }
+  .book-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.07); }
+  .book-cover { position: relative; aspect-ratio: 4 / 3; background: var(--paper); }
+  .book-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover-glyph { height: 100%; display: grid; place-items: center; align-content: center; gap: 6px; color: var(--ink); }
+  .cover-glyph small { font-size: 0.56rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-muted); }
+  .cover-glyph b { font-family: var(--font-display); font-weight: 500; font-size: 2.2rem; line-height: 1; }
+  .book-cover .tag { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 100px; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; background: #14181c; color: #fff; }
+  .book-cover .tag.free { background: #1f6b47; }
+  .book-body { padding: 12px 12px 6px; display: grid; gap: 5px; }
+  .book-body .meta { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
+  .book-body h4 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; line-height: 1.15; }
+  .book-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 0.7rem; color: var(--fg-dim); }
+  .book-actions { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 12px; font-size: 0.78rem; }
+  .book-actions .link { font-size: 0.74rem; }
+  .stars { color: #f0b455; letter-spacing: 0.08em; font-size: 0.72rem; } .stars i { font-style: normal; color: rgba(255,255,255,0.18); }
+  .studio { border-color: rgba(240,180,85,0.35); box-shadow: 0 0 0 1px rgba(240,180,85,0.12), 0 30px 70px rgba(0,0,0,0.45); }
+  .studio-grid { display: grid; grid-template-columns: 280px 1fr; gap: 22px; margin-top: 8px; }
+  @media (max-width: 900px) { .studio-grid { grid-template-columns: 1fr; } }
+  .studio-side { display: grid; gap: 14px; align-content: start; }
+  .drop { border: 2px dashed rgba(255,255,255,0.25); border-radius: 16px; padding: 8px; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+  .drop:hover, .drop.over { border-color: #f0b455; background: rgba(240,180,85,0.08); }
+  .drop-preview { aspect-ratio: 4 / 3; border-radius: 12px; background: rgba(255,255,255,0.04) center / cover no-repeat; display: grid; place-items: center; align-content: center; gap: 4px; text-align: center; padding: 14px; }
+  .drop.small .drop-preview { aspect-ratio: auto; padding: 18px 14px; }
+  .drop-icon { font-size: 1.8rem; }
+  .drop-preview b { font-size: 0.86rem; } .drop-preview small { font-size: 0.7rem; color: var(--fg-dim); }
+  .drop-name { font-size: 0.7rem; color: var(--fg-dim); text-align: center; margin-top: 6px; min-height: 1em; }
+  .rate { display: flex; gap: 4px; } .rate .star { font-size: 1.5rem; line-height: 1; background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; padding: 2px; transition: color 0.15s, transform 0.15s; } .rate .star.on { color: #f0b455; } .rate .star:hover { transform: scale(1.15); }
+  .fs { border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 14px 16px 4px; margin-bottom: 14px; }
+  .fs legend { padding: 0 8px; font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; color: #f0b455; font-weight: 700; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .grid-3 { grid-template-columns: 1fr; } }
+  .studio-actions { margin-top: 4px; }`;
   document.head.appendChild(style);
   const fmt = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const day = ms => new Date(ms).toISOString().slice(0, 10);
@@ -78,7 +115,7 @@
     const nav = secs.map(([id, label]) => `<button type="button" class="side-btn${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' ? '' : ' off'}" data-dash="${id}">${label}</button>`).join('');
     let main = '';
     try { main = (kind === 'admin' ? ADMIN[cur] : DEV[cur])(); } catch (err) { main = '<section class="panel"><p class="cart-empty">Could not render this section: ' + esc(err.message) + '</p></section>'; }
-    return `<div class="dash"><aside class="panel dash-nav"><p class="side-title">${kind === 'admin' ? 'Admin' : 'Developer'} · ${esc(staffEmail())}</p><div class="side-list">${nav}</div><p class="side-note" style="margin-top:14px">Route: <code>/#${kind}</code></p></aside><div class="dash-main">${main}</div></div>`;
+    return `<div class="dash"><aside class="panel dash-nav"><p class="side-title">${kind === 'admin' ? 'Admin' : 'Developer'}</p><p class="side-note" style="margin:-6px 0 12px;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(staffEmail())}">${esc(staffEmail())}</p><div class="side-list">${nav}</div><p class="side-note" style="margin-top:14px">Route: <code>/#${kind}</code></p></aside><div class="dash-main">${main}</div></div>`;
   };
   function permsOf(who) { const roles = read('lww_roles', DEFAULT_ROLES), staff = read('lww_staff_users', []).find(u => u.email === (who || {}).email); const r = (staff && staff.rolename) || ((who || {}).kind === 'developer' ? 'developer' : 'admin'); return roles[r] || []; }
   function rerender() { renderPortal(); }
@@ -98,57 +135,88 @@
   };
 
   /* ----- products ----- */
+  /* ----- products: a card gallery + an organised "Upload new book" studio ----- */
+  let pFilter = 'all', pQuery = '';
   ADMIN.products = () => {
-    const list = ITEMS.slice().sort((a, b) => (a.cls || '').localeCompare(b.cls || ''));
+    let list = ITEMS.slice();
+    if (pFilter !== 'all') list = list.filter(it => it.cls === pFilter);
+    if (pQuery) list = list.filter(it => (it.title + ' ' + it.subject + ' ' + (it.blurb || '')).toLowerCase().includes(pQuery));
     const form = editing ? productForm(editing === 'new' ? {} : itemById(editing)) : '';
-    return `${form}<section class="panel"><div class="row-between"><p class="eyebrow">Products · ${list.length}</p><button type="button" class="btn btn-primary" data-adm="product-new">+ Add product</button></div>
-      <p class="auth-sub">Categories are the classes and subjects; stock, price, images, PDFs, age group, audience and limits are per product.</p>
-      ${table(['', 'Product', 'Category', 'Age group', 'For', 'Price', 'Stock', 'Limits', ''], list.map(it => [
-        it.image ? `<img class="p-thumb" src="${it.image}" alt="">` : `<span class="thumb-glyph">${esc(it.glyph)}</span>`,
-        `<b>${esc(it.title)}</b><br><small>${it.pdf ? '📄 ' + esc(it.pdf.name) : 'no PDF'} · ${it.pages || '?'} pages</small>`,
-        esc(it.cls ? classById(it.cls).label + ' · ' : '') + esc(it.subject),
-        esc(it.ageGroup || it.ages || ''), esc(({ parent: 'Parents', teacher: 'Teachers', both: 'Both' })[it.audience || 'both']),
-        it.price === 0 ? '<span class="pill" style="background:#1f6b47">Free</span>' : money(it.price),
-        it.stock == null ? '∞' : it.stock,
-        (it.printLimit ? 'print ' + it.printLimit : 'print ∞') + ' · ' + (it.downloadLimit ? 'dl ' + it.downloadLimit : 'dl ∞'),
-        `<button type="button" class="link" data-adm="product-edit" data-id="${it.id}">Edit</button> &nbsp; <button type="button" class="link" data-adm="product-delete" data-id="${it.id}">Delete</button>`,
-      ]), 'No products.')}</section>
-      <section class="panel"><p class="eyebrow">Categories</p><div class="chips">${CLASSES.map(c => `<span class="chip">${esc(c.label)} <small>${ITEMS.filter(i => i.cls === c.id).length}</small></span>`).join('')}${SUBJECTS.map(x => `<span class="chip">${esc(x.label)} <small>${ITEMS.filter(i => i.subjectId === x.id || i.subject === x.label).length}</small></span>`).join('')}</div>
-      <p class="co-note">Classes and subjects come from <code>CLASSES</code> / <code>SUBJECTS</code> at the top of the page script.</p></section>`;
+    const free = ITEMS.filter(i => i.price === 0).length, withPdf = ITEMS.filter(i => i.pdf).length;
+    return `${form}
+      <div class="stat-row"><div class="stat"><b>${ITEMS.length}</b><span>Books & sheets</span></div><div class="stat"><b>${free}</b><span>Free</span></div><div class="stat"><b>${ITEMS.length - free}</b><span>In class plans</span></div><div class="stat"><b>${withPdf}</b><span>With PDF</span></div></div>
+      <section class="panel">
+        <div class="row-between"><div><p class="eyebrow" style="margin-bottom:4px">Books on the shelf</p><p class="auth-sub" style="margin:0">${list.length} shown · click a card to edit</p></div>
+          <div class="btn-row"><input class="search" type="search" placeholder="Search books…" value="${esc(pQuery)}" data-adm-search><button type="button" class="btn btn-primary" data-adm="product-new">＋ Upload new book</button></div></div>
+        <div class="chips" style="margin:12px 0 16px"><button type="button" class="chip${pFilter === 'all' ? ' on' : ''}" data-adm="product-filter" data-id="all">All classes</button>${CLASSES.map(c => `<button type="button" class="chip${pFilter === c.id ? ' on' : ''}" data-adm="product-filter" data-id="${c.id}">${esc(c.label)} <small>${ITEMS.filter(i => i.cls === c.id).length}</small></button>`).join('')}</div>
+        ${list.length ? `<div class="book-grid">${list.map(bookCard).join('')}</div>` : '<p class="cart-empty">No books match.</p>'}
+      </section>`;
   };
+  function bookCard(it) {
+    const cover = it.image ? `<img src="${it.image}" alt="">` : `<div class="cover-glyph"><small>${esc(it.subject)}</small><b>${esc(it.glyph)}</b></div>`;
+    return `<article class="book-card" data-adm="product-edit" data-id="${it.id}" tabindex="0">
+      <div class="book-cover">${cover}${it.price === 0 ? '<span class="tag free">Free</span>' : '<span class="tag">Plan</span>'}</div>
+      <div class="book-body">
+        <p class="meta">${esc(it.cls ? classById(it.cls).label : '')} · ${esc(it.subject)}</p>
+        <h4>${esc(it.title)}</h4>
+        <div class="book-meta"><span>${stars(it.rating || 0)}</span><span>${it.pages || '?'} pg</span><span>${it.stock == null ? '∞' : it.stock + ' left'}</span></div>
+        <div class="book-meta"><span>${it.pdf ? '📄 PDF' : '<i style="color:#ff9a9a">no PDF</i>'}</span><span>${esc(it.ageGroup || it.ages || '')}</span><span>${({ parent: 'Parents', teacher: 'Teachers', both: 'Everyone' })[it.audience || 'both']}</span></div>
+      </div>
+      <div class="book-actions"><b>${it.price === 0 ? 'Free' : money(it.price)}</b><span><button type="button" class="link" data-adm="product-edit" data-id="${it.id}">Edit</button> · <button type="button" class="link" data-adm="product-delete" data-id="${it.id}">Delete</button></span></div>
+    </article>`;
+  }
+  function stars(n) { return '<span class="stars" title="' + n + ' / 5">' + '★'.repeat(Math.round(n)) + '<i>' + '★'.repeat(5 - Math.round(n)) + '</i></span>'; }
   function productForm(it) {
     const v = k => esc(it[k] == null ? '' : it[k]);
-    return `<section class="panel"><p class="eyebrow">${it.id ? 'Edit product' : 'Add product'}</p><form id="productForm" data-id="${it.id || ''}">
-      <div class="grid-2">
-        <div class="field"><label>Title</label><input name="title" value="${v('title')}" required></div>
-        <div class="field"><label>Glyph shown on the cover</label><input name="glyph" value="${v('glyph')}" placeholder="Aa"></div>
-        <div class="field"><label>Class</label><select name="cls">${CLASSES.map(c => `<option value="${c.id}"${c.id === it.cls ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
-        <div class="field"><label>Subject</label><select name="subjectId">${SUBJECTS.map(x => `<option value="${x.id}"${x.id === (it.subjectId || (SUBJECTS.find(y => y.label === it.subject) || {}).id) ? ' selected' : ''}>${x.label}</option>`).join('')}</select></div>
-        <div class="field"><label>Price ₹ (0 = free access sheet)</label><input name="price" type="number" min="0" value="${it.price == null ? 0 : it.price}"></div>
-        <div class="field"><label>Stock (blank = unlimited)</label><input name="stock" type="number" min="0" value="${it.stock == null ? '' : it.stock}"></div>
-        <div class="field"><label>Pages</label><input name="pages" type="number" min="1" value="${it.pages || 8}"></div>
-        <div class="field"><label>Age group</label><input name="ageGroup" value="${v('ageGroup') || v('ages')}" placeholder="4–6 years"></div>
-        <div class="field"><label>For</label><select name="audience"><option value="both"${(it.audience || 'both') === 'both' ? ' selected' : ''}>Parents & teachers</option><option value="parent"${it.audience === 'parent' ? ' selected' : ''}>Parents</option><option value="teacher"${it.audience === 'teacher' ? ' selected' : ''}>Teachers</option></select></div>
-        <div class="field"><label>Print limit per customer (blank = unlimited)</label><input name="printLimit" type="number" min="0" value="${it.printLimit || ''}"></div>
-        <div class="field"><label>Download limit per customer (blank = unlimited)</label><input name="downloadLimit" type="number" min="0" value="${it.downloadLimit || ''}"></div>
-        <div class="field"><label>Cover image</label><input name="image" type="file" accept="image/*">${it.image ? '<small>current image kept unless you choose another</small>' : ''}</div>
-        <div class="field"><label>PDF</label><input name="pdf" type="file" accept="application/pdf">${it.pdf ? '<small>current: ' + esc(it.pdf.name) + ' (' + kb(it.pdf.size) + ')</small>' : ''}</div>
+    const subj = it.subjectId || (SUBJECTS.find(y => y.label === it.subject) || {}).id;
+    return `<section class="panel studio"><div class="row-between"><div><p class="eyebrow" style="margin-bottom:4px">${it.id ? 'Edit book' : 'Upload new book'}</p><p class="auth-sub" style="margin:0">${it.id ? esc(it.title) : 'Drop the cover and the PDF, fill in the details, save — it goes straight on the shelf.'}</p></div><button type="button" class="icon-btn" data-adm="product-cancel" aria-label="Close">✕</button></div>
+    <form id="productForm" data-id="${it.id || ''}" class="studio-grid">
+      <div class="studio-side">
+        <div class="drop" id="dropImage" data-drop="image"><input type="file" name="image" accept="image/*" hidden>
+          <div class="drop-preview" ${it.image ? 'style="background-image:url(' + it.image + ')"' : ''}>${it.image ? '' : '<span class="drop-icon">🖼️</span><b>Drop the cover photo here</b><small>or click to choose · JPG / PNG · up to 600 KB</small>'}</div>
+          <p class="drop-name">${it.image ? 'Cover set — drop a new one to replace it' : ''}</p></div>
+        <div class="drop small" id="dropPdf" data-drop="pdf"><input type="file" name="pdf" accept="application/pdf" hidden>
+          <div class="drop-preview"><span class="drop-icon">📄</span><b>${it.pdf ? esc(it.pdf.name) : 'Drop the PDF here'}</b><small>${it.pdf ? kb(it.pdf.size) + ' · drop a new file to replace' : 'or click to choose · up to 1.5 MB'}</small></div>
+          <p class="drop-name"></p></div>
+        <div class="field"><label>Rating (shown as stars)</label><div class="rate" data-rate><input type="hidden" name="rating" value="${it.rating || 0}">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star${(it.rating || 0) >= n ? ' on' : ''}" data-star="${n}">★</button>`).join('')}</div></div>
       </div>
-      <div class="field"><label>Description</label><textarea name="blurb">${v('blurb')}</textarea></div>
-      <div class="btn-row"><button type="submit" class="btn btn-primary">Save product</button><button type="button" class="btn btn-ghost" data-adm="product-cancel">Cancel</button></div></form></section>`;
+      <div class="studio-main">
+        <fieldset class="fs"><legend>Book details</legend>
+          <div class="field"><label>Title</label><input name="title" value="${v('title')}" placeholder="e.g. Alphabet explorers" required></div>
+          <div class="field"><label>Description</label><textarea name="blurb" placeholder="One or two lines parents will read on the card">${v('blurb')}</textarea></div>
+          <div class="grid-3"><div class="field"><label>Cover glyph</label><input name="glyph" value="${v('glyph')}" placeholder="Aa"></div><div class="field"><label>Pages</label><input name="pages" type="number" min="1" value="${it.pages || 8}"></div><div class="field"><label>Age group</label><input name="ageGroup" value="${v('ageGroup') || v('ages')}" placeholder="4–6 years"></div></div>
+        </fieldset>
+        <fieldset class="fs"><legend>Category</legend>
+          <div class="grid-3"><div class="field"><label>Class</label><select name="cls">${CLASSES.map(c => `<option value="${c.id}"${c.id === (it.cls || 'nursery') ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
+          <div class="field"><label>Subject</label><select name="subjectId">${SUBJECTS.map(x => `<option value="${x.id}"${x.id === subj ? ' selected' : ''}>${x.label}</option>`).join('')}</select></div>
+          <div class="field"><label>For</label><select name="audience"><option value="both"${(it.audience || 'both') === 'both' ? ' selected' : ''}>Parents & teachers</option><option value="parent"${it.audience === 'parent' ? ' selected' : ''}>Parents</option><option value="teacher"${it.audience === 'teacher' ? ' selected' : ''}>Teachers</option></select></div></div>
+        </fieldset>
+        <fieldset class="fs"><legend>Price & stock</legend>
+          <div class="grid-3"><div class="field"><label>Price ₹</label><input name="price" type="number" min="0" value="${it.price == null ? 0 : it.price}"><small>0 = free access sheet · anything else = part of the class plan</small></div>
+          <div class="field"><label>Stock</label><input name="stock" type="number" min="0" value="${it.stock == null ? '' : it.stock}" placeholder="unlimited"></div>
+          <div class="field"><label>Old price ₹ (optional)</label><input name="was" type="number" min="0" value="${it.was || ''}" placeholder="shows struck through"></div></div>
+        </fieldset>
+        <fieldset class="fs"><legend>Limits per customer</legend>
+          <div class="grid-3"><div class="field"><label>Print limit</label><input name="printLimit" type="number" min="0" value="${it.printLimit || ''}" placeholder="unlimited"></div>
+          <div class="field"><label>Download limit</label><input name="downloadLimit" type="number" min="0" value="${it.downloadLimit || ''}" placeholder="unlimited"></div></div>
+        </fieldset>
+        <div class="btn-row studio-actions"><button type="submit" class="btn btn-primary">${it.id ? 'Save changes' : 'Publish to the shelf'}</button><button type="button" class="btn btn-ghost" data-adm="product-cancel">Cancel</button>${it.id ? `<button type="button" class="btn btn-ghost" style="margin-left:auto;color:#ff9a9a" data-adm="product-delete" data-id="${it.id}">Delete book</button>` : ''}</div>
+      </div>
+    </form></section>`;
   }
   function readFile(file, max) { return new Promise(res => { if (!file) return res(null); if (file.size > max) { toast('File too large for the demo (' + kb(file.size) + ') — keeping the name only'); return res({ name: file.name, size: file.size }); } const r = new FileReader(); r.onload = () => res({ name: file.name, size: file.size, data: r.result }); r.readAsDataURL(file); }); }
   async function saveProduct(form) {
     const f = new FormData(form), id = form.dataset.id || ('p-' + Date.now().toString(36));
     const o = read('lww_products', { added: [], edited: {}, deleted: [] });
-    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, ageGroup: f.get('ageGroup').trim(), audience: f.get('audience'), printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
-    if (!fields.title) return toast('Give the product a title');
-    const img = await readFile(f.get('image') && f.get('image').size ? f.get('image') : null, 600 * 1024); if (img) fields.image = img.data;
+    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), was: parseInt(f.get('was'), 10) || null, stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, ageGroup: f.get('ageGroup').trim(), audience: f.get('audience'), rating: parseFloat(f.get('rating')) || 0, printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
+    if (!fields.title) return toast('Give the book a title');
+    const img = await readFile(f.get('image') && f.get('image').size ? f.get('image') : null, 600 * 1024); if (img && img.data) fields.image = img.data;
     const pdf = await readFile(f.get('pdf') && f.get('pdf').size ? f.get('pdf') : null, 1500 * 1024); if (pdf) fields.pdf = { name: pdf.name, size: pdf.size, data: pdf.data || null };
     const it = itemById(id);
-    if (it) { Object.assign(it, fields); if (o.added.some(x => x.id === id)) o.added = o.added.map(x => x.id === id ? it : x); else o.edited[id] = Object.assign(o.edited[id] || {}, fields); log('product edited', fields.title); }
-    else { const np = Object.assign({ id, kind: 'sheet', ages: fields.ageGroup, skills: [], bullets: [], was: null }, fields); CATALOGUE.push(np); ITEMS.push(np); o.added.push(np); log('product added', fields.title); }
-    save('lww_products', o); editing = null; renderPlayer(); renderWorksheets(); rerender(); toast('Product saved');
+    if (it) { Object.assign(it, fields); if (o.added.some(x => x.id === id)) o.added = o.added.map(x => x.id === id ? it : x); else o.edited[id] = Object.assign(o.edited[id] || {}, fields); log('book edited', fields.title); }
+    else { const np = Object.assign({ id, kind: 'sheet', ages: fields.ageGroup, skills: [], bullets: [] }, fields); CATALOGUE.push(np); ITEMS.push(np); o.added.push(np); log('book uploaded', fields.title); }
+    try { save('lww_products', o); } catch (err) { return toast('Storage is full — use a smaller image or PDF'); }
+    editing = null; renderPlayer(); renderWorksheets(); rerender(); toast(it ? 'Saved' : 'Published — it is on the shelf now');
   }
   function deleteProduct(id) {
     const it = itemById(id); if (!it || !confirm('Delete "' + it.title + '"?')) return;
@@ -156,7 +224,21 @@
     if (o.added.some(x => x.id === id)) o.added = o.added.filter(x => x.id !== id); else if (!o.deleted.includes(id)) o.deleted.push(id);
     delete o.edited[id]; save('lww_products', o);
     [CATALOGUE, SHEETS, WORKSHEETS, ITEMS].forEach(a => { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); });
-    log('product deleted', it.title); renderPlayer(); renderWorksheets(); rerender(); toast('Deleted');
+    editing = null; log('book deleted', it.title); renderPlayer(); renderWorksheets(); rerender(); toast('Deleted');
+  }
+  /* drag & drop + stars, wired after each render */
+  function wireStudio() {
+    document.querySelectorAll('.drop').forEach(zone => {
+      const input = zone.querySelector('input[type=file]'), prev = zone.querySelector('.drop-preview'), name = zone.querySelector('.drop-name');
+      const show = file => { if (!file) return; name.textContent = file.name + ' · ' + kb(file.size); if (zone.dataset.drop === 'image' && file.type.startsWith('image/')) { const r = new FileReader(); r.onload = () => { prev.style.backgroundImage = 'url(' + r.result + ')'; prev.innerHTML = ''; }; r.readAsDataURL(file); } else if (zone.dataset.drop === 'pdf') { prev.querySelector('b').textContent = file.name; } };
+      zone.addEventListener('click', e => { if (!e.target.closest('input')) input.click(); });
+      input.addEventListener('change', () => show(input.files[0]));
+      ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('over'); }));
+      ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('over'); }));
+      zone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (!f) return; const ok = zone.dataset.drop === 'image' ? f.type.startsWith('image/') : f.type === 'application/pdf'; if (!ok) { toast(zone.dataset.drop === 'image' ? 'Drop an image file' : 'Drop a PDF file'); return; } const dt = new DataTransfer(); dt.items.add(f); input.files = dt.files; show(f); });
+    });
+    const rate = document.querySelector('[data-rate]'); if (rate) rate.addEventListener('click', e => { const b = e.target.closest('[data-star]'); if (!b) return; const n = +b.dataset.star; rate.querySelector('input').value = n; rate.querySelectorAll('.star').forEach(x => x.classList.toggle('on', +x.dataset.star <= n)); });
+    const search = document.querySelector('[data-adm-search]'); if (search) { search.addEventListener('input', () => { pQuery = search.value.trim().toLowerCase(); const grid = document.querySelector('.book-grid'); if (!grid) return; let list = ITEMS.slice(); if (pFilter !== 'all') list = list.filter(it => it.cls === pFilter); if (pQuery) list = list.filter(it => (it.title + ' ' + it.subject + ' ' + (it.blurb || '')).toLowerCase().includes(pQuery)); grid.innerHTML = list.map(bookCard).join(''); }); }
   }
 
   /* ----- orders ----- */
@@ -264,6 +346,7 @@
     const cb = document.getElementById('commitBox'); if (cb) fetch('https://api.github.com/repos/SumitDendage/kids-book-website/commits?per_page=5').then(r => r.json()).then(list => { if (!Array.isArray(list)) throw new Error('no data'); document.getElementById('commitStat').textContent = list[0].sha.slice(0, 7); cb.innerHTML = list.map(c => `<div><b>${c.sha.slice(0, 7)}</b> — ${esc(c.commit.message.split('\n')[0])} <small>· ${fmt(Date.parse(c.commit.author.date))}</small></div>`).join(''); }).catch(() => { cb.innerHTML = '<div>Could not reach GitHub (offline or rate-limited).</div>'; });
     const rf = document.getElementById('restoreFile'); if (rf) rf.addEventListener('change', () => { const f = rf.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); Object.keys(j).forEach(k => { if (k.startsWith('lww_')) localStorage.setItem(k, JSON.stringify(j[k])); }); log('backup restored', f.name); toast('Restored — reloading'); setTimeout(() => location.reload(), 600); } catch (_) { toast('That is not a Learn With Why backup'); } }; r.readAsText(f); });
     const pf = document.getElementById('productForm'); if (pf) pf.addEventListener('submit', e => { e.preventDefault(); saveProduct(pf); });
+    wireStudio();
     const cf = document.getElementById('couponForm'); if (cf) cf.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(cf), code = String(f.get('code')).trim().toUpperCase(); if (!code) return; const cps = read('lww_coupons', []).filter(c => c.code !== code); cps.push({ code, pct: Math.min(100, parseInt(f.get('pct'), 10) || 10), max: parseInt(f.get('max'), 10) || 0, uses: 0, active: true }); save('lww_coupons', cps); log('coupon added', code); rerender(); });
     const ct = document.getElementById('contentForm'); if (ct) ct.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(ct); const c = { badge: f.get('badge').trim(), heroTitle: f.get('heroTitle').trim(), heroLede: f.get('heroLede').trim(), whys: String(f.get('whys')).split('\n').map(x => x.trim()).filter(Boolean) }; save('lww_content', c); document.querySelector('#home .eyebrow').textContent = c.badge; document.querySelector('h1.display').innerHTML = c.heroTitle; document.querySelector('#home .lede').textContent = c.heroLede; WHYS.length = 0; c.whys.forEach(w => WHYS.push(w)); log('content saved', 'home page'); toast('Content saved'); });
   };
@@ -273,8 +356,10 @@
     const d = e.target.closest('[data-dash]'); if (d) { if (d.classList.contains('off')) { toast('Your role does not have this permission'); return; } section[portalKind] = d.dataset.dash; editing = null; custOpen = null; rerender(); return; }
     const a = e.target.closest('[data-adm]'); if (!a) return;
     const act = a.dataset.adm, id = a.dataset.id;
+    if (a.classList.contains('book-card') && e.target.closest('button')) return;
     if (act === 'product-new') { editing = 'new'; rerender(); }
-    else if (act === 'product-edit') { editing = id; rerender(); }
+    else if (act === 'product-edit') { editing = id; rerender(); const st = document.querySelector('.studio'); if (st) st.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    else if (act === 'product-filter') { pFilter = id; rerender(); }
     else if (act === 'product-cancel') { editing = null; rerender(); }
     else if (act === 'product-delete') deleteProduct(id);
     else if (act === 'customer-open') { custOpen = id; rerender(); }
