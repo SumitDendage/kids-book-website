@@ -2,7 +2,7 @@
 node_modules/
 .next/
 out/
-papercub-react/dist/
+archive/papercub-react/dist/
 
 # secrets / local
 .env
@@ -13,7 +13,7 @@ papercub-react/dist/
 # archives and duplicates of the 960 landscape frames (kept once, in aura-clone/dist/frames-webp)
 *.zip
 aura-clone-new
-papercub-react/public/frames-webp/
+archive/papercub-react/public/frames-webp/
 
 # editor / tooling
 .claude/
