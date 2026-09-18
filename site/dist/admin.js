@@ -100,8 +100,16 @@
 
   /* ---------- tiny charts (inline SVG) ---------- */
   function bars(series, labels, color) {
-    const max = Math.max(1, ...series), W = 560, H = 140, n = series.length, bw = W / n;
-    return `<svg class="chart" viewBox="0 0 ${W} ${H + 22}" preserveAspectRatio="none">${series.map((v, i) => { const h = Math.round(v / max * H); return `<rect x="${(i * bw + 2).toFixed(1)}" y="${H - h}" width="${(bw - 4).toFixed(1)}" height="${h}" rx="3" fill="${color}" opacity="${v ? 0.9 : 0.25}"><title>${labels[i]}: ${v}</title></rect>`; }).join('')}${labels.map((l, i) => (i % Math.ceil(n / 7) === 0 ? `<text x="${(i * bw + bw / 2).toFixed(1)}" y="${H + 16}" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">${l.slice(5)}</text>` : '')).join('')}</svg>`;
+    /* a smooth line chart with a soft fill, dots and hover titles */
+    const W = 560, H = 140, PAD = 8, n = series.length, max = Math.max(1, ...series);
+    const x = i => PAD + (n === 1 ? W / 2 : i * (W - PAD * 2) / (n - 1)), y = v => H - PAD - (v / max) * (H - PAD * 2);
+    const pts = series.map((v, i) => [x(i), y(v)]);
+    let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+    for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], cx = ((x0 + x1) / 2).toFixed(1); d += ' C' + cx + ' ' + y0.toFixed(1) + ' ' + cx + ' ' + y1.toFixed(1) + ' ' + x1.toFixed(1) + ' ' + y1.toFixed(1); }
+    const area = d + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + (H - PAD) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - PAD) + ' Z';
+    const gid = 'g' + Math.random().toString(36).slice(2, 7);
+    const grid = [0.25, 0.5, 0.75].map(f => `<line x1="${PAD}" x2="${W - PAD}" y1="${(H - PAD - f * (H - PAD * 2)).toFixed(1)}" y2="${(H - PAD - f * (H - PAD * 2)).toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-dasharray="3 5"/>`).join('');
+    return `<svg class="chart" viewBox="0 0 ${W} ${H + 22}" preserveAspectRatio="none"><defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#${gid})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>${pts.map(([px, py], i) => `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5" fill="#0b1520" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"><title>${labels[i]}: ${series[i]}</title></circle>`).join('')}${labels.map((l, i) => (i % Math.ceil(n / 7) === 0 ? `<text x="${x(i).toFixed(1)}" y="${H + 16}" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">${l.slice(5)}</text>` : '')).join('')}</svg>`;
   }
   function funnel(steps) {
     const max = Math.max(1, steps[0][1]);
