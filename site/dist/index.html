@@ -298,6 +298,27 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .pay small { color: var(--fg-dim); font-size: 0.72rem; }
 .pay .logo { margin-left: auto; font-family: var(--font-display); font-weight: 500; font-size: 1rem; letter-spacing: 0.04em; color: var(--fg); }
 .co-note { font-size: 0.76rem; color: var(--fg-dim); line-height: 1.5; margin-top: 10px; }
+.checkout-body { width: min(100% - 36px, 1120px); grid-template-columns: 1.15fr 0.85fr; }
+@media (max-width: 860px) { .checkout-body { grid-template-columns: 1fr; } .co-summary { order: -1; } }
+.co-left { display: grid; gap: 16px; min-width: 0; }
+.co-summary { position: sticky; top: 96px; }
+@media (max-width: 860px) { .co-summary { position: static; } }
+.co-grid { gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 720px) { .grid-3 { grid-template-columns: 1fr; } }
+.field select { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); padding: 12px 14px; border-radius: var(--r-md); color: #fff; font: inherit; font-size: 0.95rem; }
+.field select option { color: #000; }
+.co-head { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.co-head .paper-mini { width: 46px; height: 46px; border-radius: 10px; background: var(--paper); color: var(--ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 500; }
+.co-head small { display: block; font-size: 0.74rem; color: var(--fg-dim); font-weight: 400; }
+.co-lines { padding: 6px 0; transition: opacity 0.2s; } .co-lines.busy { opacity: 0.45; }
+.co-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: var(--fs-body); }
+.co-line small { display: block; font-size: 0.7rem; color: var(--fg-dim); }
+.co-line b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.co-total small { display: block; font-size: 0.68rem; color: var(--fg-dim); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; }
+.co-secure { margin-top: 12px; font-size: 0.7rem; color: var(--fg-dim); line-height: 1.5; text-align: center; }
+.pay.off { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled { opacity: 0.55; cursor: default; transform: none; }
 
 /* ---------- chapter 02: sheets (player) ---------- */
 .sheets-head { text-align: center; margin-bottom: 18px; }
@@ -1302,56 +1323,147 @@ const PAY = [
   { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card, worldwide', logo: 'PayPal' },
   { id: 'stripe', label: 'Stripe', note: 'Cards and wallets, worldwide', logo: 'stripe' },
 ];
+/* =====================================================================
+   CHECKOUT — the price is never computed here. The page sends the class,
+   plan, coupon and address to /api/quote; the server answers with a signed
+   quote (base + tax + fee = total, in the customer's currency) and only a
+   valid signed quote can be turned into an order at /api/order. */
 let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay', coCode = '';
-/* plan price after the class discount and a coupon, if any */
-function checkoutTotal() {
-  let p = planOf(coPlan).price;
-  const d = read('lww_discounts', {})[coCls]; if (d) p = Math.round(p * (1 - d / 100));
-  const cp = coCode && read('lww_coupons', []).find(x => x.code === coCode && x.active !== false && (!x.max || (x.uses || 0) < x.max));
-  if (cp) p = Math.round(p * (1 - cp.pct / 100));
-  return Math.max(0, p);
+let coConfig = null, coQuote = null, coBusy = false, coError = '', coTimer = 0, coTouched = {};
+let coAddr = read('lww_address', null) || { country: guessCountry(), line1: '', city: '', state: '', postal: '' };
+function guessCountry() {
+  const lang = (navigator.language || '').toUpperCase(), region = lang.includes('-') ? lang.split('-')[1] : '';
+  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+  if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta' || region === 'IN') return 'IN';
+  const byTz = { 'Europe/London': 'GB', 'Europe/Dublin': 'IE', 'Europe/Berlin': 'DE', 'Europe/Paris': 'FR', 'Europe/Amsterdam': 'NL', 'Asia/Dubai': 'AE', 'Asia/Singapore': 'SG', 'Asia/Tokyo': 'JP', 'Pacific/Auckland': 'NZ' };
+  if (byTz[tz]) return byTz[tz];
+  if (tz.startsWith('America/')) return region === 'CA' ? 'CA' : 'US';
+  if (tz.startsWith('Australia/')) return 'AU';
+  return region && ['US', 'GB', 'AE', 'AU', 'CA', 'SG', 'DE', 'FR', 'NL', 'IE', 'NZ', 'JP'].includes(region) ? region : 'OTHER';
+}
+const coCountry = () => (coConfig && coConfig.countries.find(c => c.code === coAddr.country)) || null;
+const fmtCur = (n, c) => { try { return new Intl.NumberFormat('en', { style: 'currency', currency: c, maximumFractionDigits: c === 'JPY' ? 0 : 2 }).format(n); } catch (_) { return c + ' ' + n; } };
+async function loadCoConfig() {
+  if (coConfig) return coConfig;
+  const r = await fetch('/api/config'); if (!r.ok) throw new Error('Pricing service unavailable'); coConfig = await r.json();
+  try { const g = await (await fetch('/api/geo')).json(); if (g.country && !read('lww_address', null)) coAddr.country = g.country; } catch (_) {}
+  return coConfig;
 }
 function openCheckout(cls) {
   if (!session) { requireSignIn(() => openCheckout(cls), 'Sign in to subscribe — your class is waiting.'); return; }
   if (cls && classById(cls)) coCls = cls;
-  renderCheckout(); closeDrawers(); closeModal();
+  closeDrawers(); closeModal();
   checkoutEl.classList.add('open'); checkoutEl.setAttribute('aria-hidden', 'false'); checkoutEl.scrollTop = 0;
+  document.getElementById('checkoutBody').innerHTML = '<section class="panel"><p class="cart-empty">Loading secure checkout…</p></section>';
+  loadCoConfig().then(() => { renderCheckout(); requestQuote(); }).catch(err => { document.getElementById('checkoutBody').innerHTML = '<section class="panel"><p class="alert err">' + esc(err.message) + '. Start the site with <code>node server.cjs</code> so the pricing API is available.</p></section>'; });
 }
 function closeCheckout() { checkoutEl.classList.remove('open'); checkoutEl.setAttribute('aria-hidden', 'true'); }
-function renderCheckout() {
-  const c = classById(coCls), plan = planOf(coPlan), cur = activeSub(coCls), count = ITEMS.filter(i => i.cls === coCls).length;
-  const end = new Date(cur ? cur.end : Date.now()); end.setMonth(end.getMonth() + plan.months);
-  document.getElementById('checkoutBody').innerHTML = `
-    <section class="panel"><p class="eyebrow">Which class do you want to subscribe to?</p>
-      <div class="roles" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">${CLASSES.map(x => `<button type="button" class="role${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><span>${esc(x.label)}</span><small>${esc(x.ages)}${activeSub(x.id) ? ' · active' : ''}</small></button>`).join('')}</div>
-      <p class="co-note">${count} sheets and worksheets in ${esc(c.label)} — every one opens and prints while your plan runs. ${cur ? 'You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + '; a new plan adds on after that.' : ''}</p>
-      <p class="eyebrow" style="margin-top:18px">How long?</p>
-      <div class="pay-methods">${PLANS.map(x => `<label class="pay${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}><span><b>${x.label}</b><small>${x.note || 'per class'}</small></span><span class="logo">${money(x.price)}</span></label>`).join('')}</div>
-      <div class="field" style="margin-top:14px"><label for="coCoupon">Coupon code</label><div class="pw-wrap"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder="Have a code?"><button type="button" class="pw-toggle" id="coApply">APPLY</button></div><div class="err" id="coCouponMsg">${coCode ? (checkoutTotal() < planOf(coPlan).price ? 'Coupon applied.' : 'That code is not valid.') : ''}</div></div>
-      <div class="co-total"><span>${esc(c.label)} · ${plan.label}</span><span>${checkoutTotal() < plan.price ? '<s style="color:var(--fg-dim);font-weight:400;margin-right:8px">' + money(plan.price) + '</s>' : ''}${money(checkoutTotal())}</span></div>
-      <p class="co-note">Valid until <b>${dateOf(end.getTime())}</b>. Signed in as <b>${esc(session.name)}</b> (${esc(roleOf(session.role).label)}) · ${esc(session.email)}.</p>
-    </section>
-    <section class="panel"><p class="eyebrow">Pay with</p>
-      <div class="pay-methods">${PAY.map(m => `<label class="pay${m.id === payMethod ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}><span><b>${m.label}</b><small>${m.note}</small></span><span class="logo">${m.logo}</span></label>`).join('')}</div>
-      <button type="button" class="btn btn-primary btn-block" id="payNow">Subscribe · ${money(checkoutTotal())} with ${PAY.find(m => m.id === payMethod).label} →</button>
-      <p class="co-note">Payment gateways are not connected yet — this starts a demo subscription so you can try the whole flow. Razorpay, PayPal and Stripe plug in here.</p>
-    </section>`;
-  document.getElementById('coApply').addEventListener('click', () => { coCode = document.getElementById('coCoupon').value.trim().toUpperCase(); renderCheckout(); });
-  document.getElementById('payNow').addEventListener('click', () => {
-    addSub(coCls, coPlan);
-    const amount = checkoutTotal(), oid = 'LWO-' + Math.floor(100000 + Math.random() * 900000), method = PAY.find(m => m.id === payMethod).label;
-    pushLog('lww_orders', { id: oid, at: Date.now(), email: session.email, name: session.name, cls: coCls, plan: coPlan, amount, method, coupon: coCode || null, status: 'paid' }, 1000);
-    pushLog('lww_payments', { at: Date.now(), order: oid, gateway: method, amount, currency: 'INR', status: 'captured', demo: true }, 400);
-    pushLog('lww_webhooks', { at: Date.now(), gateway: method, event: 'payment.captured', order: oid, status: 200, demo: true }, 400);
-    logEvent('subscribe', { order: oid, cls: coCls, plan: coPlan, amount });
-    if (coCode) { const cp = read('lww_coupons', []).find(x => x.code === coCode); if (cp) { cp.uses = (cp.uses || 0) + 1; write('lww_coupons', read('lww_coupons', []).map(x => x.code === cp.code ? cp : x)); } }
-    coCode = '';
-    closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
-    toast(c.label + ' subscribed for ' + plan.label + ' (demo, no payment taken)');
-  });
+/* ask the server for a fresh signed quote (debounced while typing) */
+function requestQuote(now) {
+  clearTimeout(coTimer);
+  const run = async () => {
+    coBusy = true; coError = ''; paintSummary();
+    try {
+      const r = await fetch('/api/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cls: coCls, plan: coPlan, coupon: coCode, address: coAddr }) });
+      const q = await r.json(); if (!r.ok) throw new Error(q.error || 'Could not price this order');
+      coQuote = q; if (!q.methods.includes(payMethod)) payMethod = q.methods[0];
+    } catch (err) { coQuote = null; coError = err.message; }
+    coBusy = false; paintSummary(); paintErrors();
+  };
+  if (now) run(); else coTimer = setTimeout(run, 350);
 }
-document.addEventListener('change', e => { if (e.target.name === 'pay') { payMethod = e.target.value; renderCheckout(); } if (e.target.name === 'plan') { coPlan = e.target.value; renderCheckout(); } });
-document.addEventListener('click', e => { const b = e.target.closest('[data-co-class]'); if (b) { coCls = b.dataset.coClass; renderCheckout(); } });
+function renderCheckout() {
+  const C = coCountry() || coConfig.countries[coConfig.countries.length - 1], c = classById(coCls), cur = activeSub(coCls);
+  const stateField = C.states
+    ? `<select name="state" data-co="state">${['', ...C.states].map(x => `<option value="${esc(x)}"${x === coAddr.state ? ' selected' : ''}>${x || 'Choose ' + C.state.toLowerCase()}</option>`).join('')}</select>`
+    : `<input name="state" data-co="state" value="${esc(coAddr.state)}" placeholder="${esc(C.state)}" autocomplete="address-level1">`;
+  document.getElementById('checkoutBody').innerHTML = `
+    <div class="co-left">
+      <section class="panel"><p class="eyebrow">1 · What you are buying</p>
+        <div class="roles" style="grid-template-columns:repeat(auto-fit,minmax(112px,1fr))">${CLASSES.map(x => `<button type="button" class="role${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><span>${esc(x.label)}</span><small>${esc(x.ages)}${activeSub(x.id) ? ' · active' : ''}</small></button>`).join('')}</div>
+        <div class="pay-methods" style="margin-top:12px">${PLANS.map(x => `<label class="pay${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}><span><b>${x.label}</b><small>${x.note || 'per class'}</small></span><span class="logo" data-plan-price="${x.id}">₹${coConfig.plans[x.id] ? coConfig.plans[x.id].price : x.price}</span></label>`).join('')}</div>
+        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)} open while the plan runs.${cur ? ' You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + ' — a new plan adds on after that.' : ''}</p>
+      </section>
+      <section class="panel"><p class="eyebrow">2 · Billing address</p>
+        <p class="auth-sub" id="coRegionLine"></p>
+        <div class="field"><label>Country</label><select name="country" data-co="country">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select><div class="err" data-err="country"></div></div>
+        <div class="field"><label>Address</label><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder="House / flat, street, area" autocomplete="street-address"><div class="err" data-err="line1"></div></div>
+        <div class="grid-3 co-grid">
+          <div class="field"><label>City</label><input name="city" data-co="city" value="${esc(coAddr.city)}" placeholder="City" autocomplete="address-level2"><div class="err" data-err="city"></div></div>
+          <div class="field"><label id="coStateLabel">${esc(C.state)}</label>${stateField}<div class="err" data-err="state"></div></div>
+          <div class="field"><label id="coPostalLabel">${esc(C.postal.label)}</label><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder="${esc(C.postal.hint)}" inputmode="${C.code === 'IN' || C.code === 'US' || C.code === 'AU' || C.code === 'SG' || C.code === 'DE' || C.code === 'FR' ? 'numeric' : 'text'}" autocomplete="postal-code"><div class="err" data-err="postal"></div></div>
+        </div>
+      </section>
+      <section class="panel"><p class="eyebrow">3 · Pay with</p>
+        <div class="pay-methods" id="coMethods"></div>
+        <div class="field" style="margin-top:6px"><label for="coCoupon">Coupon code</label><div class="pw-wrap"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder="Have a code?" autocomplete="off"><button type="button" class="pw-toggle" id="coApply">APPLY</button></div><div class="err" id="coCouponMsg"></div></div>
+      </section>
+    </div>
+    <aside class="panel co-summary" id="coSummary"></aside>`;
+  paintRegion(); paintMethods(); paintSummary(); paintErrors();
+}
+function paintRegion() {
+  const C = coCountry(); const el = document.getElementById('coRegionLine'); if (!el || !C) return;
+  el.innerHTML = C.code === 'IN' ? '🇮🇳 Billing in <b>India</b> — prices in ₹ INR with GST. Use your 6-digit PIN code.' : '🌍 <b>International</b> — priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + '. ' + esc(C.postal.label) + ' format for ' + esc(C.name) + '.';
+}
+function paintMethods() {
+  const el = document.getElementById('coMethods'); if (!el) return;
+  const C = coCountry(); const allowed = C ? C.methods : PAY.map(m => m.id); if (!allowed.includes(payMethod)) payMethod = allowed[0];
+  el.innerHTML = PAY.map(m => { const on = allowed.includes(m.id); return `<label class="pay${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}" title="${on ? '' : 'Not available in ' + (C ? C.name : 'this country')}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span><b>${m.label}</b><small>${on ? m.note : 'Not available in ' + esc(C ? C.name : 'this country')}</small></span><span class="logo">${m.logo}</span></label>`; }).join('');
+}
+function paintErrors() {
+  const errs = (coQuote && coQuote.errors) || {};
+  document.querySelectorAll('#checkoutBody [data-err]').forEach(el => { const k = el.dataset.err; el.textContent = coTouched[k] && errs[k] ? errs[k] : ''; el.closest('.field').classList.toggle('bad', !!(coTouched[k] && errs[k])); });
+  const m = document.getElementById('coCouponMsg'); if (m) m.textContent = coCode ? (coQuote && coQuote.coupon ? 'Coupon ' + coQuote.coupon + ' applied — ₹' + coQuote.discountInr + ' off.' : (coQuote ? 'That code is not valid.' : '')) : '';
+}
+function paintSummary() {
+  const el = document.getElementById('coSummary'); if (!el) return;
+  const q = coQuote, C = coCountry();
+  const lines = q ? q.lines.map(l => `<div class="co-line"><span>${esc(l.label)}<small>${esc(l.note || '')}</small></span><b>${fmtCur(l.amount, q.currency)}</b></div>`).join('') : '';
+  el.innerHTML = `<p class="eyebrow">Order summary</p>
+    <div class="co-head"><div class="paper-mini">${esc(classById(coCls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(classById(coCls).label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>
+    <div class="co-lines${coBusy ? ' busy' : ''}">${q ? lines : (coError ? '<p class="alert err">' + esc(coError) + '</p>' : '<p class="cart-empty">Calculating…</p>')}</div>
+    ${q ? `<div class="co-total"><span>Total<small>${esc(q.currency)} · ${q.region === 'IN' ? 'India' : esc(q.countryName)}</small></span><span>${fmtCur(q.total, q.currency)}</span></div>` : ''}
+    ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} · rate 1 INR = ${q.rate} ${esc(q.currency)}. Charged in ${esc(q.currency)}.</p>` : ''}
+    <button type="button" class="btn btn-primary btn-block" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) + ' with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'Complete your address to continue'}</button>
+    <p class="co-secure">🔒 Prices are calculated and signed on the server · no card details are stored here · demo gateway</p>
+    ${q ? `<p class="co-note">Quote valid until ${new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.</p>` : ''}`;
+  const pay = document.getElementById('payNow'); if (pay && q && q.valid) pay.addEventListener('click', placeOrder);
+}
+async function placeOrder() {
+  if (!coQuote || !coQuote.valid || coBusy) return;
+  coBusy = true; paintSummary();
+  try {
+    const r = await fetch('/api/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quote: coQuote, method: payMethod, email: session.email, name: session.name }) });
+    const out = await r.json(); if (!r.ok) throw new Error(out.error || 'Payment failed');
+    const o = out.order, q = coQuote, method = PAY.find(m => m.id === payMethod).label;
+    addSub(coCls, coPlan);
+    write('lww_address', coAddr);
+    pushLog('lww_orders', { id: o.id, at: o.at, email: o.email, name: o.name, cls: o.cls, plan: o.plan, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
+    pushLog('lww_payments', { at: o.at, order: o.id, gateway: method, amount: q.total, currency: q.currency, status: 'captured', demo: true }, 400);
+    pushLog('lww_webhooks', { at: o.at, gateway: method, event: 'payment.captured', order: o.id, status: 200, demo: true }, 400);
+    logEvent('subscribe', { order: o.id, cls: coCls, plan: coPlan, amount: o.totalInr, currency: q.currency });
+    coCode = ''; coQuote = null; coBusy = false;
+    closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
+    toast(classById(coCls).label + ' subscribed for ' + planOf(coPlan).label + ' — ' + fmtCur(q.total, q.currency) + ' via ' + method + ' (demo)');
+  } catch (err) { coBusy = false; coError = err.message; paintSummary(); requestQuote(true); }
+}
+document.addEventListener('input', e => {
+  const f = e.target.closest('[data-co]'); if (!f) return;
+  coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true;
+  if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); requestQuote(true); return; }
+  write('lww_address', coAddr); requestQuote();
+});
+document.addEventListener('change', e => {
+  const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
+  if (e.target.name === 'pay') { payMethod = e.target.value; paintMethods(); paintSummary(); }
+  if (e.target.name === 'plan') { coPlan = e.target.value; document.querySelectorAll('input[name=plan]').forEach(i => i.closest('.pay').classList.toggle('on', i.checked)); paintSummary(); requestQuote(true); }
+});
+document.addEventListener('blur', e => { const f = e.target.closest && e.target.closest('[data-co]'); if (f) { coTouched[f.dataset.co] = true; paintErrors(); } }, true);
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-co-class]'); if (b) { coCls = b.dataset.coClass; document.querySelectorAll('[data-co-class]').forEach(x => x.classList.toggle('on', x === b)); paintSummary(); requestQuote(true); return; }
+  if (e.target.id === 'coApply') { coCode = document.getElementById('coCoupon').value.trim().toUpperCase(); requestQuote(true); }
+});
 document.getElementById('checkoutBack').addEventListener('click', closeCheckout);
 
 /* =====================================================================

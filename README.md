@@ -44,7 +44,7 @@ That is all: no `npm install`, no bundler. Any static host works too — serve t
 - **Sign up / Sign in** on the first screen (name, email, password), *Forgot password* with a six-digit code, "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
 - **Free-first shelf** — one shelf per class with the free sheet first and the rest beside it; a store page with **New · Bestselling · Free · Subscription** filters, classes and subjects.
 - **Class subscriptions** — pick a class and a period (1 month ₹199 · 3 months ₹499 · 1 year ₹1499); every sheet in that class opens and prints until the period ends; other classes stay locked. Coupons and per-class discounts apply at checkout.
-- **Checkout page** with Razorpay / PayPal / Stripe shown (gateways not connected yet — demo orders).
+- **Checkout with server-side pricing** — country, address, city, state and PIN/ZIP; India is detected automatically (INR, GST 18%, 6-digit PIN, Indian states) and other countries get their own currency, tax and postal format. The server (`site/server.cjs`) computes **base price + tax + platform/payment fee = total**, returns a signed quote, and only accepts a valid signed quote as an order — prices cannot be changed from the browser. Razorpay / PayPal / Stripe are offered per region (gateways not connected yet — demo orders).
 - **Cart** lists subscriptions with days left; **print** produces an A4 page carrying the plan and expiry.
 - **Creative copy for children** — a rotating *"Today's why"* question and playful lines in every chapter.
 - **SEO** — descriptive title/description, Open Graph & Twitter cards, JSON-LD (Organization, WebSite, ItemList of products), sitemap, robots, favicon, crawlable anchors.
@@ -67,7 +67,8 @@ That is all: no `npm install`, no bundler. Any static host works too — serve t
 ```
 kids-book-website/
 ├── site/                     ← the live site (serve this)
-│   ├── server.cjs            tiny static server on :4173
+│   ├── server.cjs            static server + pricing/checkout API on :4173
+│   ├── data/db.json          server database (plans, coupons, rates, orders) — created on first run, git-ignored
 │   ├── README.md             how the site is put together, where to edit content
 │   └── dist/
 │       ├── index.html        the whole customer site: styles, markup, script
@@ -102,7 +103,7 @@ Chapter copy is plain HTML in the six `<section class="chapter">` blocks. The ad
 
 The site runs today as a **front-end demo**: accounts, subscriptions, orders and logs are kept in the browser's storage. To launch:
 
-1. **Payments** — connect Razorpay, PayPal or Stripe in `renderCheckout()` (`#payNow`): create the order server-side, open the gateway, and grant the subscription from the webhook.
+1. **Payments** — `POST /api/order` in `site/server.cjs` is where the gateway is called: create the Razorpay / PayPal / Stripe order with the signed quote's total, open the gateway in the browser, and grant the subscription from the webhook. Set `ADMIN_KEY` for the admin endpoints.
 2. **Backend** — `archive/learn-with-why/supabase/` already contains a Postgres schema with row-level security, `checkout()` / `consume_print()` functions and a VeryPDF DRM edge function; point the storage helpers at it.
 3. **Staff auth** — replace the demo staff sign-up with real accounts and roles.
 4. **Domain** — the SEO tags, sitemap and robots assume `https://learnwithwhy.in`; change it before deploying and submit the sitemap in Google Search Console.

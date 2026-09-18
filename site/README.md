@@ -10,6 +10,7 @@ node server.cjs      # http://127.0.0.1:4173
 
 | File | Purpose |
 |---|---|
+| `server.cjs` | Static server **and the checkout API**: `GET /api/config` (countries, plans), `GET /api/geo`, `POST /api/quote` (signed price: base + tax + fee = total in the customer's currency), `POST /api/order` (accepts only a valid signed quote), `PUT /api/admin/*` (plans, coupons, order status; needs `x-admin-key`). Data in `data/db.json`. |
 | `dist/index.html` | The customer site: design tokens and styles, the six chapters, and the page script (frame engine, scroll, auth, shelf, store, subscriptions, checkout, cart, staff sign-in). |
 | `dist/admin.js` | The Admin and Developer dashboards. Loaded after the page script; shares its data. |
 | `dist/frames-webp/` | 960 landscape frames scrubbed by the scroll. Loaded lazily (key frames first, then a window around the playhead), capped in memory. |
