@@ -174,6 +174,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .staff-links a { color: var(--fg-muted); font-size: var(--fs-small); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); }
 .staff-links a:hover { color: #fff; text-decoration-color: #fff; }
 /* staff pages */
+#portal:not(.is-dash) .shop-bar { display: flex !important; }
+#portal:not(.is-dash) .portal-body { width: min(100% - 36px, 1240px) !important; margin: 10px auto 60px !important; min-height: 0 !important; display: grid !important; }
 .portal-body { position: relative; z-index: 2; width: min(100% - 36px, 1240px); margin: 10px auto 60px; display: grid; gap: 18px; }
 .portal-login { max-width: 440px; }
 .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 4px; }
@@ -318,6 +320,88 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .co-total small { display: block; font-size: 0.68rem; color: var(--fg-dim); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; }
 .co-secure { margin-top: 12px; font-size: 0.7rem; color: var(--fg-dim); line-height: 1.5; text-align: center; }
 .pay.off { opacity: 0.4; cursor: not-allowed; }
+/* ---- checkout 2.0 ---- */
+.stepper { display: flex; gap: 22px; list-style: none; margin-top: 6px; }
+.stepper li { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--fg-dim); }
+.stepper li i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.7rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s; }
+.stepper li.on { color: #fff; } .stepper li.on i { border-color: #fff; background: rgba(255,255,255,0.1); }
+.stepper li.done { color: #8fe8b4; } .stepper li.done i { background: #1f6b47; border-color: #1f6b47; color: #fff; }
+.co-lock { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-dim); margin-right: 6px; }
+.co-card { position: relative; transition: border-color 0.3s; }
+.co-card.done { border-color: rgba(143,232,180,0.3); }
+.co-card-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.co-card-head h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.4rem; line-height: 1.1; }
+.co-card-head p { font-size: 0.8rem; color: var(--fg-dim); margin-top: 3px; }
+.co-num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 800; background: #fff; color: #14181c; }
+.co-card.done .co-num { background: #1f6b47; color: #fff; }
+.region-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 100px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); font-size: 0.72rem; font-weight: 700; color: #fff; margin-right: 6px; }
+.region-chip.in { background: rgba(240,180,85,0.15); border-color: rgba(240,180,85,0.4); }
+.class-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.class-pill { position: relative; display: grid; gap: 1px; padding: 9px 14px; border-radius: 14px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: inherit; cursor: pointer; text-align: left; font-family: inherit; transition: all 0.2s var(--ease); }
+.class-pill b { font-size: 0.86rem; } .class-pill small { font-size: 0.66rem; color: var(--fg-dim); }
+.class-pill i { position: absolute; top: 8px; right: 10px; font-style: normal; font-size: 0.55rem; color: #8fe8b4; }
+.class-pill:hover { border-color: rgba(255,255,255,0.35); transform: translateY(-1px); }
+.class-pill.on { background: #fff; color: #14181c; border-color: #fff; } .class-pill.on small { color: #5d636b; }
+.plan-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 640px) { .plan-cards { grid-template-columns: 1fr; } }
+.plan-card { position: relative; display: grid; gap: 4px; padding: 16px 14px 14px; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.25s var(--ease); overflow: hidden; }
+.plan-card input { position: absolute; opacity: 0; pointer-events: none; }
+.plan-card b { font-size: 0.82rem; color: var(--fg-muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.plan-card strong { font-family: var(--font-display); font-size: 1.9rem; font-weight: 500; line-height: 1; }
+.plan-card small { font-size: 0.7rem; color: var(--fg-dim); }
+.plan-card .tick { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); display: grid; place-items: center; font-size: 0.65rem; color: transparent; transition: all 0.2s; }
+.plan-card:hover { border-color: rgba(255,255,255,0.35); transform: translateY(-2px); }
+.plan-card.on { border-color: #f0b455; background: linear-gradient(160deg, rgba(240,180,85,0.16), rgba(240,180,85,0.03)); box-shadow: 0 0 0 1px rgba(240,180,85,0.4), 0 14px 30px rgba(0,0,0,0.3); }
+.plan-card.on .tick { background: #f0b455; border-color: #f0b455; color: #14181c; }
+.ribbon { position: absolute; top: 0; left: 0; padding: 3px 10px; border-radius: 0 0 10px 0; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(255,255,255,0.12); color: #fff; }
+.ribbon.gold { background: #f0b455; color: #14181c; }
+.plan-card .ribbon + b { margin-top: 12px; }
+.fl { position: relative; margin-bottom: 14px; }
+.fl input, .fl select { width: 100%; padding: 22px 14px 8px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: #fff; font: inherit; font-size: 0.95rem; outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none; }
+.fl select { padding-right: 36px; background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.6) 50%), linear-gradient(135deg, rgba(255,255,255,0.6) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+.fl select option { color: #000; }
+.fl label { position: absolute; left: 14px; right: 14px; top: 15px; font-size: 0.9rem; color: var(--fg-dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.18s var(--ease); }
+.fl .hint { display: block; margin-top: 5px; font-size: 0.68rem; color: var(--fg-dim); }
+.fl input:focus, .fl select:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.09); box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
+.fl input:focus + label, .fl input:not(:placeholder-shown) + label, .fl select.filled + label, .fl select:focus + label { top: 7px; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-muted); }
+.fl.bad input, .fl.bad select { border-color: rgba(255,120,120,0.7); }
+.fl .err { margin-top: 5px; }
+.fl-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .fl-grid { grid-template-columns: 1fr; gap: 0; } }
+.method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 640px) { .method-grid { grid-template-columns: 1fr; } }
+.method { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.2s var(--ease); }
+.method input { position: absolute; opacity: 0; pointer-events: none; }
+.method .mark { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.method .txt b { display: block; font-size: 0.88rem; } .method .txt small { font-size: 0.68rem; color: var(--fg-dim); }
+.method .ring { margin-left: auto; width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; transition: all 0.2s; }
+.method:hover { border-color: rgba(255,255,255,0.35); }
+.method.on { border-color: #fff; background: rgba(255,255,255,0.08); }
+.method.on .ring { border-color: #fff; box-shadow: inset 0 0 0 4px #14181c, inset 0 0 0 10px #fff; }
+.method.off { opacity: 0.35; cursor: not-allowed; }
+.coupon-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+.coupon-row .fl { margin-bottom: 0; } .coupon-row .btn { padding: 15px 20px; border-radius: 14px; }
+.co-summary { padding: 22px; border-radius: 22px; background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(18px); box-shadow: 0 30px 70px rgba(0,0,0,0.45); }
+.sum-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; } .sum-head .eyebrow { margin: 0; }
+.sum-item { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sum-thumb { width: 48px; height: 48px; border-radius: 12px; background: var(--paper); color: var(--ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 500; }
+.sum-item small { display: block; font-size: 0.74rem; color: var(--fg-dim); }
+.sum-total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0 6px; }
+.sum-total span { font-weight: 700; } .sum-total small { display: block; font-size: 0.66rem; color: var(--fg-dim); font-weight: 400; }
+.sum-total strong { font-family: var(--font-display); font-size: 2rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.sum-total.bump strong { animation: bump 0.45s var(--ease); }
+@keyframes bump { 0% { transform: scale(0.94); color: #f0b455; } 100% { transform: none; } }
+.sk-line { height: 14px; border-radius: 7px; margin: 14px 0; background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.14), rgba(255,255,255,0.06)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.sk-line.short { width: 60%; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.btn-pay { width: 100%; margin-top: 10px; padding: 14px 18px; border-radius: 16px; display: grid; gap: 2px; text-align: center; background: linear-gradient(135deg, #fff, #ffe9c2); color: #14181c; box-shadow: 0 12px 30px rgba(240,180,85,0.25); position: relative; overflow: hidden; }
+.btn-pay span { font-size: 1.05rem; font-weight: 800; } .btn-pay small { font-size: 0.72rem; font-weight: 600; color: #5d636b; }
+.btn-pay:not(:disabled)::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.7) 50%, transparent 60%); transform: translateX(-100%); animation: sheen 2.8s ease-in-out infinite; }
+@keyframes sheen { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.btn-pay:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(240,180,85,0.4); }
+.trust { list-style: none; display: grid; gap: 6px; margin-top: 14px; font-size: 0.72rem; color: var(--fg-dim); }
+.co-note.ok { color: #8fe8b4; }
+@media (prefers-reduced-motion: reduce) { .btn-pay::after, .sk-line, .sum-total.bump strong { animation: none; } }
 .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
 
 /* ---------- chapter 02: sheets (player) ---------- */
@@ -727,8 +811,8 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 <div class="shop" id="checkout" aria-hidden="true">
   <div class="shop-shade" style="background:#071018"></div>
   <header class="shop-bar">
-    <div><p class="eyebrow">Checkout</p><h2 class="card-title">Almost there.</h2></div>
-    <div class="shop-actions"><button type="button" class="icon-btn" id="checkoutBack" aria-label="Back">✕</button></div>
+    <div><p class="eyebrow">Secure checkout</p><ol class="stepper" id="coStepper"><li class="on"><i>1</i>Plan</li><li><i>2</i>Address</li><li><i>3</i>Payment</li></ol></div>
+    <div class="shop-actions"><span class="co-lock">🔒 256-bit encrypted</span><button type="button" class="icon-btn" id="checkoutBack" aria-label="Back">✕</button></div>
   </header>
   <div class="checkout-body" id="checkoutBody"></div>
 </div>
@@ -1277,6 +1361,7 @@ function renderPortal() {
   const cfg = STAFF[portalKind], who = staffSession(), inn = who && who.kind === portalKind;
   document.getElementById('portalKicker').textContent = cfg.kicker; document.getElementById('portalTitle').textContent = cfg.title;
   document.getElementById('portalOut').hidden = !inn;
+  portalEl.classList.toggle('is-dash', !!inn);
   const body = document.getElementById('portalBody');
   if (!inn) {
     const up = portalView === 'signup';
@@ -1309,12 +1394,15 @@ function renderPortal() {
     return;
   }
   body.innerHTML = window.dashRender ? dashRender(portalKind, who) : '<p class="cart-empty">admin.js did not load.</p>';
+  const acts = body.querySelector('.dash-top-actions');
+  if (acts) acts.insertAdjacentHTML('beforeend', '<button type="button" class="btn btn-ghost" data-portal-out style="padding:8px 14px;font-size:0.78rem">Sign out</button><button type="button" class="icon-btn dash-close" data-portal-close aria-label="Back to the site">✕</button>');
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); portalView = 'signin'; openPortal(a.dataset.portal); return; }
   const v = e.target.closest('[data-portal-view]'); if (v) { portalView = v.dataset.portalView; renderPortal(); }
 });
 document.getElementById('portalClose').addEventListener('click', closePortal);
+document.addEventListener('click', e => { if (e.target.closest('[data-portal-close]')) closePortal(); else if (e.target.closest('[data-portal-out]')) { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); } });
 document.getElementById('portalOut').addEventListener('click', () => { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); });
 
 /* ---------- checkout: a page of its own; Razorpay / PayPal / Stripe are shown, not wired yet ---------- */
@@ -1374,61 +1462,80 @@ function requestQuote(now) {
 }
 function renderCheckout() {
   const C = coCountry() || coConfig.countries[coConfig.countries.length - 1], c = classById(coCls), cur = activeSub(coCls);
+  const flag = code => code === 'OTHER' ? '🌐' : String.fromCodePoint(...code.split('').map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
   const stateField = C.states
-    ? `<select name="state" data-co="state">${['', ...C.states].map(x => `<option value="${esc(x)}"${x === coAddr.state ? ' selected' : ''}>${x || 'Choose ' + C.state.toLowerCase()}</option>`).join('')}</select>`
-    : `<input name="state" data-co="state" value="${esc(coAddr.state)}" placeholder="${esc(C.state)}" autocomplete="address-level1">`;
+    ? `<select name="state" data-co="state"${coAddr.state ? ' class="filled"' : ''}>${['', ...C.states].map(x => `<option value="${esc(x)}"${x === coAddr.state ? ' selected' : ''}>${x}</option>`).join('')}</select><label>${esc(C.state)}</label>`
+    : `<input name="state" data-co="state" value="${esc(coAddr.state)}" placeholder=" " autocomplete="address-level1"><label>${esc(C.state)}</label>`;
+  const numeric = ['IN', 'US', 'AU', 'SG', 'DE', 'FR'].includes(C.code);
+  const monthly = id => { const pl = coConfig.plans[id] || {}; return pl.price && pl.months ? '₹' + Math.round(pl.price / pl.months) + '/mo' : ''; };
   document.getElementById('checkoutBody').innerHTML = `
     <div class="co-left">
-      <section class="panel"><p class="eyebrow">1 · What you are buying</p>
-        <div class="roles" style="grid-template-columns:repeat(auto-fit,minmax(112px,1fr))">${CLASSES.map(x => `<button type="button" class="role${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><span>${esc(x.label)}</span><small>${esc(x.ages)}${activeSub(x.id) ? ' · active' : ''}</small></button>`).join('')}</div>
-        <div class="pay-methods" style="margin-top:12px">${PLANS.map(x => `<label class="pay${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}><span><b>${x.label}</b><small>${x.note || 'per class'}</small></span><span class="logo" data-plan-price="${x.id}">₹${coConfig.plans[x.id] ? coConfig.plans[x.id].price : x.price}</span></label>`).join('')}</div>
-        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)} open while the plan runs.${cur ? ' You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + ' — a new plan adds on after that.' : ''}</p>
+      <section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Choose your plan</h3><p>Every sheet and worksheet in one class, for as long as you like.</p></div></header>
+        <div class="class-pills">${CLASSES.map(x => `<button type="button" class="class-pill${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.ages)}</small>${activeSub(x.id) ? '<i title="active subscription">●</i>' : ''}</button>`).join('')}</div>
+        <div class="plan-cards">${PLANS.map((x, i) => `<label class="plan-card${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}>${i === 1 ? '<span class="ribbon">Most popular</span>' : i === 2 ? '<span class="ribbon gold">Best value</span>' : ''}<b>${x.label}</b><strong data-plan-price="${x.id}">₹${coConfig.plans[x.id] ? coConfig.plans[x.id].price : x.price}</strong><small>${monthly(x.id)}${x.note ? ' · ' + x.note : ''}</small><span class="tick">✓</span></label>`).join('')}</div>
+        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)}.${cur ? ' You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + ' — a new plan adds on after that.' : ''}</p>
       </section>
-      <section class="panel"><p class="eyebrow">2 · Billing address</p>
-        <p class="auth-sub" id="coRegionLine"></p>
-        <div class="field"><label>Country</label><select name="country" data-co="country">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select><div class="err" data-err="country"></div></div>
-        <div class="field"><label>Address</label><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder="House / flat, street, area" autocomplete="street-address"><div class="err" data-err="line1"></div></div>
-        <div class="grid-3 co-grid">
-          <div class="field"><label>City</label><input name="city" data-co="city" value="${esc(coAddr.city)}" placeholder="City" autocomplete="address-level2"><div class="err" data-err="city"></div></div>
-          <div class="field"><label id="coStateLabel">${esc(C.state)}</label>${stateField}<div class="err" data-err="state"></div></div>
-          <div class="field"><label id="coPostalLabel">${esc(C.postal.label)}</label><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder="${esc(C.postal.hint)}" inputmode="${C.code === 'IN' || C.code === 'US' || C.code === 'AU' || C.code === 'SG' || C.code === 'DE' || C.code === 'FR' ? 'numeric' : 'text'}" autocomplete="postal-code"><div class="err" data-err="postal"></div></div>
+      <section class="panel co-card" data-step="2"><header class="co-card-head"><span class="co-num">2</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
+        <div class="fl"><select name="country" data-co="country" class="filled">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${flag(x.code)}  ${esc(x.name)}</option>`).join('')}</select><label>Country</label><div class="err" data-err="country"></div></div>
+        <div class="fl"><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder=" " autocomplete="street-address"><label>Address (house / flat, street, area)</label><div class="err" data-err="line1"></div></div>
+        <div class="fl-grid">
+          <div class="fl"><input name="city" data-co="city" value="${esc(coAddr.city)}" placeholder=" " autocomplete="address-level2"><label>City</label><div class="err" data-err="city"></div></div>
+          <div class="fl">${stateField}<div class="err" data-err="state"></div></div>
+          <div class="fl"><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder=" " inputmode="${numeric ? 'numeric' : 'text'}" autocomplete="postal-code"><label id="coPostalLabel">${esc(C.postal.label)}</label><small class="hint">${esc(C.postal.hint)}</small><div class="err" data-err="postal"></div></div>
         </div>
       </section>
-      <section class="panel"><p class="eyebrow">3 · Pay with</p>
-        <div class="pay-methods" id="coMethods"></div>
-        <div class="field" style="margin-top:6px"><label for="coCoupon">Coupon code</label><div class="pw-wrap"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder="Have a code?" autocomplete="off"><button type="button" class="pw-toggle" id="coApply">APPLY</button></div><div class="err" id="coCouponMsg"></div></div>
+      <section class="panel co-card" data-step="3"><header class="co-card-head"><span class="co-num">3</span><div><h3>Payment</h3><p>Choose how you would like to pay.</p></div></header>
+        <div class="method-grid" id="coMethods"></div>
+        <div class="coupon-row"><div class="fl"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder=" " autocomplete="off"><label>Coupon code</label></div><button type="button" class="btn btn-ghost" id="coApply">Apply</button></div>
+        <div class="err" id="coCouponMsg" style="margin-top:-6px"></div>
       </section>
     </div>
-    <aside class="panel co-summary" id="coSummary"></aside>`;
-  paintRegion(); paintMethods(); paintSummary(); paintErrors();
+    <aside class="co-summary" id="coSummary"></aside>`;
+  paintRegion(); paintMethods(); paintSummary(); paintErrors(); paintSteps();
+}
+function paintSteps() {
+  const li = document.querySelectorAll('#coStepper li'); if (!li.length) return;
+  const addrOk = !!(coQuote && coQuote.valid), planOk = true;
+  li[0].className = planOk ? 'done' : 'on'; li[1].className = addrOk ? 'done' : 'on'; li[2].className = addrOk ? 'on' : '';
+  document.querySelectorAll('.co-card').forEach(card => { const st = +card.dataset.step; card.classList.toggle('done', st === 1 || (st === 2 && addrOk)); });
 }
 function paintRegion() {
   const C = coCountry(); const el = document.getElementById('coRegionLine'); if (!el || !C) return;
-  el.innerHTML = C.code === 'IN' ? '🇮🇳 Billing in <b>India</b> — prices in ₹ INR with GST. Use your 6-digit PIN code.' : '🌍 <b>International</b> — priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + '. ' + esc(C.postal.label) + ' format for ' + esc(C.name) + '.';
+  el.innerHTML = C.code === 'IN' ? '<span class="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · 6-digit PIN code' : '<span class="region-chip">🌍 International</span> priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + ' · ' + esc(C.postal.label) + ' format for ' + esc(C.name);
 }
+const BRAND_MARK = {
+  razorpay: '<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#3395ff" d="M8.7 9.6 7 15.4l4.3-2.8 1.9 8.1h3.5L21 2.7z"/><path fill="#072654" d="M4.6 12.2 3 18.6h3.4l2.9-10.9z"/></svg>',
+  paypal: '<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#003087" d="M7 21 9.6 4.5h6.2c3.5 0 5.2 1.9 4.7 4.8-.6 3.4-3 5.1-6.4 5.1h-2.3L10.8 21z"/><path fill="#009cde" d="M9.5 19.5 11.9 5h5.6c2.9 0 4.4 1.6 3.9 4.1-.5 3-2.6 4.5-5.6 4.5h-2.1L12.6 19.5z" opacity=".85"/></svg>',
+  stripe: '<svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="5" fill="#635bff"/><path fill="#fff" d="M11 9.4c0-.6.5-.9 1.4-.9 1.2 0 2.8.4 4 1V6.2c-1.3-.5-2.7-.7-4-.7-3.3 0-5.5 1.7-5.5 4.6 0 4.5 6.2 3.8 6.2 5.7 0 .7-.6 1-1.5 1-1.3 0-3.1-.6-4.4-1.3v3.4c1.5.6 3 .9 4.4.9 3.4 0 5.7-1.7 5.7-4.6-.1-4.9-6.3-4-6.3-5.8z"/></svg>',
+};
 function paintMethods() {
   const el = document.getElementById('coMethods'); if (!el) return;
   const C = coCountry(); const allowed = C ? C.methods : PAY.map(m => m.id); if (!allowed.includes(payMethod)) payMethod = allowed[0];
-  el.innerHTML = PAY.map(m => { const on = allowed.includes(m.id); return `<label class="pay${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}" title="${on ? '' : 'Not available in ' + (C ? C.name : 'this country')}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span><b>${m.label}</b><small>${on ? m.note : 'Not available in ' + esc(C ? C.name : 'this country')}</small></span><span class="logo">${m.logo}</span></label>`; }).join('');
+  el.innerHTML = PAY.map(m => { const on = allowed.includes(m.id); return `<label class="method${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${on ? m.note : 'Not available in ' + esc(C ? C.name : 'this country')}</small></span><span class="ring"></span></label>`; }).join('');
 }
 function paintErrors() {
   const errs = (coQuote && coQuote.errors) || {};
-  document.querySelectorAll('#checkoutBody [data-err]').forEach(el => { const k = el.dataset.err; el.textContent = coTouched[k] && errs[k] ? errs[k] : ''; el.closest('.field').classList.toggle('bad', !!(coTouched[k] && errs[k])); });
+  document.querySelectorAll('#checkoutBody [data-err]').forEach(el => { const k = el.dataset.err; el.textContent = coTouched[k] && errs[k] ? errs[k] : ''; const w = el.closest('.fl, .field'); if (w) w.classList.toggle('bad', !!(coTouched[k] && errs[k])); });
   const m = document.getElementById('coCouponMsg'); if (m) m.textContent = coCode ? (coQuote && coQuote.coupon ? 'Coupon ' + coQuote.coupon + ' applied — ₹' + coQuote.discountInr + ' off.' : (coQuote ? 'That code is not valid.' : '')) : '';
 }
+let lastTotal = null;
 function paintSummary() {
   const el = document.getElementById('coSummary'); if (!el) return;
-  const q = coQuote, C = coCountry();
+  const q = coQuote, cls = classById(coCls);
+  const skeleton = '<div class="sk-line"></div><div class="sk-line"></div><div class="sk-line short"></div>';
   const lines = q ? q.lines.map(l => `<div class="co-line"><span>${esc(l.label)}<small>${esc(l.note || '')}</small></span><b>${fmtCur(l.amount, q.currency)}</b></div>`).join('') : '';
-  el.innerHTML = `<p class="eyebrow">Order summary</p>
-    <div class="co-head"><div class="paper-mini">${esc(classById(coCls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(classById(coCls).label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>
-    <div class="co-lines${coBusy ? ' busy' : ''}">${q ? lines : (coError ? '<p class="alert err">' + esc(coError) + '</p>' : '<p class="cart-empty">Calculating…</p>')}</div>
-    ${q ? `<div class="co-total"><span>Total<small>${esc(q.currency)} · ${q.region === 'IN' ? 'India' : esc(q.countryName)}</small></span><span>${fmtCur(q.total, q.currency)}</span></div>` : ''}
-    ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} · rate 1 INR = ${q.rate} ${esc(q.currency)}. Charged in ${esc(q.currency)}.</p>` : ''}
-    <button type="button" class="btn btn-primary btn-block" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) + ' with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'Complete your address to continue'}</button>
-    <p class="co-secure">🔒 Prices are calculated and signed on the server · no card details are stored here · demo gateway</p>
-    ${q ? `<p class="co-note">Quote valid until ${new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.</p>` : ''}`;
+  const changed = q && lastTotal !== null && lastTotal !== q.total; if (q) lastTotal = q.total;
+  el.innerHTML = `<div class="sum-head"><p class="eyebrow">Order summary</p>${q ? `<span class="region-chip${q.region === 'IN' ? ' in' : ''}">${q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + esc(q.countryName) + ' · ' + esc(q.currency)}</span>` : ''}</div>
+    <div class="sum-item"><div class="sum-thumb">${esc(cls.label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(cls.label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>
+    <div class="co-lines${coBusy ? ' busy' : ''}">${q ? lines : (coError ? '<p class="alert err">' + esc(coError) + '</p>' : skeleton)}</div>
+    ${q ? `<div class="sum-total${changed ? ' bump' : ''}"><span>Total<small>incl. tax & fees</small></span><strong>${fmtCur(q.total, q.currency)}</strong></div>` : ''}
+    ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} at 1 INR = ${q.rate} ${esc(q.currency)}. You are charged in ${esc(q.currency)}.</p>` : ''}
+    ${q && q.coupon ? `<p class="co-note ok">Coupon ${esc(q.coupon)} applied — ₹${q.discountInr} off</p>` : ''}
+    <button type="button" class="btn btn-pay" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}><span>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>${q && q.valid ? 'with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'to unlock payment'}</small></button>
+    <ul class="trust"><li>🔒 Priced & signed on the server</li><li>🛡️ No card details stored here</li><li>↺ Cancel any time</li></ul>
+    ${q ? `<p class="co-note" style="text-align:center">Quote valid until ${new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>` : ''}`;
   const pay = document.getElementById('payNow'); if (pay && q && q.valid) pay.addEventListener('click', placeOrder);
+  paintSteps();
 }
 async function placeOrder() {
   if (!coQuote || !coQuote.valid || coBusy) return;
@@ -1455,9 +1562,10 @@ document.addEventListener('input', e => {
   write('lww_address', coAddr); requestQuote();
 });
 document.addEventListener('change', e => {
-  const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
+  const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { f.classList.toggle('filled', !!f.value); coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
   if (e.target.name === 'pay') { payMethod = e.target.value; paintMethods(); paintSummary(); }
-  if (e.target.name === 'plan') { coPlan = e.target.value; document.querySelectorAll('input[name=plan]').forEach(i => i.closest('.pay').classList.toggle('on', i.checked)); paintSummary(); requestQuote(true); }
+  const fl = e.target.closest('.fl select'); if (fl) fl.classList.toggle('filled', !!fl.value);
+  if (e.target.name === 'plan') { coPlan = e.target.value; document.querySelectorAll('input[name=plan]').forEach(i => i.closest('.plan-card').classList.toggle('on', i.checked)); paintSummary(); requestQuote(true); }
 });
 document.addEventListener('blur', e => { const f = e.target.closest && e.target.closest('[data-co]'); if (f) { coTouched[f.dataset.co] = true; paintErrors(); } }, true);
 document.addEventListener('click', e => {

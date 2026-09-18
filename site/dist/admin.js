@@ -13,6 +13,15 @@
     ['payments', 'Payment logs'], ['webhooks', 'Webhook logs'], ['auth', 'Authentication logs'], ['perf', 'Performance'],
     ['security', 'Security events'], ['deploy', 'Deployments'], ['backups', 'Backups'], ['audit', 'Audit logs'],
   ];
+  const ICON = {
+    overview: '<path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-10h8V3h-8z"/>', products: '<path d="M21 8 12 3 3 8v8l9 5 9-5zM12 12 3.5 7.5M12 12l8.5-4.5M12 12v9"/>', orders: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>',
+    customers: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm14 10v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>', analytics: '<path d="M3 3v18h18M7 14l4-4 4 4 5-6"/>', coupons: '<path d="M20 12V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v5a2 2 0 0 1 0 4v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 1 0-4zM9 9l6 6M9 15l6-6"/>',
+    content: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', roles: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4"/>', audit: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8M8 9h2"/>',
+    health: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', errors: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4m0 4h.01"/>', api: '<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>', db: '<path d="M12 8c5 0 9-1.3 9-3s-4-3-9-3-9 1.3-9 3 4 3 9 3zm9-3v14c0 1.7-4 3-9 3s-9-1.3-9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>',
+    payments: '<path d="M2 7h20v10H2zM2 11h20M6 15h4"/>', webhooks: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', auth: '<path d="M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zM7 11V7a5 5 0 0 1 10 0v4"/>', perf: '<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+    security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', deploy: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.8a2 2 0 0 0-2.9-.2zM12 15l-3-3a22 22 0 0 1 2-3.9 12.5 12.5 0 0 1 11-6c0 3.5-1.5 8.5-6 11a22 22 0 0 1-4 2zM9 12H4s.5-3.6 2-5c1.6-1.4 5 0 5 0M12 15v5s3.6-.5 5-2c1.4-1.6 0-5 0-5"/>', backups: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  };
+  const ico = id => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[id] || ICON.overview}</svg>`;
   const ORDER_STATUS = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'];
   const PERMS = ['products', 'orders', 'customers', 'analytics', 'coupons', 'content', 'roles', 'audit', 'developer'];
   const DEFAULT_ROLES = { admin: PERMS.slice(), editor: ['products', 'content'], support: ['orders', 'customers'], developer: ['developer', 'audit'] };
@@ -20,26 +29,75 @@
   /* ---------- dashboard styles ---------- */
   const style = document.createElement('style');
   style.textContent = `
-  .dash { display: grid; grid-template-columns: 230px 1fr; gap: 18px; align-items: start; }
-  @media (max-width: 860px) { .dash { grid-template-columns: 1fr; } }
-  .dash-nav { position: sticky; top: 96px; }
-  .dash-nav .side-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dash-main { display: grid; gap: 18px; min-width: 0; }
-  .side-btn.off { opacity: 0.4; }
-  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  :root { --d-bg: #0b1017; --d-card: rgba(255,255,255,0.035); --d-line: rgba(255,255,255,0.08); --d-accent: #f0b455; }
+  #portal .shop-bar { display: none; }
+  #portal .portal-body { width: 100%; max-width: none; margin: 0; padding: 0; min-height: 100vh; display: block; }
+  #portal .shop-shade { background: var(--d-bg); }
+  .dash { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  @media (max-width: 900px) { .dash { grid-template-columns: 1fr; } }
+  .dash-nav { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid var(--d-line); background: rgba(255,255,255,0.02); }
+  @media (max-width: 900px) { .dash-nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--d-line); } }
+  .nav-brandline { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; padding: 4px 8px 18px; }
+  .nav-brandline b { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; }
+  .nav-brandline small { grid-column: 2; font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--fg-dim); }
+  .nav-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--d-accent); box-shadow: 0 0 14px var(--d-accent); }
+  .nav-list-v { display: grid; gap: 2px; }
+  @media (max-width: 900px) { .nav-list-v { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 6px; } .nav-item { white-space: nowrap; } }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 12px; border: none; background: none; color: var(--fg-muted); font: 600 0.86rem var(--font-body); cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s; }
+  .nav-item svg { flex-shrink: 0; opacity: 0.8; }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .nav-item.on { background: rgba(240,180,85,0.14); color: #fff; box-shadow: inset 3px 0 0 var(--d-accent); }
+  .nav-item.on svg { color: var(--d-accent); opacity: 1; }
+  .nav-item.off { opacity: 0.35; }
+  .nav-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 14px 8px 0; border-top: 1px solid var(--d-line); font-size: 0.76rem; color: var(--fg-dim); }
+  .nav-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avatar-sm { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #f0b455, #8fd6d2); color: #14181c; font-weight: 800; font-size: 0.7rem; flex-shrink: 0; }
+  .dash-main { min-width: 0; }
+  .dash-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px clamp(18px, 3vw, 36px); background: rgba(11,16,23,0.8); backdrop-filter: blur(14px); border-bottom: 1px solid var(--d-line); }
+  .dash-top h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.7rem; line-height: 1; }
+  .dash-top p { font-size: 0.76rem; color: var(--fg-dim); margin-top: 4px; }
+  .dash-top-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  @media (max-width: 900px) { .dash-top { flex-wrap: wrap; } .dash-top-actions .chip-sm { display: none; } .dash-nav { padding: 14px; } .nav-brandline { padding-bottom: 10px; } .nav-foot { display: none; } }
+  .dash-close { margin-left: 6px; }
+  .chip-sm { padding: 6px 10px; border-radius: 100px; border: 1px solid var(--d-line); background: rgba(255,255,255,0.03); font-size: 0.7rem; color: var(--fg-muted); white-space: nowrap; }
+  .live i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #8fe8b4; box-shadow: 0 0 8px #8fe8b4; margin-right: 5px; animation: pulse 1.6s ease-in-out infinite; }
+  .dash-content { display: grid; gap: 18px; padding: 22px clamp(18px, 3vw, 36px) 60px; animation: fadeUp 0.35s var(--ease) both; }
+  .dash-content .panel { background: var(--d-card); border-color: var(--d-line); backdrop-filter: none; box-shadow: none; border-radius: 18px; }
+  .dash-content .eyebrow { color: var(--fg-dim); font-size: 0.66rem; }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--d-line); background: var(--d-card); display: grid; gap: 6px; transition: border-color 0.2s, transform 0.2s; }
+  .kpi:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .kpi-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-dim); }
+  .kpi b { font-family: var(--font-display); font-size: 1.9rem; font-weight: 500; line-height: 1; }
+  .kpi small { font-size: 0.72rem; color: var(--fg-dim); }
+  .spark { width: 80px; height: 26px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--d-line); background: var(--d-card); }
+  .stat b { font-family: var(--font-display); font-size: 1.8rem; font-weight: 500; line-height: 1; display: block; }
+  .stat span { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-dim); }
+  .side-title { font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--fg-dim); margin: 6px 0 10px; }
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
   .row-between .eyebrow { margin-bottom: 0; }
   .row-form { display: grid; grid-template-columns: 1fr 110px 170px auto; gap: 8px; margin-bottom: 14px; }
   @media (max-width: 720px) { .row-form { grid-template-columns: 1fr 1fr; } }
-  .row-form input { background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); padding: 10px 12px; border-radius: var(--r-md); color: #fff; font: inherit; }
+  .row-form input { background: rgba(255,255,255,0.06); border: 1px solid var(--d-line); padding: 10px 12px; border-radius: 12px; color: #fff; font: inherit; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
-  .field select, .table select { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); padding: 10px 12px; border-radius: var(--r-md); color: #fff; font: inherit; }
+  .field select, .table select { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid var(--d-line); padding: 10px 12px; border-radius: 12px; color: #fff; font: inherit; }
   .field select option, .table select option { color: #000; }
   .field input[type=file] { padding: 8px; }
   .field small { font-size: 0.72rem; color: var(--fg-dim); }
   .table select { width: auto; padding: 5px 8px; font-size: 0.78rem; }
   .table input[type=number] { width: 90px; }
-  .tbl-wrap { overflow-x: auto; }
+  .tbl-wrap { overflow-x: auto; border-radius: 12px; }
+  .table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .table th { text-align: left; font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-dim); padding: 10px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--d-line); }
+  .table th:first-child { border-radius: 10px 0 0 0; } .table th:last-child { border-radius: 0 10px 0 0; }
+  .table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.84rem; vertical-align: middle; }
+  .table tbody tr { transition: background 0.15s; } .table tbody tr:hover { background: rgba(255,255,255,0.03); }
+  .table td small { color: var(--fg-dim); }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.08); }
+  .search { min-width: 220px; background: rgba(255,255,255,0.06); border: 1px solid var(--d-line); padding: 10px 14px 10px 36px; border-radius: 100px; color: #fff; font: inherit; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 15px; background-position: 13px 50%; }
   .p-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
   .thumb-glyph { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: var(--paper); color: var(--ink); font-family: var(--font-display); font-weight: 500; }
   .chart { width: 100%; height: 170px; display: block; }
@@ -52,12 +110,9 @@
   .err-item summary small { color: var(--fg-dim); margin-left: 8px; }
   .err-item .code { margin-top: 8px; }
   .chip small { margin-left: 6px; color: var(--fg-dim); }
-  .table td small { color: var(--fg-dim); }
-  .table th { padding: 10px 12px 10px 0; } .table td { padding: 12px 12px 12px 0; }
-  .search { min-width: 200px; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); padding: 10px 14px; border-radius: var(--r-pill); color: #fff; font: inherit; }
   .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
-  .book-card { display: flex; flex-direction: column; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); overflow: hidden; cursor: pointer; transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s; }
-  .book-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.07); }
+  .book-card { display: flex; flex-direction: column; border-radius: 16px; border: 1px solid var(--d-line); background: rgba(255,255,255,0.03); overflow: hidden; cursor: pointer; transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s, box-shadow 0.25s; }
+  .book-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); box-shadow: 0 16px 34px rgba(0,0,0,0.35); }
   .book-cover { position: relative; aspect-ratio: 4 / 3; background: var(--paper); }
   .book-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cover-glyph { height: 100%; display: grid; place-items: center; align-content: center; gap: 6px; color: var(--ink); }
@@ -72,11 +127,11 @@
   .book-actions { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 12px; font-size: 0.78rem; }
   .book-actions .link { font-size: 0.74rem; }
   .stars { color: #f0b455; letter-spacing: 0.08em; font-size: 0.72rem; } .stars i { font-style: normal; color: rgba(255,255,255,0.18); }
-  .studio { border-color: rgba(240,180,85,0.35); box-shadow: 0 0 0 1px rgba(240,180,85,0.12), 0 30px 70px rgba(0,0,0,0.45); }
+  .studio { border-color: rgba(240,180,85,0.35) !important; box-shadow: 0 0 0 1px rgba(240,180,85,0.12), 0 30px 70px rgba(0,0,0,0.45) !important; }
   .studio-grid { display: grid; grid-template-columns: 280px 1fr; gap: 22px; margin-top: 8px; }
   @media (max-width: 900px) { .studio-grid { grid-template-columns: 1fr; } }
   .studio-side { display: grid; gap: 14px; align-content: start; }
-  .drop { border: 2px dashed rgba(255,255,255,0.25); border-radius: 16px; padding: 8px; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+  .drop { border: 2px dashed rgba(255,255,255,0.22); border-radius: 16px; padding: 8px; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
   .drop:hover, .drop.over { border-color: #f0b455; background: rgba(240,180,85,0.08); }
   .drop-preview { aspect-ratio: 4 / 3; border-radius: 12px; background: rgba(255,255,255,0.04) center / cover no-repeat; display: grid; place-items: center; align-content: center; gap: 4px; text-align: center; padding: 14px; }
   .drop.small .drop-preview { aspect-ratio: auto; padding: 18px 14px; }
@@ -84,11 +139,12 @@
   .drop-preview b { font-size: 0.86rem; } .drop-preview small { font-size: 0.7rem; color: var(--fg-dim); }
   .drop-name { font-size: 0.7rem; color: var(--fg-dim); text-align: center; margin-top: 6px; min-height: 1em; }
   .rate { display: flex; gap: 4px; } .rate .star { font-size: 1.5rem; line-height: 1; background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; padding: 2px; transition: color 0.15s, transform 0.15s; } .rate .star.on { color: #f0b455; } .rate .star:hover { transform: scale(1.15); }
-  .fs { border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 14px 16px 4px; margin-bottom: 14px; }
+  .fs { border: 1px solid var(--d-line); border-radius: 14px; padding: 14px 16px 4px; margin-bottom: 14px; }
   .fs legend { padding: 0 8px; font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; color: #f0b455; font-weight: 700; }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   @media (max-width: 720px) { .grid-3 { grid-template-columns: 1fr; } }
-  .studio-actions { margin-top: 4px; }`;
+  .studio-actions { margin-top: 4px; }
+  @media (prefers-reduced-motion: reduce) { .dash-content, .live i { animation: none; } }`;
   document.head.appendChild(style);
   const fmt = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const day = ms => new Date(ms).toISOString().slice(0, 10);
@@ -120,10 +176,17 @@
   window.dashRender = function (kind, who) {
     const secs = kind === 'admin' ? ADMIN_SECTIONS : DEV_SECTIONS, cur = section[kind];
     const perms = permsOf(who);
-    const nav = secs.map(([id, label]) => `<button type="button" class="side-btn${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' ? '' : ' off'}" data-dash="${id}">${label}</button>`).join('');
+    const nav = secs.map(([id, label]) => `<button type="button" class="nav-item${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' ? '' : ' off'}" data-dash="${id}">${ico(id)}<span>${label}</span></button>`).join('');
     let main = '';
     try { main = (kind === 'admin' ? ADMIN[cur] : DEV[cur])(); } catch (err) { main = '<section class="panel"><p class="cart-empty">Could not render this section: ' + esc(err.message) + '</p></section>'; }
-    return `<div class="dash"><aside class="panel dash-nav"><p class="side-title">${kind === 'admin' ? 'Admin' : 'Developer'}</p><p class="side-note" style="margin:-6px 0 12px;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(staffEmail())}">${esc(staffEmail())}</p><div class="side-list">${nav}</div><p class="side-note" style="margin-top:14px">Route: <code>/#${kind}</code></p></aside><div class="dash-main">${main}</div></div>`;
+    const title = (secs.find(x => x[0] === cur) || [])[1] || '';
+    const initials = staffEmail().slice(0, 2).toUpperCase();
+    return `<div class="dash">
+      <aside class="dash-nav"><div class="nav-brandline"><span class="nav-dot"></span><b>${kind === 'admin' ? 'Admin' : 'Developer'}</b><small>Learn With Why</small></div><nav class="nav-list-v">${nav}</nav><div class="nav-foot"><span class="avatar-sm">${esc(initials)}</span><span class="nav-who" title="${esc(staffEmail())}">${esc(staffEmail())}</span></div></aside>
+      <div class="dash-main">
+        <header class="dash-top"><div><h2>${esc(title)}</h2><p>${kind === 'admin' ? 'Manage the shelf, orders and customers' : 'Everything under the hood'} · <span class="live"><i></i>live</span></p></div><div class="dash-top-actions"><span class="chip-sm">${new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span class="chip-sm">v${SITE_VERSION}</span></div></header>
+        <div class="dash-content">${main}</div>
+      </div></div>`;
   };
   function permsOf(who) { const roles = read('lww_roles', DEFAULT_ROLES), staff = read('lww_staff_users', []).find(u => u.email === (who || {}).email); const r = (staff && staff.rolename) || ((who || {}).kind === 'developer' ? 'developer' : 'admin'); return roles[r] || []; }
   function rerender() { renderPortal(); }
@@ -137,7 +200,9 @@
   ADMIN.overview = () => {
     const os = orders(), rev = os.filter(o => o.status !== 'cancelled' && o.status !== 'refunded').reduce((n, o) => n + o.amount, 0);
     const ev = events(), subs = Object.values(read('lww_subs', {})).flat().filter(x => x.end > Date.now());
-    return `<div class="stat-row"><div class="stat"><b>${users().length}</b><span>Customers</span></div><div class="stat"><b>${subs.length}</b><span>Active subscriptions</span></div><div class="stat"><b>${money(rev)}</b><span>Revenue</span></div><div class="stat"><b>${ev.filter(e => e.type === 'visit').length}</b><span>Visits</span></div><div class="stat"><b>${ITEMS.length}</b><span>Products</span></div></div>
+    const days = lastDays(7), salesS = days.map(d => os.filter(o => day(o.at) === d).reduce((n, o) => n + o.amount, 0)), visitS = days.map(d => ev.filter(e => e.type === 'visit' && day(e.at) === d).length), signS = days.map(d => ev.filter(e => e.type === 'signup' && day(e.at) === d).length);
+    const delta = (arr) => { const a = arr.slice(-3).reduce((n, v) => n + v, 0), b = arr.slice(-6, -3).reduce((n, v) => n + v, 0); return b ? Math.round((a - b) / b * 100) + '% vs last 3 days' : (a ? 'new this week' : 'no change'); };
+    return `<div class="kpi-row">${kpi('Revenue', money(rev), delta(salesS), salesS, '#f0b455')}${kpi('Active subscriptions', subs.length, subs.length ? 'across ' + new Set(subs.map(x => x.cls)).size + ' classes' : 'none yet')}${kpi('Customers', users().length, delta(signS), signS, '#8fd6d2')}${kpi('Visits', ev.filter(e => e.type === 'visit').length, delta(visitS), visitS, '#c8b6ff')}${kpi('Products', ITEMS.length, ITEMS.filter(i => i.price === 0).length + ' free')}</div>
       <section class="panel"><p class="eyebrow">Latest orders</p>${table(['Order', 'Customer', 'Class · plan', 'Amount', 'Status', 'When'], os.slice(-6).reverse().map(o => [o.id, esc(o.email), esc(classById(o.cls).label) + ' · ' + planOf(o.plan).label, money(o.amount), pill(o.status), fmt(o.at)]), 'No orders yet.')}</section>
       <section class="panel"><p class="eyebrow">Sales · last 14 days</p>${bars(lastDays(14).map(d => os.filter(o => day(o.at) === d).reduce((n, o) => n + o.amount, 0)), lastDays(14), '#f0b455')}</section>`;
   };
@@ -342,6 +407,8 @@
   DEV.audit = () => auditView();
 
   /* ---------- helpers ---------- */
+  function spark(series, color) { const max = Math.max(1, ...series), n = series.length, W = 80, H = 26; const pts = series.map((v, i) => (i * W / Math.max(1, n - 1)).toFixed(1) + ',' + (H - 2 - v / max * (H - 4)).toFixed(1)).join(' '); return `<svg class="spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
+  function kpi(label, value, sub, series, color) { return `<div class="kpi"><div class="kpi-top"><span>${label}</span>${series ? spark(series, color || '#f0b455') : ''}</div><b>${value}</b>${sub ? `<small>${sub}</small>` : ''}</div>`; }
   function table(head, rows, empty) { return rows.length ? `<div class="tbl-wrap"><table class="table"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="cart-empty">${empty}</p>`; }
   function pill(t, bg) { return `<span class="pill"${bg ? ' style="background:' + bg + '"' : ''}>${esc(t)}</span>`; }
 
