@@ -1752,11 +1752,12 @@ function openSheet(id) {
         <div class="boxes"><div><span class="glyph">${esc(it.glyph)}</span>${esc(it.skills ? it.skills[0] : it.subject)}</div><div><span class="pic">${it.pages ? it.pages : '✎'}</span>${it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div class="lines"><i></i><i></i><i></i><i></i><i></i></div><small>${esc(it.title)} · Ages ${esc(it.ages)}</small></div>`;
   const access = it.free ? 'Free access · no sign-in needed' : mine ? (free ? 'Unlocked — yours to print' : 'In your ' + esc(cls.label) + ' plan · until ' + dateOf(sub.end)) : free ? 'Free access sheet' : 'With the ' + esc(cls.label) + ' plan';
-  const actions = mine
-    ? `<button type="button" class="btn btn-primary" data-print="${it.id}">🖨 Print this sheet</button>${it.pdf ? `<a class="btn btn-ghost" href="${it.pdf}" target="_blank" rel="noopener">Open PDF</a>` : ''}<span class="note">Prints on one A4 page${it.printLimit ? ' · up to ' + it.printLimit + ' prints' : ''}.</span>`
+  /* one Print button on every sheet; a locked one asks to sign in (free) or subscribe (paid) when pressed */
+  const actions = `<button type="button" class="btn btn-primary" data-print="${it.id}">🖨 Print this sheet</button>` + (mine
+    ? `<span class="note">Prints on one A4 page${it.printLimit ? ' · up to ' + it.printLimit + ' prints' : ''}.</span>`
     : free
-      ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button><span class="note">Sign in once and this sheet is yours to print whenever you like.</span>`
-      : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">One plan opens every sheet in ${esc(cls.label)} — print them all until it ends.</span>`;
+      ? `<button type="button" class="btn btn-ghost" data-unlock="${it.id}">Get it free</button><span class="note">Free access sheet — sign in once and it prints whenever you like.</span>`
+      : `<button type="button" class="btn btn-ghost" data-subscribe="${it.cls}">Subscribe · from ${money(planOf('m1').price)}</button><span class="note">Printing needs the ${esc(cls.label)} plan — one plan opens every sheet in ${esc(cls.label)}.</span>`);
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
@@ -1803,7 +1804,7 @@ function printSheet(id) {
     return;
   }
   const it = itemById(id); if (!it) return;
-  if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else openCheckout(it.cls); return; }
+  if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else { closeModal(); openCheckout(it.cls); } return; }
   const used = ((read('lww_prints', {})[session.email] || {})[id] || 0); if (it.printLimit && used >= it.printLimit) { toast('Print limit reached for this sheet (' + it.printLimit + ')'); return; }
   const sub = activeSub(it.cls), line = it.price === 0 ? 'Free access sheet' : esc(classById(it.cls).label) + ' plan · valid until ' + dateOf(sub.end);
   document.getElementById('printRoot').innerHTML = `<h1>${esc(it.title)}</h1><p>${esc(it.blurb)}</p><div class="glyph">${esc(it.glyph)}</div><div class="lines"><i></i><i></i><i></i><i></i></div><footer><span>${BRAND} · ${esc(it.subject)} · Ages ${esc(it.ages)}</span><span>${line} · ${esc(session ? session.email : '')}</span></footer>`;
