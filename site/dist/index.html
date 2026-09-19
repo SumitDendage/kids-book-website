@@ -1752,12 +1752,11 @@ function openSheet(id) {
         <div class="boxes"><div><span class="glyph">${esc(it.glyph)}</span>${esc(it.skills ? it.skills[0] : it.subject)}</div><div><span class="pic">${it.pages ? it.pages : '✎'}</span>${it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div class="lines"><i></i><i></i><i></i><i></i><i></i></div><small>${esc(it.title)} · Ages ${esc(it.ages)}</small></div>`;
   const access = it.free ? 'Free access · no sign-in needed' : mine ? (free ? 'Unlocked — yours to print' : 'In your ' + esc(cls.label) + ' plan · until ' + dateOf(sub.end)) : free ? 'Free access sheet' : 'With the ' + esc(cls.label) + ' plan';
-  /* one Print button on every sheet; a locked one asks to sign in (free) or subscribe (paid) when pressed */
-  const actions = `<button type="button" class="btn btn-primary" data-print="${it.id}">🖨 Print this sheet</button>` + (mine
-    ? `<span class="note">Prints on one A4 page${it.printLimit ? ' · up to ' + it.printLimit + ' prints' : ''}.</span>`
+  /* no print / open button here — a locked sheet offers sign-in (free) or the class plan (paid) */
+  const actions = mine ? ''
     : free
-      ? `<button type="button" class="btn btn-ghost" data-unlock="${it.id}">Get it free</button><span class="note">Free access sheet — sign in once and it prints whenever you like.</span>`
-      : `<button type="button" class="btn btn-ghost" data-subscribe="${it.cls}">Subscribe · from ${money(planOf('m1').price)}</button><span class="note">Printing needs the ${esc(cls.label)} plan — one plan opens every sheet in ${esc(cls.label)}.</span>`);
+      ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button><span class="note">Free access sheet — sign in once and it is yours.</span>`
+      : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">One plan opens every sheet in ${esc(cls.label)}.</span>`;
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
@@ -1765,7 +1764,7 @@ function openSheet(id) {
       <p class="lead">${esc(it.blurb)}</p>
       <ul class="about">${about.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
       <div class="rows"><div><span>Pages</span><b>${it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b>${access}</b></div></div>
-      <div class="sheet-actions">${actions}</div>
+      ${actions ? `<div class="sheet-actions">${actions}</div>` : ''}
     </div>`;
   modalScrim.classList.add('open');
   logEvent('view', { item: it.id });
