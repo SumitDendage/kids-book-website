@@ -461,6 +461,22 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 @media (max-width: 880px) { .trio { grid-template-columns: 1fr; } }
 .trio .mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; margin-bottom: 14px; background: #fff; color: #14181c; font-size: 1.3rem; font-weight: 700; }
 .ws-block { margin-top: 56px; }
+/* Kindergarten only: the free A to Z demo section (26 real PDFs, no sign-in, no plan) */
+.az { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.3); backdrop-filter: blur(10px); }
+.az-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.az-head .eyebrow { margin-bottom: 6px; }
+.az-head h3 { font-size: 1.5rem; }
+.az-head h3 em { font-style: italic; color: var(--ok); }
+.az-head p { font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.6; max-width: 380px; }
+.az-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.az-card { display: grid; gap: 6px; padding: 10px 8px 12px; border-radius: 14px; background: var(--paper); color: var(--ink); text-align: center; text-decoration: none; border: 1px solid transparent; transition: transform var(--d-base) var(--ease), box-shadow var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 25ms); }
+.az-card:hover, .az-card:focus-visible { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.25); outline: none; border-color: #1f6b47; }
+.az-card .glyph { font-family: var(--font-display); font-size: 2.4rem; font-weight: 500; line-height: 1; }
+.az-card .glyph small { font-size: 1.3rem; color: var(--ink-muted); margin-left: 2px; }
+.az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
+.az-card span { font-size: 0.62rem; color: var(--ink-muted); }
+.az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
+@media (max-width: 640px) { .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
 
 /* ---------- chapter 04: about ---------- */
 .about-head { display: flex; align-items: center; gap: 22px; margin-bottom: 8px; }
@@ -712,6 +728,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
         <p class="aside rise" style="--i:2">Pick a class. The free sheet comes first — try it, then subscribe to open the ones beside it. <em>Little sums, big smiles.</em></p>
       </div>
       <div class="chips rise" id="chips" style="--i:2"></div>
+      <div id="azBlock" hidden></div>
       <div class="shop-grid rise" id="wsRow" style="--i:3"></div>
       <div class="ws-nav rise" style="--i:4"><span id="wsCount"></span><button type="button" class="btn btn-ghost" data-shop="all" style="margin-left:auto">See every sheet →</button></div>
       </div>
@@ -1592,8 +1609,25 @@ function shelfCard(it, n, owned) {
       ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Open & print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
   </article>`;
 }
+/* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
+const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+function renderAZ() {
+  const box = document.getElementById('azBlock'); if (!box) return;
+  if (cat !== 'kg') { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = `<section class="az rise" style="--i:3" aria-label="A to Z free sheets">
+    <div class="az-head">
+      <div><p class="eyebrow">Demo section · free access</p><h3>A to Z <em>— every letter, free.</em></h3></div>
+      <p>Twenty-six alphabet sheets to trace, colour and say out loud. Tap a letter to open the PDF and print it. No sign-in, no subscription — this section is our gift.</p>
+    </div>
+    <div class="az-grid">${AZ_LETTERS.map((L, n) => `<a class="az-card" href="sheets/a-to-z/${L}.pdf" target="_blank" rel="noopener" data-az="${L}" style="--n:${n}" aria-label="Alphabet ${L} sheet, opens as PDF"><b>Free</b><span class="glyph">${L}<small>${L.toLowerCase()}</small></span><span>Alphabet ${L}</span></a>`).join('')}</div>
+    <div class="az-foot"><span>26 sheets · PDF · A4</span><span>Kindergarten · Ages 4–5</span></div>
+  </section>`;
+}
+document.addEventListener('click', e => { const a = e.target.closest('[data-az]'); if (a) logEvent('download', { item: 'az-' + a.dataset.az, free: true }); });
 function renderWorksheets() {
   document.getElementById('chips').innerHTML = SHELF_TABS.map(t => `<button type="button" class="chip${t.id === cat ? ' on' : ''}" data-cat="${t.id}">${esc(t.label)}</button>`).join('');
+  renderAZ();
   const pool = cat === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === cat);
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
   document.getElementById('wsRow').innerHTML = list.map((it, n) => shelfCard(it, n, owned)).join('');
