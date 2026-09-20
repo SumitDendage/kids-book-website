@@ -461,6 +461,29 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 @media (max-width: 880px) { .trio { grid-template-columns: 1fr; } }
 .trio .mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; margin-bottom: 14px; background: #fff; color: #14181c; font-size: 1.3rem; font-weight: 700; }
 .ws-block { margin-top: 56px; }
+/* the shelf: left-side class menu + the sheets */
+.ws-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 24px; align-items: start; }
+.ws-main { min-width: 0; }
+.ws-side { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
+.ws-side .side-title { padding: 6px 12px 10px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--fg-dim); }
+.side-item { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; column-gap: 10px; padding: 9px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--fg-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--d-base), color var(--d-base), border-color var(--d-base), transform var(--d-fast) var(--ease); }
+.side-item:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateX(2px); }
+.side-item.on { background: #fff; color: #14181c; border-color: #fff; }
+.side-item .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.1); font-family: var(--font-display); font-size: 1rem; font-weight: 500; }
+.side-item.on .ic { background: rgba(20,24,28,0.08); }
+.side-item .lbl { display: grid; line-height: 1.2; }
+.side-item .lbl b { font-size: 0.86rem; font-weight: 600; }
+.side-item .lbl small { font-size: 0.68rem; color: inherit; opacity: 0.65; }
+.side-item .n { font-size: 0.66rem; font-weight: 700; padding: 3px 7px; border-radius: 100px; background: rgba(255,255,255,0.1); }
+.side-item.on .n { background: rgba(20,24,28,0.1); }
+.side-item.on .free-dot { background: #1f6b47; }
+.side-sep { height: 1px; margin: 6px 8px; background: var(--glass-border); }
+@media (max-width: 860px) {
+  .ws-layout { grid-template-columns: 1fr; gap: 16px; }
+  .ws-side { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .ws-side .side-title, .side-sep { grid-column: 1 / -1; }
+  .side-item .n { display: none; }
+}
 /* Kindergarten only: the free A to Z demo section (26 real PDFs, no sign-in, no plan) */
 .az { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
 .az-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -753,10 +776,14 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
         </div>
         <p class="aside rise" style="--i:2">Pick a class. The free sheet comes first — try it, then subscribe to open the ones beside it. <em>Little sums, big smiles.</em></p>
       </div>
-      <div class="chips rise" id="chips" style="--i:2"></div>
-      <div id="azBlock" hidden></div>
-      <div class="shop-grid rise" id="wsRow" style="--i:3"></div>
-      <div class="ws-nav rise" style="--i:4"><span id="wsCount"></span><button type="button" class="btn btn-ghost" data-shop="all" style="margin-left:auto">See every sheet →</button></div>
+      <div class="ws-layout">
+        <aside class="ws-side rise" id="chips" style="--i:2" aria-label="Browse by class"></aside>
+        <div class="ws-main">
+          <div id="azBlock" hidden></div>
+          <div class="shop-grid rise" id="wsRow" style="--i:3"></div>
+          <div class="ws-nav rise" style="--i:4"><span id="wsCount"></span><button type="button" class="btn btn-ghost" data-shop="all" style="margin-left:auto">See every sheet →</button></div>
+        </div>
+      </div>
       </div>
     </div>
   </section>
@@ -1691,7 +1718,10 @@ function renderAZ() {
   </section>`;
 }
 function renderWorksheets() {
-  document.getElementById('chips').innerHTML = SHELF_TABS.map(t => `<button type="button" class="chip${t.id === cat ? ' on' : ''}" data-cat="${t.id}">${esc(t.label)}</button>`).join('');
+  /* left-side menu: one entry per class, then the weekly worksheets */
+  const SIDE_ICON = { nursery: 'ab', kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎' };
+  const sideItem = t => { const pool = t.id === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === t.id), extra = t.id === 'kg' ? AZ_LETTERS.length : 0; return `<button type="button" class="side-item${t.id === cat ? ' on' : ''}" data-cat="${t.id}" aria-current="${t.id === cat ? 'true' : 'false'}"><span class="ic">${esc(SIDE_ICON[t.id] || '•')}</span><span class="lbl"><b>${esc(t.label)}</b><small>${esc(t.small)}</small></span><span class="n">${pool.length + extra}</span></button>`; };
+  document.getElementById('chips').innerHTML = '<p class="side-title">Browse by class</p>' + SHELF_TABS.filter(t => t.id !== 'worksheets').map(sideItem).join('') + '<div class="side-sep"></div>' + SHELF_TABS.filter(t => t.id === 'worksheets').map(sideItem).join('');
   renderAZ();
   const pool = cat === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === cat);
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
