@@ -342,9 +342,10 @@
   .thumb-glyph { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; background: var(--muted); color: var(--foreground); font-family: var(--font-display); font-weight: 500; }
 
   /* ----- charts ----- */
-  .chart { width: 100%; height: 320px; display: block; }
-  .chart.sm { height: 220px; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart.sm { max-height: 240px; }
   .chart text { font-family: inherit; }
+  .chart .bar { transition: opacity 0.15s; } .chart:hover .bar { opacity: 0.55; } .chart .bar:hover { opacity: 1; }
   .funnel { display: grid; gap: 12px; }
   .funnel-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 12px; font-size: 14px; }
   .funnel-row i { display: block; height: 10px; border-radius: 5px; background: var(--primary); }
@@ -425,20 +426,16 @@
 
   /* ---------- charts (inline SVG, theme-aware) ---------- */
   function bars(series, labels, color, opts) {
-    /* a smooth line with a soft fill, dots and hover titles — colours from the theme */
+    /* shadcn "Overview" bar chart: rounded bars in the theme colour, no axis lines, muted tick labels, hover titles */
     opts = opts || {}; color = color || 'var(--primary)';
     if (!series.length) return '<p class="cart-empty">No data yet.</p>';
-    const W = 640, H = opts.h || 260, PL = 44, PR = 12, PT = 12, PB = 28, n = series.length, max = Math.max(1, ...series);
-    const x = i => PL + (n === 1 ? (W - PL - PR) / 2 : i * (W - PL - PR) / (n - 1)), y = v => PT + (H - PT - PB) - (v / max) * (H - PT - PB);
-    const pts = series.map((v, i) => [x(i), y(v)]);
-    let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
-    for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], cx = ((x0 + x1) / 2).toFixed(1); d += ' C' + cx + ' ' + y0.toFixed(1) + ' ' + cx + ' ' + y1.toFixed(1) + ' ' + x1.toFixed(1) + ' ' + y1.toFixed(1); }
-    const base = H - PB, area = d + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + base + ' L' + pts[0][0].toFixed(1) + ' ' + base + ' Z';
-    const gid = 'g' + Math.random().toString(36).slice(2, 7);
+    const W = 640, H = opts.h || 260, PL = 44, PR = 8, PT = 12, PB = 28, n = series.length, max = Math.max(1, ...series);
+    const plotW = W - PL - PR, plotH = H - PT - PB, base = H - PB, slot = plotW / n, gap = Math.min(10, slot * 0.3), bw = slot - gap;
     const ticks = [0, 0.25, 0.5, 0.75, 1]; let lastLabel = null;
-    const grid = ticks.map(f => { const yy = (base - f * (H - PT - PB)).toFixed(1), lab = Math.round(max * f); const txt = lab === lastLabel ? '' : `<text x="${PL - 8}" y="${yy}" dy="4" font-size="11" text-anchor="end" fill="var(--muted-foreground)">${(opts.prefix || '') + lab}</text>`; lastLabel = lab; return `<line x1="${PL}" x2="${W - PR}" y1="${yy}" y2="${yy}" stroke="var(--border)"/>${txt}`; }).join('');
-    const step = Math.ceil(n / 7);
-    return `<svg class="chart${opts.small ? ' sm' : ''}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.25"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#${gid})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>${pts.map(([px, py], i) => `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="var(--background)" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"><title>${labels[i]}: ${(opts.prefix || '') + series[i]}</title></circle>`).join('')}${labels.map((l, i) => (i % step === 0 || i === n - 1 ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" font-size="11" text-anchor="middle" fill="var(--muted-foreground)">${l.length > 5 ? l.slice(5) : l}</text>` : '')).join('')}</svg>`;
+    const grid = ticks.map(f => { const yy = (base - f * plotH).toFixed(1), lab = Math.round(max * f); const txt = lab === lastLabel ? '' : `<text x="${PL - 8}" y="${yy}" dy="4" font-size="11" text-anchor="end" fill="var(--muted-foreground)">${(opts.prefix || '') + lab}</text>`; lastLabel = lab; return `<line x1="${PL}" x2="${W - PR}" y1="${yy}" y2="${yy}" stroke="var(--border)" stroke-dasharray="3 3"/>${txt}`; }).join('');
+    const step = Math.ceil(n / 7), r = Math.min(4, bw / 2);
+    const bar = (v, i) => { const x = PL + i * slot + gap / 2, h = Math.max(v > 0 ? 2 : 0, v / max * plotH), y = base - h; const d = h <= r ? `M${x} ${base}h${bw}v-${h}h-${bw}z` : `M${x} ${base}v-${(h - r).toFixed(1)}a${r} ${r} 0 0 1 ${r} -${r}h${(bw - 2 * r).toFixed(1)}a${r} ${r} 0 0 1 ${r} ${r}v${(h - r).toFixed(1)}z`; return `<path class="bar" d="${d}" fill="${color}"><title>${labels[i]}: ${(opts.prefix || '') + series[i]}</title></path>`; };
+    return `<svg class="chart${opts.small ? ' sm' : ''}" viewBox="0 0 ${W} ${H}">${grid}${series.map(bar).join('')}${labels.map((l, i) => (i % step === 0 || i === n - 1 ? `<text x="${(PL + i * slot + slot / 2).toFixed(1)}" y="${H - 8}" font-size="11" text-anchor="middle" fill="var(--muted-foreground)">${l.length > 5 ? l.slice(5) : l}</text>` : '')).join('')}</svg>`;
   }
   function funnel(steps) {
     const max = Math.max(1, steps[0][1]);
