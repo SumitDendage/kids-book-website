@@ -1477,9 +1477,8 @@ function renderPortal() {
     });
     return;
   }
+  /* the dashboard (admin.js) draws its own header with Sign out and Back to the site */
   body.innerHTML = window.dashRender ? dashRender(portalKind, who) : '<p class="cart-empty">admin.js did not load.</p>';
-  const acts = body.querySelector('.dash-top-actions');
-  if (acts) acts.insertAdjacentHTML('beforeend', '<button type="button" class="btn btn-ghost" data-portal-out style="padding:8px 14px;font-size:0.78rem">Sign out</button><button type="button" class="icon-btn dash-close" data-portal-close aria-label="Back to the site">✕</button>');
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-portal]'); if (a) { e.preventDefault(); portalView = 'signin'; openPortal(a.dataset.portal); return; }
