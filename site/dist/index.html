@@ -566,7 +566,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 /* sheet detail: picture of the page + what is inside */
 .modal.sheet { width: min(100%, 860px); padding: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); overflow: hidden; }
 .sheet-view { background: #e6e1d5; padding: 22px; display: flex; align-items: center; justify-content: center; }
-.sheet-view img { display: block; width: 100%; max-height: min(70vh, 620px); object-fit: contain; border-radius: 8px; box-shadow: 0 18px 44px rgba(0,0,0,0.28); background: #fff; }
+.sheet-view img { display: block; width: 100%; pointer-events: none; -webkit-user-drag: none; user-select: none; max-height: min(70vh, 620px); object-fit: contain; border-radius: 8px; box-shadow: 0 18px 44px rgba(0,0,0,0.28); background: #fff; }
 .sheet-mock { width: 100%; aspect-ratio: 1 / 1.414; max-height: min(70vh, 620px); background: #fff; border-radius: 8px; box-shadow: 0 18px 44px rgba(0,0,0,0.28); padding: 8% 7%; display: grid; grid-template-rows: auto auto 1fr auto; gap: 6%; color: var(--ink); overflow: hidden; }
 .sheet-mock .brand { display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted); }
 .sheet-mock .brand b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink); }
@@ -1041,9 +1041,9 @@ const ABOUT = {
 };
 /* The free A to Z demo sheets (Kindergarten): the "Say it" picture on each one. */
 const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'elephant', F: 'fish', G: 'grapes', H: 'house', I: 'igloo', J: 'jam', K: 'kite', L: 'lion', M: 'monkey', N: 'nest', O: 'orange', P: 'parrot', Q: 'quilt', R: 'rabbit', S: 'snake', T: 'tiger', U: 'umbrella', V: 'van', W: 'whale', X: 'x-ray', Y: 'yak', Z: 'zebra' };
-const azItem = L => ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', ages: '4–5 years', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price: 0, free: true, pdf: 'sheets/a-to-z/' + L + '.pdf', img: 'sheets/a-to-z/preview/' + L + '.jpg',
+const azItem = L => ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', ages: '4–5 years', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price: 0, free: true, real: true, img: 'sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
-  about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, prints in black and white or colour.', 'Free access — no sign-in, no subscription.'] });
+  about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', 'Free access — just sign in, no subscription.'] });
 const money = n => '₹' + n;
 const licence = id => LICENCES.find(l => l.id === id) || LICENCES[0];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1408,7 +1408,7 @@ let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
   const s = SHEETS[slide], owned = canOpen(s);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Unlocked ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'With the ' + esc(classById(s.cls).label) + ' plan'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-print="${s.id}">Open & print →</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${s.cls}">Subscribe to ${esc(classById(s.cls).label)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Unlocked ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'With the ' + esc(classById(s.cls).label) + ' plan'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${s.cls}">Subscribe to ${esc(classById(s.cls).label)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
@@ -1459,7 +1459,7 @@ function renderShop() {
       <h3 class="card-title">${esc(it.title)}</h3>
       <p>${esc(it.blurb)}</p>
       <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
-        ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Open & print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
+        ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
     </article>`;
   }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
   document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
@@ -1724,7 +1724,7 @@ function shelfCard(it, n, owned) {
     <h3 class="card-title">${esc(it.title)}</h3>
     <p>${esc(it.blurb)}</p>
     <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your ' + esc(classById(it.cls).label) + ' plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
-      ${mine ? `<button type="button" class="btn btn-ghost" data-print="${it.id}">Open & print</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
+      ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
   </article>`;
 }
 /* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
@@ -1802,18 +1802,22 @@ const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : itemByI
 function openSheet(id) {
   const it = sheetOf(id); if (!it) return;
   modalSheet = id;
-  const free = it.price === 0, mine = it.free || canOpen(it), cls = classById(it.cls), sub = mine && !free ? activeSub(it.cls) : null;
+  const free = it.price === 0, mine = it.free ? !!session : canOpen(it), cls = classById(it.cls), sub = mine && !free ? activeSub(it.cls) : null;
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const pic = it.img ? `<img src="${it.img}" alt="${esc(it.title)} — the printed page">`
     : `<div class="sheet-mock" aria-hidden="true"><div class="brand"><b>Learn With Why</b><span>${esc(it.subject)}</span></div>
         <div class="boxes"><div><span class="glyph">${esc(it.glyph)}</span>${esc(it.skills ? it.skills[0] : it.subject)}</div><div><span class="pic">${it.pages ? it.pages : '✎'}</span>${it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div class="lines"><i></i><i></i><i></i><i></i><i></i></div><small>${esc(it.title)} · Ages ${esc(it.ages)}</small></div>`;
-  const access = it.free ? 'Free access · no sign-in needed' : mine ? (free ? 'Unlocked — yours to print' : 'In your ' + esc(cls.label) + ' plan · until ' + dateOf(sub.end)) : free ? 'Free access sheet' : 'With the ' + esc(cls.label) + ' plan';
-  /* no print / open button here — a locked sheet offers sign-in (free) or the class plan (paid) */
-  const actions = mine ? ''
-    : free
-      ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button><span class="note">Free access sheet — sign in once and it is yours.</span>`
-      : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">One plan opens every sheet in ${esc(cls.label)}.</span>`;
+  const access = it.free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (free ? 'Unlocked — yours to open' : 'In your ' + esc(cls.label) + ' plan · until ' + dateTimeOf(sub.end)) : free ? 'Free access sheet · sign in to open' : 'With the ' + esc(cls.label) + ' plan';
+  /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab.
+     Not signed in → sign in first (free and paid alike); paid without a plan → checkout. */
+  const actions = mine
+    ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open PDF · full screen ↗</button><span class="note">Opens in a new tab in the protected viewer. Close it to come back here.</span>`
+    : !session
+      ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then subscribe to ' + esc(cls.label) + ' to open every sheet in the class.'}</span>`
+      : free
+        ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Get it free & open</button><span class="note">Free access sheet — it is added to My Account → My Worksheets.</span>`
+        : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">One plan opens every sheet in ${esc(cls.label)} for ${esc(accessLabel())}.</span>`;
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
@@ -1826,8 +1830,28 @@ function openSheet(id) {
   modalScrim.classList.add('open');
   logEvent('view', { item: it.id });
 }
+/* Open a sheet in the protected viewer (new tab, full screen). Sign-in is required for every sheet. */
+async function openViewer(id) {
+  const it = sheetOf(id); if (!it) return;
+  if (!session) { requireSignIn(() => openViewer(id), 'Sign in to open ' + it.title + ' — free and paid sheets both need an account.'); return; }
+  if (!it.free) {
+    if (it.price === 0 && !ownedOf().includes(id)) { own([id]); logEvent('download', { item: id }); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); }
+    else if (it.price !== 0 && !activeSub(it.cls)) { closeModal(); openCheckout(it.cls); return; }
+  }
+  const sub = it.price !== 0 ? activeSub(it.cls) : null, until = sub ? sub.end : 0;
+  const win = window.open('', '_blank');   /* open synchronously so the browser allows the tab */
+  try {
+    const r = await fetch('/api/sheet-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, email: session.email }) });
+    const tok = await r.json(); if (!r.ok) throw new Error(tok.error || 'Could not open the sheet');
+    const demo = it.real ? '' : '&demo=' + encodeURIComponent(JSON.stringify({ title: it.title, blurb: it.blurb, glyph: it.glyph, subject: it.subject, ages: it.ages }));
+    const href = 'viewer.html#id=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(tok.t) + '&title=' + encodeURIComponent(it.title) + '&pages=' + (tok.pages || it.pages || 1) + '&until=' + until + demo;
+    if (win) win.location.href = href; else location.href = href;
+    logEvent('open', { item: id });
+  } catch (err) { if (win) win.close(); toast(err.message); }
+}
 document.addEventListener('click', e => {
   if (e.target.closest('[data-modal-close]')) { closeModal(); return; }
+  const v = e.target.closest('[data-view]'); if (v) { openViewer(v.dataset.view); return; }
   /* buttons inside a clickable card win over the card itself */
   const u = e.target.closest('[data-unlock]'); if (u) { unlock([u.dataset.unlock], 'Unlocked — ' + itemById(u.dataset.unlock).title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); return; }
   const sub = e.target.closest('[data-subscribe]'); if (sub) { closeModal(); openCheckout(sub.dataset.subscribe); return; }
@@ -1866,19 +1890,12 @@ function renderBag() {
     .concat(active.flatMap(x => ITEMS.filter(it => it.cls === x.cls && it.price !== 0).map(it => ({ it, until: x.end }))));
   document.getElementById('bagBody').innerHTML = `<p class="eyebrow" style="margin-bottom:10px">My plans</p>` + (!subs.length ? '<p class="cart-empty">No subscription yet. Pick a class and every sheet in it opens for as long as your plan runs.</p>'
     : subs.map(x => `<div class="cart-row"><div class="paper-mini">${esc(classById(x.cls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div class="nm">${esc(classById(x.cls).label)}<span>${planOf(x.plan).label} · ${x.end > Date.now() ? 'until ' + dateTimeOf(x.end) + ' · ' + timeLeft(x.end) : 'expired ' + dateTimeOf(x.end)}</span></div><span class="pill">${x.end > Date.now() ? 'Active' : 'Expired'}</span></div>`).join(''))
-    + `<p class="eyebrow" style="margin:18px 0 10px">My worksheets · ${mine.length}</p>` + (mine.length ? mine.map(({ it, until }) => `<div class="cart-row" data-open="${it.id}" style="cursor:pointer"><div class="paper-mini">${esc(it.glyph)}</div><div class="nm">${esc(it.title)}<span>${until ? 'until ' + dateTimeOf(until) + ' · ' + timeLeft(until) : 'free · yours to keep'}</span></div><span class="pill">${until ? 'Open' : 'Free'}</span></div>`).join('') : '<p class="cart-empty">Nothing here yet — free sheets you claim and every sheet in a subscribed class appear here.</p>')
+    + `<p class="eyebrow" style="margin:18px 0 10px">My worksheets · ${mine.length}</p>` + (mine.length ? mine.map(({ it, until }) => `<div class="cart-row" data-view="${it.id}" style="cursor:pointer" title="Open in the viewer"><div class="paper-mini">${esc(it.glyph)}</div><div class="nm">${esc(it.title)}<span>${until ? 'until ' + dateTimeOf(until) + ' · ' + timeLeft(until) : 'free · yours to keep'}</span></div><span class="pill">Open ↗</span></div>`).join('') : '<p class="cart-empty">Nothing here yet — free sheets you claim and every sheet in a subscribed class appear here.</p>')
     + '<button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:16px">Subscribe to a class →</button><p class="cart-empty" style="font-size:.78rem">Access lasts ' + esc(accessLabel()) + ' after purchase — set by the store.</p>';
 }
 /* a sheet you can open prints as an A4 page with the plan line */
 function printSheet(id) {
-  if (id.startsWith('az-')) { /* free A to Z sheet: the real page, no sign-in needed */
-    const az = azItem(id.slice(3)), root = document.getElementById('printRoot');
-    root.innerHTML = `<img class="page" src="${az.img}" alt="${esc(az.title)}">`;
-    logEvent('print', { item: id, free: true });
-    const img = root.firstChild, go = () => setTimeout(() => window.print(), 80);
-    if (img.complete) go(); else img.onload = go;
-    return;
-  }
+  if (id.startsWith('az-')) { openViewer(id); return; }   /* A to Z opens in the protected viewer */
   const it = itemById(id); if (!it) return;
   if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else { closeModal(); openCheckout(it.cls); } return; }
   const used = ((read('lww_prints', {})[session.email] || {})[id] || 0); if (it.printLimit && used >= it.printLimit) { toast('Print limit reached for this sheet (' + it.printLimit + ')'); return; }

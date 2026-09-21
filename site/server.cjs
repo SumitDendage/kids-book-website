@@ -122,8 +122,32 @@ function json(res, code, body) { const s = JSON.stringify(body); res.writeHead(c
 function readBody(req) { return new Promise((resolve, reject) => { let b = ''; req.on('data', c => { b += c; if (b.length > 64 * 1024) { reject(new Error('too large')); req.destroy(); } }); req.on('end', () => { try { resolve(b ? JSON.parse(b) : {}); } catch (e) { reject(e); } }); req.on('error', reject); }); }
 const publicCountries = () => Object.keys(COUNTRIES).map(k => ({ code: k, name: COUNTRIES[k].name, currency: COUNTRIES[k].currency, tax: COUNTRIES[k].tax.label, postal: { label: COUNTRIES[k].postal.label, hint: COUNTRIES[k].postal.hint, pattern: COUNTRIES[k].postal.re.source, flags: COUNTRIES[k].postal.re.flags }, state: COUNTRIES[k].state, states: COUNTRIES[k].states || null, methods: COUNTRIES[k].methods }));
 
-async function api(req, res, pathname) {
+/* ---------------- protected sheets ----------------
+   The real pages live in ../protected (outside the web root) and are never linkable.
+   The page asks for a short-lived signed token for one sheet and one signed-in customer;
+   the viewer then fetches each page image with that token. */
+const PROTECTED = path.join(__dirname, 'protected');
+const TOKEN_TTL = 20 * 60e3;
+function sheetToken(id, email) { const exp = Date.now() + TOKEN_TTL; const sig = crypto.createHmac('sha256', db.secret).update([id, email, exp].join('|')).digest('hex').slice(0, 32); return { t: [exp, sig].join('.'), exp }; }
+function sheetTokenOk(id, email, t) { const [exp, sig] = String(t || '').split('.'); if (!exp || !sig || +exp < Date.now()) return false; const expect = crypto.createHmac('sha256', db.secret).update([id, email, +exp].join('|')).digest('hex').slice(0, 32); return expect.length === sig.length && crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(sig)); }
+function sheetFile(id) { const m = /^az-([A-Z])$/.exec(id); return m ? { pages: [path.join(PROTECTED, 'a-to-z', m[1] + '.jpg')] } : null; }
+
+async function api(req, res, pathname, url) {
   const method = req.method;
+  if (method === 'POST' && pathname === '/api/sheet-token') {
+    const b = await readBody(req); const id = String(b.id || ''), email = String(b.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json(res, 401, { error: 'Sign in to open this sheet.' });
+    const f = sheetFile(id); const tok = sheetToken(id, email);
+    return json(res, 200, Object.assign({ id, pages: f ? f.pages.length : 0 }, tok));
+  }
+  if (method === 'GET' && pathname === '/api/sheet-page') {
+    const id = url.searchParams.get('id') || '', email = String(url.searchParams.get('u') || '').toLowerCase(), t = url.searchParams.get('t'), n = Math.max(0, parseInt(url.searchParams.get('p') || '0', 10) || 0);
+    if (!sheetTokenOk(id, email, t)) return json(res, 403, { error: 'This link has expired — open the sheet again from the site.' });
+    const f = sheetFile(id); if (!f || !f.pages[n]) return json(res, 404, { error: 'No such page.' });
+    const stat = fs.statSync(f.pages[n]);
+    res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': stat.size, 'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex', 'Content-Disposition': 'inline' });
+    return fs.createReadStream(f.pages[n]).pipe(res);
+  }
   if (method === 'GET' && pathname === '/api/config') return json(res, 200, { countries: publicCountries(), plans: db.plans, classes: db.classes, currencies: Object.keys(db.rates), access: db.access, server: 'learn-with-why', version: '1' });
   if (method === 'GET' && pathname === '/api/geo') {
     /* behind a real host use the CDN's country header; locally we can only guess */
@@ -157,7 +181,7 @@ async function api(req, res, pathname) {
 http.createServer((req, res) => {
   let url; try { url = new URL(req.url, 'http://localhost'); } catch { res.writeHead(400); return res.end(); }
   const pathname = decodeURIComponent(url.pathname);
-  if (pathname.startsWith('/api/')) return api(req, res, pathname).catch(err => json(res, 400, { error: err.message || 'Bad request' }));
+  if (pathname.startsWith('/api/')) return api(req, res, pathname, url).catch(err => json(res, 400, { error: err.message || 'Bad request' }));
   const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
   if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
   fs.stat(file, (error, stat) => {

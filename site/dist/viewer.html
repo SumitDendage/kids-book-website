@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Sheet viewer — Learn With Why</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="fonts/inter.css">
+<link rel="stylesheet" href="fonts/cormorant.css">
+<style>
+  :root { --bg: #0b1017; --fg: #f4f1ea; --dim: rgba(255,255,255,0.55); --paper: #f8f5ee; --ink: #1d2126; }
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+  [hidden] { display: none !important; }
+  img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
+  .bar { position: fixed; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: linear-gradient(180deg, rgba(11,16,23,0.92), rgba(11,16,23,0)); transition: opacity 0.3s; }
+  .bar.hide { opacity: 0; pointer-events: none; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: 'Cormorant Garamond', serif; font-size: 1.15rem; font-weight: 500; }
+  .brand i { width: 30px; height: 30px; border-radius: 8px; background: #fff; color: #14181c; display: grid; place-items: center; font-style: normal; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em; font-family: 'Inter', sans-serif; }
+  .title { flex: 1; min-width: 0; font-size: 0.86rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title b { color: var(--fg); font-weight: 600; }
+  .btn { height: 36px; padding: 0 14px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; font: 600 0.8rem 'Inter', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; backdrop-filter: blur(10px); white-space: nowrap; }
+  .btn:hover { background: rgba(255,255,255,0.16); }
+  .btn.primary { background: #fff; color: #14181c; border-color: #fff; }
+  .btn.ic { width: 36px; padding: 0; justify-content: center; }
+  .stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 64px 16px 56px; }
+  .page { position: relative; height: 100%; max-width: 100%; aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; transition: filter 0.2s, transform 0.2s; transform-origin: center; }
+  .page canvas { display: block; width: 100%; height: 100%; }
+  /* the customer's name and email are stamped diagonally over every page */
+  .wm { position: absolute; inset: -40%; pointer-events: none; display: grid; grid-template-columns: repeat(3, 1fr); align-content: space-evenly; justify-items: center; transform: rotate(-30deg); opacity: 0.11; }
+  .wm span { font-size: clamp(11px, 1.4vw, 16px); font-weight: 700; color: #1f6b47; white-space: nowrap; letter-spacing: 0.06em; padding: 22px 0; }
+  .foot { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: linear-gradient(0deg, rgba(11,16,23,0.92), rgba(11,16,23,0)); font-size: 0.76rem; color: var(--dim); transition: opacity 0.3s; }
+  .foot.hide { opacity: 0; pointer-events: none; }
+  .foot b { color: var(--fg); }
+  .veil { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(11,16,23,0.96); backdrop-filter: blur(20px); }
+  .veil.off { display: none; }
+  .veil h1 { font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 8px; }
+  .veil p { color: var(--dim); font-size: 0.9rem; max-width: 420px; margin: 0 auto 18px; line-height: 1.55; }
+  .veil .btn { height: 44px; padding: 0 22px; font-size: 0.9rem; }
+  .blur .page { filter: blur(18px); }
+  .blur .stage::after { content: 'Come back to this window to keep reading'; position: fixed; inset: 0; display: grid; place-items: center; color: #fff; font-size: 0.95rem; font-weight: 600; background: rgba(11,16,23,0.5); }
+  .toast { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); z-index: 20; padding: 10px 16px; border-radius: 100px; background: #fff; color: #14181c; font-size: 0.8rem; font-weight: 600; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  @media print { html, body, * { display: none !important; visibility: hidden !important; } }
+  @media (max-width: 640px) { .bar { padding: 8px 10px; } .btn span.l { display: none; } .stage { padding: 56px 8px 48px; } }
+</style>
+</head>
+<body>
+  <div class="veil" id="veil"><div><h1 id="veilTitle">Opening your sheet…</h1><p id="veilText">This sheet is licensed to you. Copying, downloading and screenshots are not permitted.</p><button type="button" class="btn primary" id="veilBtn" hidden>Open full screen</button></div></div>
+  <header class="bar" id="bar">
+    <span class="brand"><i>LW</i>Learn With Why</span>
+    <span class="title" id="title"></span>
+    <button type="button" class="btn ic" id="zoomOut" title="Zoom out">−</button>
+    <button type="button" class="btn ic" id="zoomIn" title="Zoom in">+</button>
+    <button type="button" class="btn ic" id="prev" title="Previous page" hidden>‹</button>
+    <span id="pageNo" style="font-size:.78rem;color:var(--dim)" hidden></span>
+    <button type="button" class="btn ic" id="next" title="Next page" hidden>›</button>
+    <button type="button" class="btn" id="fs"><span class="l">Full screen</span><span class="s">⛶</span></button>
+    <button type="button" class="btn primary" id="close">Close</button>
+  </header>
+  <main class="stage" id="stage"><div class="page" id="page"><canvas id="cv"></canvas><div class="wm" id="wm"></div></div></main>
+  <footer class="foot" id="foot"><span>Licensed to <b id="who"></b></span><span>·</span><span id="until"></span><span>·</span><span>Esc or Close to go back to the site</span></footer>
+  <div class="toast" id="toast"></div>
+<script>
+(() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  const id = q.get('id') || '', t = q.get('t') || '', title = q.get('title') || 'Sheet', until = +q.get('until') || 0, pages = +q.get('pages') || 1;
+  const read = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (_) { return f; } };
+  const session = read('lww_session', null);
+  const $ = s => document.querySelector(s);
+  const veil = $('#veil'), page = $('#page'), cv = $('#cv'), ctx = cv.getContext('2d');
+  const toast = m => { const el = $('#toast'); el.textContent = m; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); };
+  const fmt = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const back = () => { window.close(); setTimeout(() => { location.href = 'index.html#sheets'; }, 150); };
+
+  if (!session || !session.email) { $('#veilTitle').textContent = 'Sign in to open this sheet'; $('#veilText').textContent = 'Go back to the site, sign in, and open the sheet again.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
+  if (!id || !t) { $('#veilTitle').textContent = 'This link has expired'; $('#veilText').textContent = 'Open the sheet again from the site.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
+  if (until && until < Date.now()) { $('#veilTitle').textContent = 'Your access to this sheet has expired'; $('#veilText').textContent = 'It expired on ' + fmt(until) + '. Subscribe again to open it.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
+
+  document.title = title + ' — Learn With Why';
+  $('#title').innerHTML = '<b>' + title.replace(/[<>&]/g, '') + '</b>';
+  $('#who').textContent = (session.name ? session.name + ' · ' : '') + session.email;
+  $('#until').textContent = until ? 'Access until ' + fmt(until) : 'Free access sheet';
+  const stamp = (session.name ? session.name + ' · ' : '') + session.email + ' · ' + new Date().toLocaleDateString('en-IN');
+  $('#wm').innerHTML = Array.from({ length: 24 }, () => '<span>' + stamp.replace(/[<>&]/g, '') + '</span>').join('');
+
+  /* ---- pages: real pages come from the server with the signed token; demo sheets draw a page ---- */
+  let cur = 0, zoom = 1, imgs = [];
+  const url = n => '/api/sheet-page?id=' + encodeURIComponent(id) + '&u=' + encodeURIComponent(session.email) + '&t=' + encodeURIComponent(t) + '&p=' + n;
+  function draw() {
+    const im = imgs[cur]; const W = 1240, H = 1754; cv.width = W; cv.height = H;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    if (im) { const r = Math.min(W / im.width, H / im.height); const w = im.width * r, h = im.height * r; ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h); }
+    else demoPage(W, H);
+    /* a second, lighter stamp is baked into the pixels themselves */
+    ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = '#1f6b47'; ctx.font = 'bold 34px Inter, sans-serif'; ctx.translate(W / 2, H / 2); ctx.rotate(-0.5); for (let y = -900; y < 900; y += 170) ctx.fillText(stamp, -600, y); ctx.restore();
+    $('#pageNo').textContent = (cur + 1) + ' / ' + pages;
+  }
+  function demoPage(W, H) {
+    const d = q.get('demo'); let it = {}; try { it = JSON.parse(d || '{}'); } catch (_) {}
+    ctx.fillStyle = '#1d2126'; ctx.font = '500 64px "Cormorant Garamond", serif'; ctx.fillText(it.title || title, 110, 180);
+    ctx.font = '26px Inter, sans-serif'; ctx.fillStyle = '#5d636b'; wrap(it.blurb || '', 110, 240, W - 220, 36);
+    ctx.strokeStyle = '#8a8f96'; ctx.lineWidth = 3; ctx.font = '500 360px "Cormorant Garamond", serif'; ctx.textAlign = 'center'; ctx.strokeText(it.glyph || 'Aa', W / 2, 760); ctx.textAlign = 'left';
+    ctx.setLineDash([12, 12]); ctx.strokeStyle = '#c7c2b6'; ctx.lineWidth = 2; for (let y = 960; y < 1600; y += 120) { ctx.beginPath(); ctx.moveTo(110, y); ctx.lineTo(W - 110, y); ctx.stroke(); } ctx.setLineDash([]);
+    ctx.fillStyle = '#8a8f96'; ctx.font = '20px Inter, sans-serif'; ctx.fillText('Learn With Why · ' + (it.subject || '') + ' · Ages ' + (it.ages || ''), 110, H - 80); ctx.textAlign = 'right'; ctx.fillText('Demo page — the real PDF is attached from the admin panel', W - 110, H - 80); ctx.textAlign = 'left';
+  }
+  function wrap(text, x, y, maxW, lh) { const words = text.split(' '); let line = ''; for (const w of words) { const test = line + w + ' '; if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, y); line = w + ' '; y += lh; } else line = test; } ctx.fillText(line, x, y); }
+  function fit() { const s = $('#stage'); const availH = s.clientHeight, availW = s.clientWidth; const h = Math.min(availH, availW * 1.414) * zoom; page.style.height = h + 'px'; page.style.width = (h / 1.414) + 'px'; page.style.transform = zoom > 1 ? 'none' : ''; }
+  addEventListener('resize', fit);
+  $('#zoomIn').onclick = () => { zoom = Math.min(2.5, zoom + 0.25); fit(); }; $('#zoomOut').onclick = () => { zoom = Math.max(0.5, zoom - 0.25); fit(); };
+  $('#prev').onclick = () => { cur = Math.max(0, cur - 1); draw(); }; $('#next').onclick = () => { cur = Math.min(pages - 1, cur + 1); draw(); };
+  if (pages > 1) { $('#prev').hidden = $('#next').hidden = $('#pageNo').hidden = false; }
+  $('#close').onclick = back;
+  const goFull = () => { const el = document.documentElement; const f = el.requestFullscreen || el.webkitRequestFullscreen; if (f && !document.fullscreenElement) f.call(el).catch(() => {}); };
+  $('#fs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else goFull(); };
+
+  /* load: real pages through the token (a demo sheet has none) */
+  const isReal = /^az-/.test(id);
+  const start = () => { veil.classList.add('off'); fit(); draw(); };
+  const veilBtn = $('#veilBtn');
+  const ready = () => { $('#veilTitle').textContent = title; $('#veilText').textContent = 'Licensed to ' + session.email + (until ? ' until ' + fmt(until) : '') + '. Copying, downloading and screenshots are not permitted.'; veilBtn.hidden = false; veilBtn.textContent = 'Open full screen'; veilBtn.onclick = () => { goFull(); start(); }; };
+  if (isReal) {
+    Promise.all(Array.from({ length: pages }, (_, n) => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url(n); })))
+      .then(list => { imgs = list; if (!list[0]) { $('#veilTitle').textContent = 'This link has expired'; $('#veilText').textContent = 'Open the sheet again from the site.'; veilBtn.hidden = false; veilBtn.textContent = 'Back to the site'; veilBtn.onclick = back; return; } ready(); });
+  } else ready();
+
+  /* ---- protection: no menu, no drag, no copy/save/print keys, blur when the window is not in front ---- */
+  ['contextmenu', 'dragstart', 'selectstart', 'copy', 'cut'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); toast('This sheet is protected'); }));
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && ['s', 'p', 'c', 'u', 'a'].includes(k)) { e.preventDefault(); toast('Saving, printing and copying are disabled'); }
+    if (k === 'printscreen') { e.preventDefault(); document.body.classList.add('blur'); toast('Screenshots are not allowed'); try { navigator.clipboard.writeText(''); } catch (_) {} setTimeout(() => document.body.classList.remove('blur'), 1500); }
+    if (k === 'escape' && !document.fullscreenElement) back();
+    if (k === 'arrowright') $('#next').click(); if (k === 'arrowleft') $('#prev').click();
+  });
+  document.addEventListener('keyup', e => { if (e.key === 'PrintScreen') { try { navigator.clipboard.writeText(''); } catch (_) {} } });
+  const onVis = () => document.body.classList.toggle('blur', document.hidden || !document.hasFocus());
+  document.addEventListener('visibilitychange', onVis); addEventListener('blur', onVis); addEventListener('focus', onVis);
+  /* hide the chrome while reading, show it on movement */
+  let hideT; const chrome = on => { $('#bar').classList.toggle('hide', !on); $('#foot').classList.toggle('hide', !on); };
+  addEventListener('mousemove', () => { chrome(true); clearTimeout(hideT); hideT = setTimeout(() => chrome(false), 2500); });
+  addEventListener('touchstart', () => { chrome(true); clearTimeout(hideT); hideT = setTimeout(() => chrome(false), 2500); }, { passive: true });
+  /* access ends while reading → close */
+  if (until) setInterval(() => { if (Date.now() > until) { toast('Your access to this sheet has ended'); setTimeout(back, 1500); } }, 15000);
+})();
+</script>
+</body>
+</html>
