@@ -22,3 +22,9 @@ __pycache__/
 # server database (SQLite: customers, orders, entitlements) and PDFs uploaded through the admin API
 site/data/
 site/protected/uploads/
+
+# backend — kept on the server machine only, not published
+site/server.cjs
+site/server/
+site/test/
+site/.env.example
