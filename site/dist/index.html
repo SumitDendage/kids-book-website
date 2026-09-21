@@ -277,6 +277,12 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .shop-card .paper .glyph { font-family: var(--font-display); font-size: 2.3rem; font-weight: 500; line-height: 1; letter-spacing: 0.04em; }
 .shop-card .tag { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: var(--r-pill); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; background: #14181c; color: #fff; }
 .shop-card .tag.free { background: #1f6b47; }
+/* signed-out visitors: hovering a sheet shows what a click will do */
+.shop-card .paper, .az-card { position: relative; }
+.is-guest .shop-card .paper::after, .is-guest .az-card::after { content: 'Sign in to open · free account'; position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 6px); padding: 6px 11px; border-radius: 100px; background: #14181c; color: #fff; font-family: var(--font-body); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: none; white-space: nowrap; box-shadow: 0 8px 20px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity var(--d-base), transform var(--d-base) var(--ease); }
+.is-guest .az-card::after { content: 'Sign in to open'; bottom: 8px; font-size: 0.6rem; padding: 5px 9px; }
+.is-guest .shop-card:hover .paper::after, .is-guest .shop-card:focus-visible .paper::after, .is-guest .az-card:hover::after, .is-guest .az-card:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.is-guest .shop-card:hover .paper .glyph, .is-guest .az-card:hover .glyph { opacity: 0.55; }
 .shop-card .meta { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
 .shop-card .card-title { font-size: 1.2rem; }
 .shop-card p { font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.5; flex: 1; }
@@ -1410,6 +1416,7 @@ const preview = (() => {
 let slide = 0;
 function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
+  document.body.classList.toggle('is-guest', !session);
   const s = SHEETS[slide], owned = canOpen(s);
   document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Unlocked ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'With the ' + esc(classById(s.cls).label) + ' plan'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${s.cls}">Subscribe to ${esc(classById(s.cls).label)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
@@ -1441,6 +1448,7 @@ function openShop(view) {
 }
 function closeShop() { shop.classList.remove('open'); shop.setAttribute('aria-hidden', 'true'); shopPlayer.pause(); }
 function renderShop() {
+  document.body.classList.toggle('is-guest', !session);
   const owned = ownedOf();
   document.getElementById('shopViews').innerHTML = VIEWS.map(v => `<button type="button" class="side-btn${v.id === shopView ? ' on' : ''}" data-shop-view="${v.id}">${v.label}${v.note ? '<small>' + v.note + '</small>' : ''}</button>`).join('');
   document.getElementById('shopClasses').innerHTML = `<button type="button" class="side-btn${shopClass === 'all' ? ' on' : ''}" data-shop-class="all">All classes</button>` + CLASSES.map(c => `<button type="button" class="side-btn${c.id === shopClass ? ' on' : ''}" data-shop-class="${c.id}">${esc(c.label)}<small>${esc(c.ages)}</small></button>`).join('');
@@ -1746,6 +1754,7 @@ function renderAZ() {
   </section>`;
 }
 function renderWorksheets() {
+  document.body.classList.toggle('is-guest', !session);   /* hover hints on the cards for visitors who are not signed in */
   /* left-side menu: "By class" (Nursery … Class 3, Worksheets) and "By topic" (every subject) */
   const SIDE_ICON = { nursery: 'ab', kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
   const poolOf = id => id === 'worksheets' ? WORKSHEETS : id.startsWith('subj:') ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase())) : CATALOGUE.filter(i => i.cls === id);
@@ -1818,7 +1827,7 @@ function showAccountPopup(id) {
   modalScrim.classList.add('open');
   logEvent('account_prompt', { item: id });
 }
-document.addEventListener('click', e => { const a = e.target.closest('[data-account]'); if (!a) return; const id = a.dataset.id; requireSignIn(() => openSheet(id), a.dataset.account === 'signup' ? 'Create your free account — your sheet opens as soon as you are in.' : 'Sign in — your sheet opens as soon as you are in.', a.dataset.account); });
+document.addEventListener('click', e => { const a = e.target.closest('[data-account]'); if (!a) return; const id = a.dataset.id; requireSignIn(() => { if (id) openSheet(id); else openShop('all'); }, a.dataset.account === 'signup' ? 'Create your free account — your sheet opens as soon as you are in.' : 'Sign in — your sheet opens as soon as you are in.', a.dataset.account); });
 function openSheet(id) {
   const it = sheetOf(id); if (!it) return;
   if (!session) { showAccountPopup(id); return; }
@@ -1874,8 +1883,8 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-modal-close]')) { closeModal(); return; }
   const v = e.target.closest('[data-view]'); if (v) { openViewer(v.dataset.view); return; }
   /* buttons inside a clickable card win over the card itself */
-  const u = e.target.closest('[data-unlock]'); if (u) { unlock([u.dataset.unlock], 'Unlocked — ' + itemById(u.dataset.unlock).title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); return; }
-  const sub = e.target.closest('[data-subscribe]'); if (sub) { closeModal(); openCheckout(sub.dataset.subscribe); return; }
+  const u = e.target.closest('[data-unlock]'); if (u) { if (!session) { showAccountPopup(u.dataset.unlock); return; } unlock([u.dataset.unlock], 'Unlocked — ' + itemById(u.dataset.unlock).title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); return; }
+  const sub = e.target.closest('[data-subscribe]'); if (sub) { if (!session) { showAccountPopup(''); return; } closeModal(); openCheckout(sub.dataset.subscribe); return; }
   const pr = e.target.closest('[data-print]'); if (pr) { printSheet(pr.dataset.print); return; }
   const o = e.target.closest('[data-open]'); if (o) { openSheet(o.dataset.open); }
 });
