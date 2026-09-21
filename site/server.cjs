@@ -31,8 +31,18 @@ const DEFAULT_DB = {
   rates: { INR: 1, USD: 0.012, EUR: 0.011, GBP: 0.0094, AED: 0.044, AUD: 0.018, CAD: 0.016, SGD: 0.016, NZD: 0.02, JPY: 1.8 },
   /* platform / payment fee */
   fees: { IN: { pct: 2, fixed: 3 }, INTL: { pct: 3.9, fixed: 0.3 } },
+  /* how long a purchase stays open — the admin sets this; it is never hard-coded in the page.
+     mode 'fixed': every product opens for amount × unit after purchase (default: 1 hour, for all).
+     mode 'plan':  the chosen plan's months apply instead. */
+  access: { mode: 'fixed', amount: 1, unit: 'hours' },
   orders: [],
 };
+const UNIT_MS = { minutes: 60e3, hours: 3600e3, days: 86400e3 };
+function accessUntil(db, from, months) {
+  const a = db.access || DEFAULT_DB.access;
+  if (a.mode === 'fixed') { if (a.unit === 'months') { const d = new Date(from); d.setMonth(d.getMonth() + Math.max(1, +a.amount || 1)); return d.getTime(); } return from + Math.max(1, +a.amount || 1) * (UNIT_MS[a.unit] || UNIT_MS.hours); }
+  const d = new Date(from); d.setMonth(d.getMonth() + Math.max(1, +months || 1)); return d.getTime();
+}
 /* Countries: currency, tax, postal format, address vocabulary */
 const COUNTRIES = {
   IN: { name: 'India', currency: 'INR', tax: { label: 'GST 18%', pct: 18 }, postal: { label: 'PIN code', re: /^[1-9][0-9]{5}$/, hint: '6 digits, e.g. 411001' }, state: 'State', states: ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'], methods: ['razorpay', 'paypal', 'stripe'] },
@@ -114,7 +124,7 @@ const publicCountries = () => Object.keys(COUNTRIES).map(k => ({ code: k, name: 
 
 async function api(req, res, pathname) {
   const method = req.method;
-  if (method === 'GET' && pathname === '/api/config') return json(res, 200, { countries: publicCountries(), plans: db.plans, classes: db.classes, currencies: Object.keys(db.rates), server: 'learn-with-why', version: '1' });
+  if (method === 'GET' && pathname === '/api/config') return json(res, 200, { countries: publicCountries(), plans: db.plans, classes: db.classes, currencies: Object.keys(db.rates), access: db.access, server: 'learn-with-why', version: '1' });
   if (method === 'GET' && pathname === '/api/geo') {
     /* behind a real host use the CDN's country header; locally we can only guess */
     const hdr = req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country-code'];
@@ -127,7 +137,7 @@ async function api(req, res, pathname) {
     if (!q.methods.includes(body.method)) return json(res, 400, { error: 'That payment method is not available in ' + q.countryName + '.' });
     const email = String(body.email || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json(res, 400, { error: 'Sign in before paying.' });
     const id = 'LWO-' + Math.floor(100000 + Math.random() * 900000);
-    const order = { id, at: Date.now(), email, name: String(body.name || '').slice(0, 80), cls: q.cls, plan: q.plan, months: q.months, currency: q.currency, region: q.region, lines: q.lines, total: q.total, totalInr: round(q.total / q.rate, 'INR'), coupon: q.coupon, address: q.address, method: body.method, status: 'paid', demo: true };
+    const order = { id, at: Date.now(), email, name: String(body.name || '').slice(0, 80), cls: q.cls, plan: q.plan, months: q.months, currency: q.currency, region: q.region, lines: q.lines, total: q.total, totalInr: round(q.total / q.rate, 'INR'), coupon: q.coupon, address: q.address, method: body.method, status: 'paid', demo: true, accessUntil: accessUntil(db, Date.now(), q.months) };
     db.orders.push(order); if (q.coupon && db.coupons[q.coupon]) db.coupons[q.coupon].uses = (db.coupons[q.coupon].uses || 0) + 1; saveDb(db);
     /* here the real gateway is called; the subscription is granted from its webhook */
     return json(res, 200, { ok: true, order });
@@ -135,6 +145,8 @@ async function api(req, res, pathname) {
   if (pathname.startsWith('/api/admin/')) {
     if (req.headers['x-admin-key'] !== ADMIN_KEY) return json(res, 401, { error: 'Admin key required.' });
     if (method === 'GET' && pathname === '/api/admin/orders') return json(res, 200, { orders: db.orders });
+    if (method === 'GET' && pathname === '/api/admin/access') return json(res, 200, { access: db.access });
+    if (method === 'PUT' && pathname === '/api/admin/access') { const b = await readBody(req); const unit = ['minutes', 'hours', 'days', 'months'].includes(b.unit) ? b.unit : 'hours'; db.access = { mode: b.mode === 'plan' ? 'plan' : 'fixed', amount: Math.max(1, Math.min(9999, parseInt(b.amount, 10) || 1)), unit }; saveDb(db); return json(res, 200, { access: db.access }); }
     if (method === 'PUT' && pathname === '/api/admin/plans') { const b = await readBody(req); Object.keys(b).forEach(k => { if (db.plans[k] && +b[k] >= 0) db.plans[k].price = +b[k]; }); saveDb(db); return json(res, 200, { plans: db.plans }); }
     if (method === 'PUT' && pathname === '/api/admin/coupons') { const b = await readBody(req); db.coupons = {}; (b.coupons || []).forEach(c => { if (c && c.code) db.coupons[String(c.code).toUpperCase()] = { pct: +c.pct || 0, max: +c.max || 0, uses: +c.uses || 0, active: c.active !== false }; }); db.discounts = {}; Object.keys(b.discounts || {}).forEach(k => { if (db.classes[k]) db.discounts[k] = Math.max(0, Math.min(90, +b.discounts[k] || 0)); }); saveDb(db); return json(res, 200, { ok: true }); }
     if (method === 'PUT' && pathname === '/api/admin/orders') { const b = await readBody(req); const o = db.orders.find(x => x.id === b.id); if (!o) return json(res, 404, { error: 'No such order.' }); o.status = String(b.status || o.status); saveDb(db); return json(res, 200, { order: o }); }

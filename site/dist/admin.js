@@ -10,16 +10,16 @@
 (function () {
   const ADMIN_SECTIONS = [
     ['overview', 'Dashboard'], ['products', 'Products'], ['orders', 'Orders'], ['customers', 'Customers'], ['analytics', 'Analytics'],
-    ['coupons', 'Coupons'], ['content', 'Content'], ['roles', 'Roles'], ['audit', 'Audit logs'],
+    ['coupons', 'Coupons'], ['content', 'Content'], ['roles', 'Roles'], ['settings', 'Settings'], ['audit', 'Audit logs'],
   ];
   const DEV_SECTIONS = [
     ['health', 'Dashboard'], ['errors', 'Errors'], ['api', 'API monitoring'], ['db', 'Database'],
     ['payments', 'Payments'], ['webhooks', 'Webhooks'], ['auth', 'Authentication'], ['perf', 'Performance'],
     ['security', 'Security'], ['deploy', 'Deployments'], ['backups', 'Backups'], ['audit', 'Audit logs'],
   ];
-  const GROUPS = { admin: [['General', ['overview', 'products', 'orders', 'customers', 'analytics']], ['Store', ['coupons', 'content', 'roles', 'audit']]],
+  const GROUPS = { admin: [['General', ['overview', 'products', 'orders', 'customers', 'analytics']], ['Store', ['coupons', 'content', 'roles', 'settings', 'audit']]],
     developer: [['General', ['health', 'errors', 'api', 'db', 'perf']], ['Logs', ['payments', 'webhooks', 'auth', 'security', 'audit']], ['Ops', ['deploy', 'backups']]] };
-  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', audit: 'Everything staff changed, in order.',
+  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', settings: 'Store-wide settings — access & expiry.', audit: 'Everything staff changed, in order.',
     health: 'System health at a glance.', errors: 'Errors and stack traces caught in the browser.', api: 'Every fetch() call, status and latency.', db: 'Tables, sizes and quota.', payments: 'Payment gateway log.', webhooks: 'Callbacks from the gateways.', auth: 'Sign-ins and sign-ups.', perf: 'Load, paint and frame timings.', security: 'Failed logins and suspicious activity.', deploy: 'Version and latest commits.', backups: 'Export and restore the demo data.' };
   /* lucide-style icons, 24 box, stroke 2 */
   const ICON = {
@@ -44,6 +44,8 @@
     deploy: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
     backups: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
     moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
@@ -280,9 +282,9 @@
   .dash .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
   /* ----- form controls ----- */
-  .dash :where(.field, .row-form, .table) :where(input:not([type=checkbox]), select, textarea), .dash :where(input:not([type=checkbox]):not([type=file]):not([type=hidden]), select, textarea) {
+  .dash :is(.field, .row-form, .table) :where(input:not([type=checkbox]):not([type=radio]), select, textarea), .dash :where(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), select, textarea) {
     height: 36px; width: 100%; padding: 4px 12px; border: 1px solid var(--input); border-radius: calc(var(--radius) - 2px); background-color: transparent; color: var(--foreground); font: inherit; font-size: 14px; box-shadow: var(--shadow-xs); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
-  .dash.dark :where(.field, .row-form, .table) :where(input:not([type=checkbox]), select, textarea), .dash.dark :where(input:not([type=checkbox]):not([type=file]):not([type=hidden]), select, textarea) { background-color: color-mix(in oklab, var(--input) 30%, transparent); }
+  .dash.dark :is(.field, .row-form, .table) :where(input:not([type=checkbox]):not([type=radio]), select, textarea), .dash.dark :where(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), select, textarea) { background-color: color-mix(in oklab, var(--input) 30%, transparent); }
   .dash input:focus, .dash select:focus, .dash textarea:focus { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); background-color: transparent; }
   .dash.dark input:focus, .dash.dark select:focus, .dash.dark textarea:focus { background-color: color-mix(in oklab, var(--input) 30%, transparent); }
   .dash input::placeholder, .dash textarea::placeholder { color: var(--muted-foreground); }
@@ -294,7 +296,7 @@
   .dash .field { gap: 8px; margin-bottom: 16px; }
   .dash .field label { font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--foreground); line-height: 1; }
   .dash .field small { font-size: 12px; color: var(--muted-foreground); }
-  .dash input[type=checkbox] { width: 16px; height: 16px; border-radius: 4px; accent-color: var(--primary); cursor: pointer; }
+  .dash input[type=checkbox], .dash input[type=radio] { width: 16px; height: 16px; border-radius: 4px; accent-color: var(--primary); cursor: pointer; }
   .dash .check { font-size: 14px; }
   .dash .search { height: 32px; width: 250px; padding-left: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 15px; background-position: 10px 50%; }
   .row-form { display: grid; grid-template-columns: 1fr 120px 200px auto; gap: 8px; }
@@ -447,7 +449,7 @@
     const secs = kind === 'admin' ? ADMIN_SECTIONS : DEV_SECTIONS, cur = section[kind];
     const perms = permsOf(who), label = id => (secs.find(x => x[0] === id) || [])[1] || id;
     const counts = { orders: orders().filter(o => o.status === 'pending').length, errors: read('lww_errors', []).length, security: read('lww_security', []).length };
-    const item = id => `<button type="button" class="sb-item${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' ? '' : ' off'}" data-dash="${id}" title="${esc(label(id))}">${ico(id)}<span>${esc(label(id))}</span>${counts[id] ? `<span class="sb-badge">${counts[id]}</span>` : ''}</button>`;
+    const item = id => `<button type="button" class="sb-item${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' || id === 'settings' ? '' : ' off'}" data-dash="${id}" title="${esc(label(id))}">${ico(id)}<span>${esc(label(id))}</span>${counts[id] ? `<span class="sb-badge">${counts[id]}</span>` : ''}</button>`;
     const nav = GROUPS[kind].map(([g, ids]) => `<div class="sb-group"><div class="sb-label">${g}</div><nav class="sb-menu">${ids.map(item).join('')}</nav></div>`).join('')
       + `<div class="sb-group"><div class="sb-label">Other</div><nav class="sb-menu"><button type="button" class="sb-item" data-dash-go="${kind === 'admin' ? 'developer' : 'admin'}" title="${kind === 'admin' ? 'Developer panel' : 'Admin panel'}">${ico(kind === 'admin' ? 'api' : 'overview')}<span>${kind === 'admin' ? 'Developer panel' : 'Admin panel'}</span></button><button type="button" class="sb-item" data-portal-close title="Back to the site">${ico('home')}<span>Back to the site</span></button></nav></div>`;
     let main = '';
@@ -455,7 +457,7 @@
     const name = staffName(), email = staffEmail(), ini = initialsOf(name);
     const first = kind === 'admin' ? 'overview' : 'health';
     const topnav = kind === 'admin'
-      ? [['overview', 'Overview'], ['customers', 'Customers'], ['products', 'Products'], ['roles', 'Settings']]
+      ? [['overview', 'Overview'], ['customers', 'Customers'], ['products', 'Products'], ['settings', 'Settings']]
       : [['health', 'Overview'], ['errors', 'Errors'], ['api', 'API'], ['deploy', 'Deployments']];
     const userBlock = `<span class="av">${esc(ini)}</span><span class="team-txt"><b>${esc(name)}</b><small>${esc(email)}</small></span>`;
     return `<div class="dash${theme === 'dark' ? ' dark' : ''}${collapsed ? ' sb-collapsed' : ''}${mobileOpen ? ' sb-open' : ''}">
@@ -706,6 +708,29 @@
       <section class="panel"><p class="eyebrow">Staff accounts</p><p class="auth-sub">Staff sign up from the links in the site footer.</p>${table(['Name', 'Email', 'Signed up as', 'Role'], staff.map(u => [`<b>${esc(u.name)}</b>`, esc(u.email), pill(u.kind, 'neutral'), `<select data-adm="staff-role" data-id="${esc(u.email)}">${Object.keys(roles).map(r => `<option value="${r}"${(u.rolename || (u.kind === 'developer' ? 'developer' : 'admin')) === r ? ' selected' : ''}>${r}</option>`).join('')}</select>`]), 'No staff accounts yet.', { plain: true })}</section>`;
   };
 
+  /* ----- settings: access & expiry (the product setting every purchase reads) ----- */
+  const ACCESS_DEFAULT = { mode: 'fixed', amount: 1, unit: 'hours' };
+  const accessNow = () => Object.assign({}, ACCESS_DEFAULT, read('lww_access', {}));
+  ADMIN.settings = () => {
+    const a = accessNow(), key = read('lww_admin_key', ''), preview = accessUntilLocal(Date.now(), 1);
+    return `<section class="panel"><p class="eyebrow">Access & expiry</p><p class="auth-sub">How long a purchase stays open. This is stored in the database and read by the server for every order — nothing is hard-coded in the page. The customer sees the exact expiry in the popup after paying and under My Account → My Worksheets.</p>
+      <form id="accessForm" class="grid-2" style="gap:24px">
+        <div>
+          <div class="field"><label>Expiry rule</label>
+            <label class="check" style="margin-top:4px"><input type="radio" name="mode" value="fixed"${a.mode !== 'plan' ? ' checked' : ''}> One duration for <b>all</b> products</label>
+            <label class="check"><input type="radio" name="mode" value="plan"${a.mode === 'plan' ? ' checked' : ''}> Follow the plan the customer picked (1 month · 3 months · 1 year)</label></div>
+          <div class="field" id="fixedFields"${a.mode === 'plan' ? ' style="opacity:.45"' : ''}><label>Duration for all products</label>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:8px"><input name="amount" type="number" min="1" max="9999" value="${+a.amount || 1}"><select name="unit">${['minutes', 'hours', 'days', 'months'].map(u => `<option value="${u}"${a.unit === u ? ' selected' : ''}>${u}</option>`).join('')}</select></div>
+            <small>Currently: <b id="accessCurrent">${esc(accessLabel())}</b> · a purchase made now would expire on <b id="accessPreview">${esc(dateTimeOf(preview))}</b></small></div>
+        </div>
+        <div>
+          <div class="field"><label>Admin key (to save on the server)</label><input name="key" type="password" value="${esc(key)}" placeholder="ADMIN_KEY from the server" autocomplete="off"><small>Set <code>ADMIN_KEY</code> when starting <code>server.cjs</code>; the default is <code>change-me</code>. Without it the setting is saved in this browser only.</small></div>
+          <div class="btn-row"><button type="submit" class="btn btn-primary">Save setting</button><span class="note" id="accessStatus" style="font-size:13px;color:var(--muted-foreground)"></span></div>
+        </div>
+      </form></section>
+      <section class="panel"><p class="eyebrow">What the customer sees</p><p class="auth-sub">Right after a successful purchase:</p>
+      <div class="tbl-wrap" style="padding:16px 18px;font-size:14px;line-height:1.6"><b>Your purchase has been completed successfully.</b> You can now access your PDF.<br>This worksheet has been added to your account.<br>You can access this PDF until: <b>${esc(dateTimeOf(preview))}</b><br>After this date, your access will automatically expire.<br>You can access it anytime before expiry from: <b>My Account → My Worksheets</b></div></section>`;
+  };
   ADMIN.audit = () => auditView();
   function auditView() { const a = read('lww_audit', []).slice().reverse(); return `<section class="panel"><div class="row-between"><div><p class="eyebrow">Audit logs · ${a.length}</p><p class="auth-sub">Newest first.</p></div><button type="button" class="btn btn-ghost btn-sm" data-adm="clear" data-key="lww_audit">${ico('trash')}Clear</button></div>${table(['When', 'Who', 'Action', 'Detail'], a.map(x => [fmt(x.at), esc(x.actor), `<b>${esc(x.action)}</b>`, esc(x.detail)]), 'Nothing logged yet.', { filter: 'Filter logs…' })}</section>`; }
 
@@ -785,6 +810,15 @@
     const rf = document.getElementById('restoreFile'); if (rf) rf.addEventListener('change', () => { const f = rf.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); Object.keys(j).forEach(k => { if (k.startsWith('lww_')) localStorage.setItem(k, JSON.stringify(j[k])); }); log('backup restored', f.name); toast('Restored — reloading'); setTimeout(() => location.reload(), 600); } catch (_) { toast('That is not a Learn With Why backup'); } }; r.readAsText(f); });
     const pf = document.getElementById('productForm'); if (pf) pf.addEventListener('submit', e => { e.preventDefault(); saveProduct(pf); });
     wireStudio(); wireTables();
+    const af = document.getElementById('accessForm'); if (af) {
+      const sync = () => { const f = new FormData(af); const a = { mode: f.get('mode'), amount: Math.max(1, parseInt(f.get('amount'), 10) || 1), unit: f.get('unit') }; document.getElementById('fixedFields').style.opacity = a.mode === 'plan' ? '.45' : '1'; const from = Date.now(); let until; if (a.mode === 'fixed') { if (a.unit === 'months') { const d = new Date(from); d.setMonth(d.getMonth() + a.amount); until = d.getTime(); } else until = from + a.amount * ({ minutes: 60e3, hours: 3600e3, days: 86400e3 })[a.unit]; } else { const d = new Date(from); d.setMonth(d.getMonth() + 1); until = d.getTime(); } document.getElementById('accessPreview').textContent = dateTimeOf(until); document.getElementById('accessCurrent').textContent = a.mode === 'fixed' ? a.amount + ' ' + (a.amount === 1 ? a.unit.replace(/s$/, '') : a.unit) : 'the plan period'; return a; };
+      af.addEventListener('input', sync); af.addEventListener('change', sync);
+      /* the database is the source of truth: load its value into the form */
+      fetch('/api/config').then(r => r.json()).then(c => { if (!c.access || !document.body.contains(af)) return; save('lww_access', c.access); af.querySelector('[name=mode][value=' + (c.access.mode === 'plan' ? 'plan' : 'fixed') + ']').checked = true; af.querySelector('[name=amount]').value = c.access.amount; af.querySelector('[name=unit]').value = c.access.unit; sync(); }).catch(() => {});
+      af.addEventListener('submit', async e => { e.preventDefault(); const a = sync(), key = String(new FormData(af).get('key') || '').trim(), st = document.getElementById('accessStatus'); save('lww_access', a); if (key) save('lww_admin_key', key); log('access expiry set', a.mode === 'fixed' ? a.amount + ' ' + a.unit + ' for all products' : 'follow the plan'); st.textContent = 'Saving…';
+        try { const r = await fetch('/api/admin/access', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-admin-key': key }, body: JSON.stringify(a) }); if (!r.ok) throw new Error((await r.json()).error || r.status); st.textContent = 'Saved to the database ✓'; toast('Access expiry saved — applies to every new purchase'); }
+        catch (err) { st.textContent = 'Saved in this browser · server said: ' + err.message; toast('Saved locally — enter the admin key to save on the server'); } });
+    }
     const cf = document.getElementById('couponForm'); if (cf) cf.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(cf), code = String(f.get('code')).trim().toUpperCase(); if (!code) return; const cps = read('lww_coupons', []).filter(c => c.code !== code); cps.push({ code, pct: Math.min(100, parseInt(f.get('pct'), 10) || 10), max: parseInt(f.get('max'), 10) || 0, uses: 0, active: true }); save('lww_coupons', cps); log('coupon added', code); rerender(); });
     const ct = document.getElementById('contentForm'); if (ct) ct.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(ct); const c = { badge: f.get('badge').trim(), heroTitle: f.get('heroTitle').trim(), heroLede: f.get('heroLede').trim(), whys: String(f.get('whys')).split('\n').map(x => x.trim()).filter(Boolean) }; save('lww_content', c); document.querySelector('#home .eyebrow').textContent = c.badge; document.querySelector('h1.display').innerHTML = c.heroTitle; document.querySelector('#home .lede').textContent = c.heroLede; WHYS.length = 0; c.whys.forEach(w => WHYS.push(w)); log('content saved', 'home page'); toast('Content saved'); });
     /* header shadow once the inset scrolls */
