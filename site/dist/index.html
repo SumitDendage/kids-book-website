@@ -150,6 +150,11 @@ body[data-stage="boot"] .navbar { opacity: 0; transform: translateY(-16px); }
 .nav-menu-btn { display: inline-flex; }
 
 /* ---------- chrome ---------- */
+/* soft bands behind the fixed header and the chapter counter so text scrolling under them stays readable */
+.edge-scrim { position: fixed; left: 0; right: 0; z-index: 60; pointer-events: none; }
+.edge-scrim.top { top: 0; height: 120px; background: linear-gradient(180deg, rgba(6,14,22,0.82) 0%, rgba(6,14,22,0.45) 55%, rgba(6,14,22,0) 100%); }
+.edge-scrim.bottom { bottom: 0; height: 84px; background: linear-gradient(0deg, rgba(6,14,22,0.7) 0%, rgba(6,14,22,0) 100%); }
+body:not([data-stage="site"]) .edge-scrim { display: none; }
 .counter { position: fixed; left: clamp(20px, 5vw, 72px); bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 90; font-size: var(--fs-eyebrow); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-dim); pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,0.8); transition: opacity 0.4s; }
 .counter b { color: var(--fg); font-weight: 600; }
 .brandline { position: fixed; right: clamp(20px, 5vw, 72px); bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 90; font-size: var(--fs-eyebrow); letter-spacing: 0.08em; color: var(--fg-dim); pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,0.8); }
@@ -862,6 +867,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 </main>
 
 <!-- chrome -->
+<div class="edge-scrim top" aria-hidden="true"></div><div class="edge-scrim bottom" aria-hidden="true"></div>
 <div class="counter" id="counter"><b>01</b> / Home</div>
 <div class="brandline">Learn With Why</div>
 <button type="button" class="hint" id="hint">Scroll to discover <i>↓</i></button>
@@ -1218,11 +1224,8 @@ function onFrame() {
     /* 0 while the middle of the screen is inside the chapter, ±1 a screen away */
     const d = top > mid ? (top - mid) / innerHeight : bottom < mid ? (bottom - mid) / innerHeight : 0;
     const a = Math.min(1, Math.abs(d));
-    if (!reduceMotion) {
-      const el = inners[i];
-      el.style.transform = 'rotateX(' + (-d * 9).toFixed(2) + 'deg) scale(' + (1 - a * 0.07).toFixed(3) + ')';
-      el.style.opacity = (1 - a * 0.6).toFixed(3);
-    }
+    /* no tilt or shrink — text stays flat and readable; chapters only soften a little as they leave the screen */
+    if (!reduceMotion) inners[i].style.opacity = (1 - a * 0.35).toFixed(3);
     if (a < nearestD) { nearestD = a; nearest = i; }
     c.classList.toggle('is-active', a < 0.62 || (c.classList.contains('is-active') && a < 0.9));
   });
