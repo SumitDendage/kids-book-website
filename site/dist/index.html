@@ -466,14 +466,13 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .ws-main { min-width: 0; }
 .ws-side { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
 .ws-side .side-title { padding: 6px 12px 10px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--fg-dim); }
-.side-item { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; column-gap: 10px; padding: 9px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--fg-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--d-base), color var(--d-base), border-color var(--d-base), transform var(--d-fast) var(--ease); }
+.side-item { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; column-gap: 10px; padding: 7px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--fg-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--d-base), color var(--d-base), border-color var(--d-base), transform var(--d-fast) var(--ease); }
 .side-item:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateX(2px); }
 .side-item.on { background: #fff; color: #14181c; border-color: #fff; }
-.side-item .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.1); font-family: var(--font-display); font-size: 1rem; font-weight: 500; }
+.side-item .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.1); font-family: var(--font-display); font-size: 1rem; font-weight: 500; }
 .side-item.on .ic { background: rgba(20,24,28,0.08); }
 .side-item .lbl { display: grid; line-height: 1.2; }
 .side-item .lbl b { font-size: 0.86rem; font-weight: 600; }
-.side-item .lbl small { font-size: 0.68rem; color: inherit; opacity: 0.65; }
 .side-item .n { font-size: 0.66rem; font-weight: 700; padding: 3px 7px; border-radius: 100px; background: rgba(255,255,255,0.1); }
 .side-item.on .n { background: rgba(20,24,28,0.1); }
 .side-item.on .free-dot { background: #1f6b47; }
@@ -1706,7 +1705,7 @@ function shelfCard(it, n, owned) {
 const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 function renderAZ() {
   const box = document.getElementById('azBlock'); if (!box) return;
-  if (cat !== 'kg') { box.hidden = true; box.innerHTML = ''; return; }
+  if (cat !== 'kg' && cat !== 'subj:english') { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
   box.innerHTML = `<section class="az rise" style="--i:3" aria-label="A to Z free sheets">
     <div class="az-head">
@@ -1718,16 +1717,19 @@ function renderAZ() {
   </section>`;
 }
 function renderWorksheets() {
-  /* left-side menu: one entry per class, then the weekly worksheets */
-  const SIDE_ICON = { nursery: 'ab', kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎' };
-  const sideItem = t => { const pool = t.id === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === t.id), extra = t.id === 'kg' ? AZ_LETTERS.length : 0; return `<button type="button" class="side-item${t.id === cat ? ' on' : ''}" data-cat="${t.id}" aria-current="${t.id === cat ? 'true' : 'false'}"><span class="ic">${esc(SIDE_ICON[t.id] || '•')}</span><span class="lbl"><b>${esc(t.label)}</b><small>${esc(t.small)}</small></span><span class="n">${pool.length + extra}</span></button>`; };
-  document.getElementById('chips').innerHTML = '<p class="side-title">Browse by class</p>' + SHELF_TABS.filter(t => t.id !== 'worksheets').map(sideItem).join('') + '<div class="side-sep"></div>' + SHELF_TABS.filter(t => t.id === 'worksheets').map(sideItem).join('');
+  /* left-side menu: "By class" (Nursery … Class 3, Worksheets) and "By topic" (every subject) */
+  const SIDE_ICON = { nursery: 'ab', kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
+  const poolOf = id => id === 'worksheets' ? WORKSHEETS : id.startsWith('subj:') ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase())) : CATALOGUE.filter(i => i.cls === id);
+  const hasAZ = id => id === 'kg' || id === 'subj:english';
+  const sideItem = (id, label, icon) => `<button type="button" class="side-item${id === cat ? ' on' : ''}" data-cat="${id}" aria-current="${id === cat ? 'true' : 'false'}"><span class="ic">${esc(icon)}</span><span class="lbl"><b>${esc(label)}</b></span><span class="n">${poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0)}</span></button>`;
+  document.getElementById('chips').innerHTML = '<p class="side-title">By class</p>' + SHELF_TABS.map(t => sideItem(t.id, t.label, SIDE_ICON[t.id] || '•')).join('')
+    + '<div class="side-sep"></div><p class="side-title">By topic</p>' + SUBJECTS.map(s => sideItem('subj:' + s.id, s.label, SIDE_ICON[s.id] || '•')).join('');
   renderAZ();
-  const pool = cat === 'worksheets' ? WORKSHEETS : CATALOGUE.filter(i => i.cls === cat);
+  const pool = poolOf(cat);
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
-  document.getElementById('wsRow').innerHTML = list.map((it, n) => shelfCard(it, n, owned)).join('');
+  document.getElementById('wsRow').innerHTML = list.length ? list.map((it, n) => shelfCard(it, n, owned)).join('') : '<p class="cart-empty">No sheets in this topic yet — more are on the way.</p>';
   const free = list.filter(i => i.price === 0).length;
-  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' with the ' + (cat === 'worksheets' ? 'class' : classById(cat).label) + ' plan';
+  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' with ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan');
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
 
