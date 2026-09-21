@@ -36,11 +36,10 @@ components/
 lib/
   content.js             every word, class, subject, sheet, licence and price
   store.jsx              app state: session, bag, Library, toast, drawers, pending actions after sign-in
-  authStore.js           auth: Supabase online, localStorage demo offline
-  libraryStore.js        licences: checkout, consume a print, DRM status
+  authStore.js           auth: accounts and sessions in localStorage (demo)
+  libraryStore.js        licences: checkout, consume a print (localStorage demo)
   pages.js               draws a sheet's pages in the browser
 public/frames/           frame_001.jpg … frame_050.jpg
-supabase/                schema + RLS + checkout/consume_print functions, drm-protect edge function
 ```
 
 ## Editing the shelf
@@ -59,17 +58,12 @@ with a confirmation; one print session uses one licence copy and the sheet locks
 copies are gone, keeping only its purchase record. A guest who clicks Pay now or Open free is
 asked to sign in and the action completes by itself afterwards.
 
-**Payment is not wired yet** — checkout creates licences without charging. The `checkout`
-database function marks where a Razorpay/Stripe payment id must be verified.
+**Payment is not wired in this build** — checkout creates licences without charging.
 
-## Backend (optional)
+## Backend
 
-Without `.env.local` the site runs as a front-end demo (accounts, bag and Library in
-localStorage). To go online, create a Supabase project, copy `.env.example` to `.env.local`,
-run `supabase/migrations/20260916000000_library.sql`, upload master PDFs to the private
-`masters` bucket (`<sheet id>.pdf`), and deploy `supabase/functions/drm-protect` with
-`VERYPDF_EMAIL` set — VeryPDF DRM Protector then prepares a protected copy per purchase whose
-print count is enforced by their secure reader.
+This build has no hosted backend: accounts, the bag and the Library live in the browser's
+localStorage. The live site in `../../site/` has the real backend.
 
 ## Motion
 

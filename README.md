@@ -113,7 +113,7 @@ kids-book-website/
 │       ├── sheets/           public thumbnails only
 │       ├── favicon.svg · og.jpg · robots.txt · sitemap.xml
 ├── archive/
-│   ├── learn-with-why/       earlier Next.js 16 build (frame scrub, ring gallery, Supabase + DRM backend files)
+│   ├── learn-with-why/       earlier Next.js 16 build (frame scrub, ring gallery, Library)
 │   └── papercub-react/       earlier Vite/React build
 └── README.md
 ```
