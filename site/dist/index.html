@@ -588,6 +588,14 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .sheet-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .sheet-actions .btn { flex: 1 1 auto; justify-content: center; }
 .sheet-actions .note { flex-basis: 100%; font-size: 0.74rem; color: var(--ink-muted); line-height: 1.5; }
+.modal.account { width: min(100%, 520px); padding: 34px 32px 28px; display: grid; gap: 18px; position: relative; }
+.modal.account .close-x { position: absolute; top: 14px; right: 14px; border-color: rgba(0,0,0,0.12); background: rgba(0,0,0,0.05); color: var(--ink); }
+.modal.account h3 { font-family: var(--font-body); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.01em; color: #14253d; margin: 0; }
+.modal.account .perks { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.modal.account .perks li { display: grid; grid-template-columns: 30px 1fr; align-items: start; gap: 12px; font-size: 1.15rem; font-weight: 600; line-height: 1.3; color: #1f6b47; }
+.modal.account .perks i { width: 30px; height: 30px; border-radius: 50%; background: #1f6b47; color: #fff; display: grid; place-items: center; font-style: normal; font-size: 0.95rem; font-weight: 800; margin-top: 1px; }
+.modal.account .sheet-actions { margin-top: 6px; display: grid; gap: 8px; }
+.modal.account .fine { font-size: 0.82rem; color: var(--ink-muted); text-align: center; margin: 0; }
 .modal.purchase { width: min(100%, 460px); text-align: center; display: grid; gap: 10px; padding: 30px 28px 24px; }
 .modal.purchase .purchase-icon { width: 56px; height: 56px; margin: 0 auto 4px; border-radius: 50%; background: #1f6b47; color: #fff; display: grid; place-items: center; font-size: 1.6rem; font-weight: 800; box-shadow: 0 10px 30px rgba(31,107,71,0.35); }
 .modal.purchase h3 { font-size: 1.55rem; margin: 0; }
@@ -1365,7 +1373,7 @@ function signedIn(s, msg, remember = true) {
 }
 document.getElementById('signOutBtn').addEventListener('click', () => { session = null; localStorage.removeItem('lww_session'); sessionStorage.removeItem('lww_session'); authCard.classList.remove('is-signed'); setAuthView('signin'); renderPlayer(); renderWorksheets(); toast('Signed out. See you soon.'); });
 /* something that needs an account: remember it, go to chapter 01, say why */
-function requireSignIn(then, why) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(users().length ? 'signin' : 'signup'); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
+function requireSignIn(then, why, view) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(view || (users().length ? 'signin' : 'signup')); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
 
 /* =====================================================================
    CHAPTER 02 — the fox and rabbit preview + sheet carousel
@@ -1794,8 +1802,26 @@ function closeModal() { modalScrim.classList.remove('open'); modalSheet = null; 
 modalScrim.addEventListener('click', e => { if (e.target === modalScrim) closeModal(); });
 /* any sheet, free or paid: a look at the page, what is inside, and the print / get / subscribe action */
 const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : itemById(id);
+/* Not signed in? Every worksheet first shows what a free account includes. */
+function showAccountPopup(id) {
+  const it = sheetOf(id);
+  modal.className = 'modal account';
+  modal.innerHTML = `<button type="button" class="icon-btn close-x" data-modal-close aria-label="Close">✕</button>
+    <h3>Free Account Includes:</h3>
+    <ul class="perks">
+      <li><i>✓</i><span>Free access sheets in every class — open them in the full-screen viewer</span></li>
+      <li><i>✓</i><span>Suggest a Resource! You want it? We'll make it</span></li>
+      <li><i>✓</i><span>Customer support (with real people!)</span></li>
+    </ul>
+    <div class="sheet-actions"><button type="button" class="btn btn-primary" data-account="signup" data-id="${esc(id)}">Create my free account →</button><button type="button" class="btn btn-ghost" data-account="signin" data-id="${esc(id)}">I already have an account</button></div>
+    ${it ? `<p class="fine">Then <b>${esc(it.title)}</b> opens straight away.</p>` : ''}`;
+  modalScrim.classList.add('open');
+  logEvent('account_prompt', { item: id });
+}
+document.addEventListener('click', e => { const a = e.target.closest('[data-account]'); if (!a) return; const id = a.dataset.id; requireSignIn(() => openSheet(id), a.dataset.account === 'signup' ? 'Create your free account — your sheet opens as soon as you are in.' : 'Sign in — your sheet opens as soon as you are in.', a.dataset.account); });
 function openSheet(id) {
   const it = sheetOf(id); if (!it) return;
+  if (!session) { showAccountPopup(id); return; }
   modalSheet = id;
   const free = it.price === 0, mine = it.free ? !!session : canOpen(it), cls = classById(it.cls), sub = mine && !free ? activeSub(it.cls) : null;
   const about = it.about || ABOUT[it.id] || it.bullets || [];
