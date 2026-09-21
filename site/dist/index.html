@@ -1085,20 +1085,14 @@ const daysLeft = ms => Math.max(0, Math.ceil((ms - Date.now()) / 86400000));
 /* Access expiry is a product setting the admin controls (Admin → Settings → Access & expiry).
    The server's database is the source of truth: every order comes back with `accessUntil`.
    The copy here (lww_access) mirrors it for the checkout note and the demo fallback. */
-const ACCESS_DEFAULT = { mode: 'fixed', amount: 1, unit: 'hours' };
-const UNIT_MS = { minutes: 60e3, hours: 3600e3, days: 86400e3 };
-const accessSetting = () => Object.assign({}, ACCESS_DEFAULT, read('lww_access', {}));
-function accessUntilLocal(from, months) {
-  const a = accessSetting();
-  if (a.mode === 'fixed') { if (a.unit === 'months') { const d = new Date(from); d.setMonth(d.getMonth() + Math.max(1, +a.amount || 1)); return d.getTime(); } return from + Math.max(1, +a.amount || 1) * (UNIT_MS[a.unit] || UNIT_MS.hours); }
-  const d = new Date(from); d.setMonth(d.getMonth() + Math.max(1, +months || 1)); return d.getTime();
-}
-const accessLabel = () => { const a = accessSetting(); return a.mode === 'fixed' ? a.amount + ' ' + (+a.amount === 1 ? a.unit.replace(/s$/, '') : a.unit) : 'the plan period'; };
+const accessHours = () => Math.max(1, parseInt((read('lww_access', {}) || {}).hours, 10) || 1);   /* hours only — set by the admin, default 1 */
+const accessUntilLocal = from => from + accessHours() * 3600e3;
+const accessLabel = () => accessHours() + (accessHours() === 1 ? ' hour' : ' hours');
 const dateTimeOf = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 const timeLeft = ms => { const d = ms - Date.now(); if (d <= 0) return 'expired'; if (d < 3600e3) return Math.max(1, Math.round(d / 60e3)) + ' min left'; if (d < 86400e3) return Math.round(d / 3600e3) + ' h left'; return Math.ceil(d / 86400e3) + ' days left'; };
 function addSub(cls, planId, until) {
   const all = read('lww_subs', {}), list = all[session.email] || [], plan = planOf(planId);
-  const end = until || accessUntilLocal(Date.now(), plan.months);
+  const end = until || accessUntilLocal(Date.now());
   list.push({ cls, plan: plan.id, start: Date.now(), end, at: Date.now() });
   all[session.email] = list; write('lww_subs', all);
   return end;
@@ -1664,7 +1658,7 @@ function paintSummary() {
     <div class="sum-item"><div class="sum-thumb">${esc(cls.label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(cls.label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>
     <div class="co-lines${coBusy ? ' busy' : ''}">${q ? lines : (coError ? '<p class="alert err">' + esc(coError) + '</p>' : skeleton)}</div>
     ${q ? `<div class="sum-total${changed ? ' bump' : ''}"><span>Total<small>incl. tax & fees</small></span><strong>${fmtCur(q.total, q.currency)}</strong></div>` : ''}
-    ${q ? `<p class="co-note" style="text-align:center">Access opens now and expires <b>${esc(accessLabel())}</b> after purchase (until about ${esc(dateTimeOf(accessUntilLocal(Date.now(), planOf(coPlan).months)))}).</p>` : ''}
+    ${q ? `<p class="co-note" style="text-align:center">Access opens now and expires <b>${esc(accessLabel())}</b> after purchase (until about ${esc(dateTimeOf(accessUntilLocal(Date.now())))}).</p>` : ''}
     ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} at 1 INR = ${q.rate} ${esc(q.currency)}. You are charged in ${esc(q.currency)}.</p>` : ''}
     ${q && q.coupon ? `<p class="co-note ok">Coupon ${esc(q.coupon)} applied — ₹${q.discountInr} off</p>` : ''}
     <button type="button" class="btn btn-pay" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}><span>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>${q && q.valid ? 'with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'to unlock payment'}</small></button>

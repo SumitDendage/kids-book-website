@@ -709,19 +709,14 @@
       <section class="panel"><p class="eyebrow">Staff accounts</p><p class="auth-sub">Staff sign up from the links in the site footer.</p>${table(['Name', 'Email', 'Signed up as', 'Role'], staff.map(u => [`<b>${esc(u.name)}</b>`, esc(u.email), pill(u.kind, 'neutral'), `<select data-adm="staff-role" data-id="${esc(u.email)}">${Object.keys(roles).map(r => `<option value="${r}"${(u.rolename || (u.kind === 'developer' ? 'developer' : 'admin')) === r ? ' selected' : ''}>${r}</option>`).join('')}</select>`]), 'No staff accounts yet.', { plain: true })}</section>`;
   };
 
-  /* ----- settings: access & expiry (the product setting every purchase reads) ----- */
-  const ACCESS_DEFAULT = { mode: 'fixed', amount: 1, unit: 'hours' };
-  const accessNow = () => Object.assign({}, ACCESS_DEFAULT, read('lww_access', {}));
+  /* ----- settings: access & expiry — one number of HOURS for every product ----- */
   ADMIN.settings = () => {
-    const a = accessNow(), key = read('lww_admin_key', ''), preview = accessUntilLocal(Date.now(), 1);
-    return `<section class="panel"><p class="eyebrow">Access & expiry</p><p class="auth-sub">How long a purchase stays open. This is stored in the database and read by the server for every order — nothing is hard-coded in the page. The customer sees the exact expiry in the popup after paying and under My Account → My Worksheets.</p>
+    const h = accessHours(), key = read('lww_admin_key', ''), preview = Date.now() + h * 3600e3;
+    return `<section class="panel"><p class="eyebrow">Access & expiry</p><p class="auth-sub">How many hours a purchase stays open. One value for every product, stored in the database and read by the server for each order — nothing is hard-coded in the page. The customer sees the exact expiry in the popup after paying and under My Account → My Worksheets.</p>
       <form id="accessForm" class="grid-2" style="gap:24px">
         <div>
-          <div class="field"><label>Expiry rule</label>
-            <label class="check" style="margin-top:4px"><input type="radio" name="mode" value="fixed"${a.mode !== 'plan' ? ' checked' : ''}> One duration for <b>all</b> products</label>
-            <label class="check"><input type="radio" name="mode" value="plan"${a.mode === 'plan' ? ' checked' : ''}> Follow the plan the customer picked (1 month · 3 months · 1 year)</label></div>
-          <div class="field" id="fixedFields"${a.mode === 'plan' ? ' style="opacity:.45"' : ''}><label>Duration for all products</label>
-            <div style="display:grid;grid-template-columns:120px 1fr;gap:8px"><input name="amount" type="number" min="1" max="9999" value="${+a.amount || 1}"><select name="unit">${['minutes', 'hours', 'days', 'months'].map(u => `<option value="${u}"${a.unit === u ? ' selected' : ''}>${u}</option>`).join('')}</select></div>
+          <div class="field"><label>Access duration for all products</label>
+            <div style="display:flex;align-items:center;gap:10px"><input name="hours" type="number" min="1" max="8760" step="1" value="${h}" style="width:120px"><span style="font-size:14px;font-weight:500">hour(s)</span></div>
             <small>Currently: <b id="accessCurrent">${esc(accessLabel())}</b> · a purchase made now would expire on <b id="accessPreview">${esc(dateTimeOf(preview))}</b></small></div>
         </div>
         <div>
@@ -812,12 +807,12 @@
     const pf = document.getElementById('productForm'); if (pf) pf.addEventListener('submit', e => { e.preventDefault(); saveProduct(pf); });
     wireStudio(); wireTables();
     const af = document.getElementById('accessForm'); if (af) {
-      const sync = () => { const f = new FormData(af); const a = { mode: f.get('mode'), amount: Math.max(1, parseInt(f.get('amount'), 10) || 1), unit: f.get('unit') }; document.getElementById('fixedFields').style.opacity = a.mode === 'plan' ? '.45' : '1'; const from = Date.now(); let until; if (a.mode === 'fixed') { if (a.unit === 'months') { const d = new Date(from); d.setMonth(d.getMonth() + a.amount); until = d.getTime(); } else until = from + a.amount * ({ minutes: 60e3, hours: 3600e3, days: 86400e3 })[a.unit]; } else { const d = new Date(from); d.setMonth(d.getMonth() + 1); until = d.getTime(); } document.getElementById('accessPreview').textContent = dateTimeOf(until); document.getElementById('accessCurrent').textContent = a.mode === 'fixed' ? a.amount + ' ' + (a.amount === 1 ? a.unit.replace(/s$/, '') : a.unit) : 'the plan period'; return a; };
+      const sync = () => { const h = Math.max(1, Math.min(8760, parseInt(af.querySelector('[name=hours]').value, 10) || 1)); document.getElementById('accessPreview').textContent = dateTimeOf(Date.now() + h * 3600e3); document.getElementById('accessCurrent').textContent = h + (h === 1 ? ' hour' : ' hours'); return h; };
       af.addEventListener('input', sync); af.addEventListener('change', sync);
       /* the database is the source of truth: load its value into the form */
-      fetch('/api/config').then(r => r.json()).then(c => { if (!c.access || !document.body.contains(af)) return; save('lww_access', c.access); af.querySelector('[name=mode][value=' + (c.access.mode === 'plan' ? 'plan' : 'fixed') + ']').checked = true; af.querySelector('[name=amount]').value = c.access.amount; af.querySelector('[name=unit]').value = c.access.unit; sync(); }).catch(() => {});
-      af.addEventListener('submit', async e => { e.preventDefault(); const a = sync(), key = String(new FormData(af).get('key') || '').trim(), st = document.getElementById('accessStatus'); save('lww_access', a); if (key) save('lww_admin_key', key); log('access expiry set', a.mode === 'fixed' ? a.amount + ' ' + a.unit + ' for all products' : 'follow the plan'); st.textContent = 'Saving…';
-        try { const r = await fetch('/api/admin/access', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-admin-key': key }, body: JSON.stringify(a) }); if (!r.ok) throw new Error((await r.json()).error || r.status); st.textContent = 'Saved to the database ✓'; toast('Access expiry saved — applies to every new purchase'); }
+      fetch('/api/config').then(r => r.json()).then(c => { if (!c.access || !document.body.contains(af)) return; save('lww_access', { hours: c.access.hours }); af.querySelector('[name=hours]').value = c.access.hours; sync(); }).catch(() => {});
+      af.addEventListener('submit', async e => { e.preventDefault(); const hours = sync(), key = String(new FormData(af).get('key') || '').trim(), st = document.getElementById('accessStatus'); save('lww_access', { hours }); if (key) save('lww_admin_key', key); log('access expiry set', hours + ' hour(s) for all products'); st.textContent = 'Saving…';
+        try { const r = await fetch('/api/admin/access', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-admin-key': key }, body: JSON.stringify({ hours }) }); if (!r.ok) throw new Error((await r.json()).error || r.status); st.textContent = 'Saved to the database ✓'; toast('Access expiry saved — applies to every new purchase'); }
         catch (err) { st.textContent = 'Saved in this browser · server said: ' + err.message; toast('Saved locally — enter the admin key to save on the server'); } });
     }
     const cf = document.getElementById('couponForm'); if (cf) cf.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(cf), code = String(f.get('code')).trim().toUpperCase(); if (!code) return; const cps = read('lww_coupons', []).filter(c => c.code !== code); cps.push({ code, pct: Math.min(100, parseInt(f.get('pct'), 10) || 10), max: parseInt(f.get('max'), 10) || 0, uses: 0, active: true }); save('lww_coupons', cps); log('coupon added', code); rerender(); });
