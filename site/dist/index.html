@@ -1078,13 +1078,23 @@ ${[[62,62,'×'],[100,46,'+'],[138,60,'B'],[50,92,'−'],[150,94,'C'],[66,118,'A'
 document.querySelectorAll('[data-logo]').forEach(el => { el.innerHTML = LOGO_SVG + '<b>LEARN</b><small>WITH WHY</small>'; });
 
 /* =====================================================================
-   STORAGE — demo accounts, bag and unlocked sheets live in this browser
+   STORAGE — accounts, orders and entitlements live on the server (SQLite
+   behind /api/*). The browser keeps only a copy of the signed-in customer
+   for an instant first paint, plus the staff panels' local telemetry.
    ===================================================================== */
 const read = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (_) { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return 'p' + h.toString(36); };
+const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return 'p' + h.toString(36); };   /* staff demo accounts only */
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
 let session = read('lww_session', null) || (() => { try { const r = sessionStorage.getItem('lww_session'); return r ? JSON.parse(r) : null; } catch (_) { return null; } })();
+/* JSON calls to our own API; the session cookie travels with every one of them */
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'same-origin', cache: 'no-store' });
+  let out = {}; try { out = await r.json(); } catch (_) {}
+  if (r.status === 401 && session && !path.startsWith('/api/auth/')) { forgetSession(); }   /* the cookie is gone: the page must not think we are signed in */
+  if (!r.ok) { const e = new Error(out.error || ('Request failed (' + r.status + ')')); e.status = r.status; e.body = out; throw e; }
+  return out;
+}
 let cart = read('lww_bag', {});                 /* { id: { qty, licence } } */
 /* telemetry for the staff panels — all in this browser for the demo */
 const SITE_VERSION = '2026.09.17';
@@ -1096,30 +1106,27 @@ addEventListener('error', e => pushLog('lww_errors', { at: Date.now(), msg: Stri
 addEventListener('unhandledrejection', e => pushLog('lww_errors', { at: Date.now(), msg: 'Unhandled promise: ' + String(e.reason && e.reason.message || e.reason), stack: e.reason && e.reason.stack ? String(e.reason.stack).slice(0, 1200) : '' }, 100));
 const _fetch = window.fetch.bind(window);
 window.fetch = async (url, opt) => { const t0 = performance.now(); try { const r = await _fetch(url, opt); pushLog('lww_api', { at: Date.now(), url: String(url).slice(0, 160), status: r.status, ms: Math.round(performance.now() - t0) }, 200); return r; } catch (err) { pushLog('lww_api', { at: Date.now(), url: String(url).slice(0, 160), status: 0, ms: Math.round(performance.now() - t0), error: String(err.message || err) }, 200); throw err; } };
-const ownedOf = () => (session ? read('lww_owned', {})[session.email] || [] : []);
-const subsOf = () => (session ? read('lww_subs', {})[session.email] || [] : []);
-const activeSubs = () => subsOf().filter(x => x.end > Date.now());
+/* ENTITLEMENTS — what the signed-in customer may open, straight from the server; they never expire:
+   { scope: 'class', cls, plan, start } for a class plan, { scope: 'worksheet', worksheet, kind, start } for one PDF. */
+let ENT = [];
+async function syncEntitlements() {
+  if (!session) { ENT = []; return ENT; }
+  try { const r = await api('GET', '/api/me/entitlements'); ENT = r.entitlements || []; }
+  catch (err) { if (err.status !== 401) console.warn('entitlements', err.message); }
+  return ENT;
+}
+const subsOf = () => ENT.filter(e => e.scope === 'class').map(e => ({ cls: e.cls, plan: e.plan || 'm1', start: e.start, at: e.start }));
+const activeSubs = () => subsOf();
 const activeSub = cls => activeSubs().find(x => x.cls === cls) || null;
+/* a paid single-PDF purchase, or a free sheet already opened once */
+const itemEnt = id => ENT.filter(e => e.scope === 'worksheet' && e.worksheet === id).sort((a, b) => b.start - a.start)[0] || null;
+const ownedOf = () => Array.from(new Set(ENT.filter(e => e.scope === 'worksheet').map(e => e.worksheet)));
 const dateOf = ms => new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const daysLeft = ms => Math.max(0, Math.ceil((ms - Date.now()) / 86400000));
-/* Access expiry is a product setting the admin controls (Admin → Settings → Access & expiry).
-   The server's database is the source of truth: every order comes back with `accessUntil`.
-   The copy here (lww_access) mirrors it for the checkout note and the demo fallback. */
-const accessHours = () => Math.max(1, parseInt((read('lww_access', {}) || {}).hours, 10) || 1);   /* hours only — set by the admin, default 1 */
-const accessUntilLocal = from => from + accessHours() * 3600e3;
-const accessLabel = () => accessHours() + (accessHours() === 1 ? ' hour' : ' hours');
 const dateTimeOf = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-const timeLeft = ms => { const d = ms - Date.now(); if (d <= 0) return 'expired'; if (d < 3600e3) return Math.max(1, Math.round(d / 60e3)) + ' min left'; if (d < 86400e3) return Math.round(d / 3600e3) + ' h left'; return Math.ceil(d / 86400e3) + ' days left'; };
-function addSub(cls, planId, until) {
-  const all = read('lww_subs', {}), list = all[session.email] || [], plan = planOf(planId);
-  const end = until || accessUntilLocal(Date.now());
-  list.push({ cls, plan: plan.id, start: Date.now(), end, at: Date.now() });
-  all[session.email] = list; write('lww_subs', all);
-  return end;
-}
-/* free sheets are unlocked one by one; everything else opens with the class subscription */
-const canOpen = it => (it.price === 0 ? ownedOf().includes(it.id) : !!activeSub(it.cls));
-const own = ids => { const all = read('lww_owned', {}); all[session.email] = Array.from(new Set((all[session.email] || []).concat(ids))); write('lww_owned', all); };
+/* free sheets open for anyone signed in (the server grants the entitlement on the spot);
+   a paid sheet opens with the class plan or its own purchase — the server decides, this only paints the buttons */
+const canOpen = it => (it.price === 0 ? !!session : !!(activeSub(it.cls) || itemEnt(it.id)));
 
 /* =====================================================================
    FRAME ENGINE — 960 frames, a ladder of key frames stays resident and a
@@ -1322,67 +1329,80 @@ function showRole() {
   if (has) document.getElementById('signedRole').textContent = roleOf(session.role).label;
   document.querySelectorAll('.role').forEach(b => b.classList.toggle('on', b.dataset.role === session.role));
   const subs = activeSubs(), sl = document.getElementById('subLine');
-  sl.hidden = !has; sl.innerHTML = subs.length ? 'Subscribed to ' + subs.map(x => '<b>' + esc(classById(x.cls).label) + '</b> until ' + dateOf(x.end)).join(', ') + '.' : 'No class subscription yet — <button type="button" class="link" data-subscribe="">choose a class</button>.';
+  sl.hidden = !has; sl.innerHTML = subs.length ? 'Subscribed to ' + subs.map(x => '<b>' + esc(classById(x.cls).label) + '</b> since ' + dateOf(x.start)).join(', ') + '.' : 'No class subscription yet — <button type="button" class="link" data-subscribe="">choose a class</button>.';
 }
 document.addEventListener('click', e => {
   const r = e.target.closest('[data-role]');
   if (r && session) {
-    session.role = r.dataset.role; const u = findUser(session.email); if (u) { u.role = session.role; saveUser(u); }
-    try { (localStorage.getItem('lww_session') ? localStorage : sessionStorage).setItem('lww_session', JSON.stringify(session)); } catch (_) {}
+    session.role = r.dataset.role; rememberSession(session);
+    api('PATCH', '/api/auth/me', { role: session.role }).catch(err => toast(err.message));
     showRole(); toast(roleOf(session.role).label + ' account — pick a class to subscribe to');
     setTimeout(() => openShop('all'), 450);
   }
   if (e.target.id === 'roleChange') { session.role = null; showRole(); }
 });
 document.getElementById('pwToggle').addEventListener('click', () => { const p = document.getElementById('auPass'); p.type = p.type === 'password' ? 'text' : 'password'; document.getElementById('pwToggle').textContent = p.type === 'password' ? 'SHOW' : 'HIDE'; });
-const users = () => read('lww_users', []);
-const findUser = email => users().find(u => u.email === String(email || '').trim().toLowerCase()) || null;
-function saveUser(u) { const list = users(); const i = list.findIndex(x => x.email === u.email); if (i >= 0) list[i] = u; else list.push(u); write('lww_users', list); }
 function strongPass(p) { if (p.length < 8) return 'At least 8 characters.'; if (!/[A-Z]/.test(p) || !/[0-9]/.test(p)) return 'Add a capital letter and a number.'; return ''; }
-authForm.addEventListener('submit', e => {
-  e.preventDefault(); authAlert(null);
+/* the account lives on the server: every branch below is one call to /api/auth/* */
+let authBusy = false;
+authForm.addEventListener('submit', async e => {
+  e.preventDefault(); authAlert(null); if (authBusy) return;
   const email = document.getElementById('auEmail').value.trim().toLowerCase(), pass = document.getElementById('auPass').value, confirm = document.getElementById('auConfirm').value, name = document.getElementById('auName').value.trim();
+  const remember = document.getElementById('auRemember').checked;
   let bad = false;
-  if (authView === 'signup') {
-    bad = fieldError('auName', name ? '' : 'Tell us your name.') | fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', strongPass(pass)) | fieldError('auConfirm', confirm === pass ? '' : 'Both passwords must match.');
-    if (bad) return;
-    if (findUser(email)) { authAlert({ type: 'err', msg: 'That email already has an account. Sign in instead.' }); return; }
-    saveUser({ name, email, role: null, pw: hash(pass), created: Date.now() });
-    logEvent('signup', { email });
-    signedIn({ name, email, role: null }, 'Account created — welcome, ' + name, true);
-  } else if (authView === 'signin') {
-    bad = fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', pass ? '' : 'Enter your password.');
-    if (bad) return;
-    const u = findUser(email);
-    if (!u || u.pw !== hash(pass)) { logEvent('signin_failed', { email }); pushLog('lww_security', { at: Date.now(), type: 'failed_login', email, where: 'customer' }, 300); authAlert({ type: 'err', msg: 'We could not match that email and password. New here? Sign up instead.' }); return; }
-    logEvent('signin', { email });
-    signedIn({ name: u.name, email: u.email, role: u.role || null }, 'Signed in — welcome back, ' + u.name, document.getElementById('auRemember').checked);
-  } else if (authView === 'forgot') {
-    if (fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')) return;
-    if (!findUser(email)) { authAlert({ type: 'err', msg: 'No account uses that email. Create one instead.' }); return; }
-    resetCode = { email, code: String(Math.floor(100000 + Math.random() * 900000)) };
-    document.getElementById('demoCode').textContent = resetCode.code; setAuthView('code');
-  } else if (authView === 'code') {
-    if (document.getElementById('auCode').value.trim() !== (resetCode && resetCode.code)) { fieldError('auCode', 'That code does not match.'); return; }
-    setAuthView('reset');
-  } else if (authView === 'reset') {
-    bad = fieldError('auPass', strongPass(pass)) | fieldError('auConfirm', confirm === pass ? '' : 'Both passwords must match.');
-    if (bad) return;
-    const u = findUser(resetCode.email); u.pw = hash(pass); saveUser(u); resetCode = null;
-    setAuthView('signin'); authAlert({ type: 'ok', msg: 'Password updated. Sign in with your new password.' });
-  }
+  const submit = document.getElementById('authSubmit'), label = submit.textContent;
+  const busy = on => { authBusy = on; submit.disabled = on; submit.textContent = on ? 'One moment…' : label; };
+  try {
+    if (authView === 'signup') {
+      bad = fieldError('auName', name ? '' : 'Tell us your name.') | fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', strongPass(pass)) | fieldError('auConfirm', confirm === pass ? '' : 'Both passwords must match.');
+      if (bad) return;
+      busy(true); const r = await api('POST', '/api/auth/signup', { name, email, password: pass, remember: true });
+      logEvent('signup', { email }); write('lww_seen', true);
+      await signedIn(r.user, 'Account created — welcome, ' + r.user.name, true);
+    } else if (authView === 'signin') {
+      bad = fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | fieldError('auPass', pass ? '' : 'Enter your password.');
+      if (bad) return;
+      busy(true);
+      let r; try { r = await api('POST', '/api/auth/signin', { email, password: pass, remember }); }
+      catch (err) { if (err.status === 401) { logEvent('signin_failed', { email }); pushLog('lww_security', { at: Date.now(), type: 'failed_login', email, where: 'customer' }, 300); } throw err; }
+      logEvent('signin', { email }); write('lww_seen', true);
+      await signedIn(r.user, 'Signed in — welcome back, ' + r.user.name, remember);
+    } else if (authView === 'forgot') {
+      if (fieldError('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')) return;
+      busy(true); const r = await api('POST', '/api/auth/forgot', { email });
+      resetCode = { email };
+      /* without an email service the server hands the code back (demo mode); in production it is emailed */
+      document.getElementById('demoCode').textContent = r.code || '(sent to your email)'; setAuthView('code');
+    } else if (authView === 'code') {
+      const code = document.getElementById('auCode').value.trim(); if (!/^\d{6}$/.test(code)) { fieldError('auCode', 'Enter the six-digit code.'); return; }
+      busy(true);
+      try { await api('POST', '/api/auth/reset', { email: resetCode.email, code }); } catch (err) { fieldError('auCode', err.message); return; }
+      resetCode.code = code; setAuthView('reset');
+    } else if (authView === 'reset') {
+      bad = fieldError('auPass', strongPass(pass)) | fieldError('auConfirm', confirm === pass ? '' : 'Both passwords must match.');
+      if (bad) return;
+      busy(true); await api('POST', '/api/auth/reset', { email: resetCode.email, code: resetCode.code, password: pass }); resetCode = null;
+      setAuthView('signin'); authAlert({ type: 'ok', msg: 'Password updated. Sign in with your new password.' });
+    }
+  } catch (err) {
+    const errs = err.body && err.body.errors; if (errs) { fieldError('auName', errs.name); fieldError('auEmail', errs.email); fieldError('auPass', errs.password); }
+    authAlert({ type: 'err', msg: err.status === 0 || /fetch/i.test(err.message) ? 'Cannot reach the server — start it with node site/server.cjs.' : err.message });
+  } finally { busy(false); }
 });
-function signedIn(s, msg, remember = true) {
-  session = s; authForm.reset();
-  try { if (remember) localStorage.setItem('lww_session', JSON.stringify(s)); else { localStorage.removeItem('lww_session'); sessionStorage.setItem('lww_session', JSON.stringify(s)); } } catch (_) {}
+function rememberSession(s) { try { if (!s) { localStorage.removeItem('lww_session'); sessionStorage.removeItem('lww_session'); return; } (localStorage.getItem('lww_session') || !sessionStorage.getItem('lww_session') ? localStorage : sessionStorage).setItem('lww_session', JSON.stringify(s)); } catch (_) {} }
+function forgetSession() { session = null; ENT = []; rememberSession(null); authCard.classList.remove('is-signed'); setAuthView('signin'); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); }
+async function signedIn(s, msg, remember = true) {
+  session = { name: s.name, email: s.email, role: s.role || null }; authForm.reset();
+  try { if (remember) { sessionStorage.removeItem('lww_session'); localStorage.setItem('lww_session', JSON.stringify(session)); } else { localStorage.removeItem('lww_session'); sessionStorage.setItem('lww_session', JSON.stringify(session)); } } catch (_) {}
+  await syncEntitlements();
   authCard.classList.add('is-signed'); showRole();
-  renderPlayer(); renderWorksheets(); renderBag(); toast(msg);
+  renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
   const p = pendingAfterSignIn; pendingAfterSignIn = null;
   if (p) setTimeout(p, 400);
 }
-document.getElementById('signOutBtn').addEventListener('click', () => { session = null; localStorage.removeItem('lww_session'); sessionStorage.removeItem('lww_session'); authCard.classList.remove('is-signed'); setAuthView('signin'); renderPlayer(); renderWorksheets(); toast('Signed out. See you soon.'); });
+document.getElementById('signOutBtn').addEventListener('click', () => { api('POST', '/api/auth/signout').catch(() => {}); forgetSession(); toast('Signed out. See you soon.'); });
 /* something that needs an account: remember it, go to chapter 01, say why */
-function requireSignIn(then, why, view) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(view || (users().length ? 'signin' : 'signup')); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
+function requireSignIn(then, why, view) { pendingAfterSignIn = then; closeModal(); closeDrawers(); closeCheckout(); closeShop(); goTo(0); setAuthView(view || (read('lww_seen', false) ? 'signin' : 'signup')); setTimeout(() => authAlert({ type: 'ok', msg: why }), 500); }
 
 /* =====================================================================
    CHAPTER 02 — the fox and rabbit preview + sheet carousel
@@ -1421,7 +1441,7 @@ function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : mone
 function renderPlayer() {
   document.body.classList.toggle('is-guest', !session);
   const s = SHEETS[slide], owned = canOpen(s);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Unlocked ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'With the ' + esc(classById(s.cls).label) + ' plan'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Get it free →</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${s.cls}">Subscribe to ${esc(classById(s.cls).label)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">Ages ${esc(s.ages)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Free · open any time' : 'Yours to keep ✓') : s.price === 0 ? 'Free access sheet' : money(s.price) + ' · yours to keep'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Open it free →</button>` : `<button type="button" class="btn btn-primary" data-buy="${s.id}">Buy PDF · ${money(s.price)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
@@ -1463,17 +1483,17 @@ function renderShop() {
   ).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === shopView);
   document.getElementById('shopTitle').textContent = v.label + (shopClass !== 'all' ? ' · ' + classById(shopClass).label : '') + (shopSubject !== 'all' ? ' · ' + subjectById(shopSubject).label : '');
-  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · subscribe to a class to open and print them all';
+  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
   document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
     const free = it.price === 0, mine = canOpen(it);
-    const tag = mine ? '<b class="tag">' + (free ? 'Unlocked' : 'Subscribed') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Subscribe</b>';
+    const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 ' + money(it.price) + '</b>';
     return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
       <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
       <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
       <h3 class="card-title">${esc(it.title)}</h3>
       <p>${esc(it.blurb)}</p>
-      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
-        ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
+      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : money(it.price) + ' · yours to keep'}</span>
+        ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
     </article>`;
   }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
   document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
@@ -1552,18 +1572,20 @@ document.getElementById('portalClose').addEventListener('click', closePortal);
 document.addEventListener('click', e => { if (e.target.closest('[data-portal-close]')) closePortal(); else if (e.target.closest('[data-portal-out]')) { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); } });
 document.getElementById('portalOut').addEventListener('click', () => { try { sessionStorage.removeItem('lww_staff'); } catch (_) {} renderPortal(); });
 
-/* ---------- checkout: a page of its own; Razorpay / PayPal / Stripe are shown, not wired yet ---------- */
+/* ---------- checkout: a page of its own; Razorpay is connected, PayPal / Stripe are listed for later ---------- */
 const PAY = [
-  { id: 'razorpay', label: 'Razorpay', note: 'UPI, cards, net banking — India', logo: 'Razorpay' },
+  { id: 'razorpay', label: 'Razorpay', note: 'UPI, cards, net banking, wallets', logo: 'Razorpay' },
   { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card, worldwide', logo: 'PayPal' },
   { id: 'stripe', label: 'Stripe', note: 'Cards and wallets, worldwide', logo: 'stripe' },
 ];
 /* =====================================================================
-   CHECKOUT — the price is never computed here. The page sends the class,
-   plan, coupon and address to /api/quote; the server answers with a signed
-   quote (base + tax + fee = total, in the customer's currency) and only a
-   valid signed quote can be turned into an order at /api/order. */
-let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay', coCode = '';
+   CHECKOUT — the price is never computed here. The page sends what it wants
+   (a class plan, or one PDF), the coupon and address to /api/quote; the server
+   answers with a signed quote (base + tax + fee = total, in the customer's
+   currency). /api/pay/order turns a valid signed quote into an order and a
+   Razorpay order; Razorpay Checkout takes the payment; /api/pay/verify checks
+   the signature and grants the entitlement. */
+let coCls = CLASSES[0].id, coPlan = 'm3', payMethod = 'razorpay', coCode = '', coItem = null;   /* coItem: a worksheet id when buying one PDF */
 let coConfig = null, coQuote = null, coBusy = false, coError = '', coTimer = 0, coTouched = {};
 let coAddr = read('lww_address', null) || { country: guessCountry(), line1: '', city: '', state: '', postal: '' };
 function guessCountry() {
@@ -1581,13 +1603,16 @@ const fmtCur = (n, c) => { try { return new Intl.NumberFormat('en', { style: 'cu
 async function loadCoConfig() {
   if (coConfig) return coConfig;
   const r = await fetch('/api/config'); if (!r.ok) throw new Error('Pricing service unavailable'); coConfig = await r.json();
-  if (coConfig.access) write('lww_access', coConfig.access);   /* the database's setting wins over the local copy */
   try { const g = await (await fetch('/api/geo')).json(); if (g.country && !read('lww_address', null)) coAddr.country = g.country; } catch (_) {}
   return coConfig;
 }
-function openCheckout(cls) {
-  if (!session) { requireSignIn(() => openCheckout(cls), 'Sign in to subscribe — your class is waiting.'); return; }
-  if (cls && classById(cls)) coCls = cls;
+/* openCheckout('c1') for a class plan · openCheckout({ worksheet: 'kg-mat-cnt' }) for one PDF */
+function openCheckout(what) {
+  if (!session) { requireSignIn(() => openCheckout(what), what && what.worksheet ? 'Sign in to buy this PDF — it opens as soon as you have paid.' : 'Sign in to subscribe — your class is waiting.'); return; }
+  coItem = null;
+  if (what && typeof what === 'object' && what.worksheet && sheetOf(what.worksheet)) { coItem = what.worksheet; coCls = sheetOf(coItem).cls; }
+  else if (typeof what === 'string' && classById(what)) coCls = what;
+  coQuote = null; lastTotal = null;
   closeDrawers(); closeModal();
   checkoutEl.classList.add('open'); checkoutEl.setAttribute('aria-hidden', 'false'); checkoutEl.scrollTop = 0;
   document.getElementById('checkoutBody').innerHTML = '<section class="panel"><p class="cart-empty">Loading secure checkout…</p></section>';
@@ -1600,8 +1625,8 @@ function requestQuote(now) {
   const run = async () => {
     coBusy = true; coError = ''; paintSummary();
     try {
-      const r = await fetch('/api/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cls: coCls, plan: coPlan, coupon: coCode, address: coAddr }) });
-      const q = await r.json(); if (!r.ok) throw new Error(q.error || 'Could not price this order');
+      const body = coItem ? { worksheet: coItem, coupon: coCode, address: coAddr } : { cls: coCls, plan: coPlan, coupon: coCode, address: coAddr };
+      const q = await api('POST', '/api/quote', body);
       coQuote = q; if (!q.methods.includes(payMethod)) payMethod = q.methods[0];
     } catch (err) { coQuote = null; coError = err.message; }
     coBusy = false; paintSummary(); paintErrors();
@@ -1609,7 +1634,7 @@ function requestQuote(now) {
   if (now) run(); else coTimer = setTimeout(run, 350);
 }
 function renderCheckout() {
-  const C = coCountry() || coConfig.countries[coConfig.countries.length - 1], c = classById(coCls), cur = activeSub(coCls);
+  const C = coCountry() || coConfig.countries[coConfig.countries.length - 1], c = classById(coCls), cur = activeSub(coCls), item = coItem ? sheetOf(coItem) : null;
   const flag = code => code === 'OTHER' ? '🌐' : String.fromCodePoint(...code.split('').map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
   const stateField = C.states
     ? `<select name="state" data-co="state"${coAddr.state ? ' class="filled"' : ''}>${['', ...C.states].map(x => `<option value="${esc(x)}"${x === coAddr.state ? ' selected' : ''}>${x}</option>`).join('')}</select><label>${esc(C.state)}</label>`
@@ -1618,11 +1643,15 @@ function renderCheckout() {
   const monthly = id => { const pl = coConfig.plans[id] || {}; return pl.price && pl.months ? '₹' + Math.round(pl.price / pl.months) + '/mo' : ''; };
   document.getElementById('checkoutBody').innerHTML = `
     <div class="co-left">
-      <section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Choose your plan</h3><p>Every sheet and worksheet in one class, for as long as you like.</p></div></header>
+      ${item ? `<section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Your PDF</h3><p>One sheet, yours to open in the protected viewer whenever you like.</p></div></header>
+        <div class="sum-item" style="margin:0"><div class="sum-thumb">${esc(item.glyph || 'PDF')}</div><div><b>${esc(item.title)}</b><small>${esc(c.label)} · ${esc(item.subject)} · ${item.pages || 1} A4 page${item.pages === 1 ? '' : 's'} · ${money(item.price)}</small></div></div>
+        <p class="co-note">Prefer the whole class? <button type="button" class="link" data-co-switch="class">Subscribe to ${esc(c.label)} instead</button> — every sheet in it, on your account for good.</p>
+      </section>`
+      : `<section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Choose your plan</h3><p>Every sheet and worksheet in one class, on your account for good.</p></div></header>
         <div class="class-pills">${CLASSES.map(x => `<button type="button" class="class-pill${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.ages)}</small>${activeSub(x.id) ? '<i title="active subscription">●</i>' : ''}</button>`).join('')}</div>
         <div class="plan-cards">${PLANS.map((x, i) => `<label class="plan-card${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}>${i === 1 ? '<span class="ribbon">Most popular</span>' : i === 2 ? '<span class="ribbon gold">Best value</span>' : ''}<b>${x.label}</b><strong data-plan-price="${x.id}">₹${coConfig.plans[x.id] ? coConfig.plans[x.id].price : x.price}</strong><small>${monthly(x.id)}${x.note ? ' · ' + x.note : ''}</small><span class="tick">✓</span></label>`).join('')}</div>
-        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)}.${cur ? ' You already have ' + esc(c.label) + ' until ' + dateOf(cur.end) + ' — a new plan adds on after that.' : ''}</p>
-      </section>
+        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)}.${cur ? ' You already have ' + esc(c.label) + ' on your account (since ' + dateOf(cur.start) + ').' : ''}</p>
+      </section>`}
       <section class="panel co-card" data-step="2"><header class="co-card-head"><span class="co-num">2</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
         <div class="fl"><select name="country" data-co="country" class="filled">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${flag(x.code)}  ${esc(x.name)}</option>`).join('')}</select><label>Country</label><div class="err" data-err="country"></div></div>
         <div class="fl"><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder=" " autocomplete="street-address"><label>Address (house / flat, street, area)</label><div class="err" data-err="line1"></div></div>
@@ -1658,8 +1687,11 @@ const BRAND_MARK = {
 };
 function paintMethods() {
   const el = document.getElementById('coMethods'); if (!el) return;
-  const C = coCountry(); const allowed = C ? C.methods : PAY.map(m => m.id); if (!allowed.includes(payMethod)) payMethod = allowed[0];
-  el.innerHTML = PAY.map(m => { const on = allowed.includes(m.id); return `<label class="method${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${on ? m.note : 'Not available in ' + esc(C ? C.name : 'this country')}</small></span><span class="ring"></span></label>`; }).join('');
+  const C = coCountry(); const gw = (coConfig && coConfig.gateways) || {};
+  /* a method is offered when the country allows it AND the server has that gateway connected */
+  const allowed = (C ? C.methods : PAY.map(m => m.id)).filter(id => gw[id] !== false);
+  if (!allowed.includes(payMethod)) payMethod = allowed[0] || 'razorpay';
+  el.innerHTML = PAY.map(m => { const inCountry = !C || C.methods.includes(m.id), connected = gw[m.id] !== false, on = inCountry && connected; const note = !connected ? 'Coming soon' : !inCountry ? 'Not available in ' + esc(C ? C.name : 'this country') : m.note + (m.id === 'razorpay' && gw.razorpay === 'demo' ? ' · demo mode, nothing is charged' : m.id === 'razorpay' && gw.razorpay === 'test' ? ' · test mode' : ''); return `<label class="method${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${note}</small></span><span class="ring"></span></label>`; }).join('');
 }
 function paintErrors() {
   const errs = (coQuote && coQuote.errors) || {};
@@ -1669,15 +1701,16 @@ function paintErrors() {
 let lastTotal = null;
 function paintSummary() {
   const el = document.getElementById('coSummary'); if (!el) return;
-  const q = coQuote, cls = classById(coCls);
+  const q = coQuote, cls = classById(coCls), item = coItem ? sheetOf(coItem) : null;
   const skeleton = '<div class="sk-line"></div><div class="sk-line"></div><div class="sk-line short"></div>';
   const lines = q ? q.lines.map(l => `<div class="co-line"><span>${esc(l.label)}<small>${esc(l.note || '')}</small></span><b>${fmtCur(l.amount, q.currency)}</b></div>`).join('') : '';
   const changed = q && lastTotal !== null && lastTotal !== q.total; if (q) lastTotal = q.total;
   el.innerHTML = `<div class="sum-head"><p class="eyebrow">Order summary</p>${q ? `<span class="region-chip${q.region === 'IN' ? ' in' : ''}">${q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + esc(q.countryName) + ' · ' + esc(q.currency)}</span>` : ''}</div>
-    <div class="sum-item"><div class="sum-thumb">${esc(cls.label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(cls.label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>
+    ${item ? `<div class="sum-item"><div class="sum-thumb">${esc(item.glyph || 'PDF')}</div><div><b>${esc(item.title)}</b><small>${esc(cls.label)} · one PDF · yours to keep</small></div></div>`
+      : `<div class="sum-item"><div class="sum-thumb">${esc(cls.label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div><b>${esc(cls.label)} plan</b><small>${planOf(coPlan).label} · every sheet in the class</small></div></div>`}
     <div class="co-lines${coBusy ? ' busy' : ''}">${q ? lines : (coError ? '<p class="alert err">' + esc(coError) + '</p>' : skeleton)}</div>
     ${q ? `<div class="sum-total${changed ? ' bump' : ''}"><span>Total<small>incl. tax & fees</small></span><strong>${fmtCur(q.total, q.currency)}</strong></div>` : ''}
-    ${q ? `<p class="co-note" style="text-align:center">Access opens now and expires <b>${esc(accessLabel())}</b> after purchase (until about ${esc(dateTimeOf(accessUntilLocal(Date.now())))}).</p>` : ''}
+    ${q ? `<p class="co-note" style="text-align:center">Access opens the moment the payment is verified and <b>does not expire</b>.</p>` : ''}
     ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} at 1 INR = ${q.rate} ${esc(q.currency)}. You are charged in ${esc(q.currency)}.</p>` : ''}
     ${q && q.coupon ? `<p class="co-note ok">Coupon ${esc(q.coupon)} applied — ₹${q.discountInr} off</p>` : ''}
     <button type="button" class="btn btn-pay" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}><span>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>${q && q.valid ? 'with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'to unlock payment'}</small></button>
@@ -1686,23 +1719,47 @@ function paintSummary() {
   const pay = document.getElementById('payNow'); if (pay && q && q.valid) pay.addEventListener('click', placeOrder);
   paintSteps();
 }
+/* Razorpay Checkout is loaded only when someone pays */
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout — check your connection.')); document.head.appendChild(s); });
+}
+/* 1. /api/pay/order  2. Razorpay Checkout (or the demo confirm)  3. /api/pay/verify → entitlement */
 async function placeOrder() {
   if (!coQuote || !coQuote.valid || coBusy) return;
-  coBusy = true; paintSummary();
+  coBusy = true; coError = ''; paintSummary();
+  const q = coQuote, method = PAY.find(m => m.id === payMethod).label;
   try {
-    const r = await fetch('/api/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quote: coQuote, method: payMethod, email: session.email, name: session.name }) });
-    const out = await r.json(); if (!r.ok) throw new Error(out.error || 'Payment failed');
-    const o = out.order, q = coQuote, method = PAY.find(m => m.id === payMethod).label;
-    const until = addSub(coCls, coPlan, o.accessUntil);   /* expiry computed by the server from the admin's setting */
+    const out = await api('POST', '/api/pay/order', { quote: q, method: payMethod });
+    const o = out.order, gw = out.gateway;
     write('lww_address', coAddr);
-    pushLog('lww_orders', { id: o.id, at: o.at, email: o.email, name: o.name, cls: o.cls, plan: o.plan, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
-    pushLog('lww_payments', { at: o.at, order: o.id, gateway: method, amount: q.total, currency: q.currency, status: 'captured', demo: true }, 400);
-    pushLog('lww_webhooks', { at: o.at, gateway: method, event: 'payment.captured', order: o.id, status: 200, demo: true }, 400);
-    logEvent('subscribe', { order: o.id, cls: coCls, plan: coPlan, amount: o.totalInr, currency: q.currency });
-    coCode = ''; coQuote = null; coBusy = false;
+    pushLog('lww_orders', { id: o.id, at: o.at, email: session.email, name: session.name, cls: o.cls, plan: o.plan, worksheet: o.worksheet, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'created', address: q.address }, 1000);
+    let done;
+    if (gw.provider === 'razorpay') {
+      await loadRazorpay();
+      done = await new Promise((res, rej) => {
+        const rz = new Razorpay({
+          key: gw.key, amount: gw.amount, currency: gw.currency, order_id: gw.razorpay_order_id, name: gw.name, description: gw.description, prefill: gw.prefill, theme: gw.theme, notes: { order: o.id },
+          handler: resp => api('POST', '/api/pay/verify', { order_id: o.id, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej),
+          modal: { ondismiss: () => rej(Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true })) },
+        });
+        rz.on('payment.failed', r => { pushLog('lww_payments', { at: Date.now(), order: o.id, gateway: 'Razorpay', status: 'failed', reason: r.error && r.error.description }, 400); });
+        rz.open();
+      });
+    } else {
+      /* no gateway keys on the server: a clearly labelled demo confirmation instead of a card form */
+      if (!confirm('DEMO GATEWAY — no Razorpay keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
+      done = await api('POST', '/api/pay/demo/confirm', { order_id: o.id });
+    }
+    const paid = done.order, ent = done.entitlement;
+    pushLog('lww_orders', { id: paid.id, at: paid.at, email: session.email, name: session.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
+    pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: gw.provider === 'razorpay' ? 'Razorpay' : 'Demo', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured', demo: gw.provider !== 'razorpay' }, 400);
+    logEvent(q.kind === 'worksheet' ? 'buy' : 'subscribe', { order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency });
+    await syncEntitlements();
+    coCode = ''; coQuote = null; coBusy = false; const boughtItem = coItem; coItem = null;
     closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
-    showPurchasePopup({ order: o.id, cls: coCls, plan: coPlan, until, total: fmtCur(q.total, q.currency), method });
-  } catch (err) { coBusy = false; coError = err.message; paintSummary(); requestQuote(true); }
+    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: boughtItem, total: fmtCur(q.total, q.currency), method: gw.provider === 'razorpay' ? 'Razorpay' : 'Demo gateway' });
+  } catch (err) { coBusy = false; coError = err.message; paintSummary(); if (!err.cancelled) requestQuote(true); }
 }
 document.addEventListener('input', e => {
   const f = e.target.closest('[data-co]'); if (!f) return;
@@ -1719,6 +1776,7 @@ document.addEventListener('change', e => {
 document.addEventListener('blur', e => { const f = e.target.closest && e.target.closest('[data-co]'); if (f) { coTouched[f.dataset.co] = true; paintErrors(); } }, true);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-co-class]'); if (b) { coCls = b.dataset.coClass; document.querySelectorAll('[data-co-class]').forEach(x => x.classList.toggle('on', x === b)); paintSummary(); requestQuote(true); return; }
+  const sw = e.target.closest('[data-co-switch]'); if (sw) { coItem = null; coQuote = null; renderCheckout(); requestQuote(true); return; }
   if (e.target.id === 'coApply') { coCode = document.getElementById('coCoupon').value.trim().toUpperCase(); requestQuote(true); }
 });
 document.getElementById('checkoutBack').addEventListener('click', closeCheckout);
@@ -1731,14 +1789,14 @@ const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label, small: c.ages }
 let cat = SHELF_TABS[0].id;
 function shelfCard(it, n, owned) {
   const free = it.price === 0, mine = canOpen(it);
-  const tag = mine ? '<b class="tag">' + (free ? 'Unlocked' : 'Subscribed') + '</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 Subscribe</b>';
+  const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 ' + money(it.price) + '</b>';
   return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
     <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
     <p class="meta">${esc(it.cls ? classById(it.cls).label : it.cat || '')} · Ages ${esc(it.ages)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
     <h3 class="card-title">${esc(it.title)}</h3>
     <p>${esc(it.blurb)}</p>
-    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Unlocked ✓' : 'In your ' + esc(classById(it.cls).label) + ' plan ✓') : free ? 'Free access sheet' : 'With ' + esc(classById(it.cls).label) + ' plan'}</span>
-      ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Get it free</button>` : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe</button>`}</div>
+    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : money(it.price) + ' · yours to keep'}</span>
+      ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
   </article>`;
 }
 /* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
@@ -1770,7 +1828,7 @@ function renderWorksheets() {
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
   document.getElementById('wsRow').innerHTML = list.length ? list.map((it, n) => shelfCard(it, n, owned)).join('') : '<p class="cart-empty">No sheets in this topic yet — more are on the way.</p>';
   const free = list.filter(i => i.price === 0).length;
-  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' with ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan');
+  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
 
@@ -1835,22 +1893,22 @@ function openSheet(id) {
   const it = sheetOf(id); if (!it) return;
   if (!session) { showAccountPopup(id); return; }
   modalSheet = id;
-  const free = it.price === 0, mine = it.free ? !!session : canOpen(it), cls = classById(it.cls), sub = mine && !free ? activeSub(it.cls) : null;
+  const free = it.price === 0, mine = canOpen(it), cls = classById(it.cls), sub = mine && !free ? activeSub(it.cls) : null;
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const pic = it.img ? `<img src="${it.img}" alt="${esc(it.title)} — the printed page">`
     : `<div class="sheet-mock" aria-hidden="true"><div class="brand"><b>Learn With Why</b><span>${esc(it.subject)}</span></div>
         <div class="boxes"><div><span class="glyph">${esc(it.glyph)}</span>${esc(it.skills ? it.skills[0] : it.subject)}</div><div><span class="pic">${it.pages ? it.pages : '✎'}</span>${it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div class="lines"><i></i><i></i><i></i><i></i><i></i></div><small>${esc(it.title)} · Ages ${esc(it.ages)}</small></div>`;
-  const access = it.free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (free ? 'Unlocked — yours to open' : 'In your ' + esc(cls.label) + ' plan · until ' + dateTimeOf(sub.end)) : free ? 'Free access sheet · sign in to open' : 'With the ' + esc(cls.label) + ' plan';
+  const access = free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (sub ? 'In your ' + esc(cls.label) + ' plan · yours to keep' : 'Bought · yours to keep') : money(it.price) + ' to keep, or the ' + esc(cls.label) + ' plan';
   /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab.
-     Not signed in → sign in first (free and paid alike); paid without a plan → checkout. */
+     Not signed in → sign in first (free and paid alike); paid without access → buy this PDF or subscribe to the class. */
   const actions = mine
-    ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open PDF · full screen ↗</button><span class="note">Opens in a new tab in the protected viewer. Close it to come back here.</span>`
+    ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open PDF · full screen ↗</button><span class="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span>`
     : !session
-      ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then subscribe to ' + esc(cls.label) + ' to open every sheet in the class.'}</span>`
+      ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then buy this PDF (' + money(it.price) + ') or subscribe to ' + esc(cls.label) + '.'}</span>`
       : free
-        ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Get it free & open</button><span class="note">Free access sheet — it is added to My Account → My Worksheets.</span>`
-        : `<button type="button" class="btn btn-primary" data-subscribe="${it.cls}">Subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">One plan opens every sheet in ${esc(cls.label)} for ${esc(accessLabel())}.</span>`;
+        ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open it free ↗</button><span class="note">Free access sheet — no payment, open it as often as you like.</span>`
+        : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy this PDF · ${money(it.price)} · pay with Razorpay</button><button type="button" class="btn btn-ghost" data-subscribe="${it.cls}">Or subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">Either way the sheet opens right after payment and stays on your account.</span>`;
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
@@ -1863,76 +1921,75 @@ function openSheet(id) {
   modalScrim.classList.add('open');
   logEvent('view', { item: it.id });
 }
-/* Open a sheet in the protected viewer (new tab, full screen). Sign-in is required for every sheet. */
+/* Open a sheet in the protected viewer (new tab, full screen). Sign-in is required for every sheet.
+   The SERVER decides: POST /api/access/:id answers with a view token (free, or a valid entitlement),
+   402 when payment is needed, 401 when the session is gone. The page only follows that answer. */
 async function openViewer(id) {
   const it = sheetOf(id); if (!it) return;
   if (!session) { requireSignIn(() => openViewer(id), 'Sign in to open ' + it.title + ' — free and paid sheets both need an account.'); return; }
-  if (!it.free) {
-    if (it.price === 0 && !ownedOf().includes(id)) { own([id]); logEvent('download', { item: id }); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); }
-    else if (it.price !== 0 && !activeSub(it.cls)) { closeModal(); openCheckout(it.cls); return; }
-  }
-  const sub = it.price !== 0 ? activeSub(it.cls) : null, until = sub ? sub.end : 0;
+  if (it.price !== 0 && !canOpen(it)) { closeModal(); openCheckout({ worksheet: id }); return; }   /* we already know: straight to checkout */
   const win = window.open('', '_blank');   /* open synchronously so the browser allows the tab */
   try {
-    const r = await fetch('/api/sheet-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, email: session.email }) });
-    const tok = await r.json(); if (!r.ok) throw new Error(tok.error || 'Could not open the sheet');
-    const demo = it.real ? '' : '&demo=' + encodeURIComponent(JSON.stringify({ title: it.title, blurb: it.blurb, glyph: it.glyph, subject: it.subject, ages: it.ages }));
-    const href = 'viewer.html#id=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(tok.t) + '&title=' + encodeURIComponent(it.title) + '&pages=' + (tok.pages || it.pages || 1) + '&until=' + until + demo;
+    const a = await api('POST', '/api/access/' + encodeURIComponent(id));
+    const href = 'viewer.html#t=' + encodeURIComponent(a.token);
     if (win) win.location.href = href; else location.href = href;
-    logEvent('open', { item: id });
-  } catch (err) { if (win) win.close(); toast(err.message); }
+    logEvent('open', { item: id, kind: a.entitlement.kind });
+    syncEntitlements().then(() => { renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (modalSheet === id) openSheet(id); });
+  } catch (err) {
+    if (win) win.close();
+    if (err.status === 402) { closeModal(); toast('Payment needed to open this sheet'); openCheckout({ worksheet: id }); return; }
+    if (err.status === 401) { requireSignIn(() => openViewer(id), 'Your session ended — sign in again to open ' + it.title + '.', 'signin'); return; }
+    toast(err.message);
+  }
 }
 document.addEventListener('click', e => {
   if (e.target.closest('[data-modal-close]')) { closeModal(); return; }
   const v = e.target.closest('[data-view]'); if (v) { openViewer(v.dataset.view); return; }
   /* buttons inside a clickable card win over the card itself */
-  const u = e.target.closest('[data-unlock]'); if (u) { if (!session) { showAccountPopup(u.dataset.unlock); return; } unlock([u.dataset.unlock], 'Unlocked — ' + itemById(u.dataset.unlock).title + ' is yours to print. Happy scribbling!', 'Sign in to keep your free sheet — it unlocks as soon as you are in.'); return; }
+  const u = e.target.closest('[data-unlock]'); if (u) { if (!session) { showAccountPopup(u.dataset.unlock); return; } openViewer(u.dataset.unlock); return; }
+  const buy = e.target.closest('[data-buy]'); if (buy) { if (!session) { showAccountPopup(buy.dataset.buy); return; } closeModal(); openCheckout({ worksheet: buy.dataset.buy }); return; }
   const sub = e.target.closest('[data-subscribe]'); if (sub) { if (!session) { showAccountPopup(''); return; } closeModal(); openCheckout(sub.dataset.subscribe); return; }
   const pr = e.target.closest('[data-print]'); if (pr) { printSheet(pr.dataset.print); return; }
   const o = e.target.closest('[data-open]'); if (o) { openSheet(o.dataset.open); }
 });
-function unlock(ids, msg, why) {
-  if (!session) { requireSignIn(() => unlock(ids, msg, why), why); return; }
-  own(ids); ids.forEach(id => logEvent('download', { item: id }));
-  const again = modalSheet && ids.includes(modalSheet) ? modalSheet : null;
-  closeModal(); closeDrawers(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); toast(msg);
-  if (again) openSheet(again);
-}
 /* ACCESS EXPIRY POPUP — shown right after a successful purchase */
 function showPurchasePopup(p) {
-  const cls = classById(p.cls);
+  const cls = classById(p.cls), item = p.worksheet ? sheetOf(p.worksheet) : null;
   modal.className = 'modal purchase';
   modal.innerHTML = `<div class="purchase-icon">✓</div>
     <p class="eyebrow">Purchase complete · ${esc(p.order)}</p>
     <h3>Your purchase has been completed successfully.</h3>
     <p class="lead">You can now access your PDF.</p>
-    <p>This worksheet has been added to your account.</p>
-    <div class="expiry"><small>You can access this PDF until:</small><b>${esc(dateTimeOf(p.until))}</b><small>After this date, your access will automatically expire.</small></div>
-    <p>You can access it anytime before expiry from:<br><b>My Account → My Worksheets</b></p>
-    <div class="rows"><div><span>Class</span><b>${esc(cls.label)} · every sheet</b></div><div><span>Paid</span><b>${esc(p.total)} via ${esc(p.method)}</b></div><div><span>Access period</span><b>${esc(accessLabel())}</b></div></div>
-    <div class="sheet-actions"><button type="button" class="btn btn-primary" data-my-worksheets>Open My Worksheets</button><button type="button" class="btn btn-ghost" data-modal-close>Close</button></div>`;
+    <p>${item ? '<b>' + esc(item.title) + '</b> has' : 'Every sheet in <b>' + esc(cls.label) + '</b> has'} been added to your account.</p>
+    <div class="expiry"><small>${item ? 'This PDF is' : 'These PDFs are'} yours to keep</small><b>No expiry</b><small>Open ${item ? 'it' : 'them'} as often as you like, on any device you sign in to.</small></div>
+    <p>You can open ${item ? 'it' : 'them'} any time from:<br><b>My Account → My Worksheets</b></p>
+    <div class="rows"><div><span>${item ? 'Sheet' : 'Class'}</span><b>${item ? esc(item.title) : esc(cls.label) + ' · every sheet'}</b></div><div><span>Paid</span><b>${esc(p.total)} via ${esc(p.method)}</b></div><div><span>Access</span><b>Does not expire</b></div></div>
+    <div class="sheet-actions">${item ? `<button type="button" class="btn btn-primary" data-view="${esc(item.id)}">Open the PDF now ↗</button>` : ''}<button type="button" class="btn ${item ? 'btn-ghost' : 'btn-primary'}" data-my-worksheets>Open My Worksheets</button><button type="button" class="btn btn-ghost" data-modal-close>Close</button></div>`;
   modalScrim.classList.add('open');
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-my-worksheets]')) { closeModal(); openDrawer('bagDrawer'); } });
 /* My Account → My Worksheets: every sheet the customer can open, with its expiry */
 function renderBag() {
-  const subs = subsOf().slice().sort((a, b) => b.end - a.end), active = subs.filter(x => x.end > Date.now());
-  document.getElementById('bagCount').textContent = active.length;
-  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = active.length;
-  const mine = ownedOf().map(id => itemById(id)).filter(Boolean).map(it => ({ it, until: null }))
-    .concat(active.flatMap(x => ITEMS.filter(it => it.cls === x.cls && it.price !== 0).map(it => ({ it, until: x.end }))));
-  document.getElementById('bagBody').innerHTML = `<p class="eyebrow" style="margin-bottom:10px">My plans</p>` + (!subs.length ? '<p class="cart-empty">No subscription yet. Pick a class and every sheet in it opens for as long as your plan runs.</p>'
-    : subs.map(x => `<div class="cart-row"><div class="paper-mini">${esc(classById(x.cls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div class="nm">${esc(classById(x.cls).label)}<span>${planOf(x.plan).label} · ${x.end > Date.now() ? 'until ' + dateTimeOf(x.end) + ' · ' + timeLeft(x.end) : 'expired ' + dateTimeOf(x.end)}</span></div><span class="pill">${x.end > Date.now() ? 'Active' : 'Expired'}</span></div>`).join(''))
-    + `<p class="eyebrow" style="margin:18px 0 10px">My worksheets · ${mine.length}</p>` + (mine.length ? mine.map(({ it, until }) => `<div class="cart-row" data-view="${it.id}" style="cursor:pointer" title="Open in the viewer"><div class="paper-mini">${esc(it.glyph)}</div><div class="nm">${esc(it.title)}<span>${until ? 'until ' + dateTimeOf(until) + ' · ' + timeLeft(until) : 'free · yours to keep'}</span></div><span class="pill">Open ↗</span></div>`).join('') : '<p class="cart-empty">Nothing here yet — free sheets you claim and every sheet in a subscribed class appear here.</p>')
-    + '<button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:16px">Subscribe to a class →</button><p class="cart-empty" style="font-size:.78rem">Access lasts ' + esc(accessLabel()) + ' after purchase — set by the store.</p>';
+  const subs = subsOf().slice().sort((a, b) => b.start - a.start);
+  /* single PDFs: paid purchases and free sheets opened before, newest first, one row per sheet */
+  const singles = []; ENT.filter(e => e.scope === 'worksheet').sort((a, b) => b.start - a.start).forEach(e => { if (!singles.some(s => s.it.id === e.worksheet)) { const it = sheetOf(e.worksheet); if (it) singles.push({ it, since: e.start, kind: e.kind }); } });
+  const activeCount = subs.length + singles.filter(s => s.kind === 'paid').length;
+  document.getElementById('bagCount').textContent = activeCount;
+  const sc = document.getElementById('shopBagCount'); if (sc) sc.textContent = activeCount;
+  const mine = singles.concat(subs.flatMap(x => ITEMS.filter(it => it.cls === x.cls && it.price !== 0 && !singles.some(s => s.it.id === it.id)).map(it => ({ it, since: x.start, kind: 'plan' }))));
+  const rowNote = ({ since, kind }) => (kind === 'free' ? 'free' : kind === 'paid' ? 'bought' : 'in your plan') + ' · since ' + dateOf(since) + ' · yours to keep';
+  document.getElementById('bagBody').innerHTML = `<p class="eyebrow" style="margin-bottom:10px">My plans</p>` + (!subs.length ? '<p class="cart-empty">No class plan yet. Pick a class and every sheet in it is yours to keep.</p>'
+    : subs.map(x => `<div class="cart-row"><div class="paper-mini">${esc(classById(x.cls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div class="nm">${esc(classById(x.cls).label)}<span>${planOf(x.plan).label} · since ${dateTimeOf(x.start)}</span></div><span class="pill">Active</span></div>`).join(''))
+    + `<p class="eyebrow" style="margin:18px 0 10px">My worksheets · ${mine.length}</p>` + (mine.length ? mine.map(m => `<div class="cart-row" data-view="${m.it.id}" style="cursor:pointer" title="Open in the viewer"><div class="paper-mini">${esc(m.it.glyph || m.it.az || 'PDF')}</div><div class="nm">${esc(m.it.title)}<span>${rowNote(m)}</span></div><span class="pill">Open ↗</span></div>`).join('') : '<p class="cart-empty">Nothing here yet — free sheets you open, PDFs you buy and every sheet in a subscribed class appear here.</p>')
+    + '<button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:16px">Subscribe to a class →</button><p class="cart-empty" style="font-size:.78rem">Nothing here expires. Everything is checked on the server every time a sheet opens.</p>';
 }
 /* a sheet you can open prints as an A4 page with the plan line */
 function printSheet(id) {
   if (id.startsWith('az-')) { openViewer(id); return; }   /* A to Z opens in the protected viewer */
   const it = itemById(id); if (!it) return;
-  if (!canOpen(it)) { if (it.price === 0) unlock([id], 'Unlocked — ' + it.title + ' is yours to print.', 'Sign in to keep your free sheet.'); else { closeModal(); openCheckout(it.cls); } return; }
+  if (!canOpen(it)) { if (it.price === 0) openViewer(id); else { closeModal(); openCheckout({ worksheet: id }); } return; }
   const used = ((read('lww_prints', {})[session.email] || {})[id] || 0); if (it.printLimit && used >= it.printLimit) { toast('Print limit reached for this sheet (' + it.printLimit + ')'); return; }
-  const sub = activeSub(it.cls), line = it.price === 0 ? 'Free access sheet' : esc(classById(it.cls).label) + ' plan · valid until ' + dateOf(sub.end);
+  const sub = activeSub(it.cls), line = it.price === 0 ? 'Free access sheet' : sub ? esc(classById(it.cls).label) + ' plan' : 'Bought';
   document.getElementById('printRoot').innerHTML = `<h1>${esc(it.title)}</h1><p>${esc(it.blurb)}</p><div class="glyph">${esc(it.glyph)}</div><div class="lines"><i></i><i></i><i></i><i></i></div><footer><span>${BRAND} · ${esc(it.subject)} · Ages ${esc(it.ages)}</span><span>${line} · ${esc(session ? session.email : '')}</span></footer>`;
   const pu = read('lww_prints', {}); pu[session.email] = pu[session.email] || {}; pu[session.email][id] = (pu[session.email][id] || 0) + 1; write('lww_prints', pu);
   logEvent('print', { item: id });
@@ -1970,6 +2027,23 @@ setAuthView(session ? 'signin' : 'signup');
 if (session) { authCard.classList.add('is-signed'); showRole(); }
 renderPlayer(); renderWorksheets(); renderBag();
 resize(); loadFrame(0); pump(); requestAnimationFrame(draw);
+const rerenderAll = () => { renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole(); };
+/* THE SERVER IS THE SOURCE OF TRUTH — prices and which sheets have a real PDF come from the
+   database (GET /api/worksheets); the session cookie is checked (GET /api/auth/me) and the
+   entitlements loaded, so a stale copy in this browser can never open anything. */
+(async function syncCatalogue() {
+  try {
+    const r = await api('GET', '/api/worksheets');
+    const byId = {}; r.worksheets.forEach(w => { byId[w.id] = w; });
+    ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages; });
+    rerenderAll();
+  } catch (err) { console.warn('catalogue: ' + err.message + ' — showing the built-in prices'); }
+})();
+(async function bootSession() {
+  const had = !!session;
+  try { const r = await api('GET', '/api/auth/me'); session = { name: r.user.name, email: r.user.email, role: r.user.role || null }; rememberSession(session); await syncEntitlements(); if (!had) { authCard.classList.add('is-signed'); setAuthView('signin'); } rerenderAll(); }
+  catch (err) { if (err.status === 401 && had) forgetSession(); }
+})();
 (function boot() {
   const started = Date.now();
   const t = setInterval(() => {

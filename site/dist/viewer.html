@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="fonts/inter.css">
 <link rel="stylesheet" href="fonts/cormorant.css">
 <style>
-  :root { --bg: #0b1017; --fg: #f4f1ea; --dim: rgba(255,255,255,0.55); --paper: #f8f5ee; --ink: #1d2126; }
+  :root { --bg: #0b1017; --fg: #f4f1ea; --dim: rgba(255,255,255,0.55); --paper: #f8f5ee; --ink: #1d2126; --green: #1f6b47; }
   * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
   [hidden] { display: none !important; }
@@ -26,106 +26,157 @@
   .btn:hover { background: rgba(255,255,255,0.16); }
   .btn.primary { background: #fff; color: #14181c; border-color: #fff; }
   .btn.ic { width: 36px; padding: 0; justify-content: center; }
-  .stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 64px 16px 56px; }
-  .page { position: relative; height: 100%; max-width: 100%; aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; transition: filter 0.2s, transform 0.2s; transform-origin: center; }
+  /* licence pill in the header: this sheet is on the customer's account */
+  .lic { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 100px; background: rgba(31,107,71,0.28); border: 1px solid rgba(31,107,71,0.6); font-size: 0.8rem; white-space: nowrap; }
+  .lic i { width: 8px; height: 8px; border-radius: 50%; background: #58c98f; box-shadow: 0 0 10px #58c98f; }
+  .stage { position: fixed; inset: 0; overflow: auto; padding: 64px 16px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .page { position: relative; flex: none; width: min(100%, var(--w)); aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; }
   .page canvas { display: block; width: 100%; height: 100%; }
-  /* the customer's name and email are stamped diagonally over every page */
+  /* the customer's name and email are stamped diagonally over every page (and baked into the pixels too) */
   .wm { position: absolute; inset: -40%; pointer-events: none; display: grid; grid-template-columns: repeat(3, 1fr); align-content: space-evenly; justify-items: center; transform: rotate(-30deg); opacity: 0.11; }
-  .wm span { font-size: clamp(11px, 1.4vw, 16px); font-weight: 700; color: #1f6b47; white-space: nowrap; letter-spacing: 0.06em; padding: 22px 0; }
-  .foot { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: linear-gradient(0deg, rgba(11,16,23,0.92), rgba(11,16,23,0)); font-size: 0.76rem; color: var(--dim); transition: opacity 0.3s; }
+  .wm span { font-size: clamp(11px, 1.4vw, 16px); font-weight: 700; color: var(--green); white-space: nowrap; letter-spacing: 0.06em; padding: 22px 0; }
+  .pn { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: #8a8f96; }
+  .foot { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: linear-gradient(0deg, rgba(11,16,23,0.92), rgba(11,16,23,0)); font-size: 0.76rem; color: var(--dim); transition: opacity 0.3s; flex-wrap: wrap; text-align: center; }
   .foot.hide { opacity: 0; pointer-events: none; }
   .foot b { color: var(--fg); }
   .veil { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(11,16,23,0.96); backdrop-filter: blur(20px); }
   .veil.off { display: none; }
   .veil h1 { font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 8px; }
-  .veil p { color: var(--dim); font-size: 0.9rem; max-width: 420px; margin: 0 auto 18px; line-height: 1.55; }
+  .veil p { color: var(--dim); font-size: 0.9rem; max-width: 440px; margin: 0 auto 18px; line-height: 1.55; }
   .veil .btn { height: 44px; padding: 0 22px; font-size: 0.9rem; }
+  .veil .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .blur .page { filter: blur(18px); }
   .blur .stage::after { content: 'Come back to this window to keep reading'; position: fixed; inset: 0; display: grid; place-items: center; color: #fff; font-size: 0.95rem; font-weight: 600; background: rgba(11,16,23,0.5); }
   .toast { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); z-index: 20; padding: 10px 16px; border-radius: 100px; background: #fff; color: #14181c; font-size: 0.8rem; font-weight: 600; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }
   .toast.show { opacity: 1; }
+  .spin { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #fff; border-radius: 50%; margin: 0 auto 18px; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @media print { html, body, * { display: none !important; visibility: hidden !important; } }
-  @media (max-width: 640px) { .bar { padding: 8px 10px; } .btn span.l { display: none; } .stage { padding: 56px 8px 48px; } }
+  @media (max-width: 640px) { .bar { padding: 8px 10px; gap: 6px; } .btn span.l { display: none; } .stage { padding: 56px 8px 48px; } .brand span { display: none; } }
 </style>
 </head>
 <body>
-  <div class="veil" id="veil"><div><h1 id="veilTitle">Opening your sheet…</h1><p id="veilText">This sheet is licensed to you. Copying, downloading and screenshots are not permitted.</p><button type="button" class="btn primary" id="veilBtn" hidden>Open full screen</button></div></div>
+  <div class="veil" id="veil"><div><div class="spin" id="spin"></div><h1 id="veilTitle">Checking your access…</h1><p id="veilText">The server is confirming that this sheet is licensed to you.</p><div class="row"><button type="button" class="btn primary" id="veilBtn" hidden>Open full screen</button><button type="button" class="btn" id="veilBack" hidden>Back to the site</button></div></div></div>
   <header class="bar" id="bar">
-    <span class="brand"><i>LW</i>Learn With Why</span>
+    <span class="brand"><i>LW</i><span>Learn With Why</span></span>
     <span class="title" id="title"></span>
+    <span class="lic" id="lic" title="This sheet is on your account"><i></i><span id="licText">Yours</span></span>
     <button type="button" class="btn ic" id="zoomOut" title="Zoom out">−</button>
     <button type="button" class="btn ic" id="zoomIn" title="Zoom in">+</button>
-    <button type="button" class="btn ic" id="prev" title="Previous page" hidden>‹</button>
-    <span id="pageNo" style="font-size:.78rem;color:var(--dim)" hidden></span>
-    <button type="button" class="btn ic" id="next" title="Next page" hidden>›</button>
+    <span id="pageNo" style="font-size:.78rem;color:var(--dim)"></span>
     <button type="button" class="btn" id="fs"><span class="l">Full screen</span><span class="s">⛶</span></button>
     <button type="button" class="btn primary" id="close">Close</button>
   </header>
-  <main class="stage" id="stage"><div class="page" id="page"><canvas id="cv"></canvas><div class="wm" id="wm"></div></div></main>
-  <footer class="foot" id="foot"><span>Licensed to <b id="who"></b></span><span>·</span><span id="until"></span><span>·</span><span>Esc or Close to go back to the site</span></footer>
+  <main class="stage" id="stage"></main>
+  <footer class="foot" id="foot"><span>Licensed to <b id="who"></b></span><span>·</span><span id="sinceLine"></span><span>·</span><span>Esc or Close to go back to the site</span></footer>
   <div class="toast" id="toast"></div>
 <script>
 (() => {
+  /* The token comes from the site in the URL hash (never sent to any server as a URL).
+     Every request carries it in a header; the session cookie goes along automatically. */
   const q = new URLSearchParams(location.hash.slice(1));
-  const id = q.get('id') || '', t = q.get('t') || '', title = q.get('title') || 'Sheet', until = +q.get('until') || 0, pages = +q.get('pages') || 1;
-  const read = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (_) { return f; } };
-  const session = read('lww_session', null);
+  const token = q.get('t') || '';
+  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs', PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
   const $ = s => document.querySelector(s);
-  const veil = $('#veil'), page = $('#page'), cv = $('#cv'), ctx = cv.getContext('2d');
+  const veil = $('#veil'), stage = $('#stage');
+  const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
   const toast = m => { const el = $('#toast'); el.textContent = m; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); };
   const fmt = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   const back = () => { window.close(); setTimeout(() => { location.href = 'index.html#sheets'; }, 150); };
+  const api = (p, opt) => fetch(p, Object.assign({ headers: { 'X-View-Token': token }, credentials: 'same-origin', cache: 'no-store' }, opt || {}));
+  let meta = null, pdf = null, stamp = '', zoom = 1, ended = false;
 
-  if (!session || !session.email) { $('#veilTitle').textContent = 'Sign in to open this sheet'; $('#veilText').textContent = 'Go back to the site, sign in, and open the sheet again.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
-  if (!id || !t) { $('#veilTitle').textContent = 'This link has expired'; $('#veilText').textContent = 'Open the sheet again from the site.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
-  if (until && until < Date.now()) { $('#veilTitle').textContent = 'Your access to this sheet has expired'; $('#veilText').textContent = 'It expired on ' + fmt(until) + '. Subscribe again to open it.'; const b = $('#veilBtn'); b.hidden = false; b.textContent = 'Back to the site'; b.onclick = back; return; }
+  /* ---- screens ---- */
+  function screen(title, text, opts) {
+    opts = opts || {};
+    $('#spin').hidden = !opts.spin; veil.classList.remove('off');
+    $('#veilTitle').textContent = title; $('#veilText').textContent = text;
+    const b = $('#veilBtn'); b.hidden = !opts.action; if (opts.action) { b.textContent = opts.action; b.onclick = opts.onAction; }
+    const k = $('#veilBack'); k.hidden = !opts.back; k.onclick = back;
+  }
+  /* the server said no (signed out elsewhere, or the sheet was removed from the account): pages are wiped */
+  function closed(reason) {
+    if (ended) return; ended = true;
+    stage.innerHTML = ''; pdf = null; document.body.classList.remove('blur');
+    if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (_) {} }
+    screen('This sheet is not available', reason || 'Open it again from the site.', { action: 'Back to the sheets', onAction: back, back: false });
+  }
+  /* the server is asked again every minute and when the tab comes back: a sign-out or an admin revoke closes the sheet */
+  async function recheck() {
+    if (ended) return;
+    try { const r = await api('/api/view/meta'); if (r.status === 401 || r.status === 403) { const e = await r.json().catch(() => ({})); closed(e.error); } }
+    catch (_) { /* offline: keep showing what is already rendered */ }
+  }
 
-  document.title = title + ' — Learn With Why';
-  $('#title').innerHTML = '<b>' + title.replace(/[<>&]/g, '') + '</b>';
-  $('#who').textContent = (session.name ? session.name + ' · ' : '') + session.email;
-  $('#until').textContent = until ? 'Access until ' + fmt(until) : 'Free access sheet';
-  const stamp = (session.name ? session.name + ' · ' : '') + session.email + ' · ' + new Date().toLocaleDateString('en-IN');
-  $('#wm').innerHTML = Array.from({ length: 24 }, () => '<span>' + stamp.replace(/[<>&]/g, '') + '</span>').join('');
-
-  /* ---- pages: real pages come from the server with the signed token; demo sheets draw a page ---- */
-  let cur = 0, zoom = 1, imgs = [];
-  const url = n => '/api/sheet-page?id=' + encodeURIComponent(id) + '&u=' + encodeURIComponent(session.email) + '&t=' + encodeURIComponent(t) + '&p=' + n;
-  function draw() {
-    const im = imgs[cur]; const W = 1240, H = 1754; cv.width = W; cv.height = H;
+  /* ---- pages ---- */
+  const pageEl = n => { const d = document.createElement('div'); d.className = 'page'; d.innerHTML = '<canvas></canvas><div class="wm">' + Array.from({ length: 24 }, () => '<span>' + esc(stamp) + '</span>').join('') + '</div><span class="pn">' + (n + 1) + ' / ' + meta.pages + '</span>'; stage.appendChild(d); return d.querySelector('canvas'); };
+  /* a second, lighter stamp is baked into the pixels themselves, so a screenshot carries it */
+  function bake(ctx, W, H) { ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = '#1f6b47'; ctx.font = 'bold ' + Math.round(W / 36) + 'px Inter, sans-serif'; ctx.translate(W / 2, H / 2); ctx.rotate(-0.5); for (let y = -H * 0.6; y < H * 0.6; y += H / 10) ctx.fillText(stamp, -W * 0.5, y); ctx.restore(); }
+  function fit() { const w = Math.min(stage.clientWidth - 32, (stage.clientHeight - 120) / 1.414) * zoom; stage.style.setProperty('--w', Math.max(280, w) + 'px'); }
+  async function renderPdf(data) {
+    const lib = await import(PDFJS); lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    pdf = await lib.getDocument({ data, isEvalSupported: false }).promise;
+    meta.pages = pdf.numPages; stage.innerHTML = '';
+    for (let n = 0; n < pdf.numPages; n++) {
+      if (ended) return;
+      const page = await pdf.getPage(n + 1); const vp = page.getViewport({ scale: 1 }); const scale = Math.min(2, 1600 / vp.width);
+      const v = page.getViewport({ scale }); const cv = pageEl(n); cv.width = v.width; cv.height = v.height;
+      const ctx = cv.getContext('2d'); await page.render({ canvasContext: ctx, viewport: v }).promise; bake(ctx, v.width, v.height);
+    }
+  }
+  async function renderImages() {
+    stage.innerHTML = '';
+    for (let n = 0; n < meta.pages; n++) {
+      if (ended) return;
+      const r = await api('/api/view/page?n=' + n); if (!r.ok) { if (r.status === 401 || r.status === 403) { const e = await r.json().catch(() => ({})); closed(e.error); } return; }
+      const bmp = await createImageBitmap(await r.blob()); const cv = pageEl(n); cv.width = bmp.width; cv.height = bmp.height;
+      const ctx = cv.getContext('2d'); ctx.drawImage(bmp, 0, 0); bake(ctx, bmp.width, bmp.height); bmp.close();
+    }
+  }
+  /* a worksheet whose PDF has not been uploaded yet: a placeholder page, so the flow can be tried end to end */
+  function renderDemo() {
+    stage.innerHTML = ''; meta.pages = 1; $('#title').innerHTML = '<b>' + esc(meta.title) + '</b> · placeholder page'; const W = 1240, H = 1754; const cv = pageEl(0); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-    if (im) { const r = Math.min(W / im.width, H / im.height); const w = im.width * r, h = im.height * r; ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h); }
-    else demoPage(W, H);
-    /* a second, lighter stamp is baked into the pixels themselves */
-    ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = '#1f6b47'; ctx.font = 'bold 34px Inter, sans-serif'; ctx.translate(W / 2, H / 2); ctx.rotate(-0.5); for (let y = -900; y < 900; y += 170) ctx.fillText(stamp, -600, y); ctx.restore();
-    $('#pageNo').textContent = (cur + 1) + ' / ' + pages;
+    ctx.fillStyle = '#1d2126'; ctx.font = '500 64px "Cormorant Garamond", serif'; ctx.fillText(meta.title, 110, 180);
+    ctx.font = '26px Inter, sans-serif'; ctx.fillStyle = '#5d636b'; ctx.fillText(meta.cls.toUpperCase() + ' · ' + meta.subject, 110, 240);
+    ctx.setLineDash([12, 12]); ctx.strokeStyle = '#c7c2b6'; ctx.lineWidth = 2; for (let y = 420; y < 1600; y += 120) { ctx.beginPath(); ctx.moveTo(110, y); ctx.lineTo(W - 110, y); ctx.stroke(); } ctx.setLineDash([]);
+    ctx.fillStyle = '#8a8f96'; ctx.font = '20px Inter, sans-serif'; ctx.fillText('Learn With Why · ' + meta.subject, 110, H - 80); ctx.textAlign = 'right'; ctx.fillText('Placeholder page — the PDF for this sheet has not been uploaded yet', W - 110, H - 80); ctx.textAlign = 'left';
+    bake(ctx, W, H);
   }
-  function demoPage(W, H) {
-    const d = q.get('demo'); let it = {}; try { it = JSON.parse(d || '{}'); } catch (_) {}
-    ctx.fillStyle = '#1d2126'; ctx.font = '500 64px "Cormorant Garamond", serif'; ctx.fillText(it.title || title, 110, 180);
-    ctx.font = '26px Inter, sans-serif'; ctx.fillStyle = '#5d636b'; wrap(it.blurb || '', 110, 240, W - 220, 36);
-    ctx.strokeStyle = '#8a8f96'; ctx.lineWidth = 3; ctx.font = '500 360px "Cormorant Garamond", serif'; ctx.textAlign = 'center'; ctx.strokeText(it.glyph || 'Aa', W / 2, 760); ctx.textAlign = 'left';
-    ctx.setLineDash([12, 12]); ctx.strokeStyle = '#c7c2b6'; ctx.lineWidth = 2; for (let y = 960; y < 1600; y += 120) { ctx.beginPath(); ctx.moveTo(110, y); ctx.lineTo(W - 110, y); ctx.stroke(); } ctx.setLineDash([]);
-    ctx.fillStyle = '#8a8f96'; ctx.font = '20px Inter, sans-serif'; ctx.fillText('Learn With Why · ' + (it.subject || '') + ' · Ages ' + (it.ages || ''), 110, H - 80); ctx.textAlign = 'right'; ctx.fillText('Demo page — the real PDF is attached from the admin panel', W - 110, H - 80); ctx.textAlign = 'left';
+
+  /* ---- start ---- */
+  async function start() {
+    if (!token) { screen('This link has expired', 'Open the sheet again from the site.', { back: true }); return; }
+    let r; try { r = await api('/api/view/meta'); } catch (_) { screen('Cannot reach the server', 'Check your connection and open the sheet again from the site.', { back: true }); return; }
+    if (r.status === 401) { screen('Sign in to open this sheet', 'Go back to the site, sign in, and open the sheet again.', { back: true }); return; }
+    if (!r.ok) { const e = await r.json().catch(() => ({})); if (r.status === 403) { ended = true; screen('This sheet is not available', e.error || 'Open it again from the site.', { action: 'Back to the sheets', onAction: back }); } else screen('Could not open the sheet', e.error || 'Please try again.', { back: true }); return; }
+    meta = await r.json();
+    document.title = meta.title + ' — Learn With Why';
+    $('#title').innerHTML = '<b>' + esc(meta.title) + '</b>' + (meta.pages > 1 ? ' · ' + meta.pages + ' pages' : '');
+    $('#who').textContent = (meta.user.name ? meta.user.name + ' · ' : '') + meta.user.email;
+    $('#sinceLine').textContent = (meta.kind === 'free' ? 'Free sheet' : 'Bought') + ' · on your account since ' + fmt(meta.since);
+    $('#licText').textContent = meta.kind === 'free' ? 'Free · yours' : 'Yours to keep';
+    stamp = (meta.user.name ? meta.user.name + ' · ' : '') + meta.user.email + ' · ' + new Date().toLocaleDateString('en-IN') + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    setInterval(recheck, 60e3);
+    screen('Loading ' + meta.title + '…', 'Licensed to ' + meta.user.email + '. Copying, downloading and screenshots are not permitted.', { spin: true });
+    try {
+      if (meta.hasPdf) {
+        const f = await api('/api/view/file');
+        if (!f.ok) { const e = await f.json().catch(() => ({})); if (f.status === 401 || f.status === 403) return closed(e.error); throw new Error(e.error || 'Could not load the PDF'); }
+        const data = await f.arrayBuffer();
+        try { await renderPdf(data); } catch (err) { if (meta.hasImages) await renderImages(); else throw err; }
+      } else if (meta.hasImages) await renderImages(); else renderDemo();
+    } catch (err) { if (!ended) screen('Could not render this sheet', String(err.message || err) + ' — try again from the site.', { back: true }); return; }
+    if (ended) return;
+    fit();
+    screen(meta.title, 'Licensed to ' + meta.user.email + ' — it stays on your account. Copying, downloading and screenshots are not permitted.', { action: 'Open full screen', onAction: () => { goFull(); veil.classList.add('off'); }, back: true });
   }
-  function wrap(text, x, y, maxW, lh) { const words = text.split(' '); let line = ''; for (const w of words) { const test = line + w + ' '; if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, y); line = w + ' '; y += lh; } else line = test; } ctx.fillText(line, x, y); }
-  function fit() { const s = $('#stage'); const availH = s.clientHeight, availW = s.clientWidth; const h = Math.min(availH, availW * 1.414) * zoom; page.style.height = h + 'px'; page.style.width = (h / 1.414) + 'px'; page.style.transform = zoom > 1 ? 'none' : ''; }
+  const goFull = () => { const el = document.documentElement; const f = el.requestFullscreen || el.webkitRequestFullscreen; if (f && !document.fullscreenElement) f.call(el).catch(() => {}); };
   addEventListener('resize', fit);
   $('#zoomIn').onclick = () => { zoom = Math.min(2.5, zoom + 0.25); fit(); }; $('#zoomOut').onclick = () => { zoom = Math.max(0.5, zoom - 0.25); fit(); };
-  $('#prev').onclick = () => { cur = Math.max(0, cur - 1); draw(); }; $('#next').onclick = () => { cur = Math.min(pages - 1, cur + 1); draw(); };
-  if (pages > 1) { $('#prev').hidden = $('#next').hidden = $('#pageNo').hidden = false; }
-  $('#close').onclick = back;
-  const goFull = () => { const el = document.documentElement; const f = el.requestFullscreen || el.webkitRequestFullscreen; if (f && !document.fullscreenElement) f.call(el).catch(() => {}); };
   $('#fs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else goFull(); };
-
-  /* load: real pages through the token (a demo sheet has none) */
-  const isReal = /^az-/.test(id);
-  const start = () => { veil.classList.add('off'); fit(); draw(); };
-  const veilBtn = $('#veilBtn');
-  const ready = () => { $('#veilTitle').textContent = title; $('#veilText').textContent = 'Licensed to ' + session.email + (until ? ' until ' + fmt(until) : '') + '. Copying, downloading and screenshots are not permitted.'; veilBtn.hidden = false; veilBtn.textContent = 'Open full screen'; veilBtn.onclick = () => { goFull(); start(); }; };
-  if (isReal) {
-    Promise.all(Array.from({ length: pages }, (_, n) => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url(n); })))
-      .then(list => { imgs = list; if (!list[0]) { $('#veilTitle').textContent = 'This link has expired'; $('#veilText').textContent = 'Open the sheet again from the site.'; veilBtn.hidden = false; veilBtn.textContent = 'Back to the site'; veilBtn.onclick = back; return; } ready(); });
-  } else ready();
+  $('#close').onclick = back;
+  stage.addEventListener('scroll', () => { if (!meta) return; const pages = stage.querySelectorAll('.page'); let cur = 0; pages.forEach((p, i) => { if (p.offsetTop - stage.scrollTop < stage.clientHeight / 2) cur = i; }); $('#pageNo').textContent = pages.length > 1 ? (cur + 1) + ' / ' + pages.length : ''; }, { passive: true });
 
   /* ---- protection: no menu, no drag, no copy/save/print keys, blur when the window is not in front ---- */
   ['contextmenu', 'dragstart', 'selectstart', 'copy', 'cut'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); toast('This sheet is protected'); }));
@@ -134,17 +185,15 @@
     if ((e.ctrlKey || e.metaKey) && ['s', 'p', 'c', 'u', 'a'].includes(k)) { e.preventDefault(); toast('Saving, printing and copying are disabled'); }
     if (k === 'printscreen') { e.preventDefault(); document.body.classList.add('blur'); toast('Screenshots are not allowed'); try { navigator.clipboard.writeText(''); } catch (_) {} setTimeout(() => document.body.classList.remove('blur'), 1500); }
     if (k === 'escape' && !document.fullscreenElement) back();
-    if (k === 'arrowright') $('#next').click(); if (k === 'arrowleft') $('#prev').click();
   });
   document.addEventListener('keyup', e => { if (e.key === 'PrintScreen') { try { navigator.clipboard.writeText(''); } catch (_) {} } });
-  const onVis = () => document.body.classList.toggle('blur', document.hidden || !document.hasFocus());
-  document.addEventListener('visibilitychange', onVis); addEventListener('blur', onVis); addEventListener('focus', onVis);
+  const onVis = () => { if (!ended && meta) document.body.classList.toggle('blur', document.hidden || !document.hasFocus()); };
+  document.addEventListener('visibilitychange', () => { onVis(); if (!document.hidden) recheck(); }); addEventListener('blur', onVis); addEventListener('focus', () => { onVis(); recheck(); });
   /* hide the chrome while reading, show it on movement */
   let hideT; const chrome = on => { $('#bar').classList.toggle('hide', !on); $('#foot').classList.toggle('hide', !on); };
   addEventListener('mousemove', () => { chrome(true); clearTimeout(hideT); hideT = setTimeout(() => chrome(false), 2500); });
   addEventListener('touchstart', () => { chrome(true); clearTimeout(hideT); hideT = setTimeout(() => chrome(false), 2500); }, { passive: true });
-  /* access ends while reading → close */
-  if (until) setInterval(() => { if (Date.now() > until) { toast('Your access to this sheet has ended'); setTimeout(back, 1500); } }, 15000);
+  start();
 })();
 </script>
 </body>

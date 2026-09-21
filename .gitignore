@@ -19,5 +19,6 @@ archive/papercub-react/public/frames-webp/
 .claude/
 __pycache__/
 
-# server database (orders, secret)
+# server database (SQLite: customers, orders, entitlements) and PDFs uploaded through the admin API
 site/data/
+site/protected/uploads/

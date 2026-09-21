@@ -20,7 +20,7 @@
   ];
   const GROUPS = { admin: [['General', ['overview', 'products', 'orders', 'customers', 'analytics']], ['Store', ['coupons', 'content', 'roles', 'settings', 'audit']]],
     developer: [['General', ['health', 'errors', 'api', 'db', 'perf']], ['Logs', ['payments', 'webhooks', 'auth', 'security', 'audit']], ['Ops', ['deploy', 'backups']]] };
-  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', settings: 'Store-wide settings — access & expiry.', audit: 'Everything staff changed, in order.',
+  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', settings: 'Store-wide settings — the server connection.', audit: 'Everything staff changed, in order.',
     health: 'System health at a glance.', errors: 'Errors and stack traces caught in the browser.', api: 'Every fetch() call, status and latency.', db: 'Tables, sizes and quota.', payments: 'Payment gateway log.', webhooks: 'Callbacks from the gateways.', auth: 'Sign-ins and sign-ups.', perf: 'Load, paint and frame timings.', security: 'Failed logins and suspicious activity.', deploy: 'Version and latest commits.', backups: 'Export and restore the demo data.' };
   /* lucide-style icons, 24 box, stroke 2 */
   const ICON = {
@@ -425,6 +425,32 @@
   const initialsOf = s => String(s || '').trim().split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(x => x[0].toUpperCase()).join('') || 'ST';
   const events = () => read('lww_events', []);
   const orders = () => read('lww_orders', []);
+  const users = () => read('lww_users', []);
+  /* ---------- the database is the source of truth ----------
+     With the admin key saved (Settings → Server connection), orders, customers and entitlements are
+     pulled from the server (/api/admin/*) into the same lww_* keys the dashboards render, so every
+     section below shows what is really in SQLite instead of this browser's copy. */
+  let syncedAt = 0, syncing = false;
+  const adminKey = () => read('lww_admin_key', '');
+  async function adminApi(method, path, body) {
+    const r = await fetch(path, { method, headers: Object.assign({ 'x-admin-key': adminKey() }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+    const out = await r.json().catch(() => ({})); if (!r.ok) throw new Error(out.error || ('HTTP ' + r.status)); return out;
+  }
+  async function syncFromServer(force) {
+    if (!adminKey() || syncing || (!force && Date.now() - syncedAt < 30e3)) return false;
+    syncing = true;
+    try {
+      const [o, u, e] = await Promise.all([adminApi('GET', '/api/admin/orders'), adminApi('GET', '/api/admin/users'), adminApi('GET', '/api/admin/entitlements')]);
+      const STATUS = { created: 'pending', paid: 'paid', failed: 'cancelled', refunded: 'refunded', cancelled: 'cancelled' };
+      save('lww_orders', o.orders.slice().reverse().map(x => ({ id: x.id, at: x.at, email: x.email, name: x.name, cls: x.cls, plan: x.plan, worksheet: x.worksheet, amount: x.totalInr, currency: x.currency, total: x.total, method: x.method === 'razorpay' ? 'Razorpay' : 'Demo gateway', payment: x.paymentId, coupon: x.coupon, status: STATUS[x.status] || x.status, address: x.address, server: true })));
+      save('lww_users', u.users.map(x => ({ id: x.id, name: x.name, email: x.email, role: x.role, created: x.created_at, lastLogin: x.last_login_at, spent: x.spent_inr, orders: x.orders, active: x.active })));
+      const subs = {}, owned = {};
+      e.entitlements.forEach(x => { if (x.scope === 'class') (subs[x.email] = subs[x.email] || []).push({ cls: x.cls, plan: x.plan || 'm1', start: x.start, at: x.start, id: x.id, revoked: x.revoked }); else if (!(owned[x.email] || []).includes(x.worksheet)) (owned[x.email] = owned[x.email] || []).push(x.worksheet); });
+      save('lww_subs', subs); save('lww_owned', owned);
+      syncedAt = Date.now(); return true;
+    } catch (err) { console.warn('admin sync: ' + err.message); syncedAt = Date.now() - 20e3; return false; }
+    finally { syncing = false; }
+  }
   const lastDays = n => { const out = []; for (let i = n - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); out.push(d.toISOString().slice(0, 10)); } return out; };
 
   /* ---------- charts (inline SVG, theme-aware) ---------- */
@@ -521,7 +547,7 @@
   const ADMIN = {};
   ADMIN.overview = () => {
     const os = orders(), good = os.filter(o => o.status !== 'cancelled' && o.status !== 'refunded'), rev = good.reduce((n, o) => n + o.amount, 0);
-    const ev = events(), subs = Object.values(read('lww_subs', {})).flat().filter(x => x.end > Date.now());
+    const ev = events(), subs = Object.values(read('lww_subs', {})).flat().filter(x => !x.revoked);
     const days = lastDays(14), salesS = days.map(d => os.filter(o => day(o.at) === d).reduce((n, o) => n + o.amount, 0)), visitS = days.map(d => ev.filter(e => e.type === 'visit' && day(e.at) === d).length);
     const delta = (arr, unit) => { const a = arr.slice(-7).reduce((n, v) => n + v, 0), b = arr.slice(-14, -7).reduce((n, v) => n + v, 0); return b ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '% from last week' : (a ? '+' + a + (unit || '') + ' this week' : 'No change'); };
     const today = ev.filter(e => e.type === 'visit' && day(e.at) === day(Date.now())).length, hour = ev.filter(e => e.type === 'visit' && e.at > Date.now() - 36e5).length;
@@ -646,8 +672,8 @@
   ADMIN.orders = () => {
     const os = orders().slice().reverse(), counts = ORDER_STATUS.map(st => [st, os.filter(o => o.status === st).length]);
     return `<div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">${counts.map(([st, n]) => `<div class="stat"><b>${n}</b><span>${st}</span></div>`).join('')}</div>
-      <section class="panel"><p class="eyebrow">Orders · ${os.length}</p><p class="auth-sub">Subscriptions are digital, so most go straight to <b>paid</b>. Change a status and it is written to the audit log.</p>
-      ${table(['Order', 'When', 'Customer', 'Class · plan', 'Gateway', 'Amount', 'Status'], os.map(o => [`<b>${o.id}</b>`, fmt(o.at), esc(o.name) + '<br><small>' + esc(o.email) + '</small>', esc(classById(o.cls).label) + ' · ' + planOf(o.plan).label + (o.coupon ? '<br><small>coupon ' + esc(o.coupon) + '</small>' : ''), esc(o.method), money(o.amount), `<select data-adm="order-status" data-id="${o.id}">${ORDER_STATUS.map(st => `<option value="${st}"${st === o.status ? ' selected' : ''}>${st}</option>`).join('')}</select>`]), 'No orders yet — they appear when a customer subscribes.', { filter: 'Filter orders…' })}</section>`;
+      <section class="panel"><p class="eyebrow">Orders · ${os.length}</p><p class="auth-sub">${adminKey() ? 'Live from the database' + (syncedAt ? ' · synced ' + fmt(syncedAt) : '') + '.' : 'Showing this browser\'s copy — save the admin key under Settings → Server connection to load the database.'} Orders are digital, so a verified payment goes straight to <b>paid</b>. Change a status and it is written to the audit log.</p>
+      ${table(['Order', 'When', 'Customer', 'Class · plan', 'Gateway', 'Amount', 'Status'], os.map(o => [`<b>${o.id}</b>`, fmt(o.at), esc(o.name) + '<br><small>' + esc(o.email) + '</small>', (o.worksheet ? 'PDF · ' + esc((itemById(o.worksheet) || { title: o.worksheet }).title) : esc((classById(o.cls) || { label: o.cls }).label) + ' · ' + planOf(o.plan).label) + (o.coupon ? '<br><small>coupon ' + esc(o.coupon) + '</small>' : ''), esc(o.method), money(o.amount), `<select data-adm="order-status" data-id="${o.id}">${ORDER_STATUS.map(st => `<option value="${st}"${st === o.status ? ' selected' : ''}>${st}</option>`).join('')}</select>`]), 'No orders yet — they appear when a customer subscribes.', { filter: 'Filter orders…' })}</section>`;
   };
 
   /* ----- customers ----- */
@@ -655,13 +681,13 @@
     const us = users(), subsAll = read('lww_subs', {}), os = orders(), prints = read('lww_prints', {}), ownedAll = read('lww_owned', {});
     const detail = custOpen && us.find(u => u.email === custOpen);
     return `${detail ? customerCard(detail, subsAll, os, prints, ownedAll) : ''}<section class="panel"><p class="eyebrow">Customer list · ${us.length}</p><p class="auth-sub">Every account that signed up on the site.</p>
-      ${table(['Name', 'Email', 'Role', 'Subscriptions', 'Orders', 'Total spent', 'Downloads', 'Prints', ''], us.map(u => { const uo = os.filter(o => o.email === u.email), act = (subsAll[u.email] || []).filter(x => x.end > Date.now()); return [`<span style="display:inline-flex;align-items:center;gap:8px"><span class="av round" style="width:28px;height:28px;font-size:11px">${esc(initialsOf(u.name))}</span><b>${esc(u.name)}</b></span>`, esc(u.email), pill(roleOf(u.role).label, 'neutral'), act.length ? act.map(x => pill(classById(x.cls).label, 'ok')).join(' ') : pill('none', 'neutral'), uo.length, money(uo.reduce((n, o) => n + o.amount, 0)), (ownedAll[u.email] || []).length, Object.values(prints[u.email] || {}).reduce((n, v) => n + v, 0), `<button type="button" class="link" data-adm="customer-open" data-id="${esc(u.email)}">Profile</button>`]; }), 'No customers yet.', { filter: 'Filter customers…' })}</section>`;
+      ${table(['Name', 'Email', 'Role', 'Subscriptions', 'Orders', 'Total spent', 'Downloads', 'Prints', ''], us.map(u => { const uo = os.filter(o => o.email === u.email), act = (subsAll[u.email] || []).filter(x => !x.revoked); return [`<span style="display:inline-flex;align-items:center;gap:8px"><span class="av round" style="width:28px;height:28px;font-size:11px">${esc(initialsOf(u.name))}</span><b>${esc(u.name)}</b></span>`, esc(u.email), pill(roleOf(u.role).label, 'neutral'), act.length ? act.map(x => pill(classById(x.cls).label, 'ok')).join(' ') : pill('none', 'neutral'), uo.length, money(uo.reduce((n, o) => n + o.amount, 0)), (ownedAll[u.email] || []).length, Object.values(prints[u.email] || {}).reduce((n, v) => n + v, 0), `<button type="button" class="link" data-adm="customer-open" data-id="${esc(u.email)}">Profile</button>`]; }), 'No customers yet.', { filter: 'Filter customers…' })}</section>`;
   };
   function customerCard(u, subsAll, os, prints, ownedAll) {
     const uo = os.filter(o => o.email === u.email), pu = prints[u.email] || {};
     return `<section class="panel"><div class="row-between"><div style="display:flex;align-items:center;gap:12px"><span class="av round" style="width:40px;height:40px;font-size:14px">${esc(initialsOf(u.name))}</span><div><h3 class="card-title">${esc(u.name)}</h3><p class="auth-sub">${esc(u.email)} · ${roleOf(u.role).label} · joined ${fmt(u.created || Date.now())}</p></div></div><button type="button" class="icon-btn" data-adm="customer-close" aria-label="Close">${ico('x')}</button></div>
       <div class="kpi-row">${kpi('Orders', uo.length, '', 'orders')}${kpi('Total spending', money(uo.reduce((n, o) => n + o.amount, 0)), '', 'rupee')}${kpi('Downloads', (ownedAll[u.email] || []).length, '', 'download')}${kpi('Prints', Object.values(pu).reduce((n, v) => n + v, 0), '', 'file')}</div>
-      <div class="grid-2"><div><p class="eyebrow" style="margin-bottom:8px">Subscriptions</p>${table(['Class', 'Plan', 'Until', 'Status'], (subsAll[u.email] || []).map(x => [esc(classById(x.cls).label), planOf(x.plan).label, fmt(x.end), pill(x.end > Date.now() ? 'active' : 'expired')]), 'None.', { plain: true })}</div>
+      <div class="grid-2"><div><p class="eyebrow" style="margin-bottom:8px">Subscriptions</p>${table(['Class', 'Plan', 'Since', 'Status'], (subsAll[u.email] || []).map(x => [esc(classById(x.cls).label), planOf(x.plan).label, fmt(x.start || x.at), pill(x.revoked ? 'revoked' : 'active', x.revoked ? 'bad' : 'ok')]), 'None.', { plain: true })}</div>
       <div><p class="eyebrow" style="margin-bottom:8px">Orders</p>${table(['Order', 'When', 'Amount', 'Status'], uo.map(o => [o.id, fmt(o.at), money(o.amount), pill(o.status)]), 'None.', { plain: true })}</div></div>
       <div><p class="eyebrow" style="margin-bottom:8px">Print usage</p>${table(['Sheet', 'Prints'], Object.keys(pu).map(id => [esc((itemById(id) || { title: id }).title), pu[id]]), 'Nothing printed yet.', { plain: true })}</div></section>`;
   }
@@ -709,23 +735,21 @@
       <section class="panel"><p class="eyebrow">Staff accounts</p><p class="auth-sub">Staff sign up from the links in the site footer.</p>${table(['Name', 'Email', 'Signed up as', 'Role'], staff.map(u => [`<b>${esc(u.name)}</b>`, esc(u.email), pill(u.kind, 'neutral'), `<select data-adm="staff-role" data-id="${esc(u.email)}">${Object.keys(roles).map(r => `<option value="${r}"${(u.rolename || (u.kind === 'developer' ? 'developer' : 'admin')) === r ? ' selected' : ''}>${r}</option>`).join('')}</select>`]), 'No staff accounts yet.', { plain: true })}</section>`;
   };
 
-  /* ----- settings: access & expiry — one number of HOURS for every product ----- */
+  /* ----- settings: the server connection (admin key) — access never expires, so there is nothing to time ----- */
   ADMIN.settings = () => {
-    const h = accessHours(), key = read('lww_admin_key', ''), preview = Date.now() + h * 3600e3;
-    return `<section class="panel"><p class="eyebrow">Access & expiry</p><p class="auth-sub">How many hours a purchase stays open. One value for every product, stored in the database and read by the server for each order — nothing is hard-coded in the page. The customer sees the exact expiry in the popup after paying and under My Account → My Worksheets.</p>
+    const key = read('lww_admin_key', '');
+    return `<section class="panel"><p class="eyebrow">Server connection</p><p class="auth-sub">With the admin key saved here, Orders, Customers and the dashboard read the database (SQLite behind <code>/api/admin/*</code>) instead of this browser's copy, and order status changes are written back.</p>
       <form id="accessForm" class="grid-2" style="gap:24px">
         <div>
-          <div class="field"><label>Access duration for all products</label>
-            <div style="display:flex;align-items:center;gap:10px"><input name="hours" type="number" min="1" max="8760" step="1" value="${h}" style="width:120px"><span style="font-size:14px;font-weight:500">hour(s)</span></div>
-            <small>Currently: <b id="accessCurrent">${esc(accessLabel())}</b> · a purchase made now would expire on <b id="accessPreview">${esc(dateTimeOf(preview))}</b></small></div>
+          <div class="field"><label>Admin key</label><input name="key" type="password" value="${esc(key)}" placeholder="ADMIN_KEY from site/.env" autocomplete="off"><small>Set <code>ADMIN_KEY</code> in <code>site/.env</code> (the default is <code>change-me</code>) and enter the same value here.</small></div>
+          <div class="btn-row"><button type="submit" class="btn btn-primary">Save & connect</button><span class="note" id="accessStatus" style="font-size:13px;color:var(--muted-foreground)">${adminKey() ? (syncedAt ? 'Connected · synced ' + fmt(syncedAt) : 'Key saved') : 'Not connected'}</span></div>
         </div>
         <div>
-          <div class="field"><label>Admin key (to save on the server)</label><input name="key" type="password" value="${esc(key)}" placeholder="ADMIN_KEY from the server" autocomplete="off"><small>Set <code>ADMIN_KEY</code> when starting <code>server.cjs</code>; the default is <code>change-me</code>. Without it the setting is saved in this browser only.</small></div>
-          <div class="btn-row"><button type="submit" class="btn btn-primary">Save setting</button><span class="note" id="accessStatus" style="font-size:13px;color:var(--muted-foreground)"></span></div>
+          <div class="field"><label>Access</label><div class="tbl-wrap" style="padding:14px 16px;font-size:14px;line-height:1.6">Every sheet a customer opens for free or pays for stays on their account — <b>there is no expiry</b>. To take a sheet away from one customer, revoke its entitlement with <code>POST /api/admin/entitlements/revoke</code>; an open viewer closes within a minute.</div></div>
         </div>
       </form></section>
       <section class="panel"><p class="eyebrow">What the customer sees</p><p class="auth-sub">Right after a successful purchase:</p>
-      <div class="tbl-wrap" style="padding:16px 18px;font-size:14px;line-height:1.6"><b>Your purchase has been completed successfully.</b> You can now access your PDF.<br>This worksheet has been added to your account.<br>You can access this PDF until: <b>${esc(dateTimeOf(preview))}</b><br>After this date, your access will automatically expire.<br>You can access it anytime before expiry from: <b>My Account → My Worksheets</b></div></section>`;
+      <div class="tbl-wrap" style="padding:16px 18px;font-size:14px;line-height:1.6"><b>Your purchase has been completed successfully.</b> You can now access your PDF.<br>This worksheet has been added to your account — it is yours to keep, with no expiry.<br>You can open it any time from <b>My Account → My Worksheets</b>.</div></section>`;
   };
   ADMIN.audit = () => auditView();
   function auditView() { const a = read('lww_audit', []).slice().reverse(); return `<section class="panel"><div class="row-between"><div><p class="eyebrow">Audit logs · ${a.length}</p><p class="auth-sub">Newest first.</p></div><button type="button" class="btn btn-ghost btn-sm" data-adm="clear" data-key="lww_audit">${ico('trash')}Clear</button></div>${table(['When', 'Who', 'Action', 'Detail'], a.map(x => [fmt(x.at), esc(x.actor), `<b>${esc(x.action)}</b>`, esc(x.detail)]), 'Nothing logged yet.', { filter: 'Filter logs…' })}</section>`; }
@@ -800,6 +824,7 @@
   window.renderPortal = function () {
     _renderPortal();
     mobileOpen = false;
+    syncFromServer().then(changed => { if (changed && document.getElementById('portal').classList.contains('open')) _renderPortal(); });
     const fps = document.getElementById('fpsStat'); if (fps) { let n = 0, t0 = performance.now(); const tick = () => { n++; const dt = performance.now() - t0; if (dt >= 1000) { fps.textContent = Math.round(n * 1000 / dt); n = 0; t0 = performance.now(); } if (document.body.contains(fps)) requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
     const q = document.getElementById('quotaStat'); if (q && navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(e => { q.textContent = Math.round((e.usage || 0) / 1048576) + ' / ' + Math.round((e.quota || 0) / 1048576) + ' MB'; });
     const cb = document.getElementById('commitBox'); if (cb) fetch('https://api.github.com/repos/SumitDendage/kids-book-website/commits?per_page=5').then(r => r.json()).then(list => { if (!Array.isArray(list)) throw new Error('no data'); document.getElementById('commitStat').textContent = list[0].sha.slice(0, 7); cb.innerHTML = list.map(c => `<div><b>${c.sha.slice(0, 7)}</b> — ${esc(c.commit.message.split('\n')[0])} <small>· ${fmt(Date.parse(c.commit.author.date))}</small></div>`).join(''); }).catch(() => { cb.innerHTML = '<div>Could not reach GitHub (offline or rate-limited).</div>'; });
@@ -807,13 +832,8 @@
     const pf = document.getElementById('productForm'); if (pf) pf.addEventListener('submit', e => { e.preventDefault(); saveProduct(pf); });
     wireStudio(); wireTables();
     const af = document.getElementById('accessForm'); if (af) {
-      const sync = () => { const h = Math.max(1, Math.min(8760, parseInt(af.querySelector('[name=hours]').value, 10) || 1)); document.getElementById('accessPreview').textContent = dateTimeOf(Date.now() + h * 3600e3); document.getElementById('accessCurrent').textContent = h + (h === 1 ? ' hour' : ' hours'); return h; };
-      af.addEventListener('input', sync); af.addEventListener('change', sync);
-      /* the database is the source of truth: load its value into the form */
-      fetch('/api/config').then(r => r.json()).then(c => { if (!c.access || !document.body.contains(af)) return; save('lww_access', { hours: c.access.hours }); af.querySelector('[name=hours]').value = c.access.hours; sync(); }).catch(() => {});
-      af.addEventListener('submit', async e => { e.preventDefault(); const hours = sync(), key = String(new FormData(af).get('key') || '').trim(), st = document.getElementById('accessStatus'); save('lww_access', { hours }); if (key) save('lww_admin_key', key); log('access expiry set', hours + ' hour(s) for all products'); st.textContent = 'Saving…';
-        try { const r = await fetch('/api/admin/access', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-admin-key': key }, body: JSON.stringify({ hours }) }); if (!r.ok) throw new Error((await r.json()).error || r.status); st.textContent = 'Saved to the database ✓'; toast('Access expiry saved — applies to every new purchase'); }
-        catch (err) { st.textContent = 'Saved in this browser · server said: ' + err.message; toast('Saved locally — enter the admin key to save on the server'); } });
+      af.addEventListener('submit', async e => { e.preventDefault(); const key = String(new FormData(af).get('key') || '').trim(), st = document.getElementById('accessStatus'); save('lww_admin_key', key); log('admin key ' + (key ? 'saved' : 'cleared'), ''); if (!key) { st.textContent = 'Not connected'; return; } st.textContent = 'Connecting…';
+        const ok = await syncFromServer(true); st.textContent = ok ? 'Connected · synced ' + fmt(syncedAt) : 'Could not connect — check the key and that the server is running'; if (ok) toast('Orders, customers and entitlements loaded from the database'); else toast('Server refused the key'); });
     }
     const cf = document.getElementById('couponForm'); if (cf) cf.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(cf), code = String(f.get('code')).trim().toUpperCase(); if (!code) return; const cps = read('lww_coupons', []).filter(c => c.code !== code); cps.push({ code, pct: Math.min(100, parseInt(f.get('pct'), 10) || 10), max: parseInt(f.get('max'), 10) || 0, uses: 0, active: true }); save('lww_coupons', cps); log('coupon added', code); rerender(); });
     const ct = document.getElementById('contentForm'); if (ct) ct.addEventListener('submit', e => { e.preventDefault(); const f = new FormData(ct); const c = { badge: f.get('badge').trim(), heroTitle: f.get('heroTitle').trim(), heroLede: f.get('heroLede').trim(), whys: String(f.get('whys')).split('\n').map(x => x.trim()).filter(Boolean) }; save('lww_content', c); document.querySelector('#home .eyebrow').textContent = c.badge; document.querySelector('h1.display').innerHTML = c.heroTitle; document.querySelector('#home .lede').textContent = c.heroLede; WHYS.length = 0; c.whys.forEach(w => WHYS.push(w)); log('content saved', 'home page'); toast('Content saved'); });
@@ -867,7 +887,7 @@
   document.addEventListener('change', e => {
     const a = e.target.closest('[data-adm]'); if (!a) return;
     const act = a.dataset.adm, id = a.dataset.id;
-    if (act === 'order-status') { const os = orders(); const o = os.find(x => x.id === id); if (o) { o.status = a.value; save('lww_orders', os); log('order ' + a.value, id); toast(id + ' → ' + a.value); } }
+    if (act === 'order-status') { const os = orders(); const o = os.find(x => x.id === id); if (o) { o.status = a.value; save('lww_orders', os); log('order ' + a.value, id); toast(id + ' → ' + a.value); if (adminKey()) adminApi('PUT', '/api/admin/orders', { id, status: { pending: 'created', paid: 'paid', cancelled: 'cancelled', refunded: 'refunded' }[a.value] || 'paid' }).catch(err => toast('Server: ' + err.message)); } }
     else if (act === 'coupon-toggle') { const cps = read('lww_coupons', []); const c = cps.find(x => x.code === id); if (c) { c.active = a.checked; save('lww_coupons', cps); log('coupon ' + (a.checked ? 'enabled' : 'disabled'), id); } }
     else if (act === 'discount') { const ds = read('lww_discounts', {}); ds[id] = Math.max(0, Math.min(90, parseInt(a.value, 10) || 0)); save('lww_discounts', ds); log('discount set', classById(id).label + ' ' + ds[id] + '%'); toast('Discount saved'); }
     else if (act === 'perm') { const roles = read('lww_roles', DEFAULT_ROLES); const set = new Set(roles[a.dataset.role] || []); if (a.checked) set.add(a.dataset.perm); else set.delete(a.dataset.perm); roles[a.dataset.role] = Array.from(set); save('lww_roles', roles); log('permission ' + (a.checked ? 'granted' : 'removed'), a.dataset.role + ':' + a.dataset.perm); }
