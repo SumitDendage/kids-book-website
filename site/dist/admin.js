@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* =====================================================================
    STAFF DASHBOARDS — Admin (#admin) and Developer (#developer).
    Loaded after the page script; reads the same demo storage. Everything

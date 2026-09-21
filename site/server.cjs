@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* Learn With Why — static server + pricing/checkout API.
    node server.cjs   → http://127.0.0.1:4173
 

@@ -114,6 +114,10 @@ The site runs today as a **front-end demo**: accounts, subscriptions, orders and
 - [ ] Real PDFs per sheet with DRM-protected printing
 - [ ] Email for password reset and order receipts
 
+## License
+
+**Proprietary — all rights reserved.** This repository, its code, design, artwork and every worksheet belong to **Learn With Why** as a business; no individual holds or is credited with ownership. Nothing here may be copied, reused, redistributed or used to build another product without written permission, and the [LICENSE](LICENSE) file and copyright notices may not be removed or altered by anyone. See [LICENSE](LICENSE).
+
 ## Credits
 
-Design, artwork, copy and code for Learn With Why. Fonts: Cormorant Garamond and Inter (open licences). All content © Learn With Why.
+Design, artwork, copy and code © Learn With Why. Fonts: Cormorant Garamond and Inter (open licences).
