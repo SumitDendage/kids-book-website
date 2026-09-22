@@ -1756,7 +1756,7 @@ const PAY_VIA = [
   { id: 'qr', label: 'QR code', note: 'Scan with any UPI app', india: true },
   { id: 'upi', label: 'UPI ID', note: 'GPay · PhonePe · Paytm', india: true },
   { id: 'wallet', label: 'Wallet', note: 'Paytm · Amazon Pay · more', india: true },
-  { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card', india: false, gateway: 'paypal' },
+  { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card · worldwide', india: false, gateway: 'paypal' },
   { id: 'stripe', label: 'Stripe', note: 'Cards & wallets, worldwide', india: false, gateway: 'stripe' },
 ];
 const RZP_DISPLAY = {   /* Razorpay Checkout "display blocks": open on the chosen method only */
@@ -1787,7 +1787,7 @@ function paintMethods() {
   const india = C ? C.code === 'IN' : true;
   const ways = PAY_VIA.filter(m => india || !m.india);
   /* PayPal and Stripe switch on the moment the server has those gateways connected; until then they are shown as coming soon */
-  const live = m => !m.gateway || gw[m.gateway] === true || gw[m.gateway] === 'live' || gw[m.gateway] === 'test';
+  const live = m => !m.gateway || (gw[m.gateway] && gw[m.gateway] !== false);
   if (!ways.some(m => m.id === payVia && live(m))) payVia = india ? 'qr' : 'card';
   payMethod = (payViaOf().gateway) || 'razorpay';
   el.innerHTML = ways.map(m => { const on = live(m); return `<label class="method${m.id === payVia ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${on ? esc(m.note) : 'Coming soon'}</small></span><span class="ring"></span></label>`; }).join('')
@@ -1819,6 +1819,27 @@ function paintSummary() {
   const pay = document.getElementById('payNow'); if (pay && q && q.valid) pay.addEventListener('click', placeOrder);
   paintSteps();
 }
+/* Back from Stripe or PayPal: ?pay=stripe&order=…&session=…  ·  ?pay=paypal&order=…&token=…  ·  ?pay=cancel&order=… */
+async function handlePaymentReturn() {
+  const u = new URL(location.href), pay = u.searchParams.get('pay'); if (!pay) return;
+  const orderId = u.searchParams.get('order') || '';
+  let pending = null; try { pending = JSON.parse(sessionStorage.getItem('lww_pending_pay') || 'null'); sessionStorage.removeItem('lww_pending_pay'); } catch (_) {}
+  history.replaceState(null, '', u.pathname + u.hash);   /* clean the address bar */
+  if (!session) { requireSignIn(() => {}, 'Sign in again to finish your payment.'); return; }
+  try {
+    let done;
+    if (pay === 'cancel') { if (orderId) await api('POST', '/api/pay/cancel', { order_id: orderId }); toast('Payment cancelled — nothing was charged.'); if (pending && pending.worksheet) openSheet(pending.worksheet); return; }
+    if (pay === 'stripe') done = await api('POST', '/api/pay/stripe/confirm', { order_id: orderId, session_id: u.searchParams.get('session') || '' });
+    else if (pay === 'paypal') done = await api('POST', '/api/pay/paypal/capture', { order_id: orderId, token: u.searchParams.get('token') || '' });
+    else return;
+    const paid = done.order, cur = paid.currency || (pending && pending.currency) || 'INR';
+    pushLog('lww_orders', { id: paid.id, at: paid.at, email: session.email, name: session.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: cur, total: paid.total, method: pay === 'stripe' ? 'Stripe' : 'PayPal', status: 'paid' }, 1000);
+    pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: pay === 'stripe' ? 'Stripe' : 'PayPal', payment: paid.paymentId, amount: paid.total, currency: cur, status: 'captured' }, 400);
+    logEvent('buy', { order: paid.id, worksheet: paid.worksheet, amount: paid.totalInr, currency: cur, gateway: pay });
+    await syncEntitlements(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop();
+    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, total: fmtCur(paid.total, cur), method: pay === 'stripe' ? 'Stripe' : 'PayPal' });
+  } catch (err) { toast(err.message || 'Could not confirm the payment'); if (pending && pending.worksheet) openSheet(pending.worksheet); }
+}
 /* Razorpay Checkout is loaded only when someone pays */
 function loadRazorpay() {
   if (window.Razorpay) return Promise.resolve();
@@ -1835,6 +1856,11 @@ async function placeOrder() {
     write('lww_address', coAddr);
     pushLog('lww_orders', { id: o.id, at: o.at, email: session.email, name: session.name, cls: o.cls, plan: o.plan, worksheet: o.worksheet, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'created', address: q.address }, 1000);
     let done;
+    if (gw.provider === 'stripe' || gw.provider === 'paypal') {
+      /* hosted pages: remember the order, hand over to the gateway; handlePaymentReturn() finishes on the way back */
+      try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: o.id, provider: gw.provider, total: q.total, currency: q.currency, worksheet: coItem, via: payVia })); } catch (_) {}
+      location.href = gw.url; return;
+    }
     if (gw.provider === 'razorpay') {
       await loadRazorpay();
       done = await new Promise((res, rej) => {
@@ -1849,7 +1875,7 @@ async function placeOrder() {
       });
     } else {
       /* no gateway keys on the server: a clearly labelled demo confirmation instead of a card form */
-      if (!confirm('DEMO GATEWAY — no Razorpay keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' by ' + payViaOf().label + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
+      if (!confirm('DEMO GATEWAY — no ' + (gw.via || 'Razorpay') + ' keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' by ' + payViaOf().label + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
       done = await api('POST', '/api/pay/demo/confirm', { order_id: o.id });
     }
     const paid = done.order, ent = done.entitlement;
@@ -2220,6 +2246,7 @@ const rerenderAll = () => { renderPlayer(); renderWorksheets(); renderBag(); if 
       body.dataset.stage = 'site';
       content.scrollTop = 0; measure(); if (STAFF[location.hash.slice(1)]) openPortal(location.hash.slice(1)); const h = IDS.indexOf(location.hash.slice(1)); target = h > 0 ? clamp(chapters[h].offsetTop) : 0; current = target; lastY = -1; onFrame();
       clearTimeout(hintTimer); hintTimer = setTimeout(hideHint, 6000);
+      handlePaymentReturn();   /* finish a Stripe / PayPal payment if we just came back from one */
     }
   }, 100);
 })();
