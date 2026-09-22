@@ -958,7 +958,6 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
       <p class="side-title">Classes</p><div class="side-list" id="shopClasses"></div>
       <p class="side-title">Subjects</p><div class="side-list" id="shopSubjects"></div>
       <p class="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
-      <button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:12px">Subscribe to a class</button>
     </aside>
     <main class="shop-main">
       <div class="shop-head"><h3 id="shopTitle"></h3><p id="shopSub"></p></div>
@@ -971,7 +970,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 <div class="shop" id="checkout" aria-hidden="true">
   <div class="shop-shade" style="background:#071018"></div>
   <header class="shop-bar">
-    <div><p class="eyebrow">Secure checkout</p><ol class="stepper" id="coStepper"><li class="on"><i>1</i>Plan</li><li><i>2</i>Address</li><li><i>3</i>Payment</li></ol></div>
+    <div><p class="eyebrow">Secure checkout</p><ol class="stepper" id="coStepper"><li class="on"><i>1</i>Your PDF</li><li><i>2</i>Address</li><li><i>3</i>Payment</li></ol></div>
     <div class="shop-actions"><span class="co-lock">🔒 256-bit encrypted</span><button type="button" class="icon-btn" id="checkoutBack" aria-label="Back">✕</button></div>
   </header>
   <div class="checkout-body" id="checkoutBody"></div>
@@ -1405,7 +1404,7 @@ function showRole() {
   if (has) document.getElementById('signedRole').textContent = roleOf(session.role).label;
   document.querySelectorAll('.role').forEach(b => b.classList.toggle('on', b.dataset.role === session.role));
   const subs = activeSubs(), sl = document.getElementById('subLine');
-  sl.hidden = !has; sl.innerHTML = subs.length ? 'Subscribed to ' + subs.map(x => '<b>' + esc(classById(x.cls).label) + '</b> since ' + dateOf(x.start)).join(', ') + '.' : 'No class subscription yet — <button type="button" class="link" data-subscribe="">choose a class</button>.';
+  sl.hidden = !has; sl.innerHTML = subs.length ? 'Subscribed to ' + subs.map(x => '<b>' + esc(classById(x.cls).label) + '</b> since ' + dateOf(x.start)).join(', ') + '.' : 'Your sheets are under My Account → My Worksheets — <button type="button" class="link" data-shop="all">browse all sheets</button>.';
 }
 document.addEventListener('click', e => {
   const r = e.target.closest('[data-role]');
@@ -1684,6 +1683,7 @@ async function loadCoConfig() {
 }
 /* openCheckout('c1') for a class plan · openCheckout({ worksheet: 'kg-mat-cnt' }) for one PDF */
 function openCheckout(what) {
+  if (!what || !what.worksheet) { toast('Pick a sheet to buy — each PDF is bought on its own.'); return; }   /* class plans are no longer sold */
   if (!session) { requireSignIn(() => openCheckout(what), what && what.worksheet ? 'Sign in to buy this PDF — it opens as soon as you have paid.' : 'Sign in to subscribe — your class is waiting.'); return; }
   coItem = null;
   if (what && typeof what === 'object' && what.worksheet && sheetOf(what.worksheet)) { coItem = what.worksheet; coCls = sheetOf(coItem).cls; }
@@ -1721,13 +1721,8 @@ function renderCheckout() {
     <div class="co-left">
       ${item ? `<section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Your PDF</h3><p>One sheet, yours to open in the protected viewer whenever you like.</p></div></header>
         <div class="sum-item" style="margin:0"><div class="sum-thumb">${esc(item.glyph || 'PDF')}</div><div><b>${esc(item.title)}</b><small>${esc(c.label)} · ${esc(item.subject)} · ${item.pages || 1} A4 page${item.pages === 1 ? '' : 's'} · ${money(item.price)}</small></div></div>
-        <p class="co-note">Prefer the whole class? <button type="button" class="link" data-co-switch="class">Subscribe to ${esc(c.label)} instead</button> — every sheet in it, on your account for good.</p>
       </section>`
-      : `<section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Choose your plan</h3><p>Every sheet and worksheet in one class, on your account for good.</p></div></header>
-        <div class="class-pills">${CLASSES.map(x => `<button type="button" class="class-pill${x.id === coCls ? ' on' : ''}" data-co-class="${x.id}"><b>${esc(x.label)}</b><small>${esc(x.ages)}</small>${activeSub(x.id) ? '<i title="active subscription">●</i>' : ''}</button>`).join('')}</div>
-        <div class="plan-cards">${PLANS.map((x, i) => `<label class="plan-card${x.id === coPlan ? ' on' : ''}"><input type="radio" name="plan" value="${x.id}"${x.id === coPlan ? ' checked' : ''}>${i === 1 ? '<span class="ribbon">Most popular</span>' : i === 2 ? '<span class="ribbon gold">Best value</span>' : ''}<b>${x.label}</b><strong data-plan-price="${x.id}">₹${coConfig.plans[x.id] ? coConfig.plans[x.id].price : x.price}</strong><small>${monthly(x.id)}${x.note ? ' · ' + x.note : ''}</small><span class="tick">✓</span></label>`).join('')}</div>
-        <p class="co-note">${ITEMS.filter(i => i.cls === coCls).length} sheets and worksheets in ${esc(c.label)}.${cur ? ' You already have ' + esc(c.label) + ' on your account (since ' + dateOf(cur.start) + ').' : ''}</p>
-      </section>`}
+      : ''}
       <section class="panel co-card" data-step="2"><header class="co-card-head"><span class="co-num">2</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
         <div class="fl"><select name="country" data-co="country" class="filled">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${flag(x.code)}  ${esc(x.name)}</option>`).join('')}</select><label>Country</label><div class="err" data-err="country"></div></div>
         <div class="fl"><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder=" " autocomplete="street-address"><label>Address (house / flat, street, area)</label><div class="err" data-err="line1"></div></div>
@@ -2079,7 +2074,7 @@ function openSheet(id) {
       ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then buy this PDF (' + money(it.price) + ') or subscribe to ' + esc(cls.label) + '.'}</span>`
       : free
         ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open it free ↗</button><span class="note">Free access sheet — no payment, open it as often as you like.</span>`
-        : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy this PDF · ${money(it.price)} · pay with Razorpay</button><button type="button" class="btn btn-ghost" data-subscribe="${it.cls}">Or subscribe to ${esc(cls.label)} · from ${money(planOf('m1').price)}</button><span class="note">Either way the sheet opens right after payment and stays on your account.</span>`;
+        : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy this PDF · ${money(it.price)}</button><span class="note">Pay by card, QR code or UPI — the sheet opens right after payment and stays on your account.</span>`;
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
@@ -2152,7 +2147,7 @@ function renderBag() {
   document.getElementById('bagBody').innerHTML = `<p class="eyebrow" style="margin-bottom:10px">My plans</p>` + (!subs.length ? '<p class="cart-empty">No class plan yet. Pick a class and every sheet in it is yours to keep.</p>'
     : subs.map(x => `<div class="cart-row"><div class="paper-mini">${esc(classById(x.cls).label.replace('Kindergarten', 'KG').replace('Class ', 'C'))}</div><div class="nm">${esc(classById(x.cls).label)}<span>${planOf(x.plan).label} · since ${dateTimeOf(x.start)}</span></div><span class="pill">Active</span></div>`).join(''))
     + `<p class="eyebrow" style="margin:18px 0 10px">My worksheets · ${mine.length}</p>` + (mine.length ? mine.map(m => `<div class="cart-row" data-view="${m.it.id}" style="cursor:pointer" title="Open in the viewer"><div class="paper-mini">${esc(m.it.glyph || m.it.az || 'PDF')}</div><div class="nm">${esc(m.it.title)}<span>${rowNote(m)}</span></div><span class="pill">Open ↗</span></div>`).join('') : '<p class="cart-empty">Nothing here yet — free sheets you open, PDFs you buy and every sheet in a subscribed class appear here.</p>')
-    + '<button type="button" class="btn btn-primary btn-block" data-subscribe="" style="margin-top:16px">Subscribe to a class →</button><p class="cart-empty" style="font-size:.78rem">Nothing here expires. Everything is checked on the server every time a sheet opens.</p>';
+    + '<button type="button" class="btn btn-primary btn-block" data-shop="all" style="margin-top:16px">Browse all sheets →</button><p class="cart-empty" style="font-size:.78rem">Nothing here expires. Everything is checked on the server every time a sheet opens.</p>';
 }
 /* a sheet you can open prints as an A4 page with the plan line */
 function printSheet(id) {
