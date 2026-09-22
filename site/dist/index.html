@@ -381,7 +381,9 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .fl-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
 @media (max-width: 720px) { .fl-grid { grid-template-columns: 1fr; gap: 0; } }
 .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-@media (max-width: 640px) { .method-grid { grid-template-columns: 1fr; } }
+.pay-secure { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 4px 0 0; font-size: 0.74rem; color: var(--fg-dim); line-height: 1.45; } .pay-secure svg { flex: none; } .pay-secure b { color: var(--fg-muted); }
+@media (max-width: 1100px) { .method-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .method-grid { grid-template-columns: 1fr; } }
 .method { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.2s var(--ease); }
 .method input { position: absolute; opacity: 0; pointer-events: none; }
 .method .mark { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
@@ -1694,7 +1696,7 @@ function requestQuote(now) {
     try {
       const body = coItem ? { worksheet: coItem, coupon: coCode, address: coAddr } : { cls: coCls, plan: coPlan, coupon: coCode, address: coAddr };
       const q = await api('POST', '/api/quote', body);
-      coQuote = q; if (!q.methods.includes(payMethod)) payMethod = q.methods[0];
+      coQuote = q; if (!q.methods.includes(payMethod)) payMethod = q.methods[0]; paintMethods();
     } catch (err) { coQuote = null; coError = err.message; }
     coBusy = false; paintSummary(); paintErrors();
   };
@@ -1747,7 +1749,31 @@ function paintRegion() {
   const C = coCountry(); const el = document.getElementById('coRegionLine'); if (!el || !C) return;
   el.innerHTML = C.code === 'IN' ? '<span class="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · 6-digit PIN code' : '<span class="region-chip">🌍 International</span> priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + ' · ' + esc(C.postal.label) + ' format for ' + esc(C.name);
 }
+/* How the customer pays. Every option runs through Razorpay Checkout, which is opened
+   showing only that method (config.display), so "Card" opens straight on the card form
+   and "QR code" straight on a UPI QR to scan. UPI, QR, net banking and wallets are India-only. */
+const PAY_VIA = [
+  { id: 'card', label: 'Card', note: 'Visa · Mastercard · RuPay · Amex', india: false },
+  { id: 'qr', label: 'QR code', note: 'Scan with any UPI app', india: true },
+  { id: 'upi', label: 'UPI ID', note: 'GPay · PhonePe · Paytm', india: true },
+  { id: 'netbanking', label: 'Net banking', note: 'All major banks', india: true },
+  { id: 'wallet', label: 'Wallet', note: 'Paytm · Amazon Pay · more', india: true },
+];
+const RZP_DISPLAY = {   /* Razorpay Checkout "display blocks": open on the chosen method only */
+  card: { blocks: { pay: { name: 'Pay by card', instruments: [{ method: 'card' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
+  qr: { blocks: { pay: { name: 'Scan the QR code with any UPI app', instruments: [{ method: 'upi', flows: ['qr'] }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
+  upi: { blocks: { pay: { name: 'Pay with your UPI ID', instruments: [{ method: 'upi', flows: ['collect', 'intent'] }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
+  netbanking: { blocks: { pay: { name: 'Net banking', instruments: [{ method: 'netbanking' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
+  wallet: { blocks: { pay: { name: 'Wallets', instruments: [{ method: 'wallet' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
+};
+let payVia = 'qr';
+const payViaOf = () => PAY_VIA.find(m => m.id === payVia) || PAY_VIA[0];
 const BRAND_MARK = {
+  card: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14181c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>',
+  qr: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14181c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>',
+  upi: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14181c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 18h4"/><path d="m9.5 10 2.5 2.5 3-4"/></svg>',
+  netbanking: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14181c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 20h18"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14181c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 12h4v4h-4a2 2 0 0 1 0-4z"/></svg>',
   razorpay: '<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#3395ff" d="M8.7 9.6 7 15.4l4.3-2.8 1.9 8.1h3.5L21 2.7z"/><path fill="#072654" d="M4.6 12.2 3 18.6h3.4l2.9-10.9z"/></svg>',
   paypal: '<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#003087" d="M7 21 9.6 4.5h6.2c3.5 0 5.2 1.9 4.7 4.8-.6 3.4-3 5.1-6.4 5.1h-2.3L10.8 21z"/><path fill="#009cde" d="M9.5 19.5 11.9 5h5.6c2.9 0 4.4 1.6 3.9 4.1-.5 3-2.6 4.5-5.6 4.5h-2.1L12.6 19.5z" opacity=".85"/></svg>',
   stripe: '<svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="5" fill="#635bff"/><path fill="#fff" d="M11 9.4c0-.6.5-.9 1.4-.9 1.2 0 2.8.4 4 1V6.2c-1.3-.5-2.7-.7-4-.7-3.3 0-5.5 1.7-5.5 4.6 0 4.5 6.2 3.8 6.2 5.7 0 .7-.6 1-1.5 1-1.3 0-3.1-.6-4.4-1.3v3.4c1.5.6 3 .9 4.4.9 3.4 0 5.7-1.7 5.7-4.6-.1-4.9-6.3-4-6.3-5.8z"/></svg>',
@@ -1758,7 +1784,13 @@ function paintMethods() {
   /* a method is offered when the country allows it AND the server has that gateway connected */
   const allowed = (C ? C.methods : PAY.map(m => m.id)).filter(id => gw[id] !== false);
   if (!allowed.includes(payMethod)) payMethod = allowed[0] || 'razorpay';
-  el.innerHTML = PAY.map(m => { const inCountry = !C || C.methods.includes(m.id), connected = gw[m.id] !== false, on = inCountry && connected; const note = !connected ? 'Coming soon' : !inCountry ? 'Not available in ' + esc(C ? C.name : 'this country') : m.note + (m.id === 'razorpay' && gw.razorpay === 'demo' ? ' · demo mode, nothing is charged' : m.id === 'razorpay' && gw.razorpay === 'test' ? ' · test mode' : ''); return `<label class="method${m.id === payMethod ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payMethod ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${note}</small></span><span class="ring"></span></label>`; }).join('');
+  /* the ways to pay: UPI / QR / net banking / wallets in India, card everywhere */
+  const india = C ? C.code === 'IN' : true;
+  const ways = PAY_VIA.filter(m => india || !m.india);
+  if (!ways.some(m => m.id === payVia)) payVia = india ? 'qr' : 'card';
+  const mode = gw.razorpay === 'demo' ? ' · demo, nothing is charged' : gw.razorpay === 'test' ? ' · test mode' : '';
+  el.innerHTML = ways.map(m => `<label class="method${m.id === payVia ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${esc(m.note)}</small></span><span class="ring"></span></label>`).join('')
+    + `<p class="pay-secure">${BRAND_MARK.razorpay}<span>Payments are processed securely by <b>Razorpay</b>${mode}. Card details never touch our server.${india ? '' : ' UPI and QR are available for payments from India.'}</span></p>`;
 }
 function paintErrors() {
   const errs = (coQuote && coQuote.errors) || {};
@@ -1780,7 +1812,7 @@ function paintSummary() {
     ${q ? `<p class="co-note" style="text-align:center">Access opens the moment the payment is verified and <b>does not expire</b>.</p>` : ''}
     ${q && q.currency !== 'INR' ? `<p class="co-note">≈ ₹${Math.round(q.total / q.rate)} at 1 INR = ${q.rate} ${esc(q.currency)}. You are charged in ${esc(q.currency)}.</p>` : ''}
     ${q && q.coupon ? `<p class="co-note ok">Coupon ${esc(q.coupon)} applied — ₹${q.discountInr} off</p>` : ''}
-    <button type="button" class="btn btn-pay" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}><span>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>${q && q.valid ? 'with ' + esc(PAY.find(m => m.id === payMethod).label) + ' →' : 'to unlock payment'}</small></button>
+    <button type="button" class="btn btn-pay" id="payNow"${!q || !q.valid || coBusy ? ' disabled' : ''}><span>${q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>${q && q.valid ? 'by ' + esc(payViaOf().label) + ' →' : 'to unlock payment'}</small></button>
     <ul class="trust"><li>🔒 Priced & signed on the server</li><li>🛡️ No card details stored here</li><li>↺ Cancel any time</li></ul>
     ${q ? `<p class="co-note" style="text-align:center">Quote valid until ${new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>` : ''}`;
   const pay = document.getElementById('payNow'); if (pay && q && q.valid) pay.addEventListener('click', placeOrder);
@@ -1795,9 +1827,9 @@ function loadRazorpay() {
 async function placeOrder() {
   if (!coQuote || !coQuote.valid || coBusy) return;
   coBusy = true; coError = ''; paintSummary();
-  const q = coQuote, method = PAY.find(m => m.id === payMethod).label;
+  const q = coQuote, method = 'Razorpay · ' + payViaOf().label;
   try {
-    const out = await api('POST', '/api/pay/order', { quote: q, method: payMethod });
+    const out = await api('POST', '/api/pay/order', { quote: q, method: payMethod, via: payVia });
     const o = out.order, gw = out.gateway;
     write('lww_address', coAddr);
     pushLog('lww_orders', { id: o.id, at: o.at, email: session.email, name: session.name, cls: o.cls, plan: o.plan, worksheet: o.worksheet, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'created', address: q.address }, 1000);
@@ -1806,7 +1838,8 @@ async function placeOrder() {
       await loadRazorpay();
       done = await new Promise((res, rej) => {
         const rz = new Razorpay({
-          key: gw.key, amount: gw.amount, currency: gw.currency, order_id: gw.razorpay_order_id, name: gw.name, description: gw.description, prefill: gw.prefill, theme: gw.theme, notes: { order: o.id },
+          key: gw.key, amount: gw.amount, currency: gw.currency, order_id: gw.razorpay_order_id, name: gw.name, description: gw.description, prefill: gw.prefill, theme: gw.theme, notes: { order: o.id, via: payVia },
+          config: { display: RZP_DISPLAY[payVia] || RZP_DISPLAY.card },   /* open straight on the chosen way to pay */
           handler: resp => api('POST', '/api/pay/verify', { order_id: o.id, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej),
           modal: { ondismiss: () => rej(Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true })) },
         });
@@ -1815,7 +1848,7 @@ async function placeOrder() {
       });
     } else {
       /* no gateway keys on the server: a clearly labelled demo confirmation instead of a card form */
-      if (!confirm('DEMO GATEWAY — no Razorpay keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
+      if (!confirm('DEMO GATEWAY — no Razorpay keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' by ' + payViaOf().label + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
       done = await api('POST', '/api/pay/demo/confirm', { order_id: o.id });
     }
     const paid = done.order, ent = done.entitlement;
@@ -1825,7 +1858,7 @@ async function placeOrder() {
     await syncEntitlements();
     coCode = ''; coQuote = null; coBusy = false; const boughtItem = coItem; coItem = null;
     closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
-    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: boughtItem, total: fmtCur(q.total, q.currency), method: gw.provider === 'razorpay' ? 'Razorpay' : 'Demo gateway' });
+    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: boughtItem, total: fmtCur(q.total, q.currency), method: (gw.provider === 'razorpay' ? 'Razorpay' : 'Demo gateway') + ' · ' + payViaOf().label });
   } catch (err) { coBusy = false; coError = err.message; paintSummary(); if (!err.cancelled) requestQuote(true); }
 }
 document.addEventListener('input', e => {
@@ -1836,7 +1869,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { f.classList.toggle('filled', !!f.value); coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
-  if (e.target.name === 'pay') { payMethod = e.target.value; paintMethods(); paintSummary(); }
+  if (e.target.name === 'pay') { payVia = e.target.value; paintMethods(); paintSummary(); }
   const fl = e.target.closest('.fl select'); if (fl) fl.classList.toggle('filled', !!fl.value);
   if (e.target.name === 'plan') { coPlan = e.target.value; document.querySelectorAll('input[name=plan]').forEach(i => i.closest('.plan-card').classList.toggle('on', i.checked)); paintSummary(); requestQuote(true); }
 });
