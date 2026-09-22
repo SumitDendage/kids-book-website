@@ -339,6 +339,10 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .stepper li.on { color: #fff; } .stepper li.on i { border-color: #fff; background: rgba(255,255,255,0.1); }
 .stepper li.done { color: #8fe8b4; } .stepper li.done i { background: #1f6b47; border-color: #1f6b47; color: #fff; }
 .co-lock { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-dim); margin-right: 6px; }
+/* checkout header on phones: keep the close button on screen, steps tight, lock text hidden */
+#checkout .shop-bar { align-items: center; }
+#checkout .shop-actions { flex: none; }
+@media (max-width: 640px) { #checkout .shop-bar { gap: 8px; } .co-lock { display: none; } .stepper { gap: 12px; } .stepper li { font-size: 0.74rem; gap: 6px; } #checkout .shop-bar .eyebrow { margin-bottom: 4px; } }
 .co-card { position: relative; transition: border-color 0.3s; }
 .co-card.done { border-color: rgba(143,232,180,0.3); }
 .co-card-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
@@ -373,25 +377,26 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .fl select { padding-right: 36px; background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.6) 50%), linear-gradient(135deg, rgba(255,255,255,0.6) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
 .fl select option { color: #000; }
 .fl label { position: absolute; left: 14px; right: 14px; top: 15px; font-size: 0.9rem; color: var(--fg-dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.18s var(--ease); }
-.fl .hint { display: block; margin-top: 5px; font-size: 0.68rem; color: var(--fg-dim); }
+.fl .fhint { display: block; margin-top: 5px; font-size: 0.68rem; color: var(--fg-dim); }
 .fl input:focus, .fl select:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.09); box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
 .fl input:focus + label, .fl input:not(:placeholder-shown) + label, .fl select.filled + label, .fl select:focus + label { top: 7px; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-muted); }
 .fl.bad input, .fl.bad select { border-color: rgba(255,120,120,0.7); }
 .fl .err { margin-top: 5px; }
 .fl-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
 @media (max-width: 720px) { .fl-grid { grid-template-columns: 1fr; gap: 0; } }
-.method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-.pay-secure { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 4px 0 0; font-size: 0.74rem; color: var(--fg-dim); line-height: 1.45; } .pay-secure svg { flex: none; } .pay-secure b { color: var(--fg-muted); }
-@media (max-width: 1100px) { .method-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 480px) { .method-grid { grid-template-columns: 1fr; } }
-.method { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.2s var(--ease); }
+.method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.pay-secure { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); font-size: 0.74rem; color: var(--fg-dim); line-height: 1.45; } .pay-secure svg { flex: none; } .pay-secure b { color: var(--fg-muted); }
+.method { position: relative; display: grid; grid-template-columns: 1fr; align-content: start; gap: 10px; padding: 14px 14px 12px; border-radius: 16px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); cursor: pointer; min-height: 118px; transition: all 0.2s var(--ease); }
 .method input { position: absolute; opacity: 0; pointer-events: none; }
-.method .mark { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
-.method .txt b { display: block; font-size: 0.88rem; } .method .txt small { font-size: 0.68rem; color: var(--fg-dim); }
-.method .ring { margin-left: auto; width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; transition: all 0.2s; }
+.method .mark { width: 38px; height: 38px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.method .txt b { display: block; font-size: 0.9rem; margin-bottom: 2px; } .method .txt small { display: block; font-size: 0.68rem; color: var(--fg-dim); line-height: 1.35; }
+.method .ring { position: absolute; top: 12px; right: 12px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); transition: all 0.2s; }
 .method:hover { border-color: rgba(255,255,255,0.35); }
-.method.on { border-color: #fff; background: rgba(255,255,255,0.08); }
-.method.on .ring { border-color: #fff; box-shadow: inset 0 0 0 4px #14181c, inset 0 0 0 10px #fff; }
+.method.on { border-color: #f0b455; background: rgba(240,180,85,0.1); box-shadow: 0 0 0 1px rgba(240,180,85,0.4), 0 10px 26px rgba(0,0,0,0.25); }
+.method.on .mark { box-shadow: 0 0 0 3px rgba(240,180,85,0.35); }
+.method.on::after { content: 'Selected'; position: absolute; left: 14px; bottom: 10px; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #f0b455; }
+.method.on .txt { padding-bottom: 14px; }
+.method.on .ring { border-color: #f0b455; box-shadow: inset 0 0 0 4px #14181c, inset 0 0 0 10px #f0b455; }
 .method.off { opacity: 0.35; cursor: not-allowed; }
 .coupon-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
 .coupon-row .fl { margin-bottom: 0; } .coupon-row .btn { padding: 15px 20px; border-radius: 14px; }
@@ -409,11 +414,13 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .sk-line.short { width: 60%; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .btn-pay { width: 100%; margin-top: 10px; padding: 14px 18px; border-radius: 16px; display: grid; gap: 2px; text-align: center; background: linear-gradient(135deg, #fff, #ffe9c2); color: #14181c; box-shadow: 0 12px 30px rgba(240,180,85,0.25); position: relative; overflow: hidden; }
-.btn-pay span { font-size: 1.05rem; font-weight: 800; } .btn-pay small { font-size: 0.72rem; font-weight: 600; color: #5d636b; }
+.btn-pay span { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; } .btn-pay small { font-size: 0.72rem; font-weight: 600; color: #5d636b; }
+.btn-pay:disabled { background: rgba(255,255,255,0.12); color: var(--fg-muted); box-shadow: none; } .btn-pay:disabled small { color: var(--fg-dim); }
 .btn-pay:not(:disabled)::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.7) 50%, transparent 60%); transform: translateX(-100%); animation: sheen 2.8s ease-in-out infinite; }
 @keyframes sheen { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 .btn-pay:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(240,180,85,0.4); }
-.trust { list-style: none; display: grid; gap: 6px; margin-top: 14px; font-size: 0.72rem; color: var(--fg-dim); }
+.trust { list-style: none; display: flex; justify-content: center; gap: 6px 14px; flex-wrap: wrap; margin: 14px 0 0; padding: 0; font-size: 0.7rem; color: var(--fg-dim); }
+.trust li { white-space: nowrap; }
 .co-note.ok { color: #8fe8b4; }
 @media (prefers-reduced-motion: reduce) { .btn-pay::after, .sk-line, .sum-total.bump strong { animation: none; } }
 .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
@@ -587,10 +594,10 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .quote-card[data-pos="-1"] { transform: translate(-50%, -50%) translateX(-64%) translateZ(-160px) rotateY(32deg) scale(0.9); opacity: 0.6; filter: blur(0.5px); z-index: 2; }
 .quote-card[data-pos="1"] { transform: translate(-50%, -50%) translateX(64%) translateZ(-160px) rotateY(-32deg) scale(0.9); opacity: 0.6; filter: blur(0.5px); z-index: 2; }
 .quote-card[data-pos="hidden"] { transform: translate(-50%, -50%) translateZ(-400px) scale(0.7); opacity: 0; pointer-events: none; }
-.trust { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 18px; font-size: var(--fs-small); color: var(--fg-muted); }
-.trust b { color: #fff; font-weight: 700; }
-.trust .trust-stars { color: #f0b455; letter-spacing: 0.18em; font-size: 0.8rem; }
-.trust .dot { color: var(--fg-dim); }
+.trust-line { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 18px; font-size: var(--fs-small); color: var(--fg-muted); }
+.trust-line b { color: #fff; font-weight: 700; }
+.trust-line .trust-stars { color: #f0b455; letter-spacing: 0.18em; font-size: 0.8rem; }
+.trust-line .dot { color: var(--fg-dim); }
 .quote-card blockquote { font-size: clamp(1.05rem, 0.9rem + 0.7vw, 1.4rem); line-height: 1.35; max-height: 9.6em; overflow: hidden; }
 .quote-card .who span { display: grid; line-height: 1.3; }
 .quote-card .who small { font-size: 0.7rem; color: var(--ink-muted); }
@@ -897,7 +904,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
     <div class="chapter-inner">
       <p class="eyebrow rise" style="--i:0;text-align:center">06 / A community of curious minds</p>
       <h2 class="h2 rise" style="--i:1;text-align:center">Little moments. <em>Lovely words.</em></h2>
-      <p class="trust rise" style="--i:1"><span class="trust-stars">★★★★★</span><span><b id="qTotal">16</b> happy customers</span><span class="dot">·</span><span>parents, teachers &amp; schools</span><span class="dot">·</span><span>sent to us on WhatsApp &amp; Instagram</span></p>
+      <p class="trust-line rise" style="--i:1"><span class="trust-stars">★★★★★</span><span><b id="qTotal">16</b> happy customers</span><span class="dot">·</span><span>parents, teachers &amp; schools</span><span class="dot">·</span><span>sent to us on WhatsApp &amp; Instagram</span></p>
       <div class="flow rise" id="flow" style="--i:2"></div>
       <div class="flow-ctrl rise" style="--i:3">
         <button type="button" class="icon-btn" id="qPrev" aria-label="Previous story">←</button>
@@ -1727,7 +1734,7 @@ function renderCheckout() {
         <div class="fl-grid">
           <div class="fl"><input name="city" data-co="city" value="${esc(coAddr.city)}" placeholder=" " autocomplete="address-level2"><label>City</label><div class="err" data-err="city"></div></div>
           <div class="fl">${stateField}<div class="err" data-err="state"></div></div>
-          <div class="fl"><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder=" " inputmode="${numeric ? 'numeric' : 'text'}" autocomplete="postal-code"><label id="coPostalLabel">${esc(C.postal.label)}</label><small class="hint">${esc(C.postal.hint)}</small><div class="err" data-err="postal"></div></div>
+          <div class="fl"><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder=" " inputmode="${numeric ? 'numeric' : 'text'}" autocomplete="postal-code"><label id="coPostalLabel">${esc(C.postal.label)}</label><small class="fhint">${esc(C.postal.hint)}</small><div class="err" data-err="postal"></div></div>
         </div>
       </section>
       <section class="panel co-card" data-step="3"><header class="co-card-head"><span class="co-num">3</span><div><h3>Payment</h3><p>Choose how you would like to pay.</p></div></header>
