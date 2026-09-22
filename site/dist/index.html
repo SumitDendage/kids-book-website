@@ -1787,9 +1787,8 @@ function paintMethods() {
   const india = C ? C.code === 'IN' : true;
   const ways = PAY_VIA.filter(m => india || !m.india);
   if (!ways.some(m => m.id === payVia)) payVia = india ? 'qr' : 'card';
-  const mode = gw.razorpay === 'demo' ? ' · demo, nothing is charged' : gw.razorpay === 'test' ? ' · test mode' : '';
   el.innerHTML = ways.map(m => `<label class="method${m.id === payVia ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${esc(m.note)}</small></span><span class="ring"></span></label>`).join('')
-    + `<p class="pay-secure">${BRAND_MARK.razorpay}<span>Payments are processed securely by <b>Razorpay</b>${mode}. Card details never touch our server.${india ? '' : ' UPI and QR are available for payments from India.'}</span></p>`;
+    + `<p class="pay-secure">${BRAND_MARK.razorpay}<span><b>100% secure payment</b> — powered by Razorpay, PCI-DSS certified and 256-bit encrypted. Your card and UPI details go straight to the bank; we never see or store them.</span></p>`;
 }
 function paintErrors() {
   const errs = (coQuote && coQuote.errors) || {};
