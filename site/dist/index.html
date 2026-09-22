@@ -398,7 +398,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .method.on::after { content: 'Selected'; position: absolute; left: 14px; bottom: 10px; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #f0b455; }
 .method.on .txt { padding-bottom: 14px; }
 .method.on .ring { border-color: #f0b455; box-shadow: inset 0 0 0 4px #14181c, inset 0 0 0 10px #f0b455; }
-.method.off { opacity: 0.35; cursor: not-allowed; }
+.method.off { opacity: 0.5; cursor: not-allowed; } .method.off .mark { filter: grayscale(1); }
 .coupon-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
 .coupon-row .fl { margin-bottom: 0; } .coupon-row .btn { padding: 15px 20px; border-radius: 14px; }
 .co-summary { padding: 22px; border-radius: 22px; background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(18px); box-shadow: 0 30px 70px rgba(0,0,0,0.45); }
@@ -1755,14 +1755,14 @@ const PAY_VIA = [
   { id: 'card', label: 'Card', note: 'Visa · Mastercard · RuPay · Amex', india: false },
   { id: 'qr', label: 'QR code', note: 'Scan with any UPI app', india: true },
   { id: 'upi', label: 'UPI ID', note: 'GPay · PhonePe · Paytm', india: true },
-  { id: 'netbanking', label: 'Net banking', note: 'All major banks', india: true },
   { id: 'wallet', label: 'Wallet', note: 'Paytm · Amazon Pay · more', india: true },
+  { id: 'paypal', label: 'PayPal', note: 'PayPal balance or card', india: false, gateway: 'paypal' },
+  { id: 'stripe', label: 'Stripe', note: 'Cards & wallets, worldwide', india: false, gateway: 'stripe' },
 ];
 const RZP_DISPLAY = {   /* Razorpay Checkout "display blocks": open on the chosen method only */
   card: { blocks: { pay: { name: 'Pay by card', instruments: [{ method: 'card' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
   qr: { blocks: { pay: { name: 'Scan the QR code with any UPI app', instruments: [{ method: 'upi', flows: ['qr'] }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
   upi: { blocks: { pay: { name: 'Pay with your UPI ID', instruments: [{ method: 'upi', flows: ['collect', 'intent'] }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
-  netbanking: { blocks: { pay: { name: 'Net banking', instruments: [{ method: 'netbanking' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
   wallet: { blocks: { pay: { name: 'Wallets', instruments: [{ method: 'wallet' }] } }, sequence: ['block.pay'], preferences: { show_default_blocks: false } },
 };
 let payVia = 'qr';
@@ -1786,8 +1786,11 @@ function paintMethods() {
   /* the ways to pay: UPI / QR / net banking / wallets in India, card everywhere */
   const india = C ? C.code === 'IN' : true;
   const ways = PAY_VIA.filter(m => india || !m.india);
-  if (!ways.some(m => m.id === payVia)) payVia = india ? 'qr' : 'card';
-  el.innerHTML = ways.map(m => `<label class="method${m.id === payVia ? ' on' : ''}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${esc(m.note)}</small></span><span class="ring"></span></label>`).join('')
+  /* PayPal and Stripe switch on the moment the server has those gateways connected; until then they are shown as coming soon */
+  const live = m => !m.gateway || gw[m.gateway] === true || gw[m.gateway] === 'live' || gw[m.gateway] === 'test';
+  if (!ways.some(m => m.id === payVia && live(m))) payVia = india ? 'qr' : 'card';
+  payMethod = (payViaOf().gateway) || 'razorpay';
+  el.innerHTML = ways.map(m => { const on = live(m); return `<label class="method${m.id === payVia ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${on ? esc(m.note) : 'Coming soon'}</small></span><span class="ring"></span></label>`; }).join('')
     + `<p class="pay-secure">${BRAND_MARK.razorpay}<span><b>100% secure payment</b> — powered by Razorpay, PCI-DSS certified and 256-bit encrypted. Your card and UPI details go straight to the bank; we never see or store them.</span></p>`;
 }
 function paintErrors() {
