@@ -523,6 +523,9 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .kg-item b { flex: none; min-width: 24px; height: 20px; padding: 0 7px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.66rem; font-weight: 700; display: inline-grid; place-items: center; }
 .kg-item.soon { color: #6b7684; } .kg-item.soon::before { background: #b8c0c9; } .kg-item.soon b { background: rgba(0,0,0,0.08); color: #6b7684; }
 .kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.kg-hint { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--fg-muted); }
+.kg-card:hover { box-shadow: 0 14px 34px rgba(0,0,0,0.24); }
+@media (min-width: 1400px) { .kg-grid { grid-template-columns: repeat(4, 1fr); } }
 .kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
 .kg-open-head .eyebrow { margin-bottom: 4px; }
 .kg-open-head h3 { font-size: 1.5rem; } .kg-open-head h3 em { font-style: italic; color: var(--ok); font-size: 1.1rem; }
@@ -1829,8 +1832,9 @@ const KG_TOPICS = [
   { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
   { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
+  { id: 'more', title: 'Maths & the world', tone: 'purple', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-const TOPIC_SHEETS = { 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+const TOPIC_SHEETS = { 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
 function topicSheets(id) {
   const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
@@ -1860,7 +1864,7 @@ function renderKgTopics(box) {
     const t = topicLabel(kgTopic), list = topicSheets(kgTopic), owned = ownedOf();
     const az = list.filter(it => it.az), rest = list.filter(it => !it.az);
     box.innerHTML = `<section class="kg-open rise" style="--i:3">
-      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten · ${esc(t.group)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div></div>
+      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)} › ${esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see it. Free ones open after sign-in; the rest are yours to keep once bought.' : ''}</p></div>
       ${az.length ? `<div class="az-grid">${az.map((it, n) => `<button type="button" class="az-card" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>Free</b><span class="glyph">${it.az}<small>${it.az.toLowerCase()}</small></span><span>Alphabet ${it.az}</span></button>`).join('')}</div>` : ''}
       ${rest.length ? `<div class="shop-grid" style="margin-top:${az.length ? 18 : 0}px">${rest.map((it, n) => shelfCard(it, n, owned)).join('')}</div>` : ''}
       ${list.length ? '' : '<p class="cart-empty">No sheets in this topic yet — they are being drawn. Try another topic meanwhile.</p>'}
@@ -1868,7 +1872,7 @@ function renderKgTopics(box) {
     return;
   }
   box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
-    <div class="az-head"><div><p class="eyebrow">Kindergarten · English</p><h3>Pick a topic, <em>then a skill.</em></h3></div><p>Every skill is a shelf of its own — the number shows how many sheets are in it. Tap one to see them all.</p></div>
+    <div class="az-head"><div><p class="eyebrow">Kindergarten · all sheets by topic</p><h3>Pick a skill <em>to see its sheets.</em></h3></div><p>Every line is a shelf of its own. The green number is how many sheets are inside — tap it to see them all. Grey means we are still drawing that one.</p></div>
     <div class="kg-grid">${KG_TOPICS.map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
   </section>`;
 }
@@ -1878,14 +1882,23 @@ function renderWorksheets() {
   /* left-side menu: "By class" (Nursery … Class 3, Worksheets) and "By topic" (every subject) */
   const SIDE_ICON = { nursery: 'ab', kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
   const poolOf = id => id === 'worksheets' ? WORKSHEETS : id.startsWith('subj:') ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase())) : CATALOGUE.filter(i => i.cls === id);
-  const hasAZ = id => id === 'kg' || id === 'subj:english';
-  const sideItem = (id, label, icon) => `<button type="button" class="side-item${id === cat ? ' on' : ''}" data-cat="${id}" aria-current="${id === cat ? 'true' : 'false'}"><span class="ic">${esc(icon)}</span><span class="lbl"><b>${esc(label)}</b></span><span class="n">${poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0)}</span></button>`;
+  const hasAZ = id => id === 'subj:english';
+  const countOf = id => id === 'kg' ? new Set(KG_TOPICS.flatMap(g => g.items.flatMap(([t]) => topicSheets(t).map(it => it.id)))).size : poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0);
+  const sideItem = (id, label, icon) => `<button type="button" class="side-item${id === cat ? ' on' : ''}" data-cat="${id}" aria-current="${id === cat ? 'true' : 'false'}"><span class="ic">${esc(icon)}</span><span class="lbl"><b>${esc(label)}</b></span><span class="n">${countOf(id)}</span></button>`;
   document.getElementById('chips').innerHTML = '<p class="side-title">By class</p>' + SHELF_TABS.map(t => sideItem(t.id, t.label, SIDE_ICON[t.id] || '•')).join('')
     + '<div class="side-sep"></div><p class="side-title">By topic</p>' + SUBJECTS.map(s => sideItem('subj:' + s.id, s.label, SIDE_ICON[s.id] || '•')).join('');
   renderAZ();
+  const row = document.getElementById('wsRow');
+  if (cat === 'kg') {   /* Kindergarten is organised by topic above — nothing to repeat here */
+    row.innerHTML = ''; row.hidden = true;
+    const skills = KG_TOPICS.reduce((n, g) => n + g.items.length, 0), total = new Set(KG_TOPICS.flatMap(g => g.items.flatMap(([id]) => topicSheets(id).map(it => it.id)))).size;
+    document.getElementById('wsCount').textContent = KG_TOPICS.length + ' topics · ' + skills + ' skills · ' + total + ' sheets';
+    return;
+  }
+  row.hidden = false;
   const pool = poolOf(cat);
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
-  document.getElementById('wsRow').innerHTML = list.length ? list.map((it, n) => shelfCard(it, n, owned)).join('') : '<p class="cart-empty">No sheets in this topic yet — more are on the way.</p>';
+  row.innerHTML = list.length ? list.map((it, n) => shelfCard(it, n, owned)).join('') : '<p class="cart-empty">No sheets in this topic yet — more are on the way.</p>';
   const free = list.filter(i => i.price === 0).length;
   document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
 }
