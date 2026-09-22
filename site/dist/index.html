@@ -512,10 +512,12 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
 /* Kindergarten topic cards — frosted glass tiles with a soft colour accent per group — and an open sub-topic */
 .kg-topics, .kg-open { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
-.kg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+/* masonry: the tiles pack into balanced columns like the reference (no ragged gaps under short cards) */
+.kg-grid { columns: 3; column-gap: 14px; }
+.kg-card { display: inline-block; width: 100%; margin: 0 0 14px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
 .kg-card { --tone: 143, 214, 210; position: relative; border-radius: 18px; padding: 16px 16px 12px; color: var(--fg); background: linear-gradient(160deg, rgba(var(--tone), 0.18), rgba(8,18,26,0.34) 60%); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 12px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.12); transition: transform var(--d-base) var(--ease), border-color var(--d-base), box-shadow var(--d-base); }
 .kg-card::before { content: ''; position: absolute; left: 16px; right: 16px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: rgb(var(--tone)); opacity: 0.9; }
-.kg-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.28); box-shadow: 0 20px 44px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.16); }
+.kg-card:hover { border-color: rgba(255,255,255,0.3); box-shadow: 0 20px 44px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.16); }
 .kg-card.tone-blue { --tone: 150, 196, 255; } .kg-card.tone-teal { --tone: 143, 232, 180; } .kg-card.tone-yellow { --tone: 240, 180, 85; } .kg-card.tone-purple { --tone: 200, 182, 255; }
 .kg-card h4 { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; color: #fff; margin: 0 0 10px; }
 .kg-card h4::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: rgb(var(--tone)); box-shadow: 0 0 12px rgb(var(--tone)); flex: none; }
@@ -531,9 +533,9 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
 .kg-open-head .eyebrow { margin-bottom: 4px; }
 .kg-open-head h3 { font-size: 1.5rem; } .kg-open-head h3 em { font-style: italic; color: var(--ok); font-size: 1.1rem; }
-@media (min-width: 1400px) { .kg-grid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 1100px) { .kg-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px) { .kg-grid { grid-template-columns: 1fr; } .kg-topics, .kg-open { padding: 14px; } .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
+@media (min-width: 1400px) { .kg-grid { columns: 4; } }
+@media (max-width: 1100px) { .kg-grid { columns: 2; } }
+@media (max-width: 640px) { .kg-grid { columns: 1; } .kg-topics, .kg-open { padding: 14px; } .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
 
 /* ---------- chapter 04: about ---------- */
 .about-head { display: flex; align-items: center; gap: 22px; margin-bottom: 8px; }
@@ -1838,6 +1840,8 @@ const KG_TOPICS = [
   { id: 'more', title: 'Maths & the world', tone: 'purple', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
 const TOPIC_SHEETS = { 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];
+const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
 function topicSheets(id) {
   const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
@@ -1876,7 +1880,7 @@ function renderKgTopics(box) {
   }
   box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
     <div class="az-head"><div><p class="eyebrow">Kindergarten · all sheets by topic</p><h3>Pick a skill <em>to see its sheets.</em></h3></div><p>Every line is a shelf of its own. The green number is how many sheets are inside — tap it to see them all. Grey means we are still drawing that one.</p></div>
-    <div class="kg-grid">${KG_TOPICS.map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
+    <div class="kg-grid">${kgOrdered().map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
   </section>`;
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kg-topic]'); if (!b) return; kgTopic = b.dataset.kgTopic || null; renderWorksheets(); measure(); const blk = document.getElementById('azBlock'); if (blk && kgTopic) blk.scrollIntoView({ block: 'start' }); });
