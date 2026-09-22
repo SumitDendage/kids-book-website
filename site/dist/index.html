@@ -510,7 +510,24 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
 .az-card span { font-size: 0.62rem; color: var(--ink-muted); }
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
-@media (max-width: 640px) { .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
+/* Kindergarten topic cards (seven pastel groups) and an open sub-topic */
+.kg-topics, .kg-open { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
+.kg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+.kg-card { border-radius: 16px; padding: 16px 18px 14px; color: #1b2a3a; box-shadow: 0 10px 30px rgba(0,0,0,0.18); }
+.kg-card.tone-blue { background: #e9f2f7; } .kg-card.tone-teal { background: #e6f4f1; } .kg-card.tone-yellow { background: #fdf4e3; } .kg-card.tone-purple { background: #efeaf6; }
+.kg-card h4 { font-family: var(--font-body); font-size: 1.02rem; font-weight: 700; color: #14253d; margin: 0 0 8px; }
+.kg-card ul { list-style: none; margin: 0; padding: 0; }
+.kg-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 5px 6px 5px 18px; border: 0; border-radius: 8px; background: none; color: #24364a; font: inherit; font-size: 0.86rem; line-height: 1.3; text-align: left; cursor: pointer; position: relative; transition: background var(--d-fast), color var(--d-fast); }
+.kg-item::before { content: ''; position: absolute; left: 6px; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: #1f6b47; transform: translateY(-50%); }
+.kg-item:hover { background: rgba(255,255,255,0.7); color: #0f1b2a; }
+.kg-item b { flex: none; min-width: 24px; height: 20px; padding: 0 7px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.66rem; font-weight: 700; display: inline-grid; place-items: center; }
+.kg-item.soon { color: #6b7684; } .kg-item.soon::before { background: #b8c0c9; } .kg-item.soon b { background: rgba(0,0,0,0.08); color: #6b7684; }
+.kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
+.kg-open-head .eyebrow { margin-bottom: 4px; }
+.kg-open-head h3 { font-size: 1.5rem; } .kg-open-head h3 em { font-style: italic; color: var(--ok); font-size: 1.1rem; }
+@media (max-width: 1100px) { .kg-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .kg-grid { grid-template-columns: 1fr; } .kg-topics, .kg-open { padding: 14px; } .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
 
 /* ---------- chapter 04: about ---------- */
 .about-head { display: flex; align-items: center; gap: 22px; margin-bottom: 8px; }
@@ -1801,9 +1818,32 @@ function shelfCard(it, n, owned) {
 }
 /* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
 const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+/* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
+   Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
+   (the admin's book studio has a Topic field). Letter tracing holds the 26 A to Z sheets. */
+const KG_TOPICS = [
+  { id: 'pre', title: 'Pre-reading skills', tone: 'blue', items: [['picture-matching', 'Picture matching'], ['same-different', 'Same and different'], ['visual-discrimination', 'Visual discrimination'], ['listening', 'Listening activities'], ['following-instructions', 'Following instructions'], ['story-sequencing', 'Story sequencing'], ['rhyming-words', 'Rhyming words'], ['odd-one-out', 'Odd one out'], ['bme-sounds', 'Beginning, middle and ending sounds'], ['syllable-clapping', 'Syllable clapping'], ['oral-blending', 'Oral blending and segmenting']] },
+  { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [['letter-recognition', 'A-Z letter recognition'], ['upper-lower', 'Uppercase and lowercase'], ['letter-tracing', 'Letter tracing'], ['letter-formation', 'Letter formation'], ['letter-sounds', 'Letter sounds'], ['beginning-sound-pictures', 'Beginning-sound pictures'], ['match-upper-lower', 'Match uppercase to lowercase'], ['missing-letters', 'Missing letters'], ['alphabet-order', 'Alphabet order'], ['before-after-letters', 'Before and after letters'], ['mouth-positions', 'Mouth positions and sound actions']] },
+  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
+  { id: 'vocab', title: 'Vocabulary', tone: 'blue', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
+  { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
+  { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
+  { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
+];
+const TOPIC_SHEETS = { 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
+function topicSheets(id) {
+  const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
+  if (ids.includes('az')) out = out.concat(AZ_LETTERS.map(azItem));
+  ids.filter(x => x !== 'az').forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
+  ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
+  return out;
+}
+let kgTopic = null;   /* the sub-topic that is open, or null for the topic cards */
 function renderAZ() {
   const box = document.getElementById('azBlock'); if (!box) return;
-  if (cat !== 'kg' && cat !== 'subj:english') { box.hidden = true; box.innerHTML = ''; return; }
+  if (cat === 'kg') { renderKgTopics(box); return; }
+  if (cat !== 'subj:english') { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
   box.innerHTML = `<section class="az rise" style="--i:3" aria-label="A to Z free sheets">
     <div class="az-head">
@@ -1814,6 +1854,25 @@ function renderAZ() {
     <div class="az-foot"><span>26 sheets · PDF · A4</span><span>Kindergarten · Ages 4–5</span></div>
   </section>`;
 }
+function renderKgTopics(box) {
+  box.hidden = false;
+  if (kgTopic) {
+    const t = topicLabel(kgTopic), list = topicSheets(kgTopic), owned = ownedOf();
+    const az = list.filter(it => it.az), rest = list.filter(it => !it.az);
+    box.innerHTML = `<section class="kg-open rise" style="--i:3">
+      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten · ${esc(t.group)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div></div>
+      ${az.length ? `<div class="az-grid">${az.map((it, n) => `<button type="button" class="az-card" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>Free</b><span class="glyph">${it.az}<small>${it.az.toLowerCase()}</small></span><span>Alphabet ${it.az}</span></button>`).join('')}</div>` : ''}
+      ${rest.length ? `<div class="shop-grid" style="margin-top:${az.length ? 18 : 0}px">${rest.map((it, n) => shelfCard(it, n, owned)).join('')}</div>` : ''}
+      ${list.length ? '' : '<p class="cart-empty">No sheets in this topic yet — they are being drawn. Try another topic meanwhile.</p>'}
+    </section>`;
+    return;
+  }
+  box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
+    <div class="az-head"><div><p class="eyebrow">Kindergarten · English</p><h3>Pick a topic, <em>then a skill.</em></h3></div><p>Every skill is a shelf of its own — the number shows how many sheets are in it. Tap one to see them all.</p></div>
+    <div class="kg-grid">${KG_TOPICS.map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
+  </section>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-kg-topic]'); if (!b) return; kgTopic = b.dataset.kgTopic || null; renderWorksheets(); measure(); const blk = document.getElementById('azBlock'); if (blk && kgTopic) blk.scrollIntoView({ block: 'start' }); });
 function renderWorksheets() {
   document.body.classList.toggle('is-guest', !session);   /* hover hints on the cards for visitors who are not signed in */
   /* left-side menu: "By class" (Nursery … Class 3, Worksheets) and "By topic" (every subject) */
@@ -1830,7 +1889,7 @@ function renderWorksheets() {
   const free = list.filter(i => i.price === 0).length;
   document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
 }
-document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; renderWorksheets(); measure(); } });
+document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; kgTopic = null; renderWorksheets(); measure(); } });
 
 /* =====================================================================
    CHAPTER 05 — contact (demo)

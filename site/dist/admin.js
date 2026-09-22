@@ -616,6 +616,7 @@
         <fieldset class="fs"><legend>Category</legend>
           <div class="grid-3"><div class="field"><label>Class</label><select name="cls">${CLASSES.map(c => `<option value="${c.id}"${c.id === (it.cls || 'nursery') ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
           <div class="field"><label>Subject</label><select name="subjectId">${SUBJECTS.map(x => `<option value="${x.id}"${x.id === subj ? ' selected' : ''}>${x.label}</option>`).join('')}</select></div>
+          <div class="field"><label>Topic (Kindergarten shelf)</label><select name="topic"><option value="">— none —</option>${(typeof KG_TOPICS !== 'undefined' ? KG_TOPICS : []).map(g => `<optgroup label="${esc(g.title)}">${g.items.map(([id, l]) => `<option value="${id}"${it.topic === id ? ' selected' : ''}>${esc(l)}</option>`).join('')}</optgroup>`).join('')}</select><small>Files the sheet under a skill in Sheets → Kindergarten</small></div>
           <div class="field"><label>For</label><select name="audience"><option value="both"${(it.audience || 'both') === 'both' ? ' selected' : ''}>Parents & teachers</option><option value="parent"${it.audience === 'parent' ? ' selected' : ''}>Parents</option><option value="teacher"${it.audience === 'teacher' ? ' selected' : ''}>Teachers</option></select></div></div>
         </fieldset>
         <fieldset class="fs"><legend>Price & stock</legend>
@@ -635,7 +636,7 @@
   async function saveProduct(form) {
     const f = new FormData(form), id = form.dataset.id || ('p-' + Date.now().toString(36));
     const o = read('lww_products', { added: [], edited: {}, deleted: [] });
-    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), was: parseInt(f.get('was'), 10) || null, stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, ageGroup: f.get('ageGroup').trim(), audience: f.get('audience'), rating: parseFloat(f.get('rating')) || 0, printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
+    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), was: parseInt(f.get('was'), 10) || null, stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, ageGroup: f.get('ageGroup').trim(), audience: f.get('audience'), topic: String(f.get('topic') || ''), rating: parseFloat(f.get('rating')) || 0, printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
     if (!fields.title) return toast('Give the book a title');
     const img = await readFile(f.get('image') && f.get('image').size ? f.get('image') : null, 600 * 1024); if (img && img.data) fields.image = img.data;
     const pdf = await readFile(f.get('pdf') && f.get('pdf').size ? f.get('pdf') : null, 1500 * 1024); if (pdf) fields.pdf = { name: pdf.name, size: pdf.size, data: pdf.data || null };
