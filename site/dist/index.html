@@ -520,35 +520,42 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
 .az-card span { font-size: 0.62rem; color: var(--ink-muted); }
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
-/* Kindergarten topic cards — frosted glass tiles with a soft colour accent per group — and an open sub-topic */
-.kg-topics, .kg-open { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
-/* masonry: the tiles pack into balanced columns like the reference (no ragged gaps under short cards) */
-.kg-grid { columns: 3; column-gap: 14px; }
-.kg-card { display: inline-block; width: 100%; margin: 0 0 14px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
-.kg-card { --tone: 143, 214, 210; position: relative; border-radius: 18px; padding: 16px 16px 12px; color: var(--fg); background: linear-gradient(160deg, rgba(var(--tone), 0.18), rgba(8,18,26,0.34) 60%); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 12px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.12); transition: transform var(--d-base) var(--ease), border-color var(--d-base), box-shadow var(--d-base); }
-.kg-card::before { content: ''; position: absolute; left: 16px; right: 16px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: rgb(var(--tone)); opacity: 0.9; }
-.kg-card:hover { border-color: rgba(255,255,255,0.3); box-shadow: 0 20px 44px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.16); }
-.kg-card.tone-blue { --tone: 150, 196, 255; } .kg-card.tone-teal { --tone: 143, 232, 180; } .kg-card.tone-yellow { --tone: 240, 180, 85; } .kg-card.tone-purple { --tone: 200, 182, 255; }
-.kg-card h4 { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; color: #fff; margin: 0 0 10px; }
-.kg-card h4::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: rgb(var(--tone)); box-shadow: 0 0 12px rgb(var(--tone)); flex: none; }
-.kg-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.kg-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 6px 6px 20px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--fg-muted); font: inherit; font-size: 0.86rem; line-height: 1.3; text-align: left; cursor: pointer; position: relative; transition: background var(--d-fast), color var(--d-fast), border-color var(--d-fast), transform var(--d-fast) var(--ease); }
-.kg-item::before { content: ''; position: absolute; left: 8px; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: rgb(var(--tone)); transform: translateY(-50%); opacity: 0.9; }
-.kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.14); color: #fff; transform: translateX(2px); outline: none; }
-.kg-item b { flex: none; min-width: 26px; height: 20px; padding: 0 8px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.66rem; font-weight: 700; display: inline-grid; place-items: center; box-shadow: 0 4px 12px rgba(31,107,71,0.4); }
-.kg-item.soon { color: rgba(255,255,255,0.66); } .kg-item.soon::before { opacity: 0.35; } .kg-item.soon b { background: rgba(255,255,255,0.08); color: var(--fg-dim); box-shadow: none; }
+/* Kindergarten topic board — pastel skill cards: icon, title, skills, "Browse worksheets" */
+.kg-topics, .kg-open { margin-bottom: 26px; padding: 22px 20px 24px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
+.kg-head { margin-bottom: 18px; }
+.kg-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.kg-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
+.kg-head h3 { font-family: var(--font-body); font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: #fff; margin: 0 0 6px; }
+.kg-head p { font-size: var(--fs-small); color: var(--fg-muted); margin: 0; }
+.kg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.kg-card { --tone: 143, 214, 210; --ink-tone: #14253d; position: relative; display: flex; flex-direction: column; gap: 10px; padding: 20px 20px 16px; border-radius: 18px; background: rgba(var(--tone), 0.14); border: 1px solid rgba(var(--tone), 0.3); backdrop-filter: blur(14px) saturate(1.15); box-shadow: 0 14px 34px rgba(0,0,0,0.22); transition: border-color var(--d-base), box-shadow var(--d-base), transform var(--d-base) var(--ease); }
+.kg-card:hover { transform: translateY(-3px); border-color: rgba(var(--tone), 0.6); box-shadow: 0 22px 46px rgba(0,0,0,0.3); }
+.kg-card.tone-blue { --tone: 150, 196, 255; } .kg-card.tone-teal { --tone: 143, 232, 180; } .kg-card.tone-yellow { --tone: 240, 190, 110; } .kg-card.tone-purple { --tone: 200, 182, 255; } .kg-card.tone-pink { --tone: 255, 168, 190; }
+.kg-ic { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(var(--tone), 0.22); border: 1px solid rgba(var(--tone), 0.4); color: rgb(var(--tone)); margin-bottom: 2px; }
+.kg-ic svg { width: 24px; height: 24px; }
+.kg-ic .glyph-ic { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; line-height: 1; }
+.kg-card h4 { font-family: var(--font-body); font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; color: #fff; margin: 0; }
+.kg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.kg-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 5px 8px 5px 18px; border: 0; border-radius: 8px; background: none; color: var(--fg-muted); font: inherit; font-size: 0.85rem; line-height: 1.35; text-align: left; cursor: pointer; position: relative; transition: background var(--d-fast), color var(--d-fast), transform var(--d-fast) var(--ease); }
+.kg-item::before { content: ''; position: absolute; left: 5px; top: 0.72em; width: 4px; height: 4px; border-radius: 50%; background: rgb(var(--tone)); }
+.kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.09); color: #fff; transform: translateX(2px); outline: none; }
 .kg-item:not(.soon) { color: var(--fg); }
-.rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.rc-card { display: grid; gap: 8px; padding: 8px 8px 10px; border-radius: 16px; background: var(--paper); color: var(--ink); border: 1px solid transparent; font: inherit; text-align: left; cursor: pointer; transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), border-color var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); }
-.rc-card:hover, .rc-card:focus-visible { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.25); border-color: #1f6b47; outline: none; }
-.rc-pic { position: relative; display: block; border-radius: 10px; overflow: hidden; aspect-ratio: 842 / 595; background: #eeeae0; }
-.rc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; }
-.rc-pic b { position: absolute; top: 6px; right: 6px; padding: 3px 8px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
-.rc-name { display: grid; padding: 0 4px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; line-height: 1.1; }
-.rc-name small { font-family: var(--font-body); font-size: 0.66rem; color: var(--ink-muted); margin-top: 3px; text-transform: capitalize; }
-.is-guest .rc-card::after { content: 'Sign in to open'; position: absolute; left: 50%; bottom: 44px; transform: translate(-50%, 6px); padding: 5px 9px; border-radius: 100px; background: #14181c; color: #fff; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--d-base), transform var(--d-base) var(--ease); }
-.rc-card { position: relative; }
-.is-guest .rc-card:hover::after { opacity: 1; transform: translate(-50%, 0); }
+.kg-item.soon { color: rgba(255,255,255,0.55); } .kg-item.soon::before { opacity: 0.4; }
+.kg-item b { flex: none; min-width: 22px; height: 19px; padding: 0 7px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.62rem; font-weight: 700; display: inline-grid; place-items: center; }
+.kg-browse { margin-top: auto; padding: 12px 0 0; display: inline-flex; align-items: center; gap: 8px; border: 0; border-top: 1px solid rgba(var(--tone), 0.25); background: none; color: #fff; font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; text-align: left; width: 100%; transition: gap var(--d-base) var(--ease), color var(--d-base); }
+.kg-browse span { transition: transform var(--d-base) var(--ease); }
+.kg-browse i { margin-left: auto; font-style: normal; font-size: 0.66rem; font-weight: 700; color: rgb(var(--tone)); }
+.kg-browse:hover { color: rgb(var(--tone)); } .kg-browse:hover span { transform: translateX(4px); }
+.kg-card.wide { grid-column: 1 / -1; }
+.kg-card.wide .kg-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(7, auto); gap: 1px 18px; }
+.kg-card.wide { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(200px, 0.5fr); grid-template-areas: 'ic title quote' 'ic list quote' 'ic browse quote'; column-gap: 18px; align-items: start; }
+.kg-card.wide .kg-ic { grid-area: ic; } .kg-card.wide h4 { grid-area: title; } .kg-card.wide .kg-list { grid-area: list; margin-top: 8px; } .kg-card.wide .kg-browse { grid-area: browse; width: auto; }
+.kg-quote { grid-area: quote; align-self: center; margin: 0; padding-left: 22px; position: relative; font-family: var(--font-display); font-size: 1.35rem; line-height: 1.25; color: #fff; }
+.kg-quote span { position: absolute; left: 0; top: -6px; font-size: 3rem; line-height: 1; color: rgba(var(--tone), 0.5); }
+.kg-quote em { font-style: italic; } .kg-quote i { display: block; width: 44px; height: 1px; background: rgba(var(--tone), 0.6); margin-top: 12px; }
+@media (max-width: 1100px) { .kg-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) { .kg-grid { grid-template-columns: 1fr; } .kg-card.wide { grid-template-columns: 52px minmax(0, 1fr); grid-template-areas: 'ic title' 'list list' 'quote quote' 'browse browse'; row-gap: 10px; } .kg-card.wide .kg-list { grid-template-columns: 1fr; grid-auto-flow: row; grid-template-rows: none; } .kg-quote { padding-left: 22px; margin-top: 6px; } }
+@media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } }
 .kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .kg-hint { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--fg-muted); }
 .kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
@@ -1935,15 +1942,31 @@ const KG_TOPICS = [
   { id: 'pre', title: 'Pre-reading skills', tone: 'blue', items: [['picture-matching', 'Picture matching'], ['same-different', 'Same and different'], ['visual-discrimination', 'Visual discrimination'], ['listening', 'Listening activities'], ['following-instructions', 'Following instructions'], ['story-sequencing', 'Story sequencing'], ['rhyming-words', 'Rhyming words'], ['odd-one-out', 'Odd one out'], ['bme-sounds', 'Beginning, middle and ending sounds'], ['syllable-clapping', 'Syllable clapping'], ['oral-blending', 'Oral blending and segmenting']] },
   { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [['letter-recognition', 'A-Z letter recognition'], ['upper-lower', 'Uppercase and lowercase'], ['letter-tracing', 'Letter tracing'], ['letter-formation', 'Letter formation'], ['letter-sounds', 'Letter sounds'], ['beginning-sound-pictures', 'Beginning-sound pictures'], ['match-upper-lower', 'Match uppercase to lowercase'], ['missing-letters', 'Missing letters'], ['alphabet-order', 'Alphabet order'], ['before-after-letters', 'Before and after letters'], ['mouth-positions', 'Mouth positions and sound actions']] },
   { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
-  { id: 'vocab', title: 'Vocabulary', tone: 'blue', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
+  { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
   { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
   { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'purple', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
 const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
-const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];
+const KG_ORDER = ['pre', 'alpha', 'phon', 'vocab', 'sight', 'read', 'more', 'gram'];   /* Grammar & writing is the wide card at the end */
 const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
+const KG_ICON = {
+  pre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5a2 2 0 0 1 2-2h5a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 5a2 2 0 0 0-2-2h-5a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>',
+  alpha: '<span class="glyph-ic">Aa</span>',
+  phon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><path d="M10 6v12"/><path d="M14 4v16"/><path d="M18 8v8"/></svg>',
+  vocab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8.5 4.9v9.8L12 21l-8.5-3.3V7.9z"/><path d="M3.5 7.9 12 12l8.5-4.1M12 12v9"/></svg>',
+  sight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  gram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.4 18.6l-4 1 1-4z"/></svg>',
+  read: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7c-1.8-1.6-4-2.4-6.5-2.4H3v13h2.5c2.5 0 4.7.8 6.5 2.4 1.8-1.6 4-2.4 6.5-2.4H21v-13h-2.5C16 4.6 13.8 5.4 12 7z"/><path d="M12 7v13"/></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h11l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h8M8 16h5"/></svg>',
+};
+/* every sheet inside a whole topic group (for "Browse worksheets") */
+function groupSheets(gid) {
+  const g = KG_TOPICS.find(x => x.id === gid); if (!g) return [];
+  const out = []; g.items.forEach(([id]) => topicSheets(id).forEach(it => { if (!out.some(x => x.id === it.id)) out.push(it); })); return out;
+}
+const groupTitle = gid => (KG_TOPICS.find(x => x.id === gid) || {}).title || '';
 const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
 function topicSheets(id) {
   const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
@@ -1959,7 +1982,7 @@ const RC_WORDS = { A: 'aeroplane, ant, apple, jam and hat', I: 'igloo, ink, inse
 const rcItem = L => ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', ages: '4–5 years', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price: 0, free: true, real: true, landscape: true, img: 'sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
   blurb: 'Look at the pictures, say the words, hear the ' + L.toLowerCase() + ' sound: ' + RC_WORDS[L] + '.',
   about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', 'Free access — just sign in.'] });
-let kgTopic = null;   /* the sub-topic that is open, or null for the topic cards */
+let kgTopic = null, kgGroup = null;   /* an open skill, or a whole topic group, or null for the board */
 function renderAZ() {
   const box = document.getElementById('azBlock'); if (!box) return;
   if (cat === 'kg') { renderKgTopics(box); return; }
@@ -1976,11 +1999,12 @@ function renderAZ() {
 }
 function renderKgTopics(box) {
   box.hidden = false;
-  if (kgTopic) {
-    const t = topicLabel(kgTopic), list = topicSheets(kgTopic), owned = ownedOf();
+  if (kgTopic || kgGroup) {
+    const t = kgGroup ? { group: 'All skills', label: groupTitle(kgGroup) } : topicLabel(kgTopic);
+    const list = kgGroup ? groupSheets(kgGroup) : topicSheets(kgTopic), owned = ownedOf();
     const az = list.filter(it => it.az), rc = list.filter(it => it.rc), rest = list.filter(it => !it.az && !it.rc);
     box.innerHTML = `<section class="kg-open rise" style="--i:3">
-      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)} › ${esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see it. Free ones open after sign-in; the rest are yours to keep once bought.' : ''}</p></div>
+      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)}${kgGroup ? '' : ' › ' + esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see it. Free ones open after sign-in; the rest are yours to keep once bought.' : ''}</p></div>
       ${az.length ? `<div class="az-grid">${az.map((it, n) => `<button type="button" class="az-card" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>Free</b><span class="glyph">${it.az}<small>${it.az.toLowerCase()}</small></span><span>Alphabet ${it.az}</span></button>`).join('')}</div>` : ''}
       ${rc.length ? `<div class="rc-grid">${rc.map((it, n) => `<button type="button" class="rc-card" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><span class="rc-pic"><img src="${it.img}" alt="" loading="lazy"><b>Free</b></span><span class="rc-name">Letter ${it.rc}<small>${esc(RC_WORDS[it.rc].split(',')[0])} · ${esc(RC_WORDS[it.rc].split(',')[1].trim())} · …</small></span></button>`).join('')}</div>` : ''}
       ${rest.length ? `<div class="shop-grid" style="margin-top:${az.length || rc.length ? 18 : 0}px">${rest.map((it, n) => shelfCard(it, n, owned)).join('')}</div>` : ''}
@@ -1988,12 +2012,24 @@ function renderKgTopics(box) {
     </section>`;
     return;
   }
+  const line = ([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span>${n ? `<b>${n}</b>` : ''}</button></li>`; };
+  const card = g => { const total = groupSheets(g.id).length, wide = g.id === 'gram';
+    return `<article class="kg-card tone-${g.tone}${wide ? ' wide' : ''}">
+      <span class="kg-ic">${KG_ICON[g.id] || KG_ICON.more}</span>
+      <h4>${esc(g.title)}</h4>
+      <ul class="kg-list">${g.items.map(line).join('')}</ul>
+      ${wide ? '<blockquote class="kg-quote"><span>“</span>Practice today for a <em>brighter tomorrow.</em><i></i></blockquote>' : ''}
+      <button type="button" class="kg-browse" data-kg-group="${g.id}">Browse worksheets <span>→</span>${total ? `<i>${total}</i>` : ''}</button>
+    </article>`; };
   box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
-    <div class="az-head"><div><p class="eyebrow">Kindergarten · all sheets by topic</p><h3>Pick a skill <em>to see its sheets.</em></h3></div><p>Every line is a shelf of its own. The green number is how many sheets are inside — tap it to see them all. Grey means we are still drawing that one.</p></div>
-    <div class="kg-grid">${kgOrdered().map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
+    <div class="kg-head"><p class="eyebrow">Explore by skill</p><h3>Learning made simple</h3><p>Choose a category and find the right worksheets for your child's learning journey.</p></div>
+    <div class="kg-grid">${kgOrdered().map(card).join('')}</div>
   </section>`;
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-kg-topic]'); if (!b) return; kgTopic = b.dataset.kgTopic || null; renderWorksheets(); measure(); const blk = document.getElementById('azBlock'); if (blk && kgTopic) blk.scrollIntoView({ block: 'start' }); });
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-kg-group]'); if (g) { kgGroup = g.dataset.kgGroup; kgTopic = null; renderWorksheets(); measure(); return; }
+  const b = e.target.closest('[data-kg-topic]'); if (!b) return; kgTopic = b.dataset.kgTopic || null; kgGroup = null; renderWorksheets(); measure();
+});
 function renderWorksheets() {
   document.body.classList.toggle('is-guest', !session);   /* hover hints on the cards for visitors who are not signed in */
   /* left-side menu: "By class" (Nursery … Class 3, Worksheets) and "By topic" (every subject) */
@@ -2019,7 +2055,7 @@ function renderWorksheets() {
   const free = list.filter(i => i.price === 0).length;
   document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
 }
-document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; kgTopic = null; renderWorksheets(); measure(); } });
+document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; kgTopic = null; kgGroup = null; renderWorksheets(); measure(); } });
 
 /* =====================================================================
    CHAPTER 05 — contact (demo)
