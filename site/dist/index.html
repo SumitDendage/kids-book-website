@@ -383,6 +383,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .fl.bad input, .fl.bad select { border-color: rgba(255,120,120,0.7); }
 .fl .err { margin-top: 5px; }
 .fl-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
+.fl-grid.intl { grid-template-columns: 1fr; }
 @media (max-width: 720px) { .fl-grid { grid-template-columns: 1fr; gap: 0; } }
 .method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .pay-secure { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); font-size: 0.74rem; color: var(--fg-dim); line-height: 1.45; } .pay-secure svg { flex: none; } .pay-secure b { color: var(--fg-muted); }
@@ -970,7 +971,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 <div class="shop" id="checkout" aria-hidden="true">
   <div class="shop-shade" style="background:#071018"></div>
   <header class="shop-bar">
-    <div><p class="eyebrow">Secure checkout</p><ol class="stepper" id="coStepper"><li class="on"><i>1</i>Your PDF</li><li><i>2</i>Address</li><li><i>3</i>Payment</li></ol></div>
+    <div><p class="eyebrow">Secure checkout</p><ol class="stepper" id="coStepper"><li class="on"><i>1</i>Address</li><li><i>2</i>Payment</li></ol></div>
     <div class="shop-actions"><span class="co-lock">🔒 256-bit encrypted</span><button type="button" class="icon-btn" id="checkoutBack" aria-label="Back">✕</button></div>
   </header>
   <div class="checkout-body" id="checkoutBody"></div>
@@ -1719,20 +1720,16 @@ function renderCheckout() {
   const monthly = id => { const pl = coConfig.plans[id] || {}; return pl.price && pl.months ? '₹' + Math.round(pl.price / pl.months) + '/mo' : ''; };
   document.getElementById('checkoutBody').innerHTML = `
     <div class="co-left">
-      ${item ? `<section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Your PDF</h3><p>One sheet, yours to open in the protected viewer whenever you like.</p></div></header>
-        <div class="sum-item" style="margin:0"><div class="sum-thumb">${esc(item.glyph || 'PDF')}</div><div><b>${esc(item.title)}</b><small>${esc(c.label)} · ${esc(item.subject)} · ${item.pages || 1} A4 page${item.pages === 1 ? '' : 's'} · ${money(item.price)}</small></div></div>
-      </section>`
-      : ''}
-      <section class="panel co-card" data-step="2"><header class="co-card-head"><span class="co-num">2</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
+      <section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
         <div class="fl"><select name="country" data-co="country" class="filled">${coConfig.countries.map(x => `<option value="${x.code}"${x.code === coAddr.country ? ' selected' : ''}>${flag(x.code)}  ${esc(x.name)}</option>`).join('')}</select><label>Country</label><div class="err" data-err="country"></div></div>
         <div class="fl"><input name="line1" data-co="line1" value="${esc(coAddr.line1)}" placeholder=" " autocomplete="street-address"><label>Address (house / flat, street, area)</label><div class="err" data-err="line1"></div></div>
-        <div class="fl-grid">
+        <div class="fl-grid${C.code === 'IN' ? '' : ' intl'}">
           <div class="fl"><input name="city" data-co="city" value="${esc(coAddr.city)}" placeholder=" " autocomplete="address-level2"><label>City</label><div class="err" data-err="city"></div></div>
-          <div class="fl">${stateField}<div class="err" data-err="state"></div></div>
-          <div class="fl"><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder=" " inputmode="${numeric ? 'numeric' : 'text'}" autocomplete="postal-code"><label id="coPostalLabel">${esc(C.postal.label)}</label><small class="fhint">${esc(C.postal.hint)}</small><div class="err" data-err="postal"></div></div>
+          ${C.code === 'IN' ? `<div class="fl">${stateField}<div class="err" data-err="state"></div></div>
+          <div class="fl"><input name="postal" data-co="postal" value="${esc(coAddr.postal)}" placeholder=" " inputmode="numeric" autocomplete="postal-code" maxlength="6"><label id="coPostalLabel">PIN code</label><small class="fhint">6 digits, e.g. 411001</small><div class="err" data-err="postal"></div></div>` : ''}
         </div>
       </section>
-      <section class="panel co-card" data-step="3"><header class="co-card-head"><span class="co-num">3</span><div><h3>Payment</h3><p>Choose how you would like to pay.</p></div></header>
+      <section class="panel co-card" data-step="2"><header class="co-card-head"><span class="co-num">2</span><div><h3>Payment</h3><p>Choose how you would like to pay.</p></div></header>
         <div class="method-grid" id="coMethods"></div>
         <div class="coupon-row"><div class="fl"><input id="coCoupon" type="text" value="${esc(coCode)}" placeholder=" " autocomplete="off"><label>Coupon code</label></div><button type="button" class="btn btn-ghost" id="coApply">Apply</button></div>
         <div class="err" id="coCouponMsg" style="margin-top:-6px"></div>
@@ -1743,13 +1740,13 @@ function renderCheckout() {
 }
 function paintSteps() {
   const li = document.querySelectorAll('#coStepper li'); if (!li.length) return;
-  const addrOk = !!(coQuote && coQuote.valid), planOk = true;
-  li[0].className = planOk ? 'done' : 'on'; li[1].className = addrOk ? 'done' : 'on'; li[2].className = addrOk ? 'on' : '';
-  document.querySelectorAll('.co-card').forEach(card => { const st = +card.dataset.step; card.classList.toggle('done', st === 1 || (st === 2 && addrOk)); });
+  const addrOk = !!(coQuote && coQuote.valid);
+  li[0].className = addrOk ? 'done' : 'on'; li[1].className = addrOk ? 'on' : '';
+  document.querySelectorAll('.co-card').forEach(card => { const st = +card.dataset.step; card.classList.toggle('done', st === 1 && addrOk); });
 }
 function paintRegion() {
   const C = coCountry(); const el = document.getElementById('coRegionLine'); if (!el || !C) return;
-  el.innerHTML = C.code === 'IN' ? '<span class="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · 6-digit PIN code' : '<span class="region-chip">🌍 International</span> priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + ' · ' + esc(C.postal.label) + ' format for ' + esc(C.name);
+  el.innerHTML = C.code === 'IN' ? '<span class="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · state and 6-digit PIN code' : '<span class="region-chip">🌍 ' + esc(C.name) + '</span> priced in <b>' + esc(C.currency) + '</b>' + (C.tax.includes('%') ? ' with ' + esc(C.tax) : ', no tax collected') + ' · street and city only';
 }
 /* How the customer pays. Every option runs through Razorpay Checkout, which is opened
    showing only that method (config.display), so "Card" opens straight on the card form
