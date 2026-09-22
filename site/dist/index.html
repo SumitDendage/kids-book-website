@@ -514,8 +514,10 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .kg-topics, .kg-open { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
 /* the topic board sits on a looping forest animation; a soft dark veil keeps the tiles readable */
 .kg-topics { position: relative; overflow: hidden; isolation: isolate; }
-.kg-topics .kg-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; pointer-events: none; }
-.kg-topics .kg-veil { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, rgba(6,14,22,0.55) 0%, rgba(6,14,22,0.35) 40%, rgba(6,14,22,0.6) 100%); }
+/* two copies of the loop: a soft blurred one fills the box, the sharp one shows the whole scene without cropping or over-zooming */
+.kg-topics .kg-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; z-index: -2; pointer-events: none; }
+.kg-topics .kg-bg.blur { object-fit: cover; filter: blur(28px) saturate(1.2) brightness(0.7); transform: scale(1.1); z-index: -3; }
+.kg-topics .kg-veil { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, rgba(6,14,22,0.42) 0%, rgba(6,14,22,0.22) 45%, rgba(6,14,22,0.5) 100%); }
 .kg-topics .az-head h3, .kg-topics .az-head p, .kg-topics .az-head .eyebrow { text-shadow: 0 2px 12px rgba(0,0,0,0.45); }
 @media (prefers-reduced-motion: reduce) { .kg-topics .kg-bg { display: none; } }
 /* masonry: the tiles pack into balanced columns like the reference (no ragged gaps under short cards) */
@@ -1885,7 +1887,7 @@ function renderKgTopics(box) {
     return;
   }
   box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
-    <video class="kg-bg" src="video/forest-loop.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video><div class="kg-veil" aria-hidden="true"></div>
+    <video class="kg-bg blur" src="video/forest-loop.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video><video class="kg-bg" src="video/forest-loop.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video><div class="kg-veil" aria-hidden="true"></div>
     <div class="az-head"><div><p class="eyebrow">Kindergarten · all sheets by topic</p><h3>Pick a skill <em>to see its sheets.</em></h3></div><p>Every line is a shelf of its own. The green number is how many sheets are inside — tap it to see them all. Grey means we are still drawing that one.</p></div>
     <div class="kg-grid">${kgOrdered().map(g => `<div class="kg-card tone-${g.tone}"><h4>${esc(g.title)}</h4><ul>${g.items.map(([id, label]) => { const n = topicSheets(id).length; return `<li><button type="button" class="kg-item${n ? '' : ' soon'}" data-kg-topic="${id}"><span>${esc(label)}</span><b>${n}</b></button></li>`; }).join('')}</ul></div>`).join('')}</div>
   </section>`;
