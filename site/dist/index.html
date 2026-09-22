@@ -578,9 +578,6 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .trust b { color: #fff; font-weight: 700; }
 .trust .trust-stars { color: #f0b455; letter-spacing: 0.18em; font-size: 0.8rem; }
 .trust .dot { color: var(--fg-dim); }
-.quote-card .q-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-.quote-card .q-top .stars { margin-bottom: 0; }
-.quote-card .verified { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #1f6b47; background: rgba(31,107,71,0.1); border: 1px solid rgba(31,107,71,0.25); padding: 4px 8px; border-radius: 100px; white-space: nowrap; }
 .quote-card blockquote { font-size: clamp(1.05rem, 0.9rem + 0.7vw, 1.4rem); line-height: 1.35; max-height: 9.6em; overflow: hidden; }
 .quote-card .who span { display: grid; line-height: 1.3; }
 .quote-card .who small { font-size: 0.7rem; color: var(--ink-muted); }
@@ -1961,7 +1958,7 @@ document.getElementById('contactForm').addEventListener('submit', e => {
    ===================================================================== */
 const flow = (() => {
   const el = document.getElementById('flow'); let idx = 0, timer = 0, paused = false;
-  el.innerHTML = QUOTES.map((q, i) => `<article class="quote-card" data-q="${i}"><div class="q-top"><div class="stars">★★★★★</div><span class="verified">✓ Verified buyer</span></div><blockquote>“${esc(q.text)}”</blockquote><div class="who"><i>${esc(q.initials)}</i><span><b>${esc(q.who)}</b><small>${esc(q.meta)}</small></span></div></article>`).join('');
+  el.innerHTML = QUOTES.map((q, i) => `<article class="quote-card" data-q="${i}"><div class="stars">★★★★★</div><blockquote>“${esc(q.text)}”</blockquote><div class="who"><i>${esc(q.initials)}</i><span><b>${esc(q.who)}</b><small>${esc(q.meta)}</small></span></div></article>`).join('');
   const qt = document.getElementById('qTotal'); if (qt) qt.textContent = QUOTES.length;
   const tw = document.getElementById('thanksTrack'); if (tw) tw.innerHTML = THANKS.concat(THANKS).map(t => `<span class="thanks-chip">${esc(t)}</span>`).join('');
   const cards = Array.from(el.children);
