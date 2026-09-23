@@ -2,7 +2,7 @@
 
 # Learn With Why
 
-**Printable worksheets and activity sheets for Nursery to Class 3 — sold per PDF or by class plan, opened in a protected, watermarked viewer, wrapped in a cinematic scroll-driven website.**
+**Printable worksheets and activity sheets for Kindergarten to Class 3 — sold per PDF or by class plan, opened in a protected, watermarked viewer, wrapped in a cinematic scroll-driven website.**
 
 [Live demo](#quick-start) · [Features](#features) · [Structure](#repository-structure) · [Admin & developer panels](#staff-panels) · [Go live](#going-live) · [Roadmap](#roadmap)
 
@@ -14,7 +14,7 @@
 
 ## Overview
 
-Learn With Why is a storefront for a small studio in Pune that draws calm, ink-light learning sheets for Nursery to Class 3. A customer scrolls through six chapters of a floating-island landscape (960 frames scrubbed by the scroll), meets the fox and the rabbit in the Sheets chapter, tries a **free sheet in every class**, and **subscribes to a class for a period** to open and print everything in it.
+Learn With Why is a storefront for a small studio in Pune that draws calm, ink-light learning sheets for Kindergarten to Class 3. A customer scrolls through six chapters of a floating-island landscape (960 frames scrubbed by the scroll), meets the fox and the rabbit in the Sheets chapter, tries a **free sheet in every class**, and **subscribes to a class for a period** to open and print everything in it.
 
 The customer site is a single file with no build step — `site/dist/index.html` — plus `viewer.html` (the protected PDF viewer) and `admin.js` (the staff dashboards). Behind it, `site/server.cjs` is a real backend: a JSON API, a **SQLite database** (Node's built-in `node:sqlite`, no npm packages), **Razorpay** payments and a **private PDF store** that only streams a sheet to a signed-in customer who holds an entitlement for it. Two earlier builds (a Next.js app and a Vite/React app) are kept under `archive/` for reference.
 
