@@ -521,49 +521,56 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
 .az-card span { font-size: 0.62rem; color: var(--ink-muted); }
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
-/* Kindergarten topic board — pastel skill cards: icon, title, skills, "Browse worksheets" */
+/* Kindergarten topic board — light pastel skill cards packed into columns */
 .kg-topics, .kg-open { margin-bottom: 26px; padding: 22px 20px 24px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
 .kg-head { margin-bottom: 18px; }
 .kg-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .kg-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
 .kg-head h3 { font-family: var(--font-body); font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: #fff; margin: 0 0 6px; }
 .kg-head p { font-size: var(--fs-small); color: var(--fg-muted); margin: 0; }
-.kg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-.kg-card { --tone: 143, 214, 210; --ink-tone: #14253d; position: relative; display: flex; flex-direction: column; gap: 10px; padding: 20px 20px 16px; border-radius: 18px; background: rgba(var(--tone), 0.14); border: 1px solid rgba(var(--tone), 0.3); backdrop-filter: blur(14px) saturate(1.15); box-shadow: 0 14px 34px rgba(0,0,0,0.22); transition: border-color var(--d-base), box-shadow var(--d-base), transform var(--d-base) var(--ease); }
-.kg-card:hover { transform: translateY(-3px); border-color: rgba(var(--tone), 0.6); box-shadow: 0 22px 46px rgba(0,0,0,0.3); }
-.kg-card.tone-blue { --tone: 150, 196, 255; } .kg-card.tone-teal { --tone: 143, 232, 180; } .kg-card.tone-yellow { --tone: 240, 190, 110; } .kg-card.tone-purple { --tone: 200, 182, 255; } .kg-card.tone-pink { --tone: 255, 168, 190; }
-.kg-ic { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(var(--tone), 0.22); border: 1px solid rgba(var(--tone), 0.4); color: rgb(var(--tone)); margin-bottom: 2px; }
-.kg-ic svg { width: 24px; height: 24px; }
-.kg-ic .glyph-ic { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; line-height: 1; }
-.kg-card h4 { font-family: var(--font-body); font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; color: #fff; margin: 0; }
-.kg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-.kg-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 5px 8px 5px 18px; border: 0; border-radius: 8px; background: none; color: var(--fg-muted); font: inherit; font-size: 0.85rem; line-height: 1.35; text-align: left; cursor: pointer; position: relative; transition: background var(--d-fast), color var(--d-fast), transform var(--d-fast) var(--ease); }
-.kg-item::before { content: ''; position: absolute; left: 5px; top: 0.72em; width: 4px; height: 4px; border-radius: 50%; background: rgb(var(--tone)); }
-.kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.09); color: #fff; transform: translateX(2px); outline: none; }
-.kg-item:not(.soon) { color: var(--fg); }
-.kg-item.soon { color: rgba(255,255,255,0.55); } .kg-item.soon::before { opacity: 0.4; }
-.kg-item b { flex: none; min-width: 22px; height: 19px; padding: 0 7px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.62rem; font-weight: 700; display: inline-grid; place-items: center; }
-.kg-browse { margin-top: auto; padding: 12px 0 0; display: inline-flex; align-items: center; gap: 8px; border: 0; border-top: 1px solid rgba(var(--tone), 0.25); background: none; color: #fff; font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; text-align: left; width: 100%; transition: gap var(--d-base) var(--ease), color var(--d-base); }
+.kg-grid { columns: 3; column-gap: 16px; }
+.kg-card, .kg-slogan { display: inline-block; width: 100%; margin: 0 0 16px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
+.kg-card {
+  --tint: #eaf2f8; --dot: #1f6b47; --title: #14253d; --body: #2f4257;
+  background: var(--tint); border-radius: 14px; padding: 18px 20px 14px; box-shadow: 0 10px 26px rgba(0,0,0,0.16);
+  transition: box-shadow var(--d-base), transform var(--d-base) var(--ease);
+}
+.kg-card:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(0,0,0,0.22); }
+.kg-card.tone-blue { --tint: #e9f2f8; --dot: #2f6d8f; }
+.kg-card.tone-teal { --tint: #e6f4ef; --dot: #1f6b47; }
+.kg-card.tone-yellow { --tint: #fdf5e4; --dot: #a8741a; }
+.kg-card.tone-purple { --tint: #f1ecfa; --dot: #6b4a7a; }
+.kg-card.tone-pink { --tint: #fdeef0; --dot: #b1516a; }
+.kg-card h4 { font-family: var(--font-body); font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; color: var(--title); margin: 0 0 8px; }
+.kg-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.kg-item {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%;
+  padding: 4px 6px 4px 17px; border: 0; border-radius: 7px; background: none; color: var(--body);
+  font: inherit; font-size: 0.9rem; line-height: 1.4; text-align: left; cursor: pointer; position: relative;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.kg-item::before { content: ''; position: absolute; left: 4px; top: 0.66em; width: 5px; height: 5px; border-radius: 50%; background: var(--dot); }
+.kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.75); color: #0f1b2a; outline: none; }
+.kg-item.soon { color: #6d7d8c; } .kg-item.soon::before { background: #b3bfc9; }
+.kg-item b { flex: none; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.6rem; font-weight: 700; display: inline-grid; place-items: center; margin-top: 2px; }
+.kg-browse {
+  margin-top: 10px; padding: 10px 0 2px; display: flex; align-items: center; gap: 8px; width: 100%;
+  border: 0; border-top: 1px solid rgba(20,37,61,0.12); background: none; color: var(--title);
+  font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; text-align: left;
+  transition: color var(--d-base);
+}
 .kg-browse span { transition: transform var(--d-base) var(--ease); }
-.kg-browse i { margin-left: auto; font-style: normal; font-size: 0.66rem; font-weight: 700; color: rgb(var(--tone)); }
-.kg-browse:hover { color: rgb(var(--tone)); } .kg-browse:hover span { transform: translateX(4px); }
-.kg-card.wide { grid-column: 1 / -1; }
-/* the slogan fills the space left beside the last small card */
-.kg-slogan { grid-column: span 2; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 24px 26px; border-radius: 18px; border: 1px dashed var(--glass-border); background: rgba(255,255,255,0.03); }
-.kg-slogan .eyebrow { margin-bottom: 2px; }
-.kg-slogan h4 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.1rem); line-height: 1.15; color: #fff; margin: 0; }
-.kg-slogan h4 em { font-style: italic; color: var(--ok); }
-.kg-slogan-sub { font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.6; max-width: 46ch; margin: 2px 0 0; }
-.kg-slogan .kg-browse { --tone: 143, 232, 180; margin-top: 10px; width: auto; border-top: 0; padding-top: 0; }
-@media (max-width: 1100px) { .kg-slogan { grid-column: span 1; } }
-.kg-card.wide .kg-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(7, auto); gap: 1px 18px; }
-.kg-card.wide { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(200px, 0.5fr); grid-template-areas: 'ic title quote' 'ic list quote' 'ic browse quote'; column-gap: 18px; align-items: start; }
-.kg-card.wide .kg-ic { grid-area: ic; } .kg-card.wide h4 { grid-area: title; } .kg-card.wide .kg-list { grid-area: list; margin-top: 8px; } .kg-card.wide .kg-browse { grid-area: browse; width: auto; }
-.kg-quote { grid-area: quote; align-self: center; margin: 0; padding-left: 22px; position: relative; font-family: var(--font-display); font-size: 1.35rem; line-height: 1.25; color: #fff; }
-.kg-quote span { position: absolute; left: 0; top: -6px; font-size: 3rem; line-height: 1; color: rgba(var(--tone), 0.5); }
-.kg-quote em { font-style: italic; } .kg-quote i { display: block; width: 44px; height: 1px; background: rgba(var(--tone), 0.6); margin-top: 12px; }
-@media (max-width: 1100px) { .kg-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 760px) { .kg-grid { grid-template-columns: 1fr; } .kg-card.wide { grid-template-columns: 52px minmax(0, 1fr); grid-template-areas: 'ic title' 'list list' 'quote quote' 'browse browse'; row-gap: 10px; } .kg-card.wide .kg-list { grid-template-columns: 1fr; grid-auto-flow: row; grid-template-rows: none; } .kg-quote { padding-left: 22px; margin-top: 6px; } }
+.kg-browse i { margin-left: auto; font-style: normal; font-size: 0.66rem; font-weight: 700; color: var(--dot); }
+.kg-browse:hover { color: var(--dot); } .kg-browse:hover span { transform: translateX(4px); }
+/* the slogan closes the board in the same paper family */
+.kg-slogan { padding: 20px 22px 16px; border-radius: 14px; background: #f6f3ec; box-shadow: 0 10px 26px rgba(0,0,0,0.16); }
+.kg-slogan .eyebrow { color: #7b8a81; margin-bottom: 6px; }
+.kg-slogan h4 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; line-height: 1.15; color: #14253d; margin: 0 0 8px; }
+.kg-slogan h4 em { font-style: italic; color: #1f6b47; }
+.kg-slogan-sub { font-size: 0.86rem; color: #46554c; line-height: 1.55; margin: 0; }
+.kg-slogan .kg-browse { --title: #14253d; --dot: #1f6b47; border-top-color: rgba(20,37,61,0.12); }
+@media (max-width: 1100px) { .kg-grid { columns: 2; } }
+@media (max-width: 720px) { .kg-grid { columns: 1; } }
 @media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } }
 .kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .kg-hint { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--fg-muted); }
@@ -1961,10 +1968,10 @@ const KG_TOPICS = [
   { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
   { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
-  { id: 'more', title: 'Maths & the world', tone: 'purple', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
+  { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
 const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
-const KG_ORDER = ['pre', 'alpha', 'phon', 'vocab', 'sight', 'read', 'more', 'gram'];   /* Grammar & writing is the wide card at the end */
+const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 const KG_ICON = {
   pre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5a2 2 0 0 1 2-2h5a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 5a2 2 0 0 0-2-2h-5a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>',
@@ -2032,20 +2039,18 @@ function renderKgTopics(box) {
   const SLOGAN_CARD = `<aside class="kg-slogan" aria-label="Learn With Why">
     <p class="eyebrow">Small steps · big whys</p>
     <h4>One idea per page.<br><em>One happy little win.</em></h4>
-    <p class="kg-slogan-sub">Every sheet is drawn by hand, tested by five-year-olds and ready for your printer — so practice at the kitchen table feels like play.</p>
+    <p class="kg-slogan-sub">Every sheet is drawn by hand, tested by five-year-olds and ready for your printer.</p>
     <button type="button" class="kg-browse" data-shop="all">See every sheet <span>→</span></button>
   </aside>`;
-  const card = g => { const total = groupSheets(g.id).length, wide = g.id === 'gram';
-    return `<article class="kg-card tone-${g.tone}${wide ? ' wide' : ''}">
-      <span class="kg-ic">${KG_ICON[g.id] || KG_ICON.more}</span>
+  const card = g => { const total = groupSheets(g.id).length;
+    return `<article class="kg-card tone-${g.tone}">
       <h4>${esc(g.title)}</h4>
       <ul class="kg-list">${g.items.map(line).join('')}</ul>
-      ${wide ? '<blockquote class="kg-quote"><span>“</span>Practice today for a <em>brighter tomorrow.</em><i></i></blockquote>' : ''}
       <button type="button" class="kg-browse" data-kg-group="${g.id}">Browse worksheets <span>→</span>${total ? `<i>${total}</i>` : ''}</button>
     </article>`; };
   box.innerHTML = `<section class="kg-topics rise" style="--i:3" aria-label="Kindergarten topics">
     <div class="kg-head"><p class="eyebrow">Explore by skill</p><h3>Learning made simple</h3><p>Choose a category and find the right worksheets for your child's learning journey.</p></div>
-    <div class="kg-grid">${kgOrdered().map(g => (g.id === 'gram' ? SLOGAN_CARD : '') + card(g)).join('')}</div>
+    <div class="kg-grid">${kgOrdered().map(card).join('') + SLOGAN_CARD}</div>
   </section>`;
 }
 document.addEventListener('click', e => {
