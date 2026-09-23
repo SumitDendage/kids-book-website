@@ -71,7 +71,7 @@ That is all: no `npm install`, no bundler. The database is created and seeded at
 | Admin (`/#admin`) | Developer (`/#developer`) |
 |---|---|
 | Overview with sales chart | System health, uptime, heap, FPS |
-| **Products** — book studio with drag-and-drop cover & PDF, rating, category, price, stock, age group, audience, print/download limits; card gallery with search & filters | Errors & stack traces (captured automatically) |
+| **Products** — book studio with drag-and-drop cover & PDF, rating, category, price, stock, audience, print/download limits; card gallery with search & filters | Errors & stack traces (captured automatically) |
 | **Orders** — live from the database once the admin key is saved (Settings → Server connection); status changes are written back | API monitoring (every `fetch`, status, latency) |
 | **Customers** — every account in the database: plans, orders, total spending, downloads | Database health (tables, sizes, quota) |
 | **Settings → Server connection** — the admin key that connects the dashboards to the database | |
