@@ -2,7 +2,7 @@
 
 # Learn With Why
 
-**Printable worksheets and activity sheets for children aged 3–8 — sold per PDF or by class plan, opened in a protected, watermarked viewer, wrapped in a cinematic scroll-driven website.**
+**Printable worksheets and activity sheets for Nursery to Class 3 — sold per PDF or by class plan, opened in a protected, watermarked viewer, wrapped in a cinematic scroll-driven website.**
 
 [Live demo](#quick-start) · [Features](#features) · [Structure](#repository-structure) · [Admin & developer panels](#staff-panels) · [Go live](#going-live) · [Roadmap](#roadmap)
 

@@ -587,7 +587,7 @@
         <p class="meta">${esc(it.cls ? classById(it.cls).label : '')} · ${esc(it.subject)}</p>
         <h4>${esc(it.title)}</h4>
         <div class="book-meta"><span>${stars(it.rating || 0)}</span><span>${it.pages || '?'} pg</span><span>${it.stock == null ? '∞' : it.stock + ' left'}</span></div>
-        <div class="book-meta"><span>${it.pdf ? 'PDF attached' : '<i style="color:var(--destructive)">no PDF</i>'}</span><span>${esc(it.ageGroup || it.ages || '')}</span><span>${({ parent: 'Parents', teacher: 'Teachers', both: 'Everyone' })[it.audience || 'both']}</span></div>
+        <div class="book-meta"><span>${it.pdf ? 'PDF attached' : '<i style="color:var(--destructive)">no PDF</i>'}</span><span>${esc(it.subject || '')}</span><span>${({ parent: 'Parents', teacher: 'Teachers', both: 'Everyone' })[it.audience || 'both']}</span></div>
       </div>
       <div class="book-actions"><b>${it.price === 0 ? 'Free' : money(it.price)}</b><span><button type="button" class="link" data-adm="product-edit" data-id="${it.id}">Edit</button><button type="button" class="link btn-danger" data-adm="product-delete" data-id="${it.id}">Delete</button></span></div>
     </article>`;
@@ -611,7 +611,7 @@
         <fieldset class="fs"><legend>Book details</legend>
           <div class="field"><label>Title</label><input name="title" value="${v('title')}" placeholder="e.g. Alphabet explorers" required></div>
           <div class="field"><label>Description</label><textarea name="blurb" placeholder="One or two lines parents will read on the card">${v('blurb')}</textarea></div>
-          <div class="grid-3"><div class="field"><label>Cover glyph</label><input name="glyph" value="${v('glyph')}" placeholder="Aa"></div><div class="field"><label>Pages</label><input name="pages" type="number" min="1" value="${it.pages || 8}"></div><div class="field"><label>Age group</label><input name="ageGroup" value="${v('ageGroup') || v('ages')}" placeholder="4–6 years"></div></div>
+          <div class="grid-3"><div class="field"><label>Cover glyph</label><input name="glyph" value="${v('glyph')}" placeholder="Aa"></div><div class="field"><label>Pages</label><input name="pages" type="number" min="1" value="${it.pages || 8}"></div></div>
         </fieldset>
         <fieldset class="fs"><legend>Category</legend>
           <div class="grid-3"><div class="field"><label>Class</label><select name="cls">${CLASSES.map(c => `<option value="${c.id}"${c.id === (it.cls || 'nursery') ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
@@ -636,13 +636,13 @@
   async function saveProduct(form) {
     const f = new FormData(form), id = form.dataset.id || ('p-' + Date.now().toString(36));
     const o = read('lww_products', { added: [], edited: {}, deleted: [] });
-    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), was: parseInt(f.get('was'), 10) || null, stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, ageGroup: f.get('ageGroup').trim(), audience: f.get('audience'), topic: String(f.get('topic') || ''), rating: parseFloat(f.get('rating')) || 0, printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
+    const fields = { title: f.get('title').trim(), glyph: f.get('glyph').trim() || '✎', cls: f.get('cls'), subjectId: f.get('subjectId'), subject: subjectById(f.get('subjectId')).label, price: Math.max(0, parseInt(f.get('price'), 10) || 0), was: parseInt(f.get('was'), 10) || null, stock: f.get('stock') === '' ? null : parseInt(f.get('stock'), 10), pages: parseInt(f.get('pages'), 10) || 8, audience: f.get('audience'), topic: String(f.get('topic') || ''), rating: parseFloat(f.get('rating')) || 0, printLimit: parseInt(f.get('printLimit'), 10) || 0, downloadLimit: parseInt(f.get('downloadLimit'), 10) || 0, blurb: f.get('blurb').trim() };
     if (!fields.title) return toast('Give the book a title');
     const img = await readFile(f.get('image') && f.get('image').size ? f.get('image') : null, 600 * 1024); if (img && img.data) fields.image = img.data;
     const pdf = await readFile(f.get('pdf') && f.get('pdf').size ? f.get('pdf') : null, 1500 * 1024); if (pdf) fields.pdf = { name: pdf.name, size: pdf.size, data: pdf.data || null };
     const it = itemById(id);
     if (it) { Object.assign(it, fields); if (o.added.some(x => x.id === id)) o.added = o.added.map(x => x.id === id ? it : x); else o.edited[id] = Object.assign(o.edited[id] || {}, fields); log('book edited', fields.title); }
-    else { const np = Object.assign({ id, kind: 'sheet', ages: fields.ageGroup, skills: [], bullets: [] }, fields); CATALOGUE.push(np); ITEMS.push(np); o.added.push(np); log('book uploaded', fields.title); }
+    else { const np = Object.assign({ id, kind: 'sheet', skills: [], bullets: [] }, fields); CATALOGUE.push(np); ITEMS.push(np); o.added.push(np); log('book uploaded', fields.title); }
     try { save('lww_products', o); } catch (err) { return toast('Storage is full — use a smaller image or PDF'); }
     editing = null; renderPlayer(); renderWorksheets(); rerender(); toast(it ? 'Saved' : 'Published — it is on the shelf now');
   }
