@@ -527,12 +527,12 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .kg-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .kg-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
 .kg-head h3 { font-family: var(--font-body); font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: #fff; margin: 0 0 6px; }
-.kg-head p { font-size: var(--fs-small); color: var(--fg-muted); margin: 0; }
+.kg-head p { font-size: var(--fs-small); color: #fff; margin: 0; }
 .kg-grid { columns: 3; column-gap: 16px; }
 .kg-card, .kg-slogan { display: inline-block; width: 100%; margin: 0 0 16px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
 .kg-card {
-  --tint: 150, 196, 255; --dot: #8fd6d2; --title: #fff; --body: rgba(255,255,255,0.86);
-  background: linear-gradient(165deg, rgba(var(--tint), 0.16), rgba(8,18,26,0.2) 70%);
+  --tint: 150, 196, 255; --dot: #8fd6d2; --title: #fff; --body: #fff;
+  background: linear-gradient(165deg, rgba(var(--tint), 0.18), rgba(8,18,26,0.34) 70%);
   border: 1px solid rgba(var(--tint), 0.28); border-radius: 14px; padding: 18px 20px 14px;
   backdrop-filter: blur(12px) saturate(1.15); box-shadow: 0 12px 30px rgba(0,0,0,0.2);
   transition: box-shadow var(--d-base), transform var(--d-base) var(--ease), border-color var(--d-base);
@@ -553,7 +553,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 }
 .kg-item::before { content: ''; position: absolute; left: 4px; top: 0.66em; width: 5px; height: 5px; border-radius: 50%; background: var(--dot); }
 .kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.12); color: #fff; transform: translateX(2px); outline: none; }
-.kg-item.soon { color: rgba(255,255,255,0.55); } .kg-item.soon::before { opacity: 0.4; }
+.kg-item.soon { color: rgba(255,255,255,0.8); } .kg-item.soon::before { opacity: 0.4; }
 .kg-item b { flex: none; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.6rem; font-weight: 700; display: inline-grid; place-items: center; margin-top: 2px; }
 .kg-browse {
   margin-top: 10px; padding: 10px 0 2px; display: flex; align-items: center; gap: 8px; width: 100%;
@@ -569,7 +569,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .kg-slogan .eyebrow { margin-bottom: 6px; }
 .kg-slogan h4 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; line-height: 1.15; color: #fff; margin: 0 0 8px; }
 .kg-slogan h4 em { font-style: italic; color: var(--ok); }
-.kg-slogan-sub { font-size: 0.86rem; color: var(--fg-muted); line-height: 1.55; margin: 0; }
+.kg-slogan-sub { font-size: 0.86rem; color: #fff; line-height: 1.55; margin: 0; }
 .kg-slogan .kg-browse { --title: #fff; --dot: var(--ok); }
 @media (max-width: 1100px) { .kg-grid { columns: 2; } }
 @media (max-width: 720px) { .kg-grid { columns: 1; } }
