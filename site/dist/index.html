@@ -1100,7 +1100,6 @@ const WORKSHEETS = [
   { id: 'ws-sub', cls: 'c1', kind: 'worksheet', cat: 'Maths', kicker: 'Take one away', glyph: '7 − 2', title: 'Subtraction stories', subject: 'Maths', price: 79, was: null, blurb: 'Every page is a tiny story with something taken away — cross it out, count what is left.', bullets: ['Sixteen A4 worksheet pages', 'Counting back on a number line', 'Answer key at the back'] },
   { id: 'ws-time', cls: 'c3', kind: 'worksheet', cat: 'Maths', kicker: 'What time is it, fox?', glyph: '⏰', title: 'Telling the time', subject: 'Maths', price: 89, was: null, blurb: "O'clock, half past and quarter past — draw the hands, read the clock, plan a fox's day.", bullets: ['Fourteen A4 worksheet pages', 'Analogue and digital', 'Parent, teacher or tutor print licence'] },
 ];
-const CATS = ['All worksheets', 'Maths', 'Phonics', 'Stories', 'Nature'];
 /* Real words from real customers — sent to us on WhatsApp and Instagram after their books arrived. */
 const QUOTES = [
   { text: "I bought my alphabet book & CVC book from Learn With Why. It's very useful for the kids who are all studying alphabet letters and phonics sounds. A must-try book for phonics learners. Thanks to the team.", who: 'Risvana', meta: 'Chennai · Alphabet & CVC books', initials: 'R' },
@@ -1942,7 +1941,7 @@ document.getElementById('checkoutBack').addEventListener('click', closeCheckout)
    CHAPTER 03 — worksheets: filter chips + a row of paper cards
    ===================================================================== */
 /* One shelf per class: the free sheet first, the paid ones right beside it. */
-const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label })).concat([{ id: 'worksheets', label: 'Worksheets', small: 'week by week' }]);
+const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label }));
 let cat = SHELF_TABS[0].id;
 function shelfCard(it, n, owned) {
   const free = it.price === 0, mine = canOpen(it);
@@ -2060,9 +2059,9 @@ document.addEventListener('click', e => {
 });
 function renderWorksheets() {
   document.body.classList.toggle('is-guest', !session);   /* hover hints on the cards for visitors who are not signed in */
-  /* left-side menu: "By class" (Kindergarten … Class 3, Worksheets) and "By topic" (every subject) */
-  const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', worksheets: '✎', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
-  const poolOf = id => id === 'worksheets' ? WORKSHEETS : id.startsWith('subj:') ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase())) : CATALOGUE.filter(i => i.cls === id);
+  /* left-side menu: "By class" (Kindergarten … Class 3) and "By topic" (every subject) */
+  const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
+  const poolOf = id => id.startsWith('subj:') ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase())) : CATALOGUE.concat(WORKSHEETS).filter(i => i.cls === id);   /* the weekly worksheets now sit in their own class */
   const hasAZ = id => id === 'subj:english';
   const countOf = id => id === 'kg' ? new Set(KG_TOPICS.flatMap(g => g.items.flatMap(([t]) => topicSheets(t).map(it => it.id)))).size : poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0);
   const sideItem = (id, label, icon) => `<button type="button" class="side-item${id === cat ? ' on' : ''}" data-cat="${id}" aria-current="${id === cat ? 'true' : 'false'}"><span class="ic">${esc(icon)}</span><span class="lbl"><b>${esc(label)}</b></span><span class="n">${countOf(id)}</span></button>`;
@@ -2081,7 +2080,7 @@ function renderWorksheets() {
   const list = pool.slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)), owned = ownedOf();
   row.innerHTML = list.length ? list.map((it, n) => shelfCard(it, n, owned)).join('') : '<p class="cart-empty">No sheets in this topic yet — more are on the way.</p>';
   const free = list.filter(i => i.price === 0).length;
-  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat === 'worksheets' || cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
+  document.getElementById('wsCount').textContent = free + ' free · ' + (list.length - free) + ' to buy (or ' + (cat.startsWith('subj:') ? 'a class plan' : 'the ' + classById(cat).label + ' plan') + ')';
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { cat = c.dataset.cat; kgTopic = null; kgGroup = null; renderWorksheets(); measure(); } });
 
