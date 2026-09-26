@@ -517,7 +517,7 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .az-card:hover, .az-card:focus-visible { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.25); outline: none; border-color: #1f6b47; }
 .az-card .glyph { font-family: var(--font-display); font-size: 2.4rem; font-weight: 500; line-height: 1; }
 .az-card .glyph small { font-size: 1.3rem; color: var(--ink-muted); margin-left: 2px; }
-.az-card.paid b, .rc-card.paid .rc-pic b { background: #14181c; color: #fff; letter-spacing: 0.06em; }
+.az-card.paid b, .rc-card.paid .rc-pic b { background: rgba(20,24,28,0.82); color: #fff; letter-spacing: 0; font-size: 0.6rem; padding: 3px 7px; }
 .az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
 .az-card span { font-size: 0.62rem; color: var(--ink-muted); }
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
@@ -2048,13 +2048,13 @@ function renderAZ() {
   box.innerHTML = `<section class="az rise" style="--i:3" aria-label="A to Z free sheets">
     <div class="az-head">
       <div><p class="eyebrow">Letter tracing · A to Z</p><h3>Every letter, <em>one calm page.</em></h3></div>
-      <p>Twenty-six alphabet sheets to trace, colour and say out loud. <b>${esc(AZ_FREE.join(', '))} are free</b> — sign in and open them. The rest are ${money(sheetPrice('az-Z', false))} each and stay on your account for good.</p>
+      <p>Twenty-six alphabet sheets to trace, colour and say out loud. <b>${esc(AZ_FREE.join(', '))} are free</b> — sign in and open them. Tap any other letter to see its price; once bought it stays on your account for good.</p>
     </div>
     <div class="az-grid">${AZ_LETTERS.map(azItem).map((it, n) => azTile(it, n)).join('')}</div>
-    <div class="az-foot"><span>26 sheets · PDF · A4</span><span>${AZ_FREE.length} free · the rest ${money(sheetPrice('az-Z', false))} each</span></div>
+    <div class="az-foot"><span>26 sheets · PDF · A4</span><span>${AZ_FREE.length} free · the rest are paid</span></div>
   </section>`;
 }
-const sheetBadge = it => it.price === 0 ? 'Free' : (canOpen(it) ? 'Yours' : money(it.price));
+const sheetBadge = it => it.price === 0 ? 'Free' : (canOpen(it) ? 'Yours' : '🔒');   /* the price is shown when the sheet is opened, not on the tile */
 const azTile = (it, n) => { const L = it.az || it.letter; return `<button type="button" class="az-card${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>${sheetBadge(it)}</b><span class="glyph">${L}<small>${L.toLowerCase()}</small></span><span>${esc(it.tileLabel || 'Alphabet ' + L)}</span></button>`; };
 const picTile = (it, n) => `<button type="button" class="rc-card${it.landscape ? '' : ' portrait'}${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><span class="rc-pic"><img src="${it.img}" alt="" loading="lazy"><b>${sheetBadge(it)}</b></span><span class="rc-name">${esc(it.rc ? 'Letter ' + it.rc : it.tileName)}<small>${esc(it.rc ? RC_WORDS[it.rc].split(',').slice(0, 2).join(' · ') + ' · …' : it.tileSub)}</small></span></button>`;
 function renderKgTopics(box) {
@@ -2064,7 +2064,7 @@ function renderKgTopics(box) {
     const list = kgGroup ? groupSheets(kgGroup) : topicSheets(kgTopic), owned = ownedOf();
     const az = list.filter(it => it.az || it.letter), rc = list.filter(it => it.rc || it.chart), rest = list.filter(it => !it.az && !it.letter && !it.rc && !it.chart);
     box.innerHTML = `<section class="kg-open rise" style="--i:3">
-      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)}${kgGroup ? '' : ' › ' + esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see it. The free samples open after sign-in; the rest are ' + money(sheetPrice('az-Z', false)) + ' each and stay on your account for good.' : ''}</p></div>
+      <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)}${kgGroup ? '' : ' › ' + esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see its price and what is inside. The free samples open after sign-in; the rest are yours to keep once bought.' : ''}</p></div>
       ${az.length ? `<div class="az-grid">${az.map(azTile).join('')}</div>` : ''}
       ${rc.length ? `<div class="rc-grid">${rc.map(picTile).join('')}</div>` : ''}
       ${rest.length ? `<div class="shop-grid" style="margin-top:${az.length || rc.length ? 18 : 0}px">${rest.map((it, n) => shelfCard(it, n, owned)).join('')}</div>` : ''}
