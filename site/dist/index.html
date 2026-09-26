@@ -1564,11 +1564,10 @@ const preview = (() => {
   return { play() { p.play(); btn.textContent = 'Pause preview ‖'; }, pause() { p.pause(); } };
 })();
 let slide = 0;
-function priceLabel(item) { return item.price === 0 ? 'Free access sheet' : money(item.price) + (item.was ? ' · <s>' + money(item.was) + '</s>' : ''); }
 function renderPlayer() {
   document.body.classList.toggle('is-guest', !session);
   const s = SHEETS[slide], owned = canOpen(s);
-  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">${esc(classById(s.cls).label)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Free · open any time' : 'Yours to keep ✓') : s.price === 0 ? 'Free access sheet' : money(s.price) + ' · yours to keep'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Open it free →</button>` : `<button type="button" class="btn btn-primary" data-buy="${s.id}">Buy PDF · ${money(s.price)} →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
+  document.getElementById('playerCard').innerHTML = `<div class="slide-swap"><div class="glyph">${esc(s.glyph)}</div><p class="eyebrow">Learn With Why · Preview</p><p class="meta">${esc(classById(s.cls).label)} · ${esc(s.subject)}</p><h3 class="card-title">${esc(s.title)}</h3><p class="price${s.price === 0 ? ' free' : ''}">${owned ? (s.price === 0 ? 'Free · open any time' : 'Yours to keep ✓') : s.price === 0 ? 'Free access sheet' : 'Yours to keep once bought'}</p>${canOpen(s) ? `<button type="button" class="btn btn-primary" data-view="${s.id}">Open PDF ↗</button>` : s.price === 0 ? `<button type="button" class="btn btn-primary" data-unlock="${s.id}">Open it free →</button>` : `<button type="button" class="btn btn-primary" data-buy="${s.id}">Buy PDF →</button>`} <button type="button" class="btn btn-ghost" data-shop="all">All sheets</button></div>`;
   document.getElementById('slideDots').innerHTML = SHEETS.map((_, k) => `<button type="button" class="dot${k === slide ? ' on' : ''}" data-slide="${k}" aria-label="Sheet ${k + 1}"></button>`).join('');
 }
 document.getElementById('slidePrev').addEventListener('click', () => { slide = (slide - 1 + SHEETS.length) % SHEETS.length; renderPlayer(); });
@@ -1613,13 +1612,13 @@ function renderShop() {
   document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
   document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
     const free = it.price === 0, mine = canOpen(it);
-    const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 ' + money(it.price) + '</b>';
+    const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒</b>';
     return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
       <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
       <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
       <h3 class="card-title">${esc(it.title)}</h3>
       <p>${esc(it.blurb)}</p>
-      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : money(it.price) + ' · yours to keep'}</span>
+      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought'}</span>
         ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
     </article>`;
   }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
@@ -1968,13 +1967,13 @@ const SHELF_TABS = CLASSES.map(c => ({ id: c.id, label: c.label }));
 let cat = SHELF_TABS[0].id;
 function shelfCard(it, n, owned) {
   const free = it.price === 0, mine = canOpen(it);
-  const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒 ' + money(it.price) + '</b>';
+  const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒</b>';
   return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
     <div class="paper"><small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>${tag}</div>
     <p class="meta">${esc(it.cls ? classById(it.cls).label : it.cat || '')}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
     <h3 class="card-title">${esc(it.title)}</h3>
     <p>${esc(it.blurb)}</p>
-    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : money(it.price) + ' · yours to keep'}</span>
+    <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought'}</span>
       ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
   </article>`;
 }
@@ -2190,16 +2189,16 @@ function openSheet(id) {
     : `<div class="sheet-mock" aria-hidden="true"><div class="brand"><b>Learn With Why</b><span>${esc(it.subject)}</span></div>
         <div class="boxes"><div><span class="glyph">${esc(it.glyph)}</span>${esc(it.skills ? it.skills[0] : it.subject)}</div><div><span class="pic">${it.pages ? it.pages : '✎'}</span>${it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div class="lines"><i></i><i></i><i></i><i></i><i></i></div><small>${esc(it.title)} · ${esc(it.subject)}</small></div>`;
-  const access = free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (sub ? 'In your ' + esc(cls.label) + ' plan · yours to keep' : 'Bought · yours to keep') : money(it.price) + ' · yours to keep once bought';
+  const access = free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (sub ? 'In your ' + esc(cls.label) + ' plan · yours to keep' : 'Bought · yours to keep') : 'Yours to keep once bought';
   /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab.
      Not signed in → sign in first (free and paid alike); paid without access → buy this PDF or subscribe to the class. */
   const actions = mine
     ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open PDF · full screen ↗</button><span class="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span>`
     : !session
-      ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then buy this PDF (' + money(it.price) + ') — it stays on your account for good.'}</span>`
+      ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Sign in to open</button><span class="note">${free ? 'Free access sheet — sign in and it opens straight away.' : 'Sign in, then buy this PDF — it stays on your account for good.'}</span>`
       : free
         ? `<button type="button" class="btn btn-primary" data-view="${it.id}">Open it free ↗</button><span class="note">Free access sheet — no payment, open it as often as you like.</span>`
-        : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy this PDF · ${money(it.price)}</button><span class="note">Pay by card, QR code or UPI — the sheet opens right after payment and stays on your account.</span>`;
+        : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy this PDF</button><span class="note">The price is shown at checkout. Pay by card, QR code or UPI — the sheet opens right after payment and stays on your account.</span>`;
   modal.className = 'modal sheet';
   modal.innerHTML = `<div class="sheet-view">${pic}</div>
     <div class="sheet-info">
