@@ -574,6 +574,19 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 @media (max-width: 1100px) { .kg-grid { columns: 2; } }
 @media (max-width: 720px) { .kg-grid { columns: 1; } }
 @media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } }
+/* picture-card tiles: reading charts (landscape) and matching sheets (portrait) */
+.rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.rc-card { position: relative; display: grid; gap: 8px; padding: 8px 8px 10px; border-radius: 16px; background: var(--paper); color: var(--ink); border: 1px solid transparent; font: inherit; text-align: left; cursor: pointer; transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), border-color var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); }
+.rc-card:hover, .rc-card:focus-visible { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.25); border-color: #1f6b47; outline: none; }
+.rc-pic { position: relative; display: block; border-radius: 10px; overflow: hidden; aspect-ratio: 842 / 595; background: #eeeae0; }
+.rc-card.portrait .rc-pic { aspect-ratio: 595 / 842; }
+.rc-pic img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; pointer-events: none; -webkit-user-drag: none; }
+.rc-pic b { position: absolute; top: 6px; right: 6px; padding: 3px 8px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.rc-card.paid .rc-pic b { background: #14181c; letter-spacing: 0.06em; }
+.rc-name { display: grid; padding: 0 4px; font-family: var(--font-display); font-size: 1.1rem; font-weight: 500; line-height: 1.15; }
+.rc-name small { font-family: var(--font-body); font-size: 0.64rem; color: var(--ink-muted); margin-top: 3px; }
+.is-guest .rc-card::after { content: 'Sign in to open'; position: absolute; left: 50%; bottom: 44px; transform: translate(-50%, 6px); padding: 5px 9px; border-radius: 100px; background: #14181c; color: #fff; font-size: 0.6rem; font-weight: 700; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--d-base), transform var(--d-base) var(--ease); }
+.is-guest .rc-card:hover::after { opacity: 1; transform: translate(-50%, 0); }
 .kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .kg-hint { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--fg-muted); }
 .kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
@@ -1970,7 +1983,7 @@ const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['az'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 const KG_ICON = {
@@ -1994,7 +2007,9 @@ function topicSheets(id) {
   const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
   if (ids.includes('az')) out = out.concat(AZ_LETTERS.map(azItem));
   if (ids.includes('rc')) out = out.concat(RC_LETTERS.map(rcItem));
-  ids.filter(x => x !== 'az' && x !== 'rc').forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
+  if (ids.includes('cl')) out = out.concat(CL_LETTERS.map(clItem));
+  if (ids.includes('mt')) out = out.concat(MT_RANGES.map(r => mtItem(r[0])));
+  ids.filter(x => !['az', 'rc', 'cl', 'mt'].includes(x)).forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
   ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
   return out;
 }
@@ -2004,6 +2019,16 @@ const RC_WORDS = { A: 'aeroplane, ant, apple, jam and hat', I: 'igloo, ink, inse
 const rcItem = L => { const price = sheetPrice('rc-' + L, RC_FREE.includes(L)); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: 'sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
   blurb: 'Look at the pictures, say the words, hear the ' + L.toLowerCase() + ' sound: ' + RC_WORDS[L] + '.',
   about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
+/* Colour the letter (26) and Match the letters (5 ranges) — first three of each set free */
+const CL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const clItem = L => { const price = sheetPrice('cl-' + L, AZ_FREE.includes(L)); return ({ id: 'cl-' + L, letter: L, tileLabel: 'Colour ' + L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Colour the letter ' + L, pages: 1, price, free: price === 0, real: true, img: 'sheets/colour/thumb/' + L + '.jpg', topic: 'letter-recognition',
+  blurb: 'Find every ' + L + ' and ' + L.toLowerCase() + ' hiding among the other letters, and colour them in.',
+  about: ['A grid of twenty letters — some are ' + L + ' or ' + L.toLowerCase() + ', most are not.', 'Colour in only the ones that match, and leave the rest.', 'Trains letter recognition: spotting a letter by its shape, in both cases.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
+const MT_RANGES = [['AE', 'A B C D E'], ['FJ', 'F G H I J'], ['KO', 'K L M N O'], ['PT', 'P Q R S T'], ['UZ', 'U V W X Y Z']];
+const mtItem = code => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('mt-' + code, i < 3);
+  return ({ id: 'mt-' + code, chart: true, tileName: 'Match ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Match the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: 'sheets/matching/thumb/' + code + '.jpg', topic: 'match-upper-lower',
+  blurb: 'Trace the dots to join each capital letter to its small letter: ' + letters + '.',
+  about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
 let kgTopic = null, kgGroup = null;   /* an open skill, or a whole topic group, or null for the board */
 function renderAZ() {
   const box = document.getElementById('azBlock'); if (!box) return;
@@ -2019,17 +2044,19 @@ function renderAZ() {
     <div class="az-foot"><span>26 sheets · PDF · A4</span><span>${AZ_FREE.length} free · the rest ${money(sheetPrice('az-Z', false))} each</span></div>
   </section>`;
 }
-const azTile = (it, n) => `<button type="button" class="az-card${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>${it.price === 0 ? 'Free' : (canOpen(it) ? 'Yours' : money(it.price))}</b><span class="glyph">${it.az}<small>${it.az.toLowerCase()}</small></span><span>Alphabet ${it.az}</span></button>`;
+const sheetBadge = it => it.price === 0 ? 'Free' : (canOpen(it) ? 'Yours' : money(it.price));
+const azTile = (it, n) => { const L = it.az || it.letter; return `<button type="button" class="az-card${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><b>${sheetBadge(it)}</b><span class="glyph">${L}<small>${L.toLowerCase()}</small></span><span>${esc(it.tileLabel || 'Alphabet ' + L)}</span></button>`; };
+const picTile = (it, n) => `<button type="button" class="rc-card${it.landscape ? '' : ' portrait'}${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><span class="rc-pic"><img src="${it.img}" alt="" loading="lazy"><b>${sheetBadge(it)}</b></span><span class="rc-name">${esc(it.rc ? 'Letter ' + it.rc : it.tileName)}<small>${esc(it.rc ? RC_WORDS[it.rc].split(',').slice(0, 2).join(' · ') + ' · …' : it.tileSub)}</small></span></button>`;
 function renderKgTopics(box) {
   box.hidden = false;
   if (kgTopic || kgGroup) {
     const t = kgGroup ? { group: 'All skills', label: groupTitle(kgGroup) } : topicLabel(kgTopic);
     const list = kgGroup ? groupSheets(kgGroup) : topicSheets(kgTopic), owned = ownedOf();
-    const az = list.filter(it => it.az), rc = list.filter(it => it.rc), rest = list.filter(it => !it.az && !it.rc);
+    const az = list.filter(it => it.az || it.letter), rc = list.filter(it => it.rc || it.chart), rest = list.filter(it => !it.az && !it.letter && !it.rc && !it.chart);
     box.innerHTML = `<section class="kg-open rise" style="--i:3">
       <div class="kg-open-head"><button type="button" class="btn btn-ghost btn-back" data-kg-topic="">← All topics</button><div><p class="eyebrow">Kindergarten › ${esc(t.group)}${kgGroup ? '' : ' › ' + esc(t.label)}</p><h3>${esc(t.label)} <em>· ${list.length} ${list.length === 1 ? 'sheet' : 'sheets'}</em></h3></div><p class="kg-hint">${list.length ? 'Tap a sheet to see it. The free samples open after sign-in; the rest are ' + money(sheetPrice('az-Z', false)) + ' each and stay on your account for good.' : ''}</p></div>
       ${az.length ? `<div class="az-grid">${az.map(azTile).join('')}</div>` : ''}
-      ${rc.length ? `<div class="rc-grid">${rc.map((it, n) => `<button type="button" class="rc-card${it.price === 0 ? '' : ' paid'}" data-open="${it.id}" style="--n:${n}" aria-label="${esc(it.title)}"><span class="rc-pic"><img src="${it.img}" alt="" loading="lazy"><b>${it.price === 0 ? 'Free' : (canOpen(it) ? 'Yours' : money(it.price))}</b></span><span class="rc-name">Letter ${it.rc}<small>${esc(RC_WORDS[it.rc].split(',')[0])} · ${esc(RC_WORDS[it.rc].split(',')[1].trim())} · …</small></span></button>`).join('')}</div>` : ''}
+      ${rc.length ? `<div class="rc-grid">${rc.map(picTile).join('')}</div>` : ''}
       ${rest.length ? `<div class="shop-grid" style="margin-top:${az.length || rc.length ? 18 : 0}px">${rest.map((it, n) => shelfCard(it, n, owned)).join('')}</div>` : ''}
       ${list.length ? '' : '<p class="cart-empty">No sheets in this topic yet — they are being drawn. Try another topic meanwhile.</p>'}
     </section>`;
@@ -2125,7 +2152,7 @@ let modalSheet = null;
 function closeModal() { modalScrim.classList.remove('open'); modalSheet = null; }
 modalScrim.addEventListener('click', e => { if (e.target === modalScrim) closeModal(); });
 /* any sheet, free or paid: a look at the page, what is inside, and the print / get / subscribe action */
-const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : itemById(id);
+const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : itemById(id);
 /* Not signed in? Every worksheet first shows what a free account includes. */
 function showAccountPopup(id) {
   const it = sheetOf(id);
