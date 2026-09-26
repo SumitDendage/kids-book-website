@@ -1183,7 +1183,16 @@ const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in 
 const azItem = L => { const price = sheetPrice('az-' + L, AZ_FREE.includes(L)); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: 'sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
   about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
-const money = n => '₹' + n;
+/* Prices are held in INR and shown in the customer's own currency — the same one the
+   checkout will charge — so a page never mixes ₹ and $. The rate table comes from the server. */
+let curCode = 'INR', curRate = 1;
+const money = n => curCode === 'INR' ? '₹' + Math.round(n * curRate) : fmtCur(Math.round(n * curRate * 100) / 100, curCode);
+function setCurrencyFromCountry(code) {
+  const C = coConfig && coConfig.countries.find(c => c.code === code);
+  const cur = (C && C.currency) || 'INR', rate = (coConfig && coConfig.rates && coConfig.rates[cur]) || 1;
+  if (cur === curCode && rate === curRate) return false;
+  curCode = cur; curRate = rate; return true;
+}
 const licence = id => LICENCES.find(l => l.id === id) || LICENCES[0];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -1722,6 +1731,7 @@ async function loadCoConfig() {
   if (coConfig) return coConfig;
   const r = await fetch('/api/config'); if (!r.ok) throw new Error('Pricing service unavailable'); coConfig = await r.json();
   try { const g = await (await fetch('/api/geo')).json(); if (g.country && !read('lww_address', null)) coAddr.country = g.country; } catch (_) {}
+  if (setCurrencyFromCountry(coAddr.country)) rerenderAll();
   return coConfig;
 }
 /* openCheckout('c1') for a class plan · openCheckout({ worksheet: 'kg-mat-cnt' }) for one PDF */
@@ -1759,7 +1769,7 @@ function renderCheckout() {
     ? `<select name="state" data-co="state"${coAddr.state ? ' class="filled"' : ''}>${['', ...C.states].map(x => `<option value="${esc(x)}"${x === coAddr.state ? ' selected' : ''}>${x}</option>`).join('')}</select><label>${esc(C.state)}</label>`
     : `<input name="state" data-co="state" value="${esc(coAddr.state)}" placeholder=" " autocomplete="address-level1"><label>${esc(C.state)}</label>`;
   const numeric = ['IN', 'US', 'AU', 'SG', 'DE', 'FR'].includes(C.code);
-  const monthly = id => { const pl = coConfig.plans[id] || {}; return pl.price && pl.months ? '₹' + Math.round(pl.price / pl.months) + '/mo' : ''; };
+  const monthly = id => { const pl = coConfig.plans[id] || {}; return pl.price && pl.months ? money(pl.price / pl.months) + '/mo' : ''; };
   document.getElementById('checkoutBody').innerHTML = `
     <div class="co-left">
       <section class="panel co-card" data-step="1"><header class="co-card-head"><span class="co-num">1</span><div><h3>Billing address</h3><p id="coRegionLine"></p></div></header>
@@ -1933,11 +1943,11 @@ async function placeOrder() {
 document.addEventListener('input', e => {
   const f = e.target.closest('[data-co]'); if (!f) return;
   coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true;
-  if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); requestQuote(true); return; }
+  if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); if (setCurrencyFromCountry(coAddr.country)) rerenderAll(); renderCheckout(); requestQuote(true); return; }
   write('lww_address', coAddr); requestQuote();
 });
 document.addEventListener('change', e => {
-  const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { f.classList.toggle('filled', !!f.value); coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
+  const f = e.target.closest('[data-co]'); if (f && (f.tagName === 'SELECT')) { f.classList.toggle('filled', !!f.value); coAddr[f.dataset.co] = f.value; coTouched[f.dataset.co] = true; if (f.dataset.co === 'country') { coAddr.state = ''; coAddr.postal = ''; coTouched = { country: true }; write('lww_address', coAddr); if (setCurrencyFromCountry(coAddr.country)) rerenderAll(); renderCheckout(); } write('lww_address', coAddr); requestQuote(true); return; }
   if (e.target.name === 'pay') { payVia = e.target.value; paintMethods(); paintSummary(); }
   const fl = e.target.closest('.fl select'); if (fl) fl.classList.toggle('filled', !!fl.value);
   if (e.target.name === 'plan') { coPlan = e.target.value; document.querySelectorAll('input[name=plan]').forEach(i => i.closest('.plan-card').classList.toggle('on', i.checked)); paintSummary(); requestQuote(true); }
@@ -2338,6 +2348,7 @@ const rerenderAll = () => { renderPlayer(); renderWorksheets(); renderBag(); if 
       content.scrollTop = 0; measure(); if (STAFF[location.hash.slice(1)]) openPortal(location.hash.slice(1)); const h = IDS.indexOf(location.hash.slice(1)); target = h > 0 ? clamp(chapters[h].offsetTop) : 0; current = target; lastY = -1; onFrame();
       clearTimeout(hintTimer); hintTimer = setTimeout(hideHint, 6000);
       handlePaymentReturn();   /* finish a Stripe / PayPal payment if we just came back from one */
+      loadCoConfig().catch(() => {});   /* the currency the prices are shown in */
     }
   }, 100);
 })();
