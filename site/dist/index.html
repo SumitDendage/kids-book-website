@@ -1992,7 +1992,7 @@ const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['alphabet'], 'letter-formation': ['alphabet'], 'letter-sounds': ['alphabet'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 const KG_ICON = {
@@ -2018,7 +2018,8 @@ function topicSheets(id) {
   if (ids.includes('rc')) out = out.concat(RC_LETTERS.map(rcItem));
   if (ids.includes('cl')) out = out.concat(CL_LETTERS.map(clItem));
   if (ids.includes('mt')) out = out.concat(MT_RANGES.map(r => mtItem(r[0])));
-  ids.filter(x => !['az', 'rc', 'cl', 'mt'].includes(x)).forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
+  if (ids.includes('sp')) out = out.concat(MT_RANGES.map(r => spItem(r[0])));
+  ids.filter(x => !['az', 'rc', 'cl', 'mt', 'sp'].includes(x)).forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
   ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
   return out;
 }
@@ -2038,6 +2039,11 @@ const mtItem = code => { const i = MT_RANGES.findIndex(r => r[0] === code), lett
   return ({ id: 'mt-' + code, chart: true, tileName: 'Match ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Match the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: 'sheets/matching/thumb/' + code + '.jpg', topic: 'match-upper-lower',
   blurb: 'Trace the dots to join each capital letter to its small letter: ' + letters + '.',
   about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
+/* Spot the letters — circle every lowercase letter that matches the capital, five ranges */
+const spItem = code => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('sp-' + code, i < 3);
+  return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: 'sheets/spot/thumb/' + code + '.jpg', topic: 'match-upper-lower',
+  blurb: 'Read the capital letter, then circle every small letter in the row that matches it: ' + letters + '.',
+  about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); };
 let kgTopic = null, kgGroup = null;   /* an open skill, or a whole topic group, or null for the board */
 function renderAZ() {
   const box = document.getElementById('azBlock'); if (!box) return;
@@ -2161,7 +2167,7 @@ let modalSheet = null;
 function closeModal() { modalScrim.classList.remove('open'); modalSheet = null; }
 modalScrim.addEventListener('click', e => { if (e.target === modalScrim) closeModal(); });
 /* any sheet, free or paid: a look at the page, what is inside, and the print / get / subscribe action */
-const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : itemById(id);
+const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* Not signed in? Every worksheet first shows what a free account includes. */
 function showAccountPopup(id) {
   const it = sheetOf(id);
