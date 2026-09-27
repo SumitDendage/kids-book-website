@@ -10,7 +10,7 @@
    ===================================================================== */
 (function () {
   const ADMIN_SECTIONS = [
-    ['overview', 'Dashboard'], ['products', 'Products'], ['orders', 'Orders'], ['customers', 'Customers'], ['analytics', 'Analytics'],
+    ['overview', 'Dashboard'], ['products', 'Products'], ['orders', 'Orders'], ['customers', 'Customers'], ['messages', 'Messages'], ['analytics', 'Analytics'],
     ['coupons', 'Coupons'], ['content', 'Content'], ['roles', 'Roles'], ['settings', 'Settings'], ['audit', 'Audit logs'],
   ];
   const DEV_SECTIONS = [
@@ -18,9 +18,9 @@
     ['payments', 'Payments'], ['webhooks', 'Webhooks'], ['auth', 'Authentication'], ['perf', 'Performance'],
     ['security', 'Security'], ['deploy', 'Deployments'], ['backups', 'Backups'], ['audit', 'Audit logs'],
   ];
-  const GROUPS = { admin: [['General', ['overview', 'products', 'orders', 'customers', 'analytics']], ['Store', ['coupons', 'content', 'roles', 'settings', 'audit']]],
+  const GROUPS = { admin: [['General', ['overview', 'products', 'orders', 'customers', 'messages', 'analytics']], ['Store', ['coupons', 'content', 'roles', 'settings', 'audit']]],
     developer: [['General', ['health', 'errors', 'api', 'db', 'perf']], ['Logs', ['payments', 'webhooks', 'auth', 'security', 'audit']], ['Ops', ['deploy', 'backups']]] };
-  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', settings: 'Store-wide settings — the server connection.', audit: 'Everything staff changed, in order.',
+  const DESC = { overview: "Here's what is happening in your store today.", products: 'Manage the books and sheets on the shelf.', orders: 'Every subscription order and its status.', customers: 'Manage your customers and their plans here.', messages: 'Notes customers sent through the contact form.', analytics: 'Sales, visitors and conversion.', coupons: 'Coupon codes and class discounts.', content: 'Edit the words on the home page.', roles: 'Who can do what.', settings: 'Store-wide settings — the server connection.', audit: 'Everything staff changed, in order.',
     health: 'System health at a glance.', errors: 'Errors and stack traces caught in the browser.', api: 'Every fetch() call, status and latency.', db: 'Tables, sizes and quota.', payments: 'Payment gateway log.', webhooks: 'Callbacks from the gateways.', auth: 'Sign-ins and sign-ups.', perf: 'Load, paint and frame timings.', security: 'Failed logins and suspicious activity.', deploy: 'Version and latest commits.', backups: 'Export and restore the demo data.' };
   /* lucide-style icons, 24 box, stroke 2 */
   const ICON = {
@@ -32,6 +32,7 @@
     coupons: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
     content: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
     roles: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    messages: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
     audit: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
     health: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
     errors: '<path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
@@ -68,8 +69,8 @@
   };
   const ico = (id, s) => `<svg viewBox="0 0 24 24" width="${s || 16}" height="${s || 16}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[id] || ICON.overview}</svg>`;
   const ORDER_STATUS = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'];
-  const PERMS = ['products', 'orders', 'customers', 'analytics', 'coupons', 'content', 'roles', 'audit', 'developer'];
-  const DEFAULT_ROLES = { admin: PERMS.slice(), editor: ['products', 'content'], support: ['orders', 'customers'], developer: ['developer', 'audit'] };
+  const PERMS = ['products', 'orders', 'customers', 'messages', 'analytics', 'coupons', 'content', 'roles', 'audit', 'developer'];
+  const DEFAULT_ROLES = { admin: PERMS.slice(), editor: ['products', 'content'], support: ['orders', 'customers', 'messages'], developer: ['developer', 'audit'] };
   let section = { admin: 'overview', developer: 'health' }, editing = null, custOpen = null;
   let theme = read('lww_dash_theme', 'light'), collapsed = read('lww_dash_sb', false), mobileOpen = false;
 
@@ -440,13 +441,14 @@
     if (!adminKey() || syncing || (!force && Date.now() - syncedAt < 30e3)) return false;
     syncing = true;
     try {
-      const [o, u, e] = await Promise.all([adminApi('GET', '/api/admin/orders'), adminApi('GET', '/api/admin/users'), adminApi('GET', '/api/admin/entitlements')]);
+      const [o, u, e, c] = await Promise.all([adminApi('GET', '/api/admin/orders'), adminApi('GET', '/api/admin/users'), adminApi('GET', '/api/admin/entitlements'), adminApi('GET', '/api/admin/messages').catch(() => ({ messages: [] }))]);
       const STATUS = { created: 'pending', paid: 'paid', failed: 'cancelled', refunded: 'refunded', cancelled: 'cancelled' };
       save('lww_orders', o.orders.slice().reverse().map(x => ({ id: x.id, at: x.at, email: x.email, name: x.name, cls: x.cls, plan: x.plan, worksheet: x.worksheet, amount: x.totalInr, currency: x.currency, total: x.total, method: x.method === 'razorpay' ? 'Razorpay' : 'Demo gateway', payment: x.paymentId, coupon: x.coupon, status: STATUS[x.status] || x.status, address: x.address, server: true })));
       save('lww_users', u.users.map(x => ({ id: x.id, name: x.name, email: x.email, role: x.role, created: x.created_at, lastLogin: x.last_login_at, spent: x.spent_inr, orders: x.orders, active: x.active })));
       const subs = {}, owned = {};
       e.entitlements.forEach(x => { if (x.scope === 'class') (subs[x.email] = subs[x.email] || []).push({ cls: x.cls, plan: x.plan || 'm1', start: x.start, at: x.start, id: x.id, revoked: x.revoked }); else if (!(owned[x.email] || []).includes(x.worksheet)) (owned[x.email] = owned[x.email] || []).push(x.worksheet); });
       save('lww_subs', subs); save('lww_owned', owned);
+      if (c.messages) { save('lww_messages', c.messages); if (c.inbox) save('lww_inbox', c.inbox); }
       syncedAt = Date.now(); return true;
     } catch (err) { console.warn('admin sync: ' + err.message); syncedAt = Date.now() - 20e3; return false; }
     finally { syncing = false; }
@@ -475,7 +477,7 @@
   window.dashRender = function (kind, who) {
     const secs = kind === 'admin' ? ADMIN_SECTIONS : DEV_SECTIONS, cur = section[kind];
     const perms = permsOf(who), label = id => (secs.find(x => x[0] === id) || [])[1] || id;
-    const counts = { orders: orders().filter(o => o.status === 'pending').length, errors: read('lww_errors', []).length, security: read('lww_security', []).length };
+    const counts = { orders: orders().filter(o => o.status === 'pending').length, messages: read('lww_messages', []).filter(m => !m.read).length, errors: read('lww_errors', []).length, security: read('lww_security', []).length };
     const item = id => `<button type="button" class="sb-item${id === cur ? ' on' : ''}${perms.includes(id) || kind === 'developer' || id === 'overview' || id === 'settings' ? '' : ' off'}" data-dash="${id}" title="${esc(label(id))}">${ico(id)}<span>${esc(label(id))}</span>${counts[id] ? `<span class="sb-badge">${counts[id]}</span>` : ''}</button>`;
     const nav = GROUPS[kind].map(([g, ids]) => `<div class="sb-group"><div class="sb-label">${g}</div><nav class="sb-menu">${ids.map(item).join('')}</nav></div>`).join('')
       + `<div class="sb-group"><div class="sb-label">Other</div><nav class="sb-menu"><button type="button" class="sb-item" data-dash-go="${kind === 'admin' ? 'developer' : 'admin'}" title="${kind === 'admin' ? 'Developer panel' : 'Admin panel'}">${ico(kind === 'admin' ? 'api' : 'overview')}<span>${kind === 'admin' ? 'Developer panel' : 'Admin panel'}</span></button><button type="button" class="sb-item" data-portal-close title="Back to the site">${ico('home')}<span>Back to the site</span></button></nav></div>`;
@@ -536,7 +538,8 @@
     if (cur === 'errors') return `<button type="button" class="btn btn-ghost" data-adm="throw">Throw a test error</button>`;
     return '';
   }
-  function permsOf(who) { const roles = read('lww_roles', DEFAULT_ROLES), staff = read('lww_staff_users', []).find(u => u.email === (who || {}).email); const r = (staff && staff.rolename) || ((who || {}).kind === 'developer' ? 'developer' : 'admin'); return roles[r] || []; }
+  function permsOf(who) { const roles = read('lww_roles', DEFAULT_ROLES); PERMS.forEach(p => { if (roles.admin && !roles.admin.includes(p)) roles.admin.push(p); });  /* a panel added since the roles were saved stays open to the admin */
+    const staff = read('lww_staff_users', []).find(u => u.email === (who || {}).email); const r = (staff && staff.rolename) || ((who || {}).kind === 'developer' ? 'developer' : 'admin'); return roles[r] || []; }
   function rerender() { renderPortal(); }
   function save(key, val) { write(key, val); }
   function log(action, detail) { audit(staffEmail(), action, detail); }
@@ -752,6 +755,20 @@
       <section class="panel"><p class="eyebrow">What the customer sees</p><p class="auth-sub">Right after a successful purchase:</p>
       <div class="tbl-wrap" style="padding:16px 18px;font-size:14px;line-height:1.6"><b>Your purchase has been completed successfully.</b> You can now access your PDF.<br>This worksheet has been added to your account — it is yours to keep, with no expiry.<br>You can open it any time from <b>My Account → My Worksheets</b>.</div></section>`;
   };
+  /* Messages — the contact form's inbox. Every note is in the database; the
+     Delivered pill says whether the copy by email went out as well. */
+  ADMIN.messages = () => {
+    const ms = read('lww_messages', []).slice().sort((a, b) => b.at - a.at), inbox = read('lww_inbox', 'learnwithwhy6@gmail.com');
+    const unread = ms.filter(m => !m.read).length, stuck = ms.filter(m => !m.mailed).length;
+    const item = m => `<details class="err-item" data-msg="${m.id}"><summary><b>${esc(m.name)}</b> <small>${esc(m.email)} \u00b7 ${fmt(m.at)}</small> ${m.read ? '' : pill('new', 'info')} ${m.replied ? pill('replied', 'ok') : ''} ${m.mailed ? pill('emailed', 'ok') : pill('in the panel only', 'neutral')}</summary>
+      <p style="white-space:pre-wrap;line-height:1.6;margin:10px 0 14px">${esc(m.body)}</p>
+      ${m.mailed ? '' : `<p class="auth-sub" style="margin-bottom:10px">Not emailed on${m.mailError ? ' \u2014 ' + esc(m.mailError) : ''}. The note itself is safe here.</p>`}
+      <div class="btn-row"><a class="btn btn-primary btn-sm" href="mailto:${esc(m.email)}?subject=${encodeURIComponent('Re: your note to Learn With Why')}">${ico('messages', 14)}Reply by email</a>
+      <button type="button" class="btn btn-ghost btn-sm" data-adm="msg-replied" data-id="${m.id}"${m.replied ? ' disabled' : ''}>${m.replied ? 'Replied ' + fmt(m.replied) : 'Mark as replied'}</button></div></details>`;
+    return `<div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${kpi('Notes', ms.length, 'through the contact form', 'messages')}${kpi('Unread', unread, unread ? 'waiting for a reply' : 'all caught up', 'clock')}${kpi('Inbox', esc(inbox), stuck ? stuck + ' not emailed on' : 'every note is emailed here', 'panel')}</div>
+      <section class="panel"><p class="eyebrow">Messages \u00b7 ${ms.length}</p><p class="auth-sub">${adminKey() ? 'Live from the database' + (syncedAt ? ' \u00b7 synced ' + fmt(syncedAt) : '') + '. ' : 'Save the admin key under Settings \u2192 Server connection to load the inbox. '}Everything sent through <b>Contact us</b> lands here and is emailed to <b>${esc(inbox)}</b>. Open one and hit Reply \u2014 the customer's address is already filled in.</p>
+      ${ms.length ? `<div>${ms.map(item).join('')}</div>` : '<p class="cart-empty">No notes yet \u2014 they appear the moment a visitor sends one.</p>'}</section>`;
+  };
   ADMIN.audit = () => auditView();
   function auditView() { const a = read('lww_audit', []).slice().reverse(); return `<section class="panel"><div class="row-between"><div><p class="eyebrow">Audit logs · ${a.length}</p><p class="auth-sub">Newest first.</p></div><button type="button" class="btn btn-ghost btn-sm" data-adm="clear" data-key="lww_audit">${ico('trash')}Clear</button></div>${table(['When', 'Who', 'Action', 'Detail'], a.map(x => [fmt(x.at), esc(x.actor), `<b>${esc(x.action)}</b>`, esc(x.detail)]), 'Nothing logged yet.', { filter: 'Filter logs…' })}</section>`; }
 
@@ -867,6 +884,11 @@
   /* ---------- actions ---------- */
   document.addEventListener('click', e => {
     const d = e.target.closest('[data-dash]'); if (d) { if (d.classList.contains('off')) { toast('Your role does not have this permission'); return; } section[portalKind] = d.dataset.dash; editing = null; custOpen = null; rerender(); return; }
+    const sm = e.target.closest('details[data-msg] > summary');
+    if (sm && !sm.parentElement.open) {
+      const id = +sm.parentElement.dataset.msg, ms = read('lww_messages', []), m = ms.find(x => x.id === id);
+      if (m && !m.read) { m.read = Date.now(); save('lww_messages', ms); if (adminKey()) adminApi('POST', '/api/admin/messages/read', { id }).catch(() => {}); }
+    }
     const a = e.target.closest('[data-adm]'); if (!a) return;
     const act = a.dataset.adm, id = a.dataset.id;
     if (a.classList.contains('book-card') && e.target.closest('button')) return;
@@ -877,6 +899,7 @@
     else if (act === 'product-delete') deleteProduct(id);
     else if (act === 'customer-open') { custOpen = id; rerender(); portalEl.scrollTo({ top: 0, behavior: 'smooth' }); }
     else if (act === 'customer-close') { custOpen = null; rerender(); }
+    else if (act === 'msg-replied') { const ms = read('lww_messages', []), m = ms.find(x => x.id === +id); if (m) { m.replied = Date.now(); m.read = m.read || Date.now(); save('lww_messages', ms); log('replied to note', m.email); toast('Marked as replied'); if (adminKey()) adminApi('POST', '/api/admin/messages/replied', { id: +id }).catch(err => toast('Server: ' + err.message)); rerender(); } }
     else if (act === 'coupon-delete') { save('lww_coupons', read('lww_coupons', []).filter(c => c.code !== id)); log('coupon deleted', id); rerender(); }
     else if (act === 'content-reset') { localStorage.removeItem('lww_content'); log('content reset', 'home page'); toast('Reset — reloading'); setTimeout(() => location.reload(), 500); }
     else if (act === 'clear') { localStorage.removeItem(a.dataset.key); log('cleared', a.dataset.key); rerender(); }
