@@ -296,6 +296,13 @@ body[data-stage="boot"] .counter, body[data-stage="boot"] .hint, body[data-stage
 .shop-card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shop-card .price { font-weight: 700; font-size: var(--fs-body); }
 .shop-card .price.free { color: var(--ok); }
+.skill-card { display: flex; flex-direction: column; padding: 0; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: var(--skill-bg, rgba(8,18,26,0.14)); backdrop-filter: blur(8px); cursor: pointer; text-align: left; color: inherit; transition: transform var(--d-base) var(--ease), border-color var(--d-base), background var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 50ms); overflow: hidden; position: relative; min-height: 220px; }
+.skill-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); background: rgba(8,18,26,0.24); }
+.skill-bg { position: absolute; inset: 0; background: var(--skill-bg); opacity: 0.5; }
+.skill-content { position: relative; z-index: 1; padding: 20px 18px; display: flex; flex-direction: column; height: 100%; }
+.skill-desc { color: var(--fg-muted); font-size: var(--fs-small); line-height: 1.5; margin-top: 6px; }
+.skill-list { list-style: none; padding: 0; margin: 0; }
+
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
 
 /* ---------- checkout: the payment page ---------- */
@@ -1608,7 +1615,16 @@ const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
 ];
+const SKILL_CATEGORIES = [
+  { id: 'letter-formation', label: 'Letter Formation', description: 'Uppercase and lowercase with dotted guides and picture cues', color: 'rgba(59, 91, 219, 0.4)', count: 26 },
+  { id: 'letter-sounds', label: 'Letter Sounds', description: 'Consonant blending, rhyming words and phonetic awareness', color: 'rgba(139, 67, 219, 0.4)', count: 6 },
+  { id: 'uppercase-lowercase', label: 'Uppercase & lowercase', description: 'Match upper to lower case letters in fun activities', color: 'rgba(67, 167, 219, 0.4)', count: 5 },
+  { id: 'spot-the-letters', label: 'Spot the letters', description: 'Visual discrimination and letter recognition practice', color: 'rgba(219, 131, 67, 0.4)', count: 5 },
+  { id: 'colour-matching', label: 'Colour matching', description: 'Sort, name and match colours with tracing practice', color: 'rgba(67, 219, 131, 0.4)', count: 26 },
+];
 let shopView = 'all', shopClass = 'all', shopSubject = 'all';
+window.SKILL_FILTER = null;
+
 const shopPlayer = makePlayer(document.getElementById('shopBg'), 12);
 function openShop(view) {
   if (view && VIEWS.some(v => v.id === view)) { shopView = view; shopClass = 'all'; shopSubject = 'all'; }
@@ -1629,27 +1645,73 @@ function renderShop() {
     (shopSubject === 'all' || it.subjectId === shopSubject || it.subject.toLowerCase() === subjectById(shopSubject).label.toLowerCase())
   ).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === shopView);
-  document.getElementById('shopTitle').textContent = v.label + (shopClass !== 'all' ? ' · ' + classById(shopClass).label : '') + (shopSubject !== 'all' ? ' · ' + subjectById(shopSubject).label : '');
-  document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
-  document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
-    const free = it.price === 0, mine = canOpen(it);
-    const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒</b>';
-    return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
-      <div class="paper${it.img ? ' shot' : ''}">${it.img ? `<img src="${it.img}" alt="" loading="lazy">` : `<small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>`}${tag}</div>
-      <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
-      <h3 class="card-title">${esc(it.title)}</h3>
-      <p>${esc(it.blurb)}</p>
-      <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought'}</span>
-        ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
-    </article>`;
-  }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
+  if (window.SKILL_FILTER) {
+    const skillItems = PDF_SHEETS.filter(it => it.id.startsWith(window.SKILL_FILTER + '-'));
+    const catName = { 'az': 'Letter Formation', 'rc': 'Letter Sounds', 'mt': 'Uppercase & lowercase', 'sp': 'Spot the letters', 'cl': 'Colour matching' }[window.SKILL_FILTER];
+    document.getElementById('shopTitle').textContent = catName;
+    document.getElementById('shopSub').textContent = skillItems.length + ' printable PDF sheets';
+    list.length = 0; list.push(...skillItems);
+  } else {
+    document.getElementById('shopTitle').textContent = v.label + (shopClass !== 'all' ? ' · ' + classById(shopClass).label : '') + (shopSubject !== 'all' ? ' · ' + subjectById(shopSubject).label : '');
+  }
+  const showSkills = shopView === 'all' && shopClass === 'all' && shopSubject === 'all' && list.length > 0 && !window.SKILL_FILTER;
+  if (showSkills) {
+    document.getElementById('shopSub').textContent = '5 skill categories · 68 printable PDF sheets · click one to browse';
+    document.getElementById('shopGrid').innerHTML = SKILL_CATEGORIES.map((cat, n) => {
+      const skillItems = PDF_SHEETS.filter(it => {
+        if (cat.id === 'letter-formation') return it.id.startsWith('az-');
+        if (cat.id === 'letter-sounds') return it.id.startsWith('rc-');
+        if (cat.id === 'uppercase-lowercase') return it.id.startsWith('mt-');
+        if (cat.id === 'spot-the-letters') return it.id.startsWith('sp-');
+        if (cat.id === 'colour-matching') return it.id.startsWith('cl-');
+        return false;
+      });
+      return `<article class="skill-card" data-skill="${cat.id}" style="--n:${n};--skill-bg:${cat.color}" tabindex="0">
+        <div class="skill-bg"></div>
+        <div class="skill-content">
+          <h3 class="card-title">${esc(cat.label)}</h3>
+          <p class="skill-desc">${esc(cat.description)}</p>
+          <ul class="skill-list" style="margin-top:12px;margin-bottom:12px;color:var(--fg-muted);font-size:var(--fs-small)">
+            <li style="margin-bottom:4px">· Free sample to explore</li>
+            <li style="margin-bottom:4px">· Printable and watermarked</li>
+            <li style="margin-bottom:4px">· Buy or subscribe to unlock</li>
+          </ul>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
+            <span style="font-weight:700;font-size:var(--fs-small);color:var(--fg-muted)">${cat.count} sheets</span>
+            <button type="button" class="btn btn-sm btn-primary" data-browse-skill="${cat.id}">Browse worksheets <span>→</span></button>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  } else {
+    document.getElementById('shopSub').textContent = list.length + (list.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
+    document.getElementById('shopGrid').innerHTML = list.length ? list.map((it, n) => {
+      const free = it.price === 0, mine = canOpen(it);
+      const tag = mine ? '<b class="tag">' + (free ? 'Free' : 'Unlocked') + '</b>' : NEW_IDS.includes(it.id) ? '<b class="tag" style="background:#3b5bdb">New</b>' : BEST_IDS.includes(it.id) ? '<b class="tag" style="background:#b8862b">Bestseller</b>' : free ? '<b class="tag free">Free</b>' : '<b class="tag">🔒</b>';
+      return `<article class="shop-card" data-open="${it.id}" style="--n:${n}" tabindex="0">
+        <div class="paper${it.img ? ' shot' : ''}">${it.img ? `<img src="${it.img}" alt="" loading="lazy">` : `<small>${esc(it.subject)}</small><div class="glyph">${esc(it.glyph)}</div><small>Learn With Why · PDF</small>`}${tag}</div>
+        <p class="meta">${esc(it.cls ? classById(it.cls).label + ' · ' : '')}${esc(it.subject)}${it.pages ? ' · ' + it.pages + ' pages' : ''}</p>
+        <h3 class="card-title">${esc(it.title)}</h3>
+        <p>${esc(it.blurb)}</p>
+        <div class="row"><span class="price${free ? ' free' : ''}">${mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought'}</span>
+          ${mine ? `<button type="button" class="btn btn-ghost" data-view="${it.id}">Open ↗</button>` : free ? `<button type="button" class="btn btn-primary" data-unlock="${it.id}">Open free</button>` : `<button type="button" class="btn btn-primary" data-buy="${it.id}">Buy PDF</button>`}</div>
+      </article>`;
+    }).join('') : '<p class="cart-empty">Nothing here yet — try another class or subject.</p>';
+  }
   document.getElementById('shopBagCount').textContent = document.getElementById('bagCount').textContent;
 }
 document.addEventListener('click', e => {
   const o = e.target.closest('[data-shop]'); if (o) { e.preventDefault(); openShop(o.dataset.shop); return; }
-  const v = e.target.closest('[data-shop-view]'); if (v) { shopView = v.dataset.shopView; renderShop(); return; }
-  const c = e.target.closest('[data-shop-class]'); if (c) { shopClass = c.dataset.shopClass; renderShop(); return; }
-  const sb = e.target.closest('[data-shop-subject]'); if (sb) { shopSubject = sb.dataset.shopSubject; renderShop(); }
+  const v = e.target.closest('[data-shop-view]'); if (v) { shopView = v.dataset.shopView; shopClass = 'all'; shopSubject = 'all'; window.SKILL_FILTER = null; renderShop(); return; }
+  const c = e.target.closest('[data-shop-class]'); if (c) { shopClass = c.dataset.shopClass; window.SKILL_FILTER = null; renderShop(); return; }
+  const sb = e.target.closest('[data-shop-subject]'); if (sb) { shopSubject = sb.dataset.shopSubject; window.SKILL_FILTER = null; renderShop(); }
+  const sk = e.target.closest('[data-browse-skill]'); if (sk) {
+    const catMap = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl' };
+    window.SKILL_FILTER = catMap[sk.dataset.browseSkill];
+    shopView = 'all'; shopClass = 'all'; shopSubject = 'all';
+    renderShop();
+    return;
+  }
 });
 document.getElementById('shopClose').addEventListener('click', closeShop);
 document.getElementById('shopBagBtn').addEventListener('click', () => openDrawer('bagDrawer'));
