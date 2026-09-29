@@ -1,0 +1,37 @@
+/* Moved verbatim from site/dist/index.html (<style>). */
+/* =====================================================================
+   LEARN WITH WHY — one file, no build step.
+   The floating-island frames travel between six chapters; every surface
+   on top is glass so the landscape (and the fox and rabbit in chapter 02)
+   stays in view.
+   ===================================================================== */
+:root {
+  --scroll: 0;
+  --fg: #f7f3ea;
+  --fg-muted: rgba(247, 243, 234, 0.74);
+  --fg-dim: rgba(247, 243, 234, 0.5);
+  --glass: rgba(10, 22, 30, 0.42);
+  --glass-strong: rgba(8, 18, 26, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --paper: #f8f5ee;
+  --ink: #1d2126;
+  --ink-muted: #5d636b;
+  --danger: #ff9a9a;
+  --ok: #8fe8b4;
+  --font-display: 'Cormorant', 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --fs-display: clamp(2.6rem, 1.4rem + 4.8vw, 5.4rem);
+  --fs-h2: clamp(2.2rem, 1.3rem + 3.4vw, 4.2rem);
+  --fs-lede: clamp(0.98rem, 0.9rem + 0.4vw, 1.15rem);
+  --fs-body: 0.94rem; --fs-ui: 0.88rem; --fs-small: 0.78rem; --fs-eyebrow: 0.68rem;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 22px; --r-pill: 100px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --d-fast: 180ms; --d-base: 320ms; --d-slow: 600ms;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050a0e; touch-action: none; }
+body { color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+button { font-family: inherit; color: inherit; }
+canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; }
+#scrim { position: fixed; inset: 0; z-index: 1; pointer-events: none; transition: opacity 0.6s ease;
+  background: linear-gradient(180deg, rgba(4,10,16,0.55) 0%, rgba(4,10,16,0.1) 30%, rgba(4,10,16,0.15) 65%, rgba(4,10,16,0.7) 100%), radial-gradient(ellipse 80% 70% at 20% 55%, rgba(4,10,16,0.5), transparent 68%); }
