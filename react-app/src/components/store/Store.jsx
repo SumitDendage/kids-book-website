@@ -2,13 +2,13 @@ import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import usePreviewPlayer from '../../hooks/usePreviewPlayer.js';
 import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
-import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME } from '../../data/catalogue.js';
+import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
    Subscription, then classes and subjects. The fox and rabbit play behind it. */
-function SideButton({ on, onClick, children }) {
-  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}>{children}</button>;
+function SideButton({ on, onClick, n, children }) {
+  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className="side-n">{n}</span> : null}</button>;
 }
 
 export default function Store({ bagCount }) {
@@ -18,14 +18,17 @@ export default function Store({ bagCount }) {
   usePreviewPlayer(bgRef, 12, open);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
 
-  const list = ITEMS.filter(it =>
-    (view === 'all' || (view === 'new' && NEW_IDS.includes(it.id)) || (view === 'best' && BEST_IDS.includes(it.id)) || (view === 'free' && it.price === 0) || (view === 'paid' && it.price > 0)) &&
-    (cls === 'all' || it.cls === cls) && subjectMatches(it, subject)
-  ).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
+  /* the sheets a view, class and subject show */
+  const pick = (vw, c, sj) => ITEMS.filter(it =>
+    (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
+    (c === 'all' || it.cls === c) && subjectMatches(it, sj));
+  /* the sidebar counts the printable PDF sheets each button leads to */
+  const countOf = (vw, c, sj) => pick(vw, c, sj).filter(it => it.pdf).length;
+  const list = pick(view, cls, subject).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === view);
   let title, sub, shown = list;
   if (skill) {
-    shown = PDF_SHEETS.filter(it => it.id.startsWith(skill + '-'));
+    shown = skillSheets(skill);
     title = SKILL_NAME[skill];
   } else {
     title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
@@ -45,11 +48,11 @@ export default function Store({ bagCount }) {
       <div className="shop-body">
         <aside className="panel shop-side" aria-label="Filters">
           <p className="side-title">Browse</p>
-          <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} onClick={() => setShopFilter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
+          <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => setShopFilter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
-          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
+          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
           <p className="side-title">Subjects</p>
-          <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} onClick={() => setShopFilter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} onClick={() => setShopFilter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
+          <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => setShopFilter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => setShopFilter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
         </aside>
         <main className="shop-main">

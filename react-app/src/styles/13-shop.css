@@ -20,6 +20,9 @@
 .side-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
 .side-btn.on { background: #fff; color: #14181c; }
 .side-btn.on small { color: #5d636b; }
+.side-btn .side-lbl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex: 1; }
+.side-btn .side-n { font-size: 0.66rem; font-weight: 700; padding: 3px 7px; border-radius: 100px; background: rgba(255,255,255,0.1); }
+.side-btn.on .side-n { background: rgba(20,24,28,0.1); }
 .side-note { font-family: var(--font-display); font-style: italic; font-size: 1.05rem; color: var(--fg-muted); line-height: 1.4; }
 .shop-head { margin: 8px 0 16px; }
 .shop-head h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.6rem, 1.1rem + 1.6vw, 2.3rem); line-height: 1.1; }

@@ -197,10 +197,16 @@ export const SKILL_CATEGORIES = [
   { id: 'uppercase-lowercase', label: 'Uppercase & lowercase', description: 'Match upper to lower case letters in fun activities', color: 'rgba(67, 167, 219, 0.4)', count: 5 },
   { id: 'spot-the-letters', label: 'Spot the letters', description: 'Visual discrimination and letter recognition practice', color: 'rgba(219, 131, 67, 0.4)', count: 5 },
   { id: 'colour-matching', label: 'Colour matching', description: 'Sort, name and match colours with tracing practice', color: 'rgba(67, 219, 131, 0.4)', count: 26 },
+  { id: 'beginning-sounds', label: 'Beginning sounds', description: 'Hear, circle and write the first sound, with read-aloud charts A to E', color: 'rgba(219, 67, 131, 0.4)' },
+  { id: 'ending-sounds', label: 'Ending sounds', description: 'Choose and write the last sound, then find words that end the same', color: 'rgba(219, 191, 67, 0.4)' },
 ];
 /* the store's skill filter: category id → the id prefix of its printable PDFs */
-export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl' };
-export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching' };
+export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl', 'beginning-sounds': 'bs', 'ending-sounds': 'es' };
+export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching', bs: 'Beginning sounds', es: 'Ending sounds' };
+/* the PDF sheets in a skill: every sheet whose id starts with one of its prefixes, so each PDF is counted once */
+const SKILL_SETS = { bs: ['bx', 'sd'], es: ['ex'] };
+export const skillSheets = skill => PDF_SHEETS.filter(it => (SKILL_SETS[skill] || [skill]).includes(it.id.split('-')[0]));
+SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(SKILL_PREFIX[c.id]).length; });
 
 /* prices the admin changed in this browser */
 export function applyLocalPrices(PLANS) { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); }
