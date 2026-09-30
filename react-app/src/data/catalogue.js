@@ -101,28 +101,23 @@ export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice
   about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-/* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
-   Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
-   (the admin's book studio has a Topic field). Letter tracing holds the 26 A to Z sheets. */
+/* Kindergarten, as planned in the Kindergarten content plan: one main category
+   (Alphabet) with eight sub-categories, shown in this order on the shelf. Sheets reach a
+   sub-category through TOPIC_SHEETS below or a `topic` field on the product (the admin's
+   book studio has a Topic field). `plan` is the access the plan gives each sub-category. */
 export const KG_TOPICS = [
-  { id: 'pre', title: 'Pre-reading skills', tone: 'blue', items: [['picture-matching', 'Picture matching'], ['same-different', 'Same and different'], ['visual-discrimination', 'Visual discrimination'], ['listening', 'Listening activities'], ['following-instructions', 'Following instructions'], ['story-sequencing', 'Story sequencing'], ['rhyming-words', 'Rhyming words'], ['odd-one-out', 'Odd one out'], ['bme-sounds', 'Beginning, middle and ending sounds'], ['syllable-clapping', 'Syllable clapping'], ['oral-blending', 'Oral blending and segmenting']] },
-  { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [['letter-recognition', 'A-Z letter recognition'], ['upper-lower', 'Uppercase and lowercase'], ['letter-tracing', 'Letter tracing'], ['letter-formation', 'Letter formation'], ['letter-sounds', 'Letter sounds'], ['beginning-sound-pictures', 'Beginning-sound pictures'], ['match-upper-lower', 'Match uppercase to lowercase'], ['missing-letters', 'Missing letters'], ['alphabet-order', 'Alphabet order'], ['before-after-letters', 'Before and after letters'], ['mouth-positions', 'Mouth positions and sound actions']] },
-  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
-  { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
-  { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
-  { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
-  { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
-  { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
+  { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [
+    ['letter-tracing', 'A-Z Letter Tracing', 'Children trace uppercase and lowercase letters from A to Z.', 'Free'],
+    ['letter-recognition', 'A-Z Letter Recognition', 'Children identify and recognise letters from A to Z.', 'First 3 free'],
+    ['match-upper-lower', 'Match Uppercase and Lowercase Letters', 'Children match each capital letter with its corresponding small letter.', 'First 3 free'],
+    ['before-after-letters', 'Letters Before and After', 'Children identify the letter that comes before or after the given letter.', 'First 3 free'],
+    ['beginning-sounds', 'Beginning Sounds', 'Children identify the first sound heard in a pictured word.', 'First 3 free'],
+    ['ending-sounds', 'Ending Sounds', 'Children identify the final sound heard in a pictured word.', 'First 3 free'],
+    ['middle-sounds', 'Middle Sounds', 'Children identify the middle sound heard in a simple word.', ''],
+    ['missing-letters', 'Find the Missing Letters', 'Children complete alphabet sequences by writing the missing letters.', ''],
+  ] },
 ];
-export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
-const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
-export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
-/* every sheet inside a whole topic group (for "Browse worksheets") */
-export function groupSheets(gid) {
-  const g = KG_TOPICS.find(x => x.id === gid); if (!g) return [];
-  const out = []; g.items.forEach(([id]) => topicSheets(id).forEach(it => { if (!out.some(x => x.id === it.id)) out.push(it); })); return out;
-}
-export const groupTitle = gid => (KG_TOPICS.find(x => x.id === gid) || {}).title || '';
+export const TOPIC_SHEETS = { 'letter-tracing': ['az'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'beginning-sounds': ['rc'] };
 export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
 export function topicSheets(id) {
   const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
@@ -138,7 +133,7 @@ export function topicSheets(id) {
 /* Picture-reading charts: six landscape pages (A, I, N, P, S, T) — a big letter with pictures whose names carry its sound. */
 export const RC_LETTERS = 'AINPST'.split('');
 export const RC_WORDS = { A: 'aeroplane, ant, apple, jam and hat', I: 'igloo, ink, insects, tin and spin', N: 'net, nest, nap, nine and pan', P: 'pup, pen, pit, panda and map', S: 'sun, star, snake, sand and bus', T: 'tent, train, tiger, tree and sit' };
-export const rcItem = L => keepSheet('rc-' + L, () => { const price = sheetPrice('rc-' + L, RC_FREE.includes(L)); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: '/sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
+export const rcItem = L => keepSheet('rc-' + L, () => { const price = sheetPrice('rc-' + L, RC_FREE.includes(L)); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: '/sheets/reading/thumb/' + L + '.jpg', topic: 'beginning-sounds',
   blurb: 'Look at the pictures, say the words, hear the ' + L.toLowerCase() + ' sound: ' + RC_WORDS[L] + '.',
   about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Colour the letter (26) and Match the letters (5 ranges) — first three of each set free */
