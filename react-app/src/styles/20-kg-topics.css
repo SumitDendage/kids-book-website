@@ -1,23 +1,25 @@
-/* Kindergarten — the Alphabet category from the content plan: its eight sub-categories
-   in order, each a panel with its sheets. */
-.kg-alpha { display: grid; gap: 16px; margin-bottom: 26px; }
-.kg-alpha-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-.kg-alpha-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
-.kg-alpha-head h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2rem, 1.4rem + 2vw, 3rem); line-height: 1; color: #fff; margin: 0; }
-.kg-sub { padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.34); backdrop-filter: blur(10px); }
-.kg-sub-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-.kg-no { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(143,232,180,0.14); border: 1px solid rgba(143,232,180,0.35); color: var(--ok); font-weight: 700; font-size: 0.95rem; }
-.kg-sub-head h4 { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 1.12rem; font-weight: 700; letter-spacing: -0.01em; color: #fff; margin: 0; }
-.kg-access { flex: none; display: grid; justify-items: end; gap: 3px; padding: 6px 11px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; text-align: right; }
-.kg-access i { font-style: normal; font-weight: 500; font-size: 0.66rem; opacity: 0.8; }
+/* Kindergarten — one tile for each Alphabet sub-category of the content plan, in the
+   All sheets card style. A tile opens to its sheets (.kg-open, styled in 21-pic-tiles.css). */
+.kg-topics, .kg-open { margin-bottom: 26px; padding: 22px 20px 24px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
+.kg-head { margin-bottom: 18px; }
+.kg-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.kg-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
+.kg-head h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2rem, 1.4rem + 2vw, 3rem); line-height: 1; color: #fff; margin: 0; }
+.kg-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.kg-tile { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 20px 18px 16px; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,0.15); background: linear-gradient(165deg, rgba(143,232,180,0.12), rgba(8,18,26,0.05) 70%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: transform var(--d-base) var(--ease), border-color var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); }
+.kg-tile:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); }
+.kg-tile.soon { border-style: dashed; background: rgba(255,255,255,0.04); }
+.kg-no { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(143,232,180,0.14); border: 1px solid rgba(143,232,180,0.35); color: var(--ok); font-weight: 700; font-size: 0.92rem; }
+.kg-tile.soon .kg-no { background: rgba(255,255,255,0.06); border-color: var(--glass-border); color: var(--fg-muted); }
+.kg-tile .card-title { font-size: 1.5rem; color: #fff; margin: 4px 0 0; }
+.kg-focus { color: var(--fg-muted); font-size: var(--fs-small); line-height: 1.5; margin: 0; flex: 1; }
+.kg-access { align-self: flex-start; padding: 4px 10px; border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 700; }
 .kg-access.free { background: rgba(143,232,180,0.16); color: var(--ok); }
 .kg-access.part { background: rgba(240,190,110,0.16); color: #f0be6e; }
 .kg-access.paid { background: rgba(255,168,190,0.14); color: #ffa8be; }
-.kg-access.soon { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); }
+.kg-access.soon { background: rgba(255,255,255,0.08); color: var(--fg-muted); }
+.kg-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); }
+.kg-foot > span { font-weight: 700; font-size: var(--fs-small); color: var(--fg-muted); white-space: nowrap; }
+.kg-foot .btn { padding: 9px 14px; font-size: var(--fs-small); white-space: nowrap; }
 .kg-soon { margin: 0; padding: 14px 16px; border-radius: 14px; border: 1px dashed var(--glass-border); font-size: var(--fs-small); color: rgba(255,255,255,0.75); }
-@media (max-width: 640px) {
-  .kg-sub { padding: 14px; }
-  .kg-sub-head { flex-wrap: wrap; gap: 10px; }
-  .kg-no { width: 36px; height: 36px; }
-  .kg-access { justify-items: start; text-align: left; margin-left: 46px; }
-}
+@media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } .kg-tiles { grid-template-columns: 1fr; } }

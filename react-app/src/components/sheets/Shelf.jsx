@@ -33,11 +33,12 @@ function AzBlock() {
 export default function Shelf() {
   const { stage, openShop, version } = useSite();
   const [cat, setCat] = useState(CLASSES[0].id);
+  const [kgOpen, setKgOpen] = useState(null);   /* the Kindergarten section that is open, or null for the tiles */
   /* the chapter grows or shrinks: re-measure the stack */
-  useEffect(() => { stage.measure(); }, [cat, version, stage]);
+  useEffect(() => { stage.measure(); }, [cat, kgOpen, version, stage]);
 
   const sideItem = (id, label) => (
-    <button key={id} type="button" className={'side-item' + (id === cat ? ' on' : '')} aria-current={id === cat ? 'true' : 'false'} onClick={() => setCat(id)}>
+    <button key={id} type="button" className={'side-item' + (id === cat ? ' on' : '')} aria-current={id === cat ? 'true' : 'false'} onClick={() => { setCat(id); setKgOpen(null); }}>
       <span className="ic" aria-hidden="true">{SIDE_ICON[id.replace('subj:', '')] || '•'}</span><span className="lbl"><b>{label}</b></span><span className="n">{countOf(id)}</span>
     </button>
   );
@@ -70,7 +71,7 @@ export default function Shelf() {
         </Rise>
         <div className="ws-main">
           <div id="azBlock" hidden={!(cat === 'kg' || hasAZ(cat))}>
-            {cat === 'kg' ? <KgTopics /> : hasAZ(cat) ? <AzBlock /> : null}
+            {cat === 'kg' ? <KgTopics open={kgOpen} onOpen={setKgOpen} /> : hasAZ(cat) ? <AzBlock /> : null}
           </div>
           <Rise i={3} className="shop-grid" id="wsRow" hidden={cat === 'kg'}>{row}</Rise>
           <Rise i={4} className="ws-nav"><span id="wsCount">{count}</span><button type="button" className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => openShop('all')}>See every sheet →</button></Rise>
