@@ -33,13 +33,16 @@ export default function KgTopics({ open, onOpen }) {
           const total = groupSheets(g.id).length;
           return (
             <article key={g.id} className={'kg-card tone-' + g.tone}>
-              <h4>{g.title}</h4>
+              <h4 className="card-title">{g.title}</h4>
               <ul className="kg-list">
                 {g.items.map(([id, label]) => { const n = topicSheets(id).length; return (
                   <li key={id}><button type="button" className={'kg-item' + (n ? '' : ' soon')} onClick={() => onOpen({ topic: id })}><span>{label}</span>{n ? <b>{n}</b> : null}</button></li>
                 ); })}
               </ul>
-              <button type="button" className="kg-browse" onClick={() => onOpen({ group: g.id })}>Browse worksheets <span aria-hidden="true">→</span>{total ? <i>{total}</i> : null}</button>
+              <div className="kg-foot">
+                <span>{total ? total + (total === 1 ? ' sheet' : ' sheets') : 'Coming soon'}</span>
+                {total ? <button type="button" className="btn btn-sm btn-primary" onClick={() => onOpen({ group: g.id })}>Browse worksheets <span aria-hidden="true">→</span></button> : null}
+              </div>
             </article>
           );
         })}

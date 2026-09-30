@@ -10,18 +10,23 @@
 .kg-card, .kg-slogan { display: inline-block; width: 100%; margin: 0 0 16px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
 .kg-card {
   --tint: 150, 196, 255; --dot: #8fd6d2; --title: #fff; --body: #fff;
-  background: linear-gradient(165deg, rgba(var(--tint), 0.18), rgba(8,18,26,0.34) 70%);
-  border: 1px solid rgba(var(--tint), 0.28); border-radius: 14px; padding: 18px 20px 14px;
-  backdrop-filter: blur(12px) saturate(1.15); box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-  transition: box-shadow var(--d-base), transform var(--d-base) var(--ease), border-color var(--d-base);
+  position: relative; overflow: hidden;
+  background: linear-gradient(165deg, rgba(var(--tint), 0.12), rgba(8,18,26,0.05) 70%);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-lg); padding: 20px 18px 16px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  transition: transform var(--d-base) var(--ease), border-color var(--d-base), background var(--d-base);
 }
-.kg-card:hover { transform: translateY(-2px); border-color: rgba(var(--tint), 0.55); box-shadow: 0 18px 38px rgba(0,0,0,0.28); }
+.kg-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); background: linear-gradient(165deg, rgba(var(--tint), 0.16), rgba(8,18,26,0.12) 70%); }
 .kg-card.tone-blue { --tint: 150, 196, 255; --dot: #96c4ff; }
 .kg-card.tone-teal { --tint: 143, 232, 180; --dot: #8fe8b4; }
 .kg-card.tone-yellow { --tint: 240, 190, 110; --dot: #f0be6e; }
 .kg-card.tone-purple { --tint: 200, 182, 255; --dot: #c8b6ff; }
 .kg-card.tone-pink { --tint: 255, 168, 190; --dot: #ffa8be; }
-.kg-card h4 { font-family: var(--font-body); font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; color: var(--title); margin: 0 0 8px; }
+.kg-card h4 { color: var(--title); margin: 0 0 10px; font-size: 1.5rem; }   /* serif .card-title, like the All sheets cards */
+/* sheet count + white Browse button, like the All sheets cards */
+.kg-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); }
+.kg-foot > span { font-weight: 700; font-size: var(--fs-small); color: var(--fg-muted); white-space: nowrap; }
+.kg-foot .btn { padding: 9px 14px; font-size: var(--fs-small); white-space: nowrap; }
 .kg-list { list-style: none; margin: 0; padding: 0; display: grid; }
 .kg-item {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%;
