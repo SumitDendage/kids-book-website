@@ -34,7 +34,6 @@ export const CLASSES = [
 ];
 export const SUBJECTS = [
   { id: 'english', label: 'English' }, { id: 'maths', label: 'Maths' }, { id: 'science', label: 'Science' },
-  { id: 'evs', label: 'EVS' }, { id: 'hindi', label: 'Hindi' }, { id: 'art', label: 'Art & craft' },
 ];
 export const classById = id => CLASSES.find(c => c.id === id);
 export const subjectById = id => SUBJECTS.find(x => x.id === id);

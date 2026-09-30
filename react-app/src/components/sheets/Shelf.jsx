@@ -9,7 +9,7 @@ import KgTopics, { kgSheetCount } from './KgTopics.jsx';
 
 /* One shelf per class: the free sheet first, the paid ones right beside it.
    Left-side menu: "By class" (Kindergarten … Class 3) and "By topic" (every subject). */
-const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
+const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', english: 'Aa', maths: '12', science: '?' };
 const poolOf = id => id.startsWith('subj:')
   ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase()))
   : CATALOGUE.concat(WORKSHEETS).filter(i => i.cls === id);   /* the weekly worksheets now sit in their own class */
