@@ -6,7 +6,7 @@ The original `site/` folder is left exactly as it was.
 
 ## What you need
 
-- Node.js 20.19 or newer (Node 22 recommended) — https://nodejs.org
+- Node.js 22.13 or newer — https://nodejs.org (the website alone builds on Node 20.19+ or 22.12+, but the backend, `node site/server.cjs`, needs 22.13+ for its built-in SQLite)
 
 ## Run it on your computer (Windows)
 
@@ -22,10 +22,13 @@ The original `site/` folder is left exactly as it was.
 4. Open http://localhost:5173 in your browser.
 
 Sign-in, the shop, checkout and the sheet viewer talk to the Node backend
-(`node site/server.cjs`, on http://127.0.0.1:4173). Start it in a second window
-and the React dev server forwards every `/api/...` call to it. Without the
-backend the pages still open, but anything that needs the server shows its
-normal "could not reach the server" messages.
+(http://127.0.0.1:4173). Start it in a second window opened in the main
+`kids-book-website` folder (one level up) with `node site/server.cjs`, or run
+`node ../site/server.cjs` from the `react-app` folder. The React dev server then
+forwards every `/api/...` call to it. Without the backend the pages still open,
+but anything that needs the server fails: sign-in shows "Request failed (502)",
+checkout shows "Pricing service unavailable" and the viewer shows "Could not
+open the sheet".
 
 ## Build the files for Hostinger
 
@@ -43,15 +46,22 @@ sheet viewer.
 
 ## Settings
 
-Copy `.env.example` to `.env` if you need to change anything:
+Copy `.env.example` to `.env.local` if you need to change anything:
 
-- `VITE_API_BASE_URL` — leave empty when the API is on the same domain (normal).
-  Set it only if the Node backend runs on another address.
+- `VITE_API_BASE_URL` — leave empty. The backend only accepts calls from its own
+  domain, so the website and `/api` must be served from the same domain. Setting
+  it to another address only works once the backend allows cross-origin requests
+  (CORS with credentials and a cross-site session cookie).
 - `VITE_DEV_API_PROXY` — where `npm run dev` finds the backend.
 
-Never put secret keys (Razorpay secret, admin key, database passwords) in `.env`
+Never put secret keys (Razorpay secret, admin key, database passwords) in `.env.local`
 for this app: everything starting with `VITE_` ends up inside the public website.
 Secrets belong only in the backend's own `site/.env`.
+
+One exception to watch: staff paste `ADMIN_KEY` into Admin → Settings → Server
+connection. It is kept as plain text in that browser's storage and is included in
+every Export / Download backup file, so only save it on a trusted computer and
+never share backup files.
 
 ## Where things are
 
