@@ -31,7 +31,7 @@ export default function Store({ bagCount }) {
     title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
-  if (showSkills) sub = '5 skill categories · 68 printable PDF sheets · click one to browse';
+  if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
   return (

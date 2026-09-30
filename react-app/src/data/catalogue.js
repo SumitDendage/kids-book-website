@@ -124,7 +124,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd', 'rc'], 'ending-sounds': ['ex'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -135,13 +135,11 @@ export function groupSheets(gid) {
 export const groupTitle = gid => (KG_TOPICS.find(x => x.id === gid) || {}).title || '';
 export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.items.find(x => x[0] === id); if (it) return { group: g.title, label: it[1] }; } return { group: '', label: id }; };
 export function topicSheets(id) {
-  const ids = (TOPIC_SHEETS[id] || []).slice(); let out = [];
-  if (ids.includes('az')) out = out.concat(AZ_LETTERS.map(azItem));
-  if (ids.includes('rc')) out = out.concat(RC_LETTERS.map(rcItem));
-  if (ids.includes('cl')) out = out.concat(CL_LETTERS.map(clItem));
-  if (ids.includes('mt')) out = out.concat(MT_RANGES.map(r => mtItem(r[0])));
-  if (ids.includes('sp')) out = out.concat(MT_RANGES.map(r => spItem(r[0])));
-  ids.filter(x => !['az', 'rc', 'cl', 'mt', 'sp'].includes(x)).forEach(x => { const it = itemById(x); if (it && !out.includes(it)) out.push(it); });
+  /* printable sets by id prefix, in the order TOPIC_SHEETS lists them; anything else is an item id */
+  const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
+    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem) };
+  const out = [];
+  (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !out.includes(it)) out.push(it); }); });
   ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
   return out;
 }
@@ -166,13 +164,32 @@ export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGE
   return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/spot/thumb/' + code + '.jpg', topic: 'match-upper-lower',
   blurb: 'Read the capital letter, then circle every small letter in the row that matches it: ' + letters + '.',
   about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+/* Beginning and ending sounds (Sep 30): the "Read aloud" charts A to E and three
+   exercises each for beginning and ending sounds. The exercises come first in their
+   sub-category, and those three are free, as the content plan asks; the charts are paid. */
+export const SD_LETTERS = 'ABCDE'.split('');
+const SD_WORDS = { A: 'apple, arm, ant, panda, sofa and pizza', B: 'bat, bee, bag, tub, web and crab', C: 'cat, cup, car, sock, duck and magic', D: 'dog, doll, door, road, bed and bird', E: 'eagle, elephant, elbow, tree, knee and three' };
+const soundAbout = (price, lines) => lines.concat(['One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.']);
+export const sdItem = L => keepSheet('sd-' + L, () => { const price = sheetPrice('sd-' + L, false);
+  return ({ id: 'sd-' + L, chart: true, tileName: 'Sound ' + L, tileSub: 'Read aloud · beginning & ending', cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — beginning and ending sounds', pages: 1, price, free: price === 0, real: true, img: '/sheets/sounds/thumb/' + L + '.jpg', topic: 'beginning-sounds',
+  blurb: 'Read the pictures aloud and hear ' + L + ' at the start or the end of each word: ' + SD_WORDS[L] + '.',
+  about: soundAbout(price, ['A big letter ' + L + ' with six pictures around it: ' + SD_WORDS[L] + '.', 'The letter is underlined where it sits in each word, at the start or at the end.', 'Point, say the word, and listen for the ' + L + ' sound.']) }); });
+const BX = { 1: ['Write the missing sound', 'Look at each picture and write the missing beginning sound of the word.'], 2: ['Circle the sound', 'Look at each picture and circle the sound its name begins with.'], 3: ['Same beginning sound', 'Read each row and circle the two words that begin with the same sound.'] };
+const EX = { 1: ['Choose the ending sound', 'Look at each picture and circle the sound its name ends with.'], 2: ['Write the ending sound', 'Write the last sound of each word under its picture.'], 3: ['Same ending sound', 'Read each row and circle the two words that end with the same sound.'] };
+const exerciseItem = (pre, n, map, what, folder, topic) => keepSheet(pre + '-' + n, () => { const price = sheetPrice(pre + '-' + n, true);
+  return ({ id: pre + '-' + n, chart: true, tileName: what + ' ' + n, tileSub: map[n][0], cls: 'kg', subject: 'English', subjectId: 'english', title: what + ' ' + n + ' — ' + map[n][0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/' + folder + '/thumb/' + n + '.jpg', topic,
+  blurb: map[n][1], about: soundAbout(price, [map[n][1], 'Friendly pictures for every word, with a worked example to start.']) }); });
+export const SOUND_EXERCISES = [1, 2, 3];
+export const bxItem = n => exerciseItem('bx', n, BX, 'Beginning Sound', 'beginning', 'beginning-sounds');
+export const exItem = n => exerciseItem('ex', n, EX, 'Ending Sound', 'ending', 'ending-sounds');
 /* Every printable PDF joins the catalogue, so "All sheets" and the store's filters
    show the whole shelf — the letter, colour, matching and reading pages as well as the books. */
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
-  MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])));
+  MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])),
+  SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-export const sheetOf = id => id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+export const sheetOf = id => id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 
 /* ---------- the store: views and skill groups ---------- */
 export const NEW_IDS = ['c2-sci-why', 'c3-mat-tim', 'kg-eng-rhy', 'c3-art-pat', 'ws-time'];
