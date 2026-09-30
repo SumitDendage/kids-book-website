@@ -166,22 +166,23 @@ export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGE
   about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Beginning and ending sounds (Sep 30): the "Read aloud" charts A to E and three
    exercises each for beginning and ending sounds. The exercises come first in their
-   sub-category, and those three are free, as the content plan asks; the charts are paid. */
+   sub-category, and those three are free, as the content plan asks; the charts are paid.
+   Files keep the folders of the zips they came in: sound/ and sound-exercise/. */
 export const SD_LETTERS = 'ABCDE'.split('');
 const SD_WORDS = { A: 'apple, arm, ant, panda, sofa and pizza', B: 'bat, bee, bag, tub, web and crab', C: 'cat, cup, car, sock, duck and magic', D: 'dog, doll, door, road, bed and bird', E: 'eagle, elephant, elbow, tree, knee and three' };
 const soundAbout = (price, lines) => lines.concat(['One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.']);
 export const sdItem = L => keepSheet('sd-' + L, () => { const price = sheetPrice('sd-' + L, false);
-  return ({ id: 'sd-' + L, chart: true, tileName: 'Sound ' + L, tileSub: 'Read aloud · beginning & ending', cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — beginning and ending sounds', pages: 1, price, free: price === 0, real: true, img: '/sheets/sounds/thumb/' + L + '.jpg', topic: 'beginning-sounds',
+  return ({ id: 'sd-' + L, chart: true, tileName: 'Sound ' + L, tileSub: 'Read aloud · beginning & ending', cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — beginning and ending sounds', pages: 1, price, free: price === 0, real: true, img: '/sheets/sound/thumb/' + L + '.jpg', topic: 'beginning-sounds',
   blurb: 'Read the pictures aloud and hear ' + L + ' at the start or the end of each word: ' + SD_WORDS[L] + '.',
   about: soundAbout(price, ['A big letter ' + L + ' with six pictures around it: ' + SD_WORDS[L] + '.', 'The letter is underlined where it sits in each word, at the start or at the end.', 'Point, say the word, and listen for the ' + L + ' sound.']) }); });
 const BX = { 1: ['Write the missing sound', 'Look at each picture and write the missing beginning sound of the word.'], 2: ['Circle the sound', 'Look at each picture and circle the sound its name begins with.'], 3: ['Same beginning sound', 'Read each row and circle the two words that begin with the same sound.'] };
 const EX = { 1: ['Choose the ending sound', 'Look at each picture and circle the sound its name ends with.'], 2: ['Write the ending sound', 'Write the last sound of each word under its picture.'], 3: ['Same ending sound', 'Read each row and circle the two words that end with the same sound.'] };
-const exerciseItem = (pre, n, map, what, folder, topic) => keepSheet(pre + '-' + n, () => { const price = sheetPrice(pre + '-' + n, true);
-  return ({ id: pre + '-' + n, chart: true, tileName: what + ' ' + n, tileSub: map[n][0], cls: 'kg', subject: 'English', subjectId: 'english', title: what + ' ' + n + ' — ' + map[n][0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/' + folder + '/thumb/' + n + '.jpg', topic,
+const exerciseItem = (pre, n, map, what, file, topic) => keepSheet(pre + '-' + n, () => { const price = sheetPrice(pre + '-' + n, true);
+  return ({ id: pre + '-' + n, chart: true, tileName: what + ' ' + n, tileSub: map[n][0], cls: 'kg', subject: 'English', subjectId: 'english', title: what + ' ' + n + ' — ' + map[n][0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/sound-exercise/thumb/' + file + '-' + n + '.jpg', topic,
   blurb: map[n][1], about: soundAbout(price, [map[n][1], 'Friendly pictures for every word, with a worked example to start.']) }); });
 export const SOUND_EXERCISES = [1, 2, 3];
-export const bxItem = n => exerciseItem('bx', n, BX, 'Beginning Sound', 'beginning', 'beginning-sounds');
-export const exItem = n => exerciseItem('ex', n, EX, 'Ending Sound', 'ending', 'ending-sounds');
+export const bxItem = n => exerciseItem('bx', n, BX, 'Beginning Sound', 'beginning-sound', 'beginning-sounds');
+export const exItem = n => exerciseItem('ex', n, EX, 'Ending Sound', 'ending-sound', 'ending-sounds');
 /* Every printable PDF joins the catalogue, so "All sheets" and the store's filters
    show the whole shelf — the letter, colour, matching and reading pages as well as the books. */
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
