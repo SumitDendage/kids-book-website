@@ -1,0 +1,15 @@
+/* Moved verbatim from site/dist/index.html (<style>). */
+/* ---------- creative lines ---------- */
+.why-line { font-size: var(--fs-body); color: var(--fg-muted); margin: -8px 0 22px; text-shadow: 0 2px 14px rgba(0,0,0,0.6); }
+.why-line span { font-size: var(--fs-eyebrow); letter-spacing: 0.2em; text-transform: uppercase; color: var(--fg-dim); margin-right: 8px; }
+.why-line em { font-family: var(--font-display); font-style: italic; font-size: 1.3rem; color: var(--fg); display: inline-block; transition: opacity 0.5s, transform 0.5s var(--ease); }
+.why-line em.swap { opacity: 0; transform: translateY(6px); }
+.whisper { font-family: var(--font-display); font-style: italic; font-size: 1.15rem; color: var(--fg-muted); margin-top: 16px; text-shadow: 0 2px 14px rgba(0,0,0,0.6); }
+.player-copy em, .ws-head .aside em { font-family: var(--font-display); font-style: italic; font-size: 1.05em; color: var(--fg); }
+.site-foot { margin-top: 48px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.14); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; font-size: var(--fs-small); color: var(--fg-dim); }
+.site-foot a { color: var(--fg-muted); text-decoration: none; }
+.site-foot a:hover { color: #fff; }
+.site-foot nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.staff-links { flex-basis: 100%; display: flex; gap: 18px; }
+.staff-links a { color: var(--fg-muted); font-size: var(--fs-small); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); }
+.staff-links a:hover { color: #fff; text-decoration-color: #fff; }

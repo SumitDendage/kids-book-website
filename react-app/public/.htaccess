@@ -1,0 +1,68 @@
+# Learn With Why — Apache / Hostinger settings for the React build.
+# Upload this file together with the rest of dist/ into public_html/.
+# HTTPS: switch on "Force HTTPS" for the domain in Hostinger hPanel (Security → SSL).
+
+DirectoryIndex index.html
+Options -MultiViews -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # The backend API is never answered by the React app.
+  RewriteRule ^api(/|$) - [L]
+
+  # Real files and folders are served as they are: assets, fonts, frames,
+  # preview frames, sheet thumbnails, robots.txt, sitemap.xml, viewer.html, ...
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Missing images, fonts and scripts stay a real 404 instead of returning the page.
+  RewriteRule \.(?:m?js|css|map|json|webp|jpe?g|png|gif|svg|ico|woff2?|ttf|pdf|txt|xml)$ - [L,R=404]
+
+  # /viewer is the sheet viewer page (the #t=… part stays in the browser).
+  RewriteRule ^viewer/?$ viewer.html [L]
+
+  # Every other path (/, /admin, /developer, ...) is a React route.
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType font/woff2 .woff2
+  AddType font/ttf .ttf
+  AddType image/svg+xml .svg
+  AddType application/javascript .js .mjs
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Hashed build files never change: cache them for a year.
+  <FilesMatch "-[A-Za-z0-9_-]{8,}\.(?:m?js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # The pages themselves are always re-checked so a new upload shows at once.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <Files "viewer.html">
+    Header set X-Robots-Tag "noindex, nofollow"
+    Header set Referrer-Policy "no-referrer"
+  </Files>
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 7 days"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/ttf "access plus 1 year"
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml text/xml text/plain
+</IfModule>
