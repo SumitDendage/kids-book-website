@@ -4,6 +4,7 @@ import usePreviewPlayer from '../../hooks/usePreviewPlayer.js';
 import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
 import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
+import { AzTile, PicTile } from '../sheets/SheetTiles.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
    Subscription, then classes and subjects. The fox and rabbit play behind it. */
@@ -20,7 +21,7 @@ export default function Store({ bagCount }) {
 
   /* the sheets a view, class and subject show */
   const pick = (vw, c, sj) => ITEMS.filter(it =>
-    (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
+    (vw === 'all' || (vw === 'worksheets' && it.pdf) || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
     (c === 'all' || it.cls === c) && subjectMatches(it, sj));
   /* the sidebar counts the printable PDF sheets each button leads to */
   const countOf = (vw, c, sj) => pick(vw, c, sj).filter(it => it.pdf).length;
@@ -33,9 +34,16 @@ export default function Store({ bagCount }) {
   } else {
     title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
+  /* All worksheets: every printable PDF, grouped by its category, with its class and subject */
+  const groups = view === 'worksheets' && !skill ? SKILL_CATEGORIES.map(c => {
+    const sheets = skillSheets(SKILL_PREFIX[c.id]).filter(it => list.includes(it));
+    const tags = [...new Set(sheets.map(it => classById(it.cls).label + ' · ' + it.subject))];
+    return { c, sheets, tags };
+  }).filter(g => g.sheets.length) : null;
+  if (groups) sub = !list.length ? 'No printable PDF sheets here yet' : list.length + ' printable PDF ' + (list.length === 1 ? 'sheet' : 'sheets') + ' in ' + groups.length + (groups.length === 1 ? ' category' : ' categories') + (cls === 'all' && subject === 'all' ? ' · every class and subject' : '');
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
   if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
-  else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
+  else if (!groups) sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
   return (
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
@@ -58,7 +66,13 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className="shop-grid" id="shopGrid">
-            {showSkills ? SKILL_CATEGORIES.map((c, n) => (
+            {groups ? (groups.length ? groups.map((g, k) => (
+              <section key={g.c.id} className="ws-group" style={{ '--n': k }}>
+                <div className="ws-group-head"><h4 className="card-title">{g.c.label}</h4><span className="ws-group-tags">{g.tags.join(' / ')} · {g.sheets.length} {g.sheets.length === 1 ? 'PDF' : 'PDFs'}</span></div>
+                {g.sheets.some(it => it.az || it.letter) ? <div className="az-grid">{g.sheets.map((it, n) => <AzTile key={it.id} it={it} n={n} />)}</div>
+                  : <div className="rc-grid">{g.sheets.map((it, n) => <PicTile key={it.id} it={it} n={n} />)}</div>}
+              </section>
+            )) : <p className="cart-empty">No PDF worksheets for this class or subject yet.</p>) : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
                 <div className="skill-bg" />
                 <div className="skill-content">
