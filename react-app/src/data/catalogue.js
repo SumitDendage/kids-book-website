@@ -103,10 +103,11 @@ export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
-   (the admin's book studio has a Topic field). Letter tracing holds the 26 A to Z sheets. */
+   (the admin's book studio has a Topic field). Letter tracing holds the 26 A to Z sheets.
+   The Alphabet group follows the Kindergarten content plan: eight sub-categories in its order. */
 export const KG_TOPICS = [
   { id: 'pre', title: 'Pre-reading skills', tone: 'blue', items: [['picture-matching', 'Picture matching'], ['same-different', 'Same and different'], ['visual-discrimination', 'Visual discrimination'], ['listening', 'Listening activities'], ['following-instructions', 'Following instructions'], ['story-sequencing', 'Story sequencing'], ['rhyming-words', 'Rhyming words'], ['odd-one-out', 'Odd one out'], ['bme-sounds', 'Beginning, middle and ending sounds'], ['syllable-clapping', 'Syllable clapping'], ['oral-blending', 'Oral blending and segmenting']] },
-  { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [['letter-recognition', 'A-Z letter recognition'], ['upper-lower', 'Uppercase and lowercase'], ['letter-tracing', 'Letter tracing'], ['letter-formation', 'Letter formation'], ['letter-sounds', 'Letter sounds'], ['beginning-sound-pictures', 'Beginning-sound pictures'], ['match-upper-lower', 'Match uppercase to lowercase'], ['missing-letters', 'Missing letters'], ['alphabet-order', 'Alphabet order'], ['before-after-letters', 'Before and after letters'], ['mouth-positions', 'Mouth positions and sound actions']] },
+  { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [['letter-tracing', 'A-Z Letter Tracing'], ['letter-recognition', 'A-Z Letter Recognition'], ['match-upper-lower', 'Match Uppercase and Lowercase Letters'], ['before-after-letters', 'Letters Before and After'], ['beginning-sounds', 'Beginning Sounds'], ['ending-sounds', 'Ending Sounds'], ['middle-sounds', 'Middle Sounds'], ['missing-letters', 'Find the Missing Letters']] },   /* as in the Kindergarten content plan */
   { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
   { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
   { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
@@ -114,7 +115,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['rc'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -171,21 +172,16 @@ export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
 ];
-/* The store's tiles follow the Kindergarten content plan: the Alphabet category and its
-   eight sub-categories, in order. `kinds` are the id prefixes of the printable PDFs that
-   belong to each one; sub-categories without sheets yet show as coming soon. */
-export const KG_ALPHABET = [
-  { id: 'letter-tracing', label: 'A-Z Letter Tracing', focus: 'Children trace uppercase and lowercase letters from A to Z.', kinds: ['az'] },
-  { id: 'letter-recognition', label: 'A-Z Letter Recognition', focus: 'Children identify and recognise letters from A to Z.', kinds: ['cl'] },
-  { id: 'match-upper-lower', label: 'Match Uppercase and Lowercase Letters', focus: 'Children match each capital letter with its corresponding small letter.', kinds: ['mt', 'sp'] },
-  { id: 'before-after', label: 'Letters Before and After', focus: 'Children identify the letter that comes before or after the given letter.', kinds: [] },
-  { id: 'beginning-sounds', label: 'Beginning Sounds', focus: 'Children identify the first sound heard in a pictured word.', kinds: ['rc'] },
-  { id: 'ending-sounds', label: 'Ending Sounds', focus: 'Children identify the final sound heard in a pictured word.', kinds: [] },
-  { id: 'middle-sounds', label: 'Middle Sounds', focus: 'Children identify the middle sound heard in a simple word.', kinds: [] },
-  { id: 'missing-letters', label: 'Find the Missing Letters', focus: 'Children complete alphabet sequences by writing the missing letters.', kinds: [] },
+export const SKILL_CATEGORIES = [
+  { id: 'letter-formation', label: 'Letter Formation', description: 'Uppercase and lowercase with dotted guides and picture cues', color: 'rgba(59, 91, 219, 0.4)', count: 26 },
+  { id: 'letter-sounds', label: 'Letter Sounds', description: 'Consonant blending, rhyming words and phonetic awareness', color: 'rgba(139, 67, 219, 0.4)', count: 6 },
+  { id: 'uppercase-lowercase', label: 'Uppercase & lowercase', description: 'Match upper to lower case letters in fun activities', color: 'rgba(67, 167, 219, 0.4)', count: 5 },
+  { id: 'spot-the-letters', label: 'Spot the letters', description: 'Visual discrimination and letter recognition practice', color: 'rgba(219, 131, 67, 0.4)', count: 5 },
+  { id: 'colour-matching', label: 'Colour matching', description: 'Sort, name and match colours with tracing practice', color: 'rgba(67, 219, 131, 0.4)', count: 26 },
 ];
-export const alphaById = id => KG_ALPHABET.find(c => c.id === id);
-export const alphaSheets = id => { const c = alphaById(id); return c ? PDF_SHEETS.filter(it => c.kinds.some(k => it.id.startsWith(k + '-'))) : []; };
+/* the store's skill filter: category id → the id prefix of its printable PDFs */
+export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl' };
+export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching' };
 
 /* prices the admin changed in this browser */
 export function applyLocalPrices(PLANS) { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); }
