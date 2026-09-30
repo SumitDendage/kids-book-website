@@ -12,4 +12,11 @@
 .rc-name small { font-family: var(--font-body); font-size: 0.64rem; color: var(--ink-muted); margin-top: 3px; }
 .is-guest .rc-card::after { content: 'Sign in to open'; position: absolute; left: 50%; bottom: 44px; transform: translate(-50%, 6px); padding: 5px 9px; border-radius: 100px; background: #14181c; color: #fff; font-size: 0.6rem; font-weight: 700; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--d-base), transform var(--d-base) var(--ease); }
 .is-guest .rc-card:hover::after { opacity: 1; transform: translate(-50%, 0); }
-@media (max-width: 640px) { .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
+.kg-open-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.kg-hint { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--fg-muted); }
+.kg-open-head .btn-back { padding: 9px 14px; font-size: var(--fs-small); }
+.kg-open-head .eyebrow { margin-bottom: 4px; }
+.kg-open-head h3 { font-size: 1.5rem; } .kg-open-head h3 em { font-style: italic; color: var(--ok); font-size: 1.1rem; }
+@media (min-width: 1400px) { .kg-grid { columns: 4; } }
+@media (max-width: 1100px) { .kg-grid { columns: 2; } }
+@media (max-width: 640px) { .kg-grid { columns: 1; } .kg-topics, .kg-open { padding: 14px; } .az { padding: 14px; } .az-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; } .az-card .glyph { font-size: 2rem; } }
