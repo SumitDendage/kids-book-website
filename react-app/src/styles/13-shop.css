@@ -57,9 +57,3 @@
 .skill-list { list-style: none; padding: 0; margin: 0; }
 
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
-/* All worksheets: one full-width group per category */
-.shop-grid > .ws-group { grid-column: 1 / -1; animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 60ms); }
-.ws-group + .ws-group { margin-top: 18px; }
-.ws-group-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.14); }
-.ws-group-head h4 { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.5rem); }
-.ws-group-tags { color: var(--fg-muted); font-size: var(--fs-small); font-weight: 600; }

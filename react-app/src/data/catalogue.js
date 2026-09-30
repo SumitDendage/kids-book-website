@@ -188,7 +188,7 @@ export const sheetOf = id => id && id.startsWith('sd-') ? sdItem(id.slice(3)) : 
 export const NEW_IDS = ['c2-sci-why', 'c3-mat-tim', 'kg-eng-rhy', 'ws-time'];
 export const BEST_IDS = ['nur-eng-abc', 'c1-mat-add', 'c2-mat-mul', 'kg-eng-cvc', 'alphabet', 'ws-add', 'c3-mat-fra'];
 export const VIEWS = [
-  { id: 'all', label: 'All sheets' }, { id: 'worksheets', label: 'All worksheets', note: 'every PDF' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
+  { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
 ];
 export const SKILL_CATEGORIES = [
