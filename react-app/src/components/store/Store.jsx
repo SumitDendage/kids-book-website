@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import usePreviewPlayer from '../../hooks/usePreviewPlayer.js';
 import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
 import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
-   Subscription, then classes and subjects. The fox and rabbit play behind it. */
+   Subscription, then classes and subjects. A plain dark background, no animation. */
 function SideButton({ on, onClick, n, children }) {
   return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className="side-n">{n}</span> : null}</button>;
 }
@@ -14,8 +13,7 @@ function SideButton({ on, onClick, n, children }) {
 export default function Store({ bagCount }) {
   const { shop, setShopFilter, closeShop, openDrawer } = useSite();
   const { open, view, cls, subject, skill } = shop;
-  const shopRef = useRef(null), bgRef = useRef(null);
-  usePreviewPlayer(bgRef, 12, open);
+  const shopRef = useRef(null);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
 
   /* the sheets a view, class and subject show */
@@ -39,8 +37,6 @@ export default function Store({ bagCount }) {
 
   return (
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
-      <canvas className="shop-bg" id="shopBg" ref={bgRef} aria-hidden="true" />
-      <div className="shop-shade" />
       <header className="shop-bar">
         <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2></div>
         <div className="shop-actions"><button type="button" className="btn btn-ghost" id="shopBagBtn" onClick={() => openDrawer('bag')}>Cart · <b id="shopBagCount">{bagCount}</b></button><button type="button" className="icon-btn" id="shopClose" aria-label="Back to the story" onClick={closeShop}>✕</button></div>
