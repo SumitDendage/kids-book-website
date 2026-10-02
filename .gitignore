@@ -23,8 +23,3 @@ __pycache__/
 site/data/
 site/protected/uploads/
 
-# backend — kept on the server machine only, not published
-site/server.cjs
-site/server/
-site/test/
-site/.env.example
