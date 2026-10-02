@@ -1,0 +1,11 @@
+/* Moved verbatim from site/dist/index.html (<style>). */
+/* ---------- content layer: one tall stack that glides with the scroll ----------
+   The chapters sit one under the other; the stack is moved with the eased
+   scroll value, the frames scrub in step, and each chapter leans away and
+   fades as it leaves the middle of the screen. */
+#content { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: clip; perspective: 1400px; }
+#stack { will-change: transform; }
+.chapter { position: relative; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; padding: calc(96px + env(safe-area-inset-top, 0px)) clamp(20px, 5vw, 72px) calc(76px + env(safe-area-inset-bottom, 0px)); }
+.chapter-inner { width: 100%; max-width: 1200px; margin: 0 auto; pointer-events: auto; will-change: transform, opacity; transform-origin: 50% 50%; }
+.rise { opacity: 0; transform: translate3d(0, 24px, 0); }
+.chapter.is-active .rise { opacity: 1; transform: none; transition: opacity 0.8s var(--ease), transform 0.8s var(--ease); transition-delay: calc(var(--i, 0) * 80ms + 140ms); }
