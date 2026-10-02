@@ -2,14 +2,15 @@
 /* DATABASE — SQLite through Node's built-in node:sqlite (no npm packages).
    One file, data/lww.sqlite, holds everything the business needs to remember:
    customers, sessions, the worksheet catalogue, orders, payments, entitlements
-   (who may open what — once granted, for good) and the access log. Store settings that the
+   (who may open what — once granted, for good), the access log and the notes sent
+   through the contact form. Store settings that the
    admin can change (plans, coupons, rates, fees, access hours) live in the
    settings table as JSON values. */
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { SEED_WORKSHEETS } = require('./seed.cjs');
+const { SEED_WORKSHEETS, REMOVED_IDS, SEED_V1, SEED_VERSION } = require('./seed.cjs');
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -49,7 +50,8 @@ CREATE TABLE IF NOT EXISTS worksheets (
   thumb TEXT,
   active INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  seed TEXT
 );
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
@@ -104,12 +106,26 @@ CREATE TABLE IF NOT EXISTS access_log (
   detail TEXT,
   ip TEXT
 );
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  body TEXT NOT NULL,
+  user_id INTEGER,
+  ip TEXT, ua TEXT,
+  read_at INTEGER,
+  replied_at INTEGER,
+  mailed INTEGER NOT NULL DEFAULT 0,
+  mail_error TEXT
+);
+CREATE INDEX IF NOT EXISTS messages_at ON messages(at);
 `;
 
 /* store settings the admin can change; base prices are in INR and are the source of truth */
 const DEFAULT_SETTINGS = {
   plans: { m1: { label: '1 month', months: 1, price: 199 }, m3: { label: '3 months', months: 3, price: 499 }, y1: { label: '1 year', months: 12, price: 1499 } },
-  classes: { nursery: 'Nursery', kg: 'Kindergarten', c1: 'Class 1', c2: 'Class 2', c3: 'Class 3' },
+  classes: { kg: 'Kindergarten', c1: 'Class 1', c2: 'Class 2', c3: 'Class 3' },   /* Nursery was folded into Kindergarten (seed v2) */
   coupons: {},          /* CODE: { pct, max, uses, active } */
   discounts: {},        /* classId: pct */
   rates: { INR: 1, USD: 0.012, EUR: 0.011, GBP: 0.0094, AED: 0.044, AUD: 0.018, CAD: 0.016, SGD: 0.016, NZD: 0.02, JPY: 1.8 },
@@ -124,12 +140,10 @@ function open(file) {
   if (hasCol('entitlements', 'expires_at')) db.exec('DROP INDEX IF EXISTS entitlements_user; ALTER TABLE entitlements DROP COLUMN expires_at');
   if (hasCol('orders', 'access_until')) db.exec('ALTER TABLE orders DROP COLUMN access_until');
   db.exec(SCHEMA);
+  if (!hasCol('worksheets', 'seed')) db.exec('ALTER TABLE worksheets ADD COLUMN seed TEXT');   /* databases made before seed tracking */
   const st = {
     getSetting: db.prepare('SELECT value FROM settings WHERE key = ?'),
     setSetting: db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
-    upsertWorksheet: db.prepare(`INSERT INTO worksheets (id, title, cls, subject, pages, price, file, thumb, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-      ON CONFLICT(id) DO NOTHING`),
-    setFile: db.prepare('UPDATE worksheets SET file = ?, pages = ?, updated_at = ? WHERE id = ?'),
   };
   const api = {
     raw: db,
@@ -149,10 +163,49 @@ function open(file) {
     try { const j = JSON.parse(fs.readFileSync(legacy, 'utf8')); ['secret', 'plans', 'coupons', 'discounts', 'rates', 'fees'].forEach(k => { if (j[k] != null && !st.getSetting.get(k)) st.setSetting.run(k, JSON.stringify(j[k])); }); } catch (_) {}
     st.setSetting.run('migrated', JSON.stringify({ from: 'db.json', at: Date.now() }));
   }
-  /* seed the catalogue on first run and pick up any PDF that has appeared in protected/ */
-  const now = Date.now();
-  api.tx(() => { SEED_WORKSHEETS.forEach(w => st.upsertWorksheet.run(w.id, w.title, w.cls, w.subject, w.pages || 1, w.price || 0, w.file || null, w.thumb || null, now, now)); });
+  api.tx(() => syncSeed(api));
   return api;
+}
+
+/* THE SEED, KEPT IN STEP WITHOUT TRAMPLING THE ADMIN.
+   New sheets are inserted. For a sheet that is already there, each seed-owned field
+   (title, class, subject, pages, price, thumb) is moved to the new seed value only
+   while it still holds what the seed wrote last time — the `seed` column remembers
+   that (rows from before it existed are compared with SEED_V1). A field the admin
+   changed, such as a price, is left alone for good. Once per SEED_VERSION, sheets the
+   shelf dropped are made inactive and the old Nursery class moves into Kindergarten. */
+const SEED_FIELDS = ['title', 'cls', 'subject', 'pages', 'price', 'thumb'];
+function syncSeed(api) {
+  const now = Date.now(), q = sql => api.q(sql);
+  const get = q('SELECT * FROM worksheets WHERE id = ?');
+  const insert = q(`INSERT INTO worksheets (id, title, cls, subject, pages, price, file, thumb, active, created_at, updated_at, seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    ON CONFLICT(id) DO NOTHING`);
+  const update = q('UPDATE worksheets SET title = ?, cls = ?, subject = ?, pages = ?, price = ?, thumb = ?, seed = ?, updated_at = ? WHERE id = ?');
+  let added = 0, updated = 0;
+  for (const w of SEED_WORKSHEETS) {
+    const want = { title: w.title, cls: w.cls, subject: w.subject, pages: w.pages || 1, price: w.price || 0, thumb: w.thumb || null }, mark = JSON.stringify(want);
+    const row = get.get(w.id);
+    if (!row) { insert.run(w.id, want.title, want.cls, want.subject, want.pages, want.price, w.file || null, want.thumb, now, now, mark); added++; continue; }
+    if (row.seed === mark) continue;
+    let prev = null; try { prev = row.seed ? JSON.parse(row.seed) : null; } catch (_) {}
+    if (!prev) prev = SEED_V1[w.id] ? Object.assign({ thumb: null }, SEED_V1[w.id]) : {};
+    const next = {}; let changed = false;
+    SEED_FIELDS.forEach(f => { const untouched = prev[f] !== undefined && row[f] === prev[f]; next[f] = untouched ? want[f] : row[f]; if (next[f] !== row[f]) changed = true; });
+    update.run(next.title, next.cls, next.subject, next.pages, next.price, next.thumb, mark, changed ? now : row.updated_at, w.id);
+    if (changed) updated++;
+  }
+  const version = api.get('seed_version') || 1;
+  if (version < SEED_VERSION) {
+    const off = q('UPDATE worksheets SET active = 0, updated_at = ? WHERE id = ? AND active = 1');
+    REMOVED_IDS.forEach(id => off.run(now, id));
+    /* Nursery → Kindergarten: sheets the admin made in Nursery, and Nursery class plans (they now open Kindergarten) */
+    q("UPDATE worksheets SET cls = 'kg', updated_at = ? WHERE cls = 'nursery'").run(now);
+    q("UPDATE entitlements SET cls = 'kg' WHERE scope = 'class' AND cls = 'nursery'").run();
+    const cls = api.get('classes'); if (cls && cls.nursery) { delete cls.nursery; api.set('classes', cls); }
+    const disc = api.get('discounts'); if (disc && disc.nursery != null) { if (disc.kg == null) disc.kg = disc.nursery; delete disc.nursery; api.set('discounts', disc); }
+    api.set('seed_version', SEED_VERSION);
+  }
+  return { added, updated };
 }
 
 /* Attach PDFs that exist on disk: a worksheet whose `file` is empty gets
@@ -172,4 +225,4 @@ function attachFiles(api, protectedDir) {
   return n;
 }
 
-module.exports = { open, attachFiles, DEFAULT_SETTINGS };
+module.exports = { open, attachFiles, syncSeed, DEFAULT_SETTINGS };

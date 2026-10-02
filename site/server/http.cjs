@@ -43,10 +43,14 @@ function clientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
   return (fwd ? String(fwd).split(',')[0].trim() : '') || req.socket.remoteAddress || '';
 }
-/* the browser sends Origin on every cross-site POST; a value that is not our own host is refused */
+/* CORS_ORIGINS: other sites allowed to call the API with the customer's cookie (only needed when
+   the React build sets VITE_API_BASE_URL to a different domain). Comma-separated, exact origins. */
+const allowedOrigins = () => String(process.env.CORS_ORIGINS || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean);
+const corsAllowed = origin => !!origin && allowedOrigins().includes(String(origin).replace(/\/+$/, ''));
+/* the browser sends Origin on every cross-site POST; a value that is not our own host (or listed in CORS_ORIGINS) is refused */
 function sameOrigin(req) {
   const origin = req.headers.origin; if (!origin) return true;
-  try { return new URL(origin).host === req.headers.host; } catch (_) { return false; }
+  try { return new URL(origin).host === req.headers.host || corsAllowed(origin); } catch (_) { return false; }
 }
 /* a sliding window per key: `limit` hits in `windowMs` */
 function rateLimiter(limit, windowMs) {
@@ -59,4 +63,4 @@ const timingEqual = (a, b) => { const A = Buffer.from(String(a)), B = Buffer.fro
 const b64url = buf => Buffer.from(buf).toString('base64url');
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
 
-module.exports = { HttpError, fail, json, readBody, readRaw, cookies, setCookie, clientIp, sameOrigin, rateLimiter, sha256, timingEqual, b64url, isEmail };
+module.exports = { HttpError, fail, json, readBody, readRaw, cookies, setCookie, clientIp, sameOrigin, corsAllowed, rateLimiter, sha256, timingEqual, b64url, isEmail };

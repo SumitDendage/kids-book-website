@@ -1,12 +1,13 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* ADMIN API — every route needs the x-admin-key header (ADMIN_KEY env).
    Orders, customers, entitlements (grant / revoke), the worksheet catalogue
-   with PDF upload into private storage, store settings and the logs. */
+   with PDF upload into private storage, store settings, the logs and the
+   contact-form inbox (/api/admin/messages*, handled in contact.cjs). */
 const fs = require('node:fs');
 const path = require('node:path');
 const { fail, json, readBody, readRaw, timingEqual } = require('./http.cjs');
 
-function make(db, access, payments, protectedDir) {
+function make(db, access, payments, protectedDir, contact) {
   const ADMIN_KEY = process.env.ADMIN_KEY || 'change-me';
   const q = {
     orders: db.q('SELECT o.*, u.email, u.name FROM orders o JOIN users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 500'),
@@ -29,10 +30,11 @@ function make(db, access, payments, protectedDir) {
     log: db.q('SELECT a.*, u.email FROM access_log a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.at DESC LIMIT ?'),
     payLog: db.q('SELECT * FROM payments ORDER BY at DESC LIMIT ?'),
     stats: db.q(`SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM orders WHERE status = 'paid') AS paid_orders,
-      (SELECT COALESCE(SUM(total_inr), 0) FROM orders WHERE status = 'paid') AS revenue_inr,
+      (SELECT ROUND(COALESCE(SUM(total_inr), 0), 2) FROM orders WHERE status = 'paid') AS revenue_inr,
       (SELECT COUNT(*) FROM entitlements WHERE revoked_at IS NULL) AS active_entitlements,
       (SELECT COUNT(*) FROM worksheets WHERE active = 1) AS worksheets, (SELECT COUNT(*) FROM worksheets WHERE active = 1 AND file IS NOT NULL) AS with_pdf,
-      (SELECT COUNT(*) FROM access_log WHERE action = 'access' AND ok = 1 AND at > ?) AS opens_24h`),
+      (SELECT COUNT(*) FROM access_log WHERE action = 'access' AND ok = 1 AND at > ?) AS opens_24h,
+      (SELECT COUNT(*) FROM messages) AS messages, (SELECT COUNT(*) FROM messages WHERE read_at IS NULL) AS messages_unread`),
   };
   const guard = req => { if (!timingEqual(String(req.headers['x-admin-key'] || ''), ADMIN_KEY)) fail(401, 'Admin key required.'); };
   const ent = e => Object.assign(access.pub(e), { email: e.email, revoked: e.revoked_at || null });
@@ -43,7 +45,8 @@ function make(db, access, payments, protectedDir) {
   async function handle(req, res, pathname, url) {
     guard(req);
     const m = req.method, seg = pathname.split('/').filter(Boolean);   /* ['api','admin',...] */
-    if (m === 'GET' && pathname === '/api/admin/stats') return json(res, 200, Object.assign({ gateway: payments.mode }, q.stats.get(Date.now() - 86400e3)));
+    if (m === 'GET' && pathname === '/api/admin/stats') return json(res, 200, Object.assign({ gateway: payments.mode, gateways: payments.gateways }, q.stats.get(Date.now() - 86400e3)));
+    if (pathname === '/api/admin/messages' || pathname.startsWith('/api/admin/messages/')) { if (contact && (await contact.admin(req, res, pathname, url)) !== false) return; }
     if (m === 'GET' && pathname === '/api/admin/orders') return json(res, 200, { orders: q.orders.all().map(o => Object.assign(payments.pub(o), { email: o.email, name: o.name })) });
     if (m === 'PUT' && pathname === '/api/admin/orders') { const b = await readBody(req); const o = q.order.get(String(b.id || '')); if (!o) fail(404, 'No such order.'); const st = String(b.status || ''); if (!['created', 'paid', 'failed', 'refunded', 'cancelled'].includes(st)) fail(400, 'Unknown status.'); q.setStatus.run(st, o.id); return json(res, 200, { order: payments.pub(q.order.get(o.id)) }); }
     if (m === 'GET' && pathname === '/api/admin/users') return json(res, 200, { users: q.users.all() });

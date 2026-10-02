@@ -16,7 +16,7 @@ function hashPassword(pw) { const salt = crypto.randomBytes(16); const key = cry
 function checkPassword(pw, stored) { const [salt, hash] = String(stored || '').split(':'); if (!salt || !hash) return false; const key = crypto.scryptSync(pw, Buffer.from(salt, 'hex'), 64); return timingEqual(key.toString('hex'), hash); }
 function strongPass(p) { p = String(p || ''); if (p.length < 8) return 'At least 8 characters.'; if (!/[A-Z]/.test(p) || !/[0-9]/.test(p)) return 'Add a capital letter and a number.'; if (p.length > 200) return 'Too long.'; return ''; }
 
-function make(db) {
+function make(db, mail) {
   const q = {
     byEmail: db.q('SELECT * FROM users WHERE email = ?'),
     byId: db.q('SELECT * FROM users WHERE id = ?'),
@@ -101,6 +101,8 @@ function make(db) {
     const code = String(crypto.randomInt(100000, 1000000));
     q.putReset.run(email, sha256(code + email), Date.now() + RESET_TTL);
     console.log('[auth] password reset code for ' + email + ': ' + code);
+    /* with a mail service set up (RESEND_API_KEY + MAIL_FROM) the code is emailed as well */
+    if (mail && mail.configured) mail.send({ to: email, subject: 'Your Learn With Why reset code: ' + code, text: 'Hello ' + user.name + ',\n\nYour code to reset your Learn With Why password is ' + code + '. It works for 15 minutes.\n\nIf you did not ask for it, you can ignore this email.' }).then(r => { if (!r.ok) console.warn('[auth] reset code not emailed: ' + r.error); });
     log('reset_requested', user.id, true, email);
     const show = process.env.RESET_CODE_IN_RESPONSE ? process.env.RESET_CODE_IN_RESPONSE === '1' : process.env.NODE_ENV !== 'production';
     json(res, 200, Object.assign({ ok: true, expiresIn: RESET_TTL }, show ? { code } : {}));
