@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
-import { CATALOGUE, WORKSHEETS, KG_TOPICS, AZ_LETTERS, AZ_FREE, azItem, topicSheets } from '../../data/catalogue.js';
+import { CATALOGUE, WORKSHEETS, KG_TOPICS, AZ_LETTERS, AZ_FREE, azItem } from '../../data/catalogue.js';
 import Rise from '../common/Rise.jsx';
 import SheetCard from './SheetCard.jsx';
 import { AzTile } from './SheetTiles.jsx';
-import KgTopics from './KgTopics.jsx';
+import KgTopics, { kgSheetCount } from './KgTopics.jsx';
 
 /* One shelf per class: the free sheet first, the paid ones right beside it.
    Left-side menu: "By class" (Kindergarten … Class 3) and "By topic" (every subject). */
-const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', english: 'Aa', maths: '12', science: '?', evs: '🌱', hindi: 'क', art: '✿' };
+const SIDE_ICON = { kg: 'Aa', c1: '1', c2: '2', c3: '3', english: 'Aa', maths: '12', science: '?' };
 const poolOf = id => id.startsWith('subj:')
   ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase()))
   : CATALOGUE.concat(WORKSHEETS).filter(i => i.cls === id);   /* the weekly worksheets now sit in their own class */
 const hasAZ = id => id === 'subj:english';
-const kgSheetCount = () => new Set(KG_TOPICS.flatMap(g => g.items.flatMap(([t]) => topicSheets(t).map(it => it.id)))).size;
 const countOf = id => (id === 'kg' ? kgSheetCount() : poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0));
 
 /* English: the 26 A to Z letter-tracing sheets above the books */
@@ -34,7 +33,7 @@ function AzBlock() {
 export default function Shelf() {
   const { stage, openShop, version } = useSite();
   const [cat, setCat] = useState(CLASSES[0].id);
-  const [kgOpen, setKgOpen] = useState(null);   /* an open skill, a whole topic group, or null for the board */
+  const [kgOpen, setKgOpen] = useState(null);   /* the Kindergarten section that is open, or null for the tiles */
   /* the chapter grows or shrinks: re-measure the stack */
   useEffect(() => { stage.measure(); }, [cat, kgOpen, version, stage]);
 
@@ -45,9 +44,8 @@ export default function Shelf() {
   );
 
   let row = null, count;
-  if (cat === 'kg') {   /* Kindergarten is organised by topic above — nothing to repeat here */
-    const skills = KG_TOPICS.reduce((n, g) => n + g.items.length, 0);
-    count = KG_TOPICS.length + ' topics · ' + skills + ' skills · ' + kgSheetCount() + ' sheets';
+  if (cat === 'kg') {   /* Kindergarten is organised by the content plan above — nothing to repeat here */
+    count = 'Alphabet · ' + KG_TOPICS.find(g => g.id === 'alpha').items.length + ' sub-categories · ' + kgSheetCount() + ' sheets';
   } else {
     const list = poolOf(cat).slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
     row = list.length ? list.map((it, n) => <SheetCard key={it.id} it={it} n={n} />) : <p className="cart-empty">No sheets in this topic yet — more are on the way.</p>;

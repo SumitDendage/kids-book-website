@@ -5,6 +5,7 @@ import { SiteProvider, useSite } from '../context/SiteContext.jsx';
 import useChapterInput from '../hooks/useChapterInput.js';
 import useMyWorksheets from '../hooks/useMyWorksheets.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
+import MagicLayer from '../components/cinematic/MagicLayer.jsx';
 import Veil from '../components/layout/Veil.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import StageChrome from '../components/layout/StageChrome.jsx';
@@ -65,6 +66,7 @@ function Site() {
     <>
       <CinematicScroll onTick={onTick} engineRef={engineRef} />
       <div id="scrim" />
+      <MagicLayer />
       <Veil gone={veil.gone} slow={veil.slow} />
       <Navbar bagCount={activeCount} />
       <main id="content" ref={contentRef}>

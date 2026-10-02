@@ -1,54 +1,25 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
-/* Kindergarten topic board — light pastel skill cards packed into columns */
+/* Kindergarten — one tile for each Alphabet sub-category of the content plan, in the
+   All sheets card style. A tile opens to its sheets (.kg-open, styled in 21-pic-tiles.css). */
 .kg-topics, .kg-open { margin-bottom: 26px; padding: 22px 20px 24px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
 .kg-head { margin-bottom: 18px; }
 .kg-head .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .kg-head .eyebrow::before { content: ''; width: 34px; height: 2px; background: var(--ok); border-radius: 2px; }
-.kg-head h3 { font-family: var(--font-body); font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: #fff; margin: 0 0 6px; }
-.kg-head p { font-size: var(--fs-small); color: #fff; margin: 0; }
-.kg-grid { columns: 3; column-gap: 16px; }
-.kg-card, .kg-slogan { display: inline-block; width: 100%; margin: 0 0 16px; break-inside: avoid; -webkit-column-break-inside: avoid; vertical-align: top; }
-.kg-card {
-  --tint: 150, 196, 255; --dot: #8fd6d2; --title: #fff; --body: #fff;
-  background: linear-gradient(165deg, rgba(var(--tint), 0.18), rgba(8,18,26,0.34) 70%);
-  border: 1px solid rgba(var(--tint), 0.28); border-radius: 14px; padding: 18px 20px 14px;
-  backdrop-filter: blur(12px) saturate(1.15); box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-  transition: box-shadow var(--d-base), transform var(--d-base) var(--ease), border-color var(--d-base);
-}
-.kg-card:hover { transform: translateY(-2px); border-color: rgba(var(--tint), 0.55); box-shadow: 0 18px 38px rgba(0,0,0,0.28); }
-.kg-card.tone-blue { --tint: 150, 196, 255; --dot: #96c4ff; }
-.kg-card.tone-teal { --tint: 143, 232, 180; --dot: #8fe8b4; }
-.kg-card.tone-yellow { --tint: 240, 190, 110; --dot: #f0be6e; }
-.kg-card.tone-purple { --tint: 200, 182, 255; --dot: #c8b6ff; }
-.kg-card.tone-pink { --tint: 255, 168, 190; --dot: #ffa8be; }
-.kg-card h4 { font-family: var(--font-body); font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; color: var(--title); margin: 0 0 8px; }
-.kg-list { list-style: none; margin: 0; padding: 0; display: grid; }
-.kg-item {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%;
-  padding: 4px 6px 4px 17px; border: 0; border-radius: 7px; background: none; color: var(--body);
-  font: inherit; font-size: 0.9rem; line-height: 1.4; text-align: left; cursor: pointer; position: relative;
-  transition: background var(--d-fast), color var(--d-fast), transform var(--d-fast) var(--ease);
-}
-.kg-item::before { content: ''; position: absolute; left: 4px; top: 0.66em; width: 5px; height: 5px; border-radius: 50%; background: var(--dot); }
-.kg-item:hover, .kg-item:focus-visible { background: rgba(255,255,255,0.12); color: #fff; transform: translateX(2px); outline: none; }
-.kg-item.soon { color: rgba(255,255,255,0.8); } .kg-item.soon::before { opacity: 0.4; }
-.kg-item b { flex: none; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 100px; background: #1f6b47; color: #fff; font-size: 0.6rem; font-weight: 700; display: inline-grid; place-items: center; margin-top: 2px; }
-.kg-browse {
-  margin-top: 10px; padding: 10px 0 2px; display: flex; align-items: center; gap: 8px; width: 100%;
-  border: 0; border-top: 1px solid rgba(255,255,255,0.14); background: none; color: var(--title);
-  font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; text-align: left;
-  transition: color var(--d-base);
-}
-.kg-browse span { transition: transform var(--d-base) var(--ease); }
-.kg-browse i { margin-left: auto; font-style: normal; font-size: 0.66rem; font-weight: 700; color: var(--dot); }
-.kg-browse:hover { color: var(--dot); } .kg-browse:hover span { transform: translateX(4px); }
-/* the slogan closes the board in the same paper family */
-.kg-slogan { padding: 20px 22px 16px; border-radius: 14px; border: 1px dashed var(--glass-border); background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); }
-.kg-slogan .eyebrow { margin-bottom: 6px; }
-.kg-slogan h4 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; line-height: 1.15; color: #fff; margin: 0 0 8px; }
-.kg-slogan h4 em { font-style: italic; color: var(--ok); }
-.kg-slogan-sub { font-size: 0.86rem; color: #fff; line-height: 1.55; margin: 0; }
-.kg-slogan .kg-browse { --title: #fff; --dot: var(--ok); }
-@media (max-width: 1100px) { .kg-grid { columns: 2; } }
-@media (max-width: 720px) { .kg-grid { columns: 1; } }
-@media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } }
+.kg-head h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2rem, 1.4rem + 2vw, 3rem); line-height: 1; color: #fff; margin: 0; }
+.kg-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.kg-tile { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 20px 18px 16px; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,0.15); background: linear-gradient(165deg, rgba(143,232,180,0.12), rgba(8,18,26,0.05) 70%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: transform var(--d-base) var(--ease), border-color var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); }
+.kg-tile:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); }
+.kg-tile.soon { border-style: dashed; background: rgba(255,255,255,0.04); }
+.kg-no { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(143,232,180,0.14); border: 1px solid rgba(143,232,180,0.35); color: var(--ok); font-weight: 700; font-size: 0.92rem; }
+.kg-tile.soon .kg-no { background: rgba(255,255,255,0.06); border-color: var(--glass-border); color: var(--fg-muted); }
+.kg-tile .card-title { font-size: 1.5rem; color: #fff; margin: 4px 0 0; }
+.kg-focus { color: var(--fg-muted); font-size: var(--fs-small); line-height: 1.5; margin: 0; flex: 1; }
+.kg-access { align-self: flex-start; padding: 4px 10px; border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 700; }
+.kg-access.free { background: rgba(143,232,180,0.16); color: var(--ok); }
+.kg-access.part { background: rgba(240,190,110,0.16); color: #f0be6e; }
+.kg-access.paid { background: rgba(255,168,190,0.14); color: #ffa8be; }
+.kg-access.soon { background: rgba(255,255,255,0.08); color: var(--fg-muted); }
+.kg-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); }
+.kg-foot > span { font-weight: 700; font-size: var(--fs-small); color: var(--fg-muted); white-space: nowrap; }
+.kg-foot .btn { padding: 9px 14px; font-size: var(--fs-small); white-space: nowrap; }
+.kg-soon { margin: 0; padding: 14px 16px; border-radius: 14px; border: 1px dashed var(--glass-border); font-size: var(--fs-small); color: rgba(255,255,255,0.75); }
+@media (max-width: 640px) { .kg-topics, .kg-open { padding: 16px 14px 18px; } .kg-tiles { grid-template-columns: 1fr; } }
