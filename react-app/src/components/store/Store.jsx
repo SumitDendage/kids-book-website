@@ -8,8 +8,11 @@ import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
    (public/shop/learn-with-why-wallpaper.webp); the cards are see-through, each in its own colour. */
 function SideButton({ on, onClick, n, children }) {
-  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className="side-n">{n}</span> : null}</button>;
+  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
+
+/* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" */
+const SOON = { c1: true, c2: true, c3: true };
 
 export default function Store({ bagCount }) {
   const { shop, setShopFilter, closeShop, openDrawer } = useSite();
@@ -33,7 +36,9 @@ export default function Store({ bagCount }) {
     title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
-  if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
+  const soon = !skill && SOON[cls];
+  if (soon) sub = 'New worksheets for ' + classById(cls).label + ' are on their way.';
+  else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
   return (
@@ -48,7 +53,7 @@ export default function Store({ bagCount }) {
           <p className="side-title">Browse</p>
           <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => setShopFilter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
-          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
+          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={SOON[c.id] ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
           <p className="side-title">Subjects</p>
           <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => setShopFilter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => setShopFilter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
@@ -56,7 +61,7 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className="shop-grid" id="shopGrid">
-            {showSkills ? SKILL_CATEGORIES.map((c, n) => (
+            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
                 <div className="skill-bg" />
                 <div className="skill-content">

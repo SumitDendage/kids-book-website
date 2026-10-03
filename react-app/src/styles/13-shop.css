@@ -101,3 +101,10 @@
 #shop .shop-card .paper { text-shadow: none; }
 #shop .cart-empty { display: inline-block; padding: 10px 14px; border-radius: var(--r-md); background: rgba(255,251,242,0.9); color: var(--ink); }
 #shop .shop-grid .btn span { color: inherit !important; }
+/* Class 1, 2 and 3: a "Coming soon" note in place of the sheets */
+#shop .shop-soon { grid-column: 1 / -1; justify-self: start; max-width: 520px; padding: 26px 28px; border-radius: var(--r-lg); background: rgba(255,251,242,0.9); border: 2.5px solid #e2558f; color: var(--ink); box-shadow: 0 10px 26px rgba(60,40,90,0.2); }
+#shop .shop-soon b { display: block; font-family: var(--font-display); font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.4rem); font-weight: 600; color: #c2185b; line-height: 1.1; }
+#shop .shop-soon p { margin: 8px 0 16px; color: var(--ink-soft); }
+#shop .shop-soon .btn-primary { background: #c2185b; color: #fff; }
+#shop .side-btn .side-n.soon { background: #ffe0ec; color: #c2185b; white-space: nowrap; }
+#shop .side-btn.on .side-n.soon { background: rgba(255,255,255,0.2); color: #fff; }
