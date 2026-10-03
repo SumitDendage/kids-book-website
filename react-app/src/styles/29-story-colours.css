@@ -23,3 +23,16 @@
 #content .field input::placeholder, #content .field textarea::placeholder { color: rgba(255, 255, 255, 0.8); }
 /* the short line under each Kindergarten tile name: black, with a soft white glow so it reads on the glass */
 #content .kg-tile .kg-focus { color: #111417; font-weight: 500; text-shadow: 0 0 6px rgba(255, 255, 255, 0.9), 0 0 14px rgba(255, 255, 255, 0.7); }
+
+/* "Browse worksheets" on the Kindergarten tiles: flat candy-coloured pills, a different
+   colour on each tile, dark words, no shadow at all */
+#content .kg-tile .btn, #content .kg-tile .btn * { text-shadow: none; }
+#content .kg-tile .btn-primary { --b1: #ffd977; --b2: #ffb39a; background: linear-gradient(135deg, var(--b1), var(--b2)); color: #2b2016; font-weight: 700; letter-spacing: 0.01em; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.75); transition: transform var(--d-fast) var(--ease), filter var(--d-fast); }
+#content .kg-tile:nth-child(6n+2) .btn-primary { --b1: #a8f0c6; --b2: #7fd8e6; }
+#content .kg-tile:nth-child(6n+3) .btn-primary { --b1: #ffc2dd; --b2: #d6b8ff; }
+#content .kg-tile:nth-child(6n+4) .btn-primary { --b1: #b9e3ff; --b2: #a8b8ff; }
+#content .kg-tile:nth-child(6n+5) .btn-primary { --b1: #ffe08a; --b2: #a8f0c6; }
+#content .kg-tile:nth-child(6n+6) .btn-primary { --b1: #ffb39a; --b2: #ffc2dd; }
+#content .kg-tile .btn-primary:hover { transform: translateY(-2px); box-shadow: none; filter: brightness(1.06) saturate(1.1); }
+#content .kg-tile .btn-primary span { display: inline-block; transition: transform var(--d-fast) var(--ease); }
+#content .kg-tile .btn-primary:hover span { transform: translateX(4px); }
