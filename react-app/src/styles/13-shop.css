@@ -60,10 +60,10 @@
 
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
 
-/* ---------- the store's background: the Learn With Why watercolour wallpaper ---------- */
+/* ---------- the store's look: a soft sky page, colourful cards, the Learn With Why picture in each skill card ---------- */
 #shop { background: #e9f6fb; --ink: #2b2440; --ink-soft: #5b5470; }
-.shop-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-.shop-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; display: block; }
+#shop .skill-pic { position: relative; z-index: 1; margin: 10px 10px 0; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; aspect-ratio: 16 / 9; background: #fff; }
+#shop .skill-pic img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 /* light cream glass for the bar, the side panel and the title, with dark words */
 #shop .shop-bar, #shop .shop-side, #shop .shop-head { background: rgba(255,251,242,0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: var(--ink); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 30px rgba(60,40,90,0.18); }
 #shop .shop-bar { border-width: 0 0 1px; }
