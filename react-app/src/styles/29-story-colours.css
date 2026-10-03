@@ -1,0 +1,15 @@
+/* ---------- story colours: the words over the forest animation take its own warm palette ----------
+   sunlit gold for headings, peach for the italic words, fresh mint for the small capitals,
+   soft sky for card titles and warm cream for the reading text. White paper cards, the shop,
+   checkout and staff pages keep their own dark ink. */
+#content, #nav { --gold: #ffd977; --peach: #ffb39a; --mint: #a8f0c6; --sky: #b9e3ff; --cream: rgba(255, 238, 214, 0.9); }
+#content .display, #content .h2, #content .az-head h3, #content .kg-head h3, #content .ws-soon b { color: var(--gold); }
+#content .display em, #content .h2 em, #content .az-head h3 em, #content .kg-head h3 em, #content .why-line em, #content .whisper { color: var(--peach); }
+#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line span { color: var(--mint); }
+#content .card-title:not(.paper *):not(.rc-card *):not(.az-card *), #content .kg-tile h3 { color: var(--sky); }
+#content .lede, #content .aside, #content .az-head > p, #content .kg-head p, #content .ws-soon p { color: var(--cream); }
+#content .lede em, #content .aside em, #content .az-head > p b { color: var(--peach); }
+.nav-link { color: rgba(255, 228, 190, 0.88); }
+.nav-link:hover, .nav-link.on { color: var(--gold, #ffd977); }
+.nav-link.on { color: #ffd977; }
+#content .display, #content .h2, #content .eyebrow, #content .lede, #content .aside, #content .whisper, #content .why-line, #content .kg-head h3, #content .az-head h3 { text-shadow: 0 1px 14px rgba(6, 14, 20, 0.6); }
