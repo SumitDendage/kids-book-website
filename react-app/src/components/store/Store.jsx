@@ -5,8 +5,8 @@ import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PR
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
-   Subscription, then classes and subjects. Behind it: the Crystal Lake Learning Haven
-   scene (public/shop/crystal-lake.svg), with its own gentle animation. */
+   Subscription, then classes and subjects. Behind it: the Learn With Why watercolour
+   wallpaper (public/shop/learn-with-why-wallpaper.webp); every card has its own colour. */
 function SideButton({ on, onClick, n, children }) {
   return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className="side-n">{n}</span> : null}</button>;
 }
@@ -38,7 +38,7 @@ export default function Store({ bagCount }) {
 
   return (
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
-      <div className="shop-scene" aria-hidden="true"><img src="/shop/crystal-lake.svg" alt="" decoding="async" /></div>
+      <div className="shop-scene" aria-hidden="true"><img src="/shop/learn-with-why-wallpaper.webp" alt="" decoding="async" /></div>
       <header className="shop-bar">
         <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2></div>
         <div className="shop-actions"><button type="button" className="btn btn-ghost" id="shopBagBtn" onClick={() => openDrawer('bag')}>Cart · <b id="shopBagCount">{bagCount}</b></button><button type="button" className="icon-btn" id="shopClose" aria-label="Back to the story" onClick={closeShop}>✕</button></div>
