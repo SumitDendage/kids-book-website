@@ -14,10 +14,10 @@
 .nav-link.on { color: #ffd977; }
 #content .display, #content .h2, #content .eyebrow, #content .lede, #content .aside, #content .whisper, #content .why-line, #content .kg-head h3, #content .az-head h3 { text-shadow: 0 1px 14px rgba(6, 14, 20, 0.6); }
 
-/* see-through cards over the animation: white frosted glass instead of the dark grey glass */
-#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .kg-tile, #content .thanks-chip, #content .player-card { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15); }
+/* see-through cards over the animation: white frosted glass, 75% see-through (25% white) */
+#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .kg-tile, #content .thanks-chip, #content .player-card { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15); }
 #content .panel *, #content .kg-tile *, #content .player-card *, #content .ws-side *, #content .az-head * { text-shadow: 0 1px 2px rgba(6, 14, 20, 0.7), 0 0 14px rgba(6, 14, 20, 0.5); }
 #content .panel .btn-primary, #content .panel .btn-primary * { text-shadow: none; }
-.nav-links { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.5); }
-#content .field input, #content .field textarea { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
+.nav-links { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
+#content .field input, #content .field textarea { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
 #content .field input::placeholder, #content .field textarea::placeholder { color: rgba(255, 255, 255, 0.8); }
