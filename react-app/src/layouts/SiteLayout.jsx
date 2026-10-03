@@ -6,7 +6,7 @@ import useChapterInput from '../hooks/useChapterInput.js';
 import useMyWorksheets from '../hooks/useMyWorksheets.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
 import MagicLayer from '../components/cinematic/MagicLayer.jsx';
-import StoryAnimals from '../components/cinematic/StoryAnimals.jsx';
+import Butterflies from '../components/cinematic/Butterflies.jsx';
 import Veil from '../components/layout/Veil.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import StageChrome from '../components/layout/StageChrome.jsx';
@@ -69,7 +69,7 @@ function Site() {
       <div id="scrim" />
       <MagicLayer />
       <Veil gone={veil.gone} slow={veil.slow} />
-      <StoryAnimals />
+      <Butterflies />
       <Navbar bagCount={activeCount} />
       <main id="content" ref={contentRef}>
         <div id="stack" ref={el => { stage.stack = el; }}>
