@@ -60,10 +60,10 @@
 
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
 
-/* ---------- the store's look: a soft sky page, colourful cards, the Learn With Why picture in each skill card ---------- */
-#shop { background: #e9f6fb; --ink: #2b2440; --ink-soft: #5b5470; }
-#shop .skill-pic { position: relative; z-index: 1; margin: 10px 10px 0; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; aspect-ratio: 16 / 9; background: #fff; }
-#shop .skill-pic img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+/* ---------- the store's look: the Learn With Why picture behind the page, see-through colourful cards ---------- */
+#shop { background: #e9f6fb; --ink: #2b2440; --ink-soft: #4a4360; --halo: 0 0 2px #fff, 0 0 6px #fff, 0 0 12px rgba(255,255,255,0.95), 0 0 20px rgba(255,255,255,0.8); }
+.shop-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.shop-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; display: block; }
 /* light cream glass for the bar, the side panel and the title, with dark words */
 #shop .shop-bar, #shop .shop-side, #shop .shop-head { background: rgba(255,251,242,0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: var(--ink); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 30px rgba(60,40,90,0.18); }
 #shop .shop-bar { border-width: 0 0 1px; }
@@ -79,22 +79,25 @@
 #shop .side-btn.on small { color: rgba(255,255,255,0.75); }
 #shop .side-btn .side-n { background: rgba(43,36,64,0.1); }
 #shop .side-btn.on .side-n { background: rgba(255,255,255,0.2); }
-/* every card gets its own bright colour: pink, mint, sky, lemon, lavender, peach, aqua */
-#shop .shop-grid > * { --card: #ffe0ec; --edge: #ff8fb8; }
-#shop .shop-grid > :nth-child(7n+2) { --card: #dcf7e6; --edge: #4fc285; }
-#shop .shop-grid > :nth-child(7n+3) { --card: #dcefff; --edge: #5aa9f0; }
-#shop .shop-grid > :nth-child(7n+4) { --card: #fff4c7; --edge: #f2c230; }
-#shop .shop-grid > :nth-child(7n+5) { --card: #ece3ff; --edge: #9b7be8; }
-#shop .shop-grid > :nth-child(7n+6) { --card: #ffe6d4; --edge: #ff9f5a; }
-#shop .shop-grid > :nth-child(7n+7) { --card: #d6f7f4; --edge: #2ec4b6; }
-#shop .shop-card, #shop .skill-card { background: var(--card); border: 2px solid var(--edge); color: var(--ink); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 10px 26px rgba(60,40,90,0.18); }
-#shop .shop-card:hover, #shop .skill-card:hover { background: var(--card); border-color: var(--edge); box-shadow: 0 16px 34px rgba(60,40,90,0.28); }
+/* the cards are fully see-through over the picture: a coloured border, and words in
+   each card's own colour with a soft white glow so they stay readable */
+#shop .shop-grid > * { --edge: #e2558f; --title: #c2185b; }
+#shop .shop-grid > :nth-child(7n+2) { --edge: #3fae6a; --title: #17703d; }
+#shop .shop-grid > :nth-child(7n+3) { --edge: #4a95e8; --title: #1a56b0; }
+#shop .shop-grid > :nth-child(7n+4) { --edge: #e0a800; --title: #9a5200; }
+#shop .shop-grid > :nth-child(7n+5) { --edge: #8f6ae0; --title: #5e35b8; }
+#shop .shop-grid > :nth-child(7n+6) { --edge: #f08a3c; --title: #b8460f; }
+#shop .shop-grid > :nth-child(7n+7) { --edge: #22b3a5; --title: #08756b; }
+#shop .shop-card, #shop .skill-card { background: transparent; border: 2.5px solid var(--edge); color: var(--ink); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; text-shadow: var(--halo); }
+#shop .shop-card:hover, #shop .skill-card:hover { background: transparent; border-color: var(--title); box-shadow: 0 0 0 3px rgba(255,255,255,0.7); }
 #shop .skill-bg { display: none; }
-#shop .skill-card .card-title, #shop .shop-card .card-title { color: var(--ink); }
-#shop .skill-card .skill-desc, #shop .skill-card .skill-list, #shop .skill-card span, #shop .shop-card p, #shop .shop-card .meta { color: var(--ink-soft) !important; }
-#shop .shop-card .price { color: var(--ink); }
-#shop .shop-card .price.free { color: #1f7a4d; }
-#shop .shop-grid .btn-primary { background: var(--ink); color: #fff; box-shadow: 0 6px 16px rgba(43,36,64,0.25); }
+#shop .skill-card .card-title, #shop .shop-card .card-title { color: var(--title); font-weight: 600; }
+#shop .skill-card .skill-desc, #shop .skill-card .skill-list, #shop .skill-card span, #shop .shop-card p, #shop .shop-card .meta { color: var(--ink) !important; font-weight: 600; }
+#shop .shop-card .price { color: var(--title); }
+#shop .shop-card .price.free { color: #17703d; }
+#shop .shop-grid .btn { text-shadow: none; }
+#shop .shop-grid .btn-primary { background: var(--title); color: #fff; box-shadow: 0 6px 16px rgba(43,36,64,0.25); }
 #shop .shop-grid .btn-ghost { background: #fff; color: var(--ink); border: 1px solid rgba(43,36,64,0.2); }
+#shop .shop-card .paper { text-shadow: none; }
 #shop .cart-empty { display: inline-block; padding: 10px 14px; border-radius: var(--r-md); background: rgba(255,251,242,0.9); color: var(--ink); }
 #shop .shop-grid .btn span { color: inherit !important; }
