@@ -59,3 +59,18 @@
 .skill-list { list-style: none; padding: 0; margin: 0; }
 
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
+
+/* ---------- the store's background: the Crystal Lake Learning Haven scene ---------- */
+#shop { background: #bfe7ff; }
+.shop-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.shop-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; display: block; }
+/* a soft shade at the top and down the left so the white words stay easy to read */
+.shop-scene::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,30,52,0.45) 0%, rgba(10,30,52,0.12) 26%, rgba(10,30,52,0) 45%); }
+#shop .shop-bar { background: rgba(10,30,52,0.62); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.18); }
+#shop .shop-side { background: rgba(10,30,52,0.66); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-color: rgba(255,255,255,0.2); }
+#shop .shop-head { display: inline-block; padding: 10px 16px; border-radius: var(--r-lg); background: rgba(10,30,52,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+#shop .shop-head p { color: var(--fg); }
+#shop .shop-card, #shop .skill-card { background: rgba(10,30,52,0.68); border-color: rgba(255,255,255,0.22); }
+#shop .shop-card:hover, #shop .skill-card:hover { background: rgba(10,30,52,0.8); border-color: rgba(255,255,255,0.45); }
+#shop .skill-bg { opacity: 0.28; }
+#shop .cart-empty { display: inline-block; padding: 10px 14px; border-radius: var(--r-md); background: rgba(10,30,52,0.66); }
