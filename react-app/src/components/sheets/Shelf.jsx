@@ -14,6 +14,8 @@ const poolOf = id => id.startsWith('subj:')
   ? CATALOGUE.filter(i => i.subjectId === id.slice(5)).concat(WORKSHEETS.filter(w => w.subject.toLowerCase() === subjectById(id.slice(5)).label.toLowerCase()))
   : CATALOGUE.concat(WORKSHEETS).filter(i => i.cls === id);   /* the weekly worksheets now sit in their own class */
 const hasAZ = id => id === 'subj:english';
+/* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" (as in the store) */
+const SOON = { c1: true, c2: true, c3: true };
 const countOf = id => (id === 'kg' ? kgSheetCount() : poolOf(id).length + (hasAZ(id) ? AZ_LETTERS.length : 0));
 
 /* English: the 26 A to Z letter-tracing sheets above the books */
@@ -39,13 +41,16 @@ export default function Shelf() {
 
   const sideItem = (id, label) => (
     <button key={id} type="button" className={'side-item' + (id === cat ? ' on' : '')} aria-current={id === cat ? 'true' : 'false'} onClick={() => { setCat(id); setKgOpen(null); }}>
-      <span className="ic" aria-hidden="true">{SIDE_ICON[id.replace('subj:', '')] || '•'}</span><span className="lbl"><b>{label}</b></span><span className="n">{countOf(id)}</span>
+      <span className="ic" aria-hidden="true">{SIDE_ICON[id.replace('subj:', '')] || '•'}</span><span className="lbl"><b>{label}</b></span><span className={'n' + (SOON[id] ? ' soon' : '')}>{SOON[id] ? 'Coming soon' : countOf(id)}</span>
     </button>
   );
 
   let row = null, count;
   if (cat === 'kg') {   /* Kindergarten is organised by the content plan above — nothing to repeat here */
     count = 'Alphabet · ' + KG_TOPICS.find(g => g.id === 'alpha').items.length + ' sub-categories · ' + kgSheetCount() + ' sheets';
+  } else if (SOON[cat]) {
+    row = <div className="ws-soon"><b>Coming soon</b><p>We are making {classById(cat).label} worksheets right now. Until then, Kindergarten has {kgSheetCount()} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => { setCat('kg'); setKgOpen(null); }}>See Kindergarten sheets →</button></div>;
+    count = classById(cat).label + ' · coming soon';
   } else {
     const list = poolOf(cat).slice().sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
     row = list.length ? list.map((it, n) => <SheetCard key={it.id} it={it} n={n} />) : <p className="cart-empty">No sheets in this topic yet — more are on the way.</p>;
