@@ -124,7 +124,7 @@ CREATE INDEX IF NOT EXISTS messages_at ON messages(at);
 
 /* store settings the admin can change; base prices are in INR and are the source of truth */
 const DEFAULT_SETTINGS = {
-  plans: { m1: { label: '1 month', months: 1, price: 199 }, m3: { label: '3 months', months: 3, price: 499 }, y1: { label: '1 year', months: 12, price: 1499 } },
+  plans: { m1: { label: '1 month', months: 1, price: 199 }, m3: { label: '3 months', months: 3, price: 499 }, m6: { label: '6 months', months: 6, price: 899 }, y1: { label: '12 months', months: 12, price: 1499 } },   /* India: m1, m3, m6; other countries also y1 (pricing.cjs) */
   classes: { kg: 'Kindergarten', c1: 'Class 1', c2: 'Class 2', c3: 'Class 3' },   /* Nursery was folded into Kindergarten (seed v2) */
   coupons: {},          /* CODE: { pct, max, uses, active } */
   discounts: {},        /* classId: pct */
@@ -148,7 +148,11 @@ function open(file) {
   const api = {
     raw: db,
     /* settings: JSON values keyed by name, defaults filled in */
-    get(key) { const r = st.getSetting.get(key); if (r) { try { return JSON.parse(r.value); } catch (_) {} } return DEFAULT_SETTINGS[key] == null ? null : JSON.parse(JSON.stringify(DEFAULT_SETTINGS[key])); },
+    get(key) {
+      const fallback = DEFAULT_SETTINGS[key] == null ? null : JSON.parse(JSON.stringify(DEFAULT_SETTINGS[key]));
+      const r = st.getSetting.get(key); if (r) { try { const v = JSON.parse(r.value); return key === 'plans' ? Object.assign(fallback, v) : v; } catch (_) {} }   /* plans added later (6 months) show up in stores saved before them */
+      return fallback;
+    },
     set(key, value) { st.setSetting.run(key, JSON.stringify(value)); return value; },
     /* one signing secret for quotes and view tokens, made on first run */
     secret() { let s = api.get('secret'); if (!s) { s = crypto.randomBytes(32).toString('hex'); api.set('secret', s); } return s; },

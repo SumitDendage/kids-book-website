@@ -7,7 +7,7 @@ import { loadSession, rememberSession, storeSession, read, logEvent, pushLog, se
 import { applyAdminProducts, applyLocalPrices, applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
 import { PLANS, WHYS } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
-import { getCoConfig, loadCoConfig } from '../services/checkout.js';
+import { getCoConfig, loadCoConfig, initialAddress } from '../services/checkout.js';
 
 /* The one store for the customer site: who is signed in, what they may open, which
    overlay is showing, and every action that crosses components (sign-in gate,
@@ -138,13 +138,19 @@ export function SiteProvider({ children }) {
       logEvent('view', { item: it.id });
     };
     a.showPurchasePopup = p => setModal({ open: true, kind: 'purchase', purchase: p });
-    /* openCheckout({ worksheet: 'kg-mat-cnt' }) — each PDF is bought on its own (class plans are no longer sold) */
+    /* openCheckout({ worksheet: 'kg-mat-cnt' }) buys one PDF; openCheckout({ cls: 'kg', plan: 'm3' }) subscribes to a class */
     a.openCheckout = what => {
+      if (what && what.cls) {
+        if (!sessionRef.current) { a.requireSignIn(() => a.openCheckout(what), 'Sign in to subscribe — every sheet in the class opens as soon as you have paid.'); return; }
+        setDrawer(null); a.closeModal();
+        setCheckout(c => ({ open: true, item: null, cls: what.cls, plan: what.plan || 'm3', nonce: c.nonce + 1 }));
+        return;
+      }
       if (!what || !what.worksheet) { toast('Pick a sheet to buy — each PDF is bought on its own.'); return; }
       if (!sessionRef.current) { a.requireSignIn(() => a.openCheckout(what), 'Sign in to buy this PDF — it opens as soon as you have paid.'); return; }
       if (!sheetOf(what.worksheet)) return;
       setDrawer(null); a.closeModal();
-      setCheckout(c => ({ open: true, item: what.worksheet, nonce: c.nonce + 1 }));
+      setCheckout(c => ({ open: true, item: what.worksheet, cls: null, plan: null, nonce: c.nonce + 1 }));
     };
     /* Open a sheet in the protected viewer (new tab, full screen). Sign-in is required for every sheet.
        The SERVER decides: POST /api/access/:id answers with a view token (free, or a valid entitlement),
@@ -198,7 +204,7 @@ export function SiteProvider({ children }) {
       } catch (err) { toast(err.message || 'Could not confirm the payment'); if (pending && pending.worksheet) a.openSheet(pending.worksheet); }
     };
     /* the currency the prices are shown in */
-    a.loadCurrency = () => loadCoConfig().then(cfg => { const addr = read('lww_address', null); if (setCurrencyFromCountry(cfg, (addr && addr.country) || undefined)) a.rerenderAll(); }).catch(() => {});
+    a.loadCurrency = () => loadCoConfig().then(cfg => { if (setCurrencyFromCountry(cfg, initialAddress().country)) a.rerenderAll(); }).catch(() => {});   /* the same country the checkout starts with */
     return a;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, toast, navigate, setSession, setEnt]);

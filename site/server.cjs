@@ -74,7 +74,7 @@ async function api(req, res, pathname, url) {
 
   /* ---- public ---- */
   /* the checkout reads countries, rates (prices shown in the customer's currency) and gateways (false = not connected) */
-  if (m === 'GET' && pathname === '/api/config') { const rates = db.get('rates'); return json(res, 200, { countries: Pricing.publicCountries(), plans: db.get('plans'), classes: db.get('classes'), rates, currencies: Object.keys(rates), gateways: payments.gateways, server: 'learn-with-why', version: '3' }); }
+  if (m === 'GET' && pathname === '/api/config') { const rates = db.get('rates'); return json(res, 200, { countries: Pricing.publicCountries(), plans: db.get('plans'), plansByRegion: Pricing.PLANS_BY_REGION, classes: db.get('classes'), rates, currencies: Object.keys(rates), gateways: payments.gateways, server: 'learn-with-why', version: '3' }); }
   if (m === 'GET' && pathname === '/api/geo') { const hdr = req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country-code']; return json(res, 200, { country: hdr && Pricing.COUNTRIES[String(hdr).toUpperCase()] ? String(hdr).toUpperCase() : null }); }
   if (m === 'GET' && pathname === '/api/worksheets') return access.catalogue(req, res);
   if (m === 'GET' && pathname === '/api/health') return json(res, 200, { ok: true, gateway: payments.mode, gateways: payments.gateways, mail: mail.configured, time: Date.now() });

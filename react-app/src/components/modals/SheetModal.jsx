@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
-import { classById } from '../../data/content.js';
+import { classById, planOf } from '../../data/content.js';
 
 /* Not signed in? Every worksheet first shows what a free account includes. */
 function AccountPopup({ id }) {
@@ -72,7 +72,7 @@ function PurchasePopup({ p }) {
       <p>{item ? <><b>{item.title}</b> has</> : <>Every sheet in <b>{cls && cls.label}</b> has</>} been added to your account.</p>
       <div className="expiry"><small>{item ? 'This PDF is' : 'These PDFs are'} yours to keep</small><b>No expiry</b><small>Open {item ? 'it' : 'them'} as often as you like, on any device you sign in to.</small></div>
       <p>You can open {item ? 'it' : 'them'} any time from:<br /><b>My Account → My Worksheets</b></p>
-      <div className="rows"><div><span>{item ? 'Sheet' : 'Class'}</span><b>{item ? item.title : (cls && cls.label) + ' · every sheet'}</b></div><div><span>Paid</span><b>{p.total} via {p.method}</b></div><div><span>Access</span><b>Does not expire</b></div></div>
+      <div className="rows"><div><span>{item ? 'Sheet' : 'Class'}</span><b>{item ? item.title : (cls && cls.label) + ' · every sheet'}</b></div><div><span>Paid</span><b>{p.total} via {p.method}</b></div><div><span>{item ? 'Access' : 'Plan'}</span><b>{item ? 'Does not expire' : planOf(p.plan).label}</b></div></div>
       <div className="sheet-actions">
         {item && <button type="button" className="btn btn-primary" onClick={() => openViewer(item.id)}>Open the PDF now ↗</button>}
         <button type="button" className={'btn ' + (item ? 'btn-ghost' : 'btn-primary')} onClick={openMyWorksheets}>Open My Worksheets</button>

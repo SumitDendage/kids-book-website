@@ -5,7 +5,7 @@ import { write, pushLog, logEvent } from '../../services/storage.js';
 import { fmtCur, setCurrencyFromCountry } from '../../services/currency.js';
 import { initialAddress, loadCoConfig, loadRazorpay } from '../../services/checkout.js';
 import { PAY_VIA, RZP_DISPLAY, PAY } from '../../data/checkout.js';
-import { classById, planOf } from '../../data/content.js';
+import { classById, planOf, plansFor } from '../../data/content.js';
 import { sheetOf } from '../../data/catalogue.js';
 import { flagOf, shortClass } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
@@ -34,19 +34,25 @@ export default function Checkout() {
   const lastTotal = useRef(null), timer = useRef(0), seq = useRef(0), shopRef = useRef(null);
   const item = checkout.item ? sheetOf(checkout.item) : null;
   const itemId = checkout.item;
+  /* a class subscription instead of one PDF: the plan is picked on this page */
+  const subCls = !itemId && checkout.cls ? checkout.cls : null;
+  const [planPick, setPlanPick] = useState(checkout.plan || 'm3');
+  const plans = plansFor(addr.country);
+  const plan = plans.some(x => x.id === planPick) ? planPick : (plans.some(x => x.id === 'm6') ? 'm6' : plans[0].id);
+  const planRef = useRef(plan); planRef.current = plan;
 
   const setTouched = t => { keep.touched = t; setTouchedState(t); };
   const setCode = c => { keep.code = c; setCodeState(c); };
   const setPayVia = v => { keep.via = v; setPayViaState(v); };
 
   /* ask the server for a fresh signed quote (debounced while typing) */
-  const requestQuote = useCallback((now, a = addr, c = code) => {
+  const requestQuote = useCallback((now, a = addr, c = code, p = planRef.current) => {
     clearTimeout(timer.current);
     const run = async () => {
       const mine = ++seq.current;
       setBusy(true); setError('');
       try {
-        const q = await payApi.quote({ worksheet: itemId, coupon: c, address: a });
+        const q = await payApi.quote(subCls ? { cls: subCls, plan: p, coupon: c, address: a } : { worksheet: itemId, coupon: c, address: a });
         if (mine !== seq.current) return;
         if (lastTotal.current !== null && lastTotal.current !== q.total) setBump(b => b + 1);
         lastTotal.current = q.total;
@@ -55,19 +61,21 @@ export default function Checkout() {
       if (mine === seq.current) setBusy(false);
     };
     if (now) run(); else timer.current = setTimeout(run, 350);
-  }, [addr, code, itemId]);
+  }, [addr, code, itemId, subCls]);
 
   /* opening the page: fresh quote, config loaded once */
   useEffect(() => {
     if (!checkout.open) return;
     if (shopRef.current) shopRef.current.scrollTop = 0;
+    if (checkout.plan) setPlanPick(checkout.plan);
     setQuote(null); lastTotal.current = null; setStatus('loading');
     let alive = true;
     loadCoConfig().then(cfg => {
       if (!alive) return;
       setConfig(cfg); const a = initialAddress(); setAddr(a);
       if (setCurrencyFromCountry(cfg, a.country)) rerenderAll();
-      setStatus('ready'); requestQuote(false, a, keep.code);
+      const ps = plansFor(a.country), p0 = checkout.plan || 'm3';
+      setStatus('ready'); requestQuote(false, a, keep.code, ps.some(x => x.id === p0) ? p0 : 'm6');
     }).catch(err => { if (alive) { setLoadError(err.message); setStatus('error'); } });
     return () => { alive = false; clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,21 +160,26 @@ export default function Checkout() {
     } catch (err) { setBusy(false); setError(err.message); if (!err.cancelled) requestQuote(true); else toast(err.message); }
   }
 
+  /* changing country can drop the 12-month plan (India): ask again with the plan that is shown */
+  const pickPlan = id => { setPlanPick(id); requestQuote(true, addr, code, id); };
+  const prevPlan = useRef(plan);
+  useEffect(() => { if (subCls && prevPlan.current !== plan) { prevPlan.current = plan; requestQuote(true, addr, code, plan); } });
+
   /* ---------- the order summary ---------- */
-  const cls = item ? classById(item.cls) : null;
+  const cls = item ? classById(item.cls) : subCls ? classById(subCls) : null;
   const q = quote, addrOk = !!(q && q.valid);
   const summary = (
     <aside className="co-summary" id="coSummary" aria-live="polite">
       <div className="sum-head"><p className="eyebrow">Order summary</p>{q && <span className={'region-chip' + (q.region === 'IN' ? ' in' : '')}>{q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + q.countryName + ' · ' + q.currency}</span>}</div>
       {item
         ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · yours to keep</small></div></div>
-        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planOf('m3').label} · every sheet in the class</small></div></div>}
+        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planOf(plan).label} · every sheet in the class</small></div></div>}
       <div className={'co-lines' + (busy ? ' busy' : '')}>
         {q ? q.lines.map((l, i) => <div key={i} className="co-line"><span>{l.label}<small>{l.note || ''}</small></span><b>{fmtCur(l.amount, q.currency)}</b></div>)
           : error ? <p className="alert err">{error}</p> : <><div className="sk-line" /><div className="sk-line" /><div className="sk-line short" /></>}
       </div>
       {q && <div className={'sum-total' + (bump ? ' bump' : '')}><span>Total<small>incl. tax &amp; fees</small></span><strong key={bump}>{fmtCur(q.total, q.currency)}</strong></div>}
-      {q && <p className="co-note" style={{ textAlign: 'center' }}>Access opens the moment the payment is verified and <b>does not expire</b>.</p>}
+      {q && <p className="co-note" style={{ textAlign: 'center' }}>{subCls ? <>Every sheet in {cls.label} opens the moment the payment is verified.</> : <>Access opens the moment the payment is verified and <b>does not expire</b>.</>}</p>}
       {q && q.currency !== 'INR' && <p className="co-note">≈ ₹{Math.round(q.total / q.rate)} at 1 INR = {q.rate} {q.currency}. You are charged in {q.currency}.</p>}
       {q && q.coupon && <p className="co-note ok">Coupon {q.coupon} applied — ₹{q.discountInr} off</p>}
       {q && error && <p className="alert err">{error}</p>}
@@ -186,6 +199,12 @@ export default function Checkout() {
     body = (
       <>
         <div className="co-left">
+          {subCls && <section className="panel co-card co-plans" aria-labelledby="coPlanHead">
+            <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coPlanHead">Choose your plan</h3><p>{C.code === 'IN' ? 'India: 1, 3 or 6 months' : '1, 3, 6 or 12 months'} · every sheet in {cls.label}</p></div></header>
+            <div className="method-grid plan-grid" role="radiogroup" aria-label="Subscription plan">
+              {plans.map(x => <label key={x.id} className={'method' + (x.id === plan ? ' on' : '')}><input type="radio" name="plan" value={x.id} checked={x.id === plan} onChange={() => pickPlan(x.id)} /><span className="txt"><b>{x.label}</b><small>{fmtCur(Math.round(((config.plans && config.plans[x.id] && config.plans[x.id].price) || x.price) * (config.rates[C.currency] || 1) * 100) / 100, C.currency)}{x.note ? ' · ' + x.note : ''}</small></span><span className="ring" /></label>)}
+            </div>
+          </section>}
           <section className={'panel co-card' + (addrOk ? ' done' : '')} data-step="1" aria-labelledby="coStep1">
             <header className="co-card-head"><span className="co-num">1</span><div><h3 id="coStep1">Billing address</h3><p id="coRegionLine">{C.code === 'IN'
               ? <><span className="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · state and 6-digit PIN code</>
@@ -222,7 +241,7 @@ export default function Checkout() {
         <div><p className="eyebrow">Secure checkout</p><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
         <div className="shop-actions"><span className="co-lock">🔒 256-bit encrypted</span><button type="button" className="icon-btn" id="checkoutBack" aria-label="Back" onClick={closeCheckout}>✕</button></div>
       </header>
-      <div className="checkout-body" id="checkoutBody">{checkout.item || status !== 'ready' ? body : null}</div>
+      <div className="checkout-body" id="checkoutBody">{checkout.item || subCls || status !== 'ready' ? body : null}</div>
     </div>
   );
 }

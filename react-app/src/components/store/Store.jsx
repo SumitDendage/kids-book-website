@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
+import { CLASSES, SUBJECTS, PLANS, classById, subjectById } from '../../data/content.js';
+import { money, isIndia } from '../../services/currency.js';
 import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
@@ -15,7 +16,7 @@ function SideButton({ on, onClick, n, children }) {
 const SOON = { c1: true, c2: true, c3: true };
 
 export default function Store({ bagCount }) {
-  const { shop, setShopFilter, closeShop, openDrawer } = useSite();
+  const { shop, setShopFilter, closeShop, openDrawer, openCheckout } = useSite();
   const { open, view, cls, subject, skill } = shop;
   const shopRef = useRef(null);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
@@ -61,6 +62,10 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className="shop-grid" id="shopGrid">
+            {view === 'paid' && !skill && !soon && <div className="shop-sub">
+              <div><b>Subscribe to {classById(cls === 'all' ? 'kg' : cls).label}</b><p>Every sheet in the class opens while your plan runs. {isIndia() ? 'In India: 1, 3 or 6 months.' : 'Choose 1, 3, 6 or 12 months.'}</p></div>
+              <div className="shop-sub-plans">{PLANS.filter(x => !isIndia() || x.id !== 'y1').map(x => <button key={x.id} type="button" className="sub-plan" onClick={() => openCheckout({ cls: cls === 'all' ? 'kg' : cls, plan: x.id })}><b>{x.label}</b><span>{money(x.price)}</span>{x.note ? <small>{x.note}</small> : null}</button>)}</div>
+            </div>}
             {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
                 <div className="skill-bg" />
