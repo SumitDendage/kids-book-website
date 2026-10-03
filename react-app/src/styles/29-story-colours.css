@@ -21,3 +21,5 @@
 .nav-links { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
 #content .field input, #content .field textarea { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
 #content .field input::placeholder, #content .field textarea::placeholder { color: rgba(255, 255, 255, 0.8); }
+/* the short line under each Kindergarten tile name: black, with a soft white glow so it reads on the glass */
+#content .kg-tile .kg-focus { color: #111417; font-weight: 500; text-shadow: 0 0 6px rgba(255, 255, 255, 0.9), 0 0 14px rgba(255, 255, 255, 0.7); }
