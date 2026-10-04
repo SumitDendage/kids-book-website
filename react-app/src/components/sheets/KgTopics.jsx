@@ -1,4 +1,4 @@
-import { KG_TOPICS, CATALOGUE, WORKSHEETS, topicSheets } from '../../data/catalogue.js';
+import { KG_TOPICS, ITEMS, topicSheets } from '../../data/catalogue.js';
 import SheetCard from './SheetCard.jsx';
 import { AzTile, PicTile } from './SheetTiles.jsx';
 
@@ -7,7 +7,7 @@ import { AzTile, PicTile } from './SheetTiles.jsx';
 const ALPHA = KG_TOPICS.find(g => g.id === 'alpha');
 const inSections = () => new Set(ALPHA.items.flatMap(([id]) => topicSheets(id).map(it => it.id)));
 /* the Kindergarten books and weekly sheets that are not in a sub-category */
-export const kgMore = () => { const seen = inSections(); return CATALOGUE.concat(WORKSHEETS).filter(it => it.cls === 'kg' && !seen.has(it.id)); };
+export const kgMore = () => { const seen = inSections(); return ITEMS.filter(it => it.pdf && it.cls === 'kg' && !seen.has(it.id)); };
 export const kgSheetCount = () => inSections().size + kgMore().length;
 const MORE = ['more', 'More for Kindergarten', 'Counting, colouring, first words and the weekly sheets.'];
 const sections = () => ALPHA.items.map((x, k) => ({ no: String(k + 1).padStart(2, '0'), id: x[0], label: x[1], focus: x[2], list: topicSheets(x[0]) }))

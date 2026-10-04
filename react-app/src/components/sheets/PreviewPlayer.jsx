@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import usePreviewPlayer from '../../hooks/usePreviewPlayer.js';
-import { SHEETS } from '../../data/catalogue.js';
+import { PLAYER_IDS, sheetOf } from '../../data/catalogue.js';
 import { classById } from '../../data/content.js';
 import Rise from '../common/Rise.jsx';
 
@@ -16,7 +16,8 @@ export default function PreviewPlayer({ active }) {
   useEffect(() => { if (active) setPaused(false); }, [active]);
   usePreviewPlayer(canvasRef, 14, active && !paused);
 
-  const s = SHEETS[slide], owned = access.canOpen(s);
+  const SHEETS = PLAYER_IDS.map(sheetOf).filter(Boolean);
+  const s = SHEETS[slide % SHEETS.length], owned = access.canOpen(s);
   const go = d => setSlide(n => (n + d + SHEETS.length) % SHEETS.length);
   return (
     <Rise i={1} className="player">
@@ -30,7 +31,7 @@ export default function PreviewPlayer({ active }) {
       </div>
       <div className="panel player-card" id="playerCard" aria-live="polite">
         <div className="slide-swap" key={slide}>
-          <div className="glyph">{s.glyph}</div><p className="eyebrow">Learn With Why · Preview</p><p className="meta">{classById(s.cls).label} · {s.subject}</p><h3 className="card-title">{s.title}</h3>
+          <div className="glyph">{s.glyph || s.az || s.rc || s.letter || 'Aa'}</div><p className="eyebrow">Learn With Why · Preview</p><p className="meta">{classById(s.cls).label} · {s.subject}</p><h3 className="card-title">{s.title}</h3>
           <p className={'price' + (s.price === 0 ? ' free' : '')}>{owned ? (s.price === 0 ? 'Free · open any time' : 'Yours to keep ✓') : s.price === 0 ? 'Free access sheet' : 'Yours to keep once bought'}</p>
           {owned ? <button type="button" className="btn btn-primary" onClick={() => openViewer(s.id)}>Open PDF ↗</button>
             : s.price === 0 ? <button type="button" className="btn btn-primary" onClick={() => unlock(s.id)}>Open it free →</button>

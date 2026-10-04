@@ -7,7 +7,7 @@ import { classById, planOf } from '../../data/content.js';
 function AccountPopup({ id }) {
   const { closeModal, requireSignIn, openSheet, openShop } = useSite();
   const it = sheetOf(id);
-  const go = view => requireSignIn(() => { if (id) openSheet(id); else openShop('all'); }, view === 'signup' ? 'Create your free account — your sheet opens as soon as you are in.' : 'Sign in — your sheet opens as soon as you are in.', view);
+  const go = view => requireSignIn(() => { if (id) openSheet(id); else openShop('all'); }, view === 'signup' ? 'Create your free account — then sign in and your sheet will be waiting for you.' : 'Sign in — your sheet will be waiting for you.', view);
   return (
     <>
       <button type="button" className="icon-btn close-x" aria-label="Close" onClick={closeModal}>✕</button>
@@ -18,7 +18,7 @@ function AccountPopup({ id }) {
         <li><i aria-hidden="true">✓</i><span>Customer support (with real people!)</span></li>
       </ul>
       <div className="sheet-actions"><button type="button" className="btn btn-primary" onClick={() => go('signup')}>Create my free account →</button><button type="button" className="btn btn-ghost" onClick={() => go('signin')}>I already have an account</button></div>
-      {it && <p className="fine">Then <b>{it.title}</b> {it.price === 0 ? 'opens straight away' : 'is one tap away'}.</p>}
+      {it && <p className="fine">Then <b>{it.title}</b> is one tap away.</p>}
     </>
   );
 }

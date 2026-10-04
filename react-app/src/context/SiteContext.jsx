@@ -90,7 +90,7 @@ export function SiteProvider({ children }) {
     a.closeCheckout = () => setCheckout(c => (c.open ? { ...c, open: false } : c));
     a.openShop = view => {
       setDrawer(null); a.closeModal();
-      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all' } : { ...s, open: true }));
+      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
     /* token: the one from a password-reset link, kept while the reset form is showing */
