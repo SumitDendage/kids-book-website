@@ -22,9 +22,12 @@ export const roleOf = id => ROLES.find(r => r.id === id) || ROLES[0];
 export const PLANS = [
   { id: 'm1', label: '1 month', months: 1, price: 199 },
   { id: 'm3', label: '3 months', months: 3, price: 499, note: 'save 16%' },
-  { id: 'y1', label: '1 year', months: 12, price: 1499, note: 'best value' },
+  { id: 'm6', label: '6 months', months: 6, price: 899, note: 'save 25%' },
+  { id: 'y1', label: '12 months', months: 12, price: 1499, note: 'best value' },
 ];
 export const planOf = id => PLANS.find(x => x.id === id) || PLANS[0];
+/* India buys 1, 3 or 6 months; every other country also 12 months (the server checks the same rule) */
+export const plansFor = country => PLANS.filter(x => country !== 'IN' || x.id !== 'y1');
 /* ---------- the shelf: classes × subjects (price 0 = free access sheet) ---------- */
 export const CLASSES = [
   { id: 'kg', label: 'Kindergarten' },

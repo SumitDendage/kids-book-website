@@ -59,3 +59,62 @@
 .skill-list { list-style: none; padding: 0; margin: 0; }
 
 .shop-card .btn { padding: 9px 14px; font-size: var(--fs-small); }
+
+/* ---------- the store's look: the Learn With Why picture behind the page, see-through colourful cards ---------- */
+#shop { background: #e9f6fb; --ink: #2b2440; --ink-soft: #4a4360; --halo: 0 0 2px #fff, 0 0 6px #fff, 0 0 12px rgba(255,255,255,0.95), 0 0 20px rgba(255,255,255,0.8); }
+.shop-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.shop-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; display: block; }
+/* light cream glass for the bar, the side panel and the title, with dark words */
+#shop .shop-bar, #shop .shop-side, #shop .shop-head { background: rgba(255,251,242,0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: var(--ink); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 30px rgba(60,40,90,0.18); }
+#shop .shop-bar { border-width: 0 0 1px; }
+#shop .shop-bar .eyebrow, #shop .side-title { color: #b0577c; }
+#shop .shop-bar .card-title, #shop .shop-head h3 { color: var(--ink); }
+#shop .shop-head { display: inline-block; padding: 10px 18px; border-radius: var(--r-lg); }
+#shop .shop-head p, #shop .side-note { color: var(--ink-soft); }
+#shop .shop-actions .btn-ghost, #shop .shop-actions .icon-btn { background: #fff; color: var(--ink); border: 1px solid rgba(43,36,64,0.15); }
+#shop .side-btn { color: var(--ink); }
+#shop .side-btn small { color: var(--ink-soft); }
+#shop .side-btn:hover { background: rgba(43,36,64,0.07); color: var(--ink); }
+#shop .side-btn.on { background: var(--ink); color: #fff; }
+#shop .side-btn.on small { color: rgba(255,255,255,0.75); }
+#shop .side-btn .side-n { background: rgba(43,36,64,0.1); }
+#shop .side-btn.on .side-n { background: rgba(255,255,255,0.2); }
+/* the cards are 75% see-through frosted glass over the picture, each tinted in its own
+   colour, so the picture still shows but never runs into the words */
+#shop .shop-grid > * { --edge: #e2558f; --title: #c2185b; --tint: 255,224,236; }
+#shop .shop-grid > :nth-child(7n+2) { --edge: #3fae6a; --title: #17703d; --tint: 220,247,230; }
+#shop .shop-grid > :nth-child(7n+3) { --edge: #4a95e8; --title: #1a56b0; --tint: 220,239,255; }
+#shop .shop-grid > :nth-child(7n+4) { --edge: #e0a800; --title: #9a5200; --tint: 255,244,199; }
+#shop .shop-grid > :nth-child(7n+5) { --edge: #8f6ae0; --title: #5e35b8; --tint: 236,227,255; }
+#shop .shop-grid > :nth-child(7n+6) { --edge: #f08a3c; --title: #b8460f; --tint: 255,230,212; }
+#shop .shop-grid > :nth-child(7n+7) { --edge: #22b3a5; --title: #08756b; --tint: 214,247,244; }
+#shop .shop-card, #shop .skill-card { background: rgba(var(--tint), 0.25); border: 2.5px solid var(--edge); color: var(--ink); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2); box-shadow: 0 10px 26px rgba(60,40,90,0.2); text-shadow: 0 0 2px #fff, 0 0 8px rgba(255,255,255,0.9); }
+#shop .shop-card:hover, #shop .skill-card:hover { background: rgba(var(--tint), 0.35); border-color: var(--title); box-shadow: 0 16px 34px rgba(60,40,90,0.28); }
+#shop .skill-bg { display: none; }
+#shop .skill-card .card-title, #shop .shop-card .card-title { color: var(--title); font-weight: 600; }
+#shop .skill-card .skill-desc, #shop .skill-card .skill-list, #shop .skill-card span, #shop .shop-card p, #shop .shop-card .meta { color: var(--ink) !important; font-weight: 600; }
+#shop .shop-card .price { color: var(--title); }
+#shop .shop-card .price.free { color: #17703d; }
+#shop .shop-grid .btn { text-shadow: none; }
+#shop .shop-grid .btn-primary { background: var(--title); color: #fff; box-shadow: 0 6px 16px rgba(43,36,64,0.25); }
+#shop .shop-grid .btn-ghost { background: #fff; color: var(--ink); border: 1px solid rgba(43,36,64,0.2); }
+#shop .shop-card .paper { text-shadow: none; }
+#shop .cart-empty { display: inline-block; padding: 10px 14px; border-radius: var(--r-md); background: rgba(255,251,242,0.9); color: var(--ink); }
+#shop .shop-grid .btn span { color: inherit !important; }
+/* Class 1, 2 and 3: a "Coming soon" note in place of the sheets */
+#shop .shop-soon { grid-column: 1 / -1; justify-self: start; max-width: 520px; padding: 26px 28px; border-radius: var(--r-lg); background: rgba(255,251,242,0.9); border: 2.5px solid #e2558f; color: var(--ink); box-shadow: 0 10px 26px rgba(60,40,90,0.2); }
+#shop .shop-soon b { display: block; font-family: var(--font-display); font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.4rem); font-weight: 600; color: #c2185b; line-height: 1.1; }
+#shop .shop-soon p { margin: 8px 0 16px; color: var(--ink-soft); }
+#shop .shop-soon .btn-primary { background: #c2185b; color: #fff; }
+#shop .side-btn .side-n.soon { background: #ffe0ec; color: #c2185b; white-space: nowrap; }
+#shop .side-btn.on .side-n.soon { background: rgba(255,255,255,0.2); color: #fff; }
+/* Subscription view: subscribe to a class, one button per plan (India 1, 3, 6 months; elsewhere also 12) */
+#shop .shop-sub { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-radius: var(--r-lg); background: rgba(255,251,242,0.9); border: 2.5px solid #8f6ae0; color: var(--ink); box-shadow: 0 10px 26px rgba(60,40,90,0.2); }
+#shop .shop-sub b { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; color: #5e35b8; }
+#shop .shop-sub p { margin-top: 4px; color: var(--ink-soft); font-size: var(--fs-small); max-width: 420px; }
+#shop .shop-sub-plans { display: flex; flex-wrap: wrap; gap: 10px; }
+#shop .sub-plan { display: grid; justify-items: center; gap: 2px; min-width: 112px; padding: 12px 14px; border-radius: var(--r-md); border: 2px solid #8f6ae0; background: #fff; color: var(--ink); cursor: pointer; transition: transform var(--d-fast), background var(--d-fast); }
+#shop .sub-plan:hover { transform: translateY(-2px); background: #ece3ff; }
+#shop .sub-plan b { font-family: var(--font-body); font-size: var(--fs-ui); color: var(--ink); }
+#shop .sub-plan span { font-weight: 700; color: #5e35b8; }
+#shop .sub-plan small { font-size: 0.66rem; color: var(--ink-soft); }

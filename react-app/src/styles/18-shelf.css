@@ -6,13 +6,13 @@
 .ws-side .side-title { padding: 6px 12px 10px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--fg-dim); }
 .side-item { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; column-gap: 10px; padding: 7px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--fg-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--d-base), color var(--d-base), border-color var(--d-base), transform var(--d-fast) var(--ease); }
 .side-item:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateX(2px); }
-.side-item.on { background: #fff; color: #14181c; border-color: #fff; }
+.side-item.on { background: rgba(255,217,107,0.16); color: #ffd96b; border-color: rgba(255,217,107,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 0 18px rgba(255,217,107,0.18); }   /* the chosen class: see-through gold glass, gold words */
 .side-item .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.1); font-family: var(--font-display); font-size: 1rem; font-weight: 500; }
-.side-item.on .ic { background: rgba(20,24,28,0.08); }
+.side-item.on .ic { background: rgba(255,217,107,0.2); color: #ffd96b; }
 .side-item .lbl { display: grid; line-height: 1.2; }
 .side-item .lbl b { font-size: 0.86rem; font-weight: 600; }
 .side-item .n { font-size: 0.66rem; font-weight: 700; padding: 3px 7px; border-radius: 100px; background: rgba(255,255,255,0.1); }
-.side-item.on .n { background: rgba(20,24,28,0.1); }
+.side-item.on .n { background: rgba(255,217,107,0.22); color: #ffe9a8; }
 .side-item.on .free-dot { background: #1f6b47; }
 .side-sep { height: 1px; margin: 6px 8px; background: var(--glass-border); }
 @media (max-width: 860px) {
@@ -21,3 +21,8 @@
   .ws-side .side-title, .side-sep { grid-column: 1 / -1; }
   .side-item .n { display: none; }
 }
+/* Class 1, 2 and 3: "Coming soon" in place of the sheets */
+.side-item .n.soon { background: #ffe0ec; color: #c2185b; white-space: nowrap; }
+.ws-soon { grid-column: 1 / -1; max-width: 520px; padding: 24px 26px; border-radius: var(--r-lg); background: var(--glass-strong); border: 1px solid var(--glass-border); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.ws-soon b { display: block; font-family: var(--font-display); font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.4rem); font-weight: 500; line-height: 1.1; }
+.ws-soon p { margin: 8px 0 16px; color: var(--fg-muted); }

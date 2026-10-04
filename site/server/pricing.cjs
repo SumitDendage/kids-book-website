@@ -63,6 +63,7 @@ function make(db) {
     } else {
       const plan = plans[body.plan], cls = classes[body.cls];
       if (!plan || !cls) return { error: 'Unknown plan or class.' };
+      if (!plansFor((body.address || {}).country).includes(body.plan)) return { error: 'The ' + plan.label + ' plan is not offered in India — choose 1, 3 or 6 months.' };
       item = { kind: 'class', cls: body.cls, className: cls, plan: body.plan, planLabel: plan.label, months: plan.months, priceInr: plan.price, discountCls: body.cls };
     }
     const a = body.address || {}; const cc = COUNTRIES[a.country] ? a.country : 'OTHER';
@@ -97,4 +98,8 @@ function make(db) {
   return { quote, verify, sign, round };
 }
 
-module.exports = { make, COUNTRIES, publicCountries, fmtMoney, minorUnits, round };
+/* the subscription plans each region may buy: India 1, 3 and 6 months; every other country also 12 months */
+const PLANS_BY_REGION = { IN: ['m1', 'm3', 'm6'], INTL: ['m1', 'm3', 'm6', 'y1'] };
+function plansFor(country) { return country === 'IN' ? PLANS_BY_REGION.IN : PLANS_BY_REGION.INTL; }
+
+module.exports = { make, plansFor, PLANS_BY_REGION, COUNTRIES, publicCountries, fmtMoney, minorUnits, round };

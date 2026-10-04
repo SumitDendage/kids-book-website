@@ -182,11 +182,16 @@ export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcIte
   SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-export const sheetOf = id => id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+const sheetOfRaw = id => id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+/* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
+export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
-export const NEW_IDS = ['c2-sci-why', 'c3-mat-tim', 'kg-eng-rhy', 'ws-time'];
-export const BEST_IDS = ['nur-eng-abc', 'c1-mat-add', 'c2-mat-mul', 'kg-eng-cvc', 'alphabet', 'ws-add', 'c3-mat-fra'];
+/* only sheets with a real PDF are listed: the sound sheets are the newest, the A to Z set the favourites */
+export const NEW_IDS = ['bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
+export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
+/* the four sheets in the Sheets chapter's preview carousel */
+export const PLAYER_IDS = ['az-A', 'rc-B', 'cl-C', 'bx-1'];
 export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },

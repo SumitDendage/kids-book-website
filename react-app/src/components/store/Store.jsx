@@ -1,27 +1,32 @@
 import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
+import { CLASSES, SUBJECTS, PLANS, classById, subjectById } from '../../data/content.js';
+import { money, isIndia } from '../../services/currency.js';
 import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
-   Subscription, then classes and subjects. A plain dark background, no animation. */
+   Subscription, then classes and subjects. Behind it: the Learn With Why picture
+   (public/shop/learn-with-why-wallpaper.webp); the cards are see-through, each in its own colour. */
 function SideButton({ on, onClick, n, children }) {
-  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className="side-n">{n}</span> : null}</button>;
+  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
 
+/* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" */
+const SOON = { c1: true, c2: true, c3: true };
+
 export default function Store({ bagCount }) {
-  const { shop, setShopFilter, closeShop, openDrawer } = useSite();
+  const { shop, setShopFilter, closeShop, openDrawer, openCheckout, access } = useSite();
   const { open, view, cls, subject, skill } = shop;
   const shopRef = useRef(null);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
 
   /* the sheets a view, class and subject show */
-  const pick = (vw, c, sj) => ITEMS.filter(it =>
+  const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && !SOON[it.cls] &&
     (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
     (c === 'all' || it.cls === c) && subjectMatches(it, sj));
-  /* the sidebar counts the printable PDF sheets each button leads to */
-  const countOf = (vw, c, sj) => pick(vw, c, sj).filter(it => it.pdf).length;
+  /* every sidebar number is the number of sheets that button lists */
+  const countOf = (vw, c, sj) => pick(vw, c, sj).length;
   const list = pick(view, cls, subject).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === view);
   let title, sub, shown = list;
@@ -32,11 +37,14 @@ export default function Store({ bagCount }) {
     title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
-  if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
+  const soon = !skill && SOON[cls];
+  if (soon) sub = 'New worksheets for ' + classById(cls).label + ' are on their way.';
+  else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
   return (
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
+      <div className="shop-scene" aria-hidden="true"><img src="/shop/learn-with-why-wallpaper.webp" alt="" decoding="async" /></div>
       <header className="shop-bar">
         <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2></div>
         <div className="shop-actions"><button type="button" className="btn btn-ghost" id="shopBagBtn" onClick={() => openDrawer('bag')}>Cart · <b id="shopBagCount">{bagCount}</b></button><button type="button" className="icon-btn" id="shopClose" aria-label="Back to the story" onClick={closeShop}>✕</button></div>
@@ -46,7 +54,7 @@ export default function Store({ bagCount }) {
           <p className="side-title">Browse</p>
           <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => setShopFilter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
-          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
+          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={SOON[c.id] ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
           <p className="side-title">Subjects</p>
           <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => setShopFilter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => setShopFilter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
@@ -54,7 +62,11 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className="shop-grid" id="shopGrid">
-            {showSkills ? SKILL_CATEGORIES.map((c, n) => (
+            {view === 'paid' && !skill && !soon && (access.activeSub(cls === 'all' ? 'kg' : cls) ? <div className="shop-sub"><div><b>Your {classById(cls === 'all' ? 'kg' : cls).label} plan is active</b><p>Every sheet in the class opens for you — tap any sheet below.</p></div></div> : <div className="shop-sub">
+              <div><b>Subscribe to {classById(cls === 'all' ? 'kg' : cls).label}</b><p>Every sheet in the class opens while your plan runs. {isIndia() ? 'In India: 1, 3 or 6 months.' : 'Choose 1, 3, 6 or 12 months.'}</p></div>
+              <div className="shop-sub-plans">{PLANS.filter(x => !isIndia() || x.id !== 'y1').map(x => <button key={x.id} type="button" className="sub-plan" onClick={() => openCheckout({ cls: cls === 'all' ? 'kg' : cls, plan: x.id })}><b>{x.label}</b><span>{money(x.price)}</span>{x.note ? <small>{x.note}</small> : null}</button>)}</div>
+            </div>)}
+            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
                 <div className="skill-bg" />
                 <div className="skill-content">

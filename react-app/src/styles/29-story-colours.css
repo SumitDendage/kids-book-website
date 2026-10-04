@@ -1,0 +1,38 @@
+/* ---------- story colours: the words over the forest animation take its own warm palette ----------
+   sunlit gold for headings, peach for the italic words, fresh mint for the small capitals,
+   soft sky for card titles and warm cream for the reading text. White paper cards, the shop,
+   checkout and staff pages keep their own dark ink. */
+#content, #nav { --gold: #ffd977; --peach: #ffb39a; --mint: #a8f0c6; --sky: #b9e3ff; --cream: rgba(255, 238, 214, 0.9); }
+#content .display, #content .h2, #content .az-head h3, #content .kg-head h3, #content .ws-soon b { color: var(--gold); }
+#content .display em, #content .h2 em, #content .az-head h3 em, #content .kg-head h3 em, #content .why-line em, #content .whisper { color: var(--peach); }
+#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line span { color: var(--mint); }
+#content .card-title:not(.paper *):not(.rc-card *):not(.az-card *), #content .kg-tile h3 { color: var(--sky); }
+#content .lede, #content .aside, #content .az-head > p, #content .kg-head p, #content .ws-soon p { color: var(--cream); }
+#content .lede em, #content .aside em, #content .az-head > p b { color: var(--peach); }
+.nav-link { color: rgba(255, 228, 190, 0.88); }
+.nav-link:hover, .nav-link.on { color: var(--gold, #ffd977); }
+.nav-link.on { color: #ffd977; }
+#content .display, #content .h2, #content .eyebrow, #content .lede, #content .aside, #content .whisper, #content .why-line, #content .kg-head h3, #content .az-head h3 { text-shadow: 0 1px 14px rgba(6, 14, 20, 0.6); }
+
+/* see-through cards over the animation: white frosted glass, 75% see-through (25% white) */
+#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .kg-tile, #content .thanks-chip, #content .player-card { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15); }
+#content .panel *, #content .kg-tile *, #content .player-card *, #content .ws-side *, #content .az-head * { text-shadow: 0 1px 2px rgba(6, 14, 20, 0.7), 0 0 14px rgba(6, 14, 20, 0.5); }
+#content .panel .btn-primary, #content .panel .btn-primary * { text-shadow: none; }
+.nav-links { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
+#content .field input, #content .field textarea { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
+#content .field input::placeholder, #content .field textarea::placeholder { color: rgba(255, 255, 255, 0.8); }
+/* the short line under each Kindergarten tile name: black, with a soft white glow so it reads on the glass */
+#content .kg-tile .kg-focus { color: #111417; font-weight: 500; text-shadow: 0 0 6px rgba(255, 255, 255, 0.9), 0 0 14px rgba(255, 255, 255, 0.7); }
+
+/* "Browse worksheets" on the Kindergarten tiles: flat candy-coloured pills, a different
+   colour on each tile, dark words, no shadow at all */
+#content .kg-tile .btn, #content .kg-tile .btn * { text-shadow: none; }
+#content .kg-tile .btn-primary { --b1: #ffd977; --b2: #ffb39a; background: linear-gradient(135deg, var(--b1), var(--b2)); color: #2b2016; font-weight: 700; letter-spacing: 0.01em; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.75); transition: transform var(--d-fast) var(--ease), filter var(--d-fast); }
+#content .kg-tile:nth-child(6n+2) .btn-primary { --b1: #a8f0c6; --b2: #7fd8e6; }
+#content .kg-tile:nth-child(6n+3) .btn-primary { --b1: #ffc2dd; --b2: #d6b8ff; }
+#content .kg-tile:nth-child(6n+4) .btn-primary { --b1: #b9e3ff; --b2: #a8b8ff; }
+#content .kg-tile:nth-child(6n+5) .btn-primary { --b1: #ffe08a; --b2: #a8f0c6; }
+#content .kg-tile:nth-child(6n+6) .btn-primary { --b1: #ffb39a; --b2: #ffc2dd; }
+#content .kg-tile .btn-primary:hover { transform: translateY(-2px); box-shadow: none; filter: brightness(1.06) saturate(1.1); }
+#content .kg-tile .btn-primary span { display: inline-block; transition: transform var(--d-fast) var(--ease); }
+#content .kg-tile .btn-primary:hover span { transform: translateX(4px); }

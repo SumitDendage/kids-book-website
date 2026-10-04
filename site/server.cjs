@@ -96,7 +96,7 @@ async function createApp() {
 
     /* ---- public ---- */
     /* the checkout reads countries, rates (prices shown in the customer's currency) and gateways (false = not connected) */
-    if (m === 'GET' && pathname === '/api/config') { const rates = db.get('rates'); return json(res, 200, { countries: Pricing.publicCountries(), plans: db.get('plans'), classes: db.get('classes'), rates, currencies: Object.keys(rates), gateways: payments.gateways, server: 'learn-with-why', version: '4' }); }
+    if (m === 'GET' && pathname === '/api/config') { const rates = db.get('rates'); return json(res, 200, { countries: Pricing.publicCountries(), plans: db.get('plans'), plansByRegion: Pricing.PLANS_BY_REGION, classes: db.get('classes'), rates, currencies: Object.keys(rates), gateways: payments.gateways, server: 'learn-with-why', version: '4' }); }
     if (m === 'GET' && pathname === '/api/geo') { const hdr = req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country-code']; return json(res, 200, { country: hdr && Pricing.COUNTRIES[String(hdr).toUpperCase()] ? String(hdr).toUpperCase() : null }); }
     if (m === 'GET' && pathname === '/api/worksheets') return access.catalogue(req, res);
     if (m === 'GET' && pathname === '/api/health') { let database = true; try { await pg.one('SELECT 1'); } catch (_) { database = false; } return json(res, database ? 200 : 503, { ok: database, database, gateway: payments.mode, gateways: payments.gateways, mail: mail.mode, time: Date.now() }); }
@@ -199,6 +199,7 @@ async function start() {
   app.server.listen(cfg.port, cfg.host, async () => {
     console.log('Learn With Why: http://' + cfg.host + ':' + cfg.port + '   (links in emails: ' + cfg.siteUrl + ')');
     console.log('  site       ' + app.root + (fs.existsSync(path.join(app.root, 'index.html')) ? '' : '  (no index.html — build react-app first: cd react-app && npm run build)'));
+    if (!process.env.STATIC_DIR && app.root === path.resolve(__dirname, 'dist')) console.log('\n  !! react-app is not built, so this is the OLD site (site/dist), without the newest pages.\n  !! Build it once:  cd react-app  →  npm install  →  npm run build   then start the server again.\n');
     console.log('  accounts   PostgreSQL (migrations applied' + (app.imported.length ? '; ' + app.imported.length + ' account(s) carried over from SQLite' : '') + ')');
     console.log('  shop       ' + app.dbFile + (app.attached ? '  (' + app.attached + ' PDF' + (app.attached === 1 ? '' : 's') + ' attached from protected/)' : ''));
     const mc = await mail.check();
