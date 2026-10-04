@@ -167,6 +167,26 @@ test('five wrong passwords lock the account for a while', async () => {
   assert.equal(u.failed_login_attempts, 0); assert.equal(u.locked_until, null);
 });
 
+test('a burst of parallel wrong passwords cannot get past the lock', async () => {
+  const c = fresh(); const password = await H.signUpAndConfirm(app, c, 'Burst', 'burst@example.com');
+  const N = 25;
+  const r = await Promise.all(Array.from({ length: N }, (_, i) => H.client(app.base, { ip: '10.77.0.' + i }).post('/api/auth/login', { email: 'burst@example.com', password: 'Wrong-Guess' + i })));
+  const checked = (await one("SELECT COUNT(*)::int AS n FROM login_activity WHERE email = 'burst@example.com' AND failure_reason = 'bad_credentials'")).n;
+  assert.ok(checked <= 5, 'only 5 passwords may be checked, ' + checked + ' were');
+  assert.equal(r.filter(x => x.status === 401).length, checked - 1);
+  assert.equal(r.filter(x => x.status === 429).length, N - checked + 1);
+  assert.equal((await c.post('/api/auth/login', { email: 'burst@example.com', password })).status, 429, 'locked, even for the right password');
+});
+
+test('clicking Accept & Continue twice at once: both succeed, one confirms', async () => {
+  const c = fresh(); await c.post('/api/auth/signup', { name: 'Twice', email: 'twice@example.com' });
+  const token = H.tokenIn(H.lastMail(app, 'twice@example.com'), 'verify');
+  const r = await Promise.all(Array.from({ length: 6 }, (_, i) => H.client(app.base, { ip: '10.78.0.' + i }).post('/api/auth/verify-email', { token })));
+  assert.deepEqual(r.map(x => x.status), [200, 200, 200, 200, 200, 200]);
+  assert.equal(r.filter(x => x.body.alreadyVerified === false).length, 1);
+  assert.equal((await q("SELECT e.* FROM security_events e JOIN users u ON u.id = e.user_id WHERE u.email = 'twice@example.com' AND e.event_type = 'email_verified'")).length, 1);
+});
+
 test('forgot password: the same answer for every email; a single-use link resets the password', async () => {
   const c = fresh(); const password = await H.signUpAndConfirm(app, c, 'Reset', 'reset@example.com');
   await c.post('/api/auth/login', { email: 'reset@example.com', password });

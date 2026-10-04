@@ -233,7 +233,7 @@ TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
 
 `TEST_DATABASE_URL` points at a PostgreSQL server where that user may `CREATE DATABASE`. Each test file makes its own `lww_test_…` database and drops it afterwards; `DATABASE_URL` is never touched.
 
-- `test/auth.test.cjs` (19 tests): sign-up and the email, duplicate emails, confirmation (valid / expired / reused), sign-in, cookie flags, hashes only, the protected routes, refresh-token rotation, logout, lockout, forgot / reset (single use, expiry, sessions revoked), resend, mail failure rollback, SQL injection, rate limits, suspension, headers.
+- `test/auth.test.cjs` (21 tests): sign-up and the email, duplicate emails, confirmation (valid / expired / reused / double-clicked), sign-in, cookie flags, hashes only, the protected routes, refresh-token rotation, logout, lockout (also against a burst of parallel guesses), forgot / reset (single use, expiry, sessions revoked), resend, mail failure rollback, SQL injection, rate limits, suspension, headers.
 - `test/db.test.cjs` (9 tests): migrations (once, concurrent, edited file refused, failed file rolled back), tables and columns, constraints, cascades, transactions, the carry-over of old SQLite accounts.
 - `test/smoke.cjs` (59 checks): the whole shop end to end — catalogue, sign-up → confirm → sign-in, free and paid sheets, Razorpay (stubbed), webhook, viewer, admin, contact, reset — and an old SQLite customer signing in and keeping their sheet.
 

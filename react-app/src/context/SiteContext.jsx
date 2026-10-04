@@ -184,7 +184,11 @@ export function SiteProvider({ children }) {
       u.searchParams.delete('verify'); u.searchParams.delete('reset');
       history.replaceState(history.state, '', u.pathname + u.search + u.hash);   /* the token leaves the address bar */
       stage.goTo(0);
-      if (reset) { a.setAuthView('reset', reset); return; }
+      if (reset) {
+        /* signed in here? sign this browser out first — the reset signs out every device anyway, and the form only shows to guests */
+        if (sessionRef.current) { await authApi.logout().catch(() => {}); a.forgetSession(); }
+        a.setAuthView('reset', reset); return;
+      }
       try {
         const r = await authApi.verifyEmail({ token: verify });
         if (sessionRef.current) { toast(r.message); return; }

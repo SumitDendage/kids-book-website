@@ -149,6 +149,7 @@ async function createApp() {
       return api(req, res, pathname, url).catch(err => {
         if (res.headersSent) { res.destroy(); return; }
         if (err instanceof HttpError) return json(res, err.status, Object.assign({ error: err.message }, err.extra || {}));
+        if (databaseDown(err)) { console.error('[api] database unavailable:', req.method, pathname, err.message); return json(res, 503, { error: 'The service is briefly unavailable — please try again in a minute.', code: 'service_unavailable' }); }
         console.error('[api]', req.method, pathname, err);
         json(res, 500, { error: 'Something went wrong on the server.' });
       });
@@ -175,6 +176,10 @@ async function createApp() {
   }
   return { server, db, pg, auth, access, payments, pricing, contact, mail, cfg, root, dbFile, attached, imported, close };
 }
+
+/* PostgreSQL unreachable (refused, dropped, timed out, shutting down) — a 503, not a 500 */
+const databaseDown = err => ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EAI_AGAIN'].includes(err.code) || /^(08|57P0)/.test(String(err.code || '')) ||
+  /Connection terminated|timeout exceeded when trying to connect/i.test(String(err.message || ''));
 
 /* every static response carries nosniff (securityHeaders); Vite's hashed files in /assets/ never change, so they are cached for a year */
 function sendFile(req, res, root, file, stat) {

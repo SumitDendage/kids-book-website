@@ -14,6 +14,7 @@ Base URL: the site itself (`https://<your site>/api/...`). The React app calls t
   ```
 
 - **Times** are milliseconds since 1970 (UTC).
+- **`503 service_unavailable`** means PostgreSQL could not be reached for a moment; the request can simply be retried. `GET /api/health` shows `database: false` meanwhile.
 - **Protected routes** (marked 🔒) pass the authentication middleware first. It answers `401 {code:"signin"}` without a valid session, `403 {code:"email_unverified"}` for an unconfirmed address, and `403 {code:"account_suspended"}` for a suspended account. A handler only ever sees a confirmed, active customer.
 
 ## Accounts
@@ -70,7 +71,7 @@ Also answers on `/api/auth/signin`. Signs in and sets the session cookie.
 - `400` field errors.
 - `401 bad_credentials`: the same answer for an unknown email and a wrong password, which also take the same time.
 - `403 email_unverified` (with `email`): the password was right but the address is not confirmed; offer resend-verification. `403 account_suspended`.
-- `429 account_locked` (with `lockedUntil`): `LOGIN_MAX_FAILED` (5) wrong passwords in a row lock the account for `LOGIN_LOCK_MINUTES` (15). Even the right password waits. A password reset unlocks it.
+- `429 account_locked` (with `lockedUntil`): `LOGIN_MAX_FAILED` (5) wrong passwords in a row lock the account for `LOGIN_LOCK_MINUTES` (15). Even the right password waits. A password reset unlocks it. Each attempt is counted before its password is checked, so a burst of parallel guesses still gets only 5 tries.
 - `429 rate_limited`: 10 attempts per IP and email, and 100 per IP, per 15 minutes.
 
 Every attempt is written to `login_activity`. A hash from the old SQLite backend (scrypt) is re-hashed with Argon2id on success.
