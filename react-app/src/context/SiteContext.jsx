@@ -63,7 +63,7 @@ export function SiteProvider({ children }) {
   const [modal, setModal] = useState({ open: false, kind: null });
   const [shop, setShop] = useState({ open: false, view: 'all', cls: 'all', subject: 'all', skill: null });
   const [checkout, setCheckout] = useState({ open: false, item: null, nonce: 0 });
-  const [auth, setAuth] = useState(() => ({ view: loadSession() ? 'signin' : 'signup', alert: null, nonce: 0 }));
+  const [auth, setAuth] = useState(() => ({ view: loadSession() ? 'signin' : 'signup', alert: null, nonce: 0, token: null }));
   const pendingAfterSignIn = useRef(null);
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
   const portalCloser = useRef(null);
@@ -93,7 +93,8 @@ export function SiteProvider({ children }) {
       setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
-    a.setAuthView = view => setAuth(x => ({ view, alert: null, nonce: x.nonce + 1 }));
+    /* token: the one from a password-reset link, kept while the reset form is showing */
+    a.setAuthView = (view, token) => setAuth(x => ({ view, alert: null, nonce: x.nonce + 1, token: token || null }));
     a.setAuthAlert = alert => setAuth(x => ({ ...x, alert }));
     a.rerenderAll = () => setVersion(v => v + 1);
     a.setContent = c => setContentState(c);
@@ -115,7 +116,7 @@ export function SiteProvider({ children }) {
       const p = pendingAfterSignIn.current; pendingAfterSignIn.current = null;
       if (p) setTimeout(p, 400);
     };
-    a.signOut = () => { authApi.signout().catch(() => {}); a.forgetSession(); toast('Signed out. See you soon.'); };
+    a.signOut = () => { authApi.logout().catch(() => {}); a.forgetSession(); toast('Signed out. See you soon.'); };
     a.setRole = role => {
       const s = sessionRef.current; if (!s) return;
       const next = { ...s, role }; setSession(next); rememberSession(next);
@@ -175,6 +176,25 @@ export function SiteProvider({ children }) {
     /* after a purchase: My Worksheets */
     a.openMyWorksheets = () => { a.closeModal(); setDrawer('bag'); };
 
+    /* The links in the account emails: /?verify=… (Accept & Continue) confirms the email and shows
+       sign-in; /?reset=… opens the new-password form. Both land on the sign-in card (chapter 01). */
+    a.handleAuthLink = async () => {
+      const u = new URL(window.location.href), verify = u.searchParams.get('verify'), reset = u.searchParams.get('reset');
+      if (!verify && !reset) return;
+      u.searchParams.delete('verify'); u.searchParams.delete('reset');
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);   /* the token leaves the address bar */
+      stage.goTo(0);
+      if (reset) { a.setAuthView('reset', reset); return; }
+      try {
+        const r = await authApi.verifyEmail({ token: verify });
+        if (sessionRef.current) { toast(r.message); return; }
+        a.setAuthView('signin');
+        setTimeout(() => a.setAuthAlert({ type: 'ok', msg: r.message }), 0);
+      } catch (err) {
+        a.setAuthView('signin');
+        setTimeout(() => a.setAuthAlert({ type: 'err', msg: err.message }), 0);
+      }
+    };
     /* Back from Stripe or PayPal: ?pay=stripe&order=…&session=…  ·  ?pay=paypal&order=…&token=…  ·  ?pay=cancel&order=… */
     a.handlePaymentReturn = async () => {
       const u = new URL(window.location.href), pay = u.searchParams.get('pay'); if (!pay) return;
@@ -222,7 +242,7 @@ export function SiteProvider({ children }) {
   }, [actions]);
 
   /* THE SERVER IS THE SOURCE OF TRUTH — prices and which sheets have a real PDF come from the
-     database (GET /api/worksheets); the session cookie is checked (GET /api/auth/me) and the
+     database (GET /api/worksheets); the session cookie is checked (POST /api/auth/refresh-token) and the
      entitlements loaded, so a stale copy in this browser can never open anything. */
   useEffect(() => {
     let alive = true;
@@ -233,7 +253,7 @@ export function SiteProvider({ children }) {
     (async () => {
       const had = !!sessionRef.current;
       try {
-        const r = await authApi.me(); if (!alive) return;
+        const r = await authApi.refresh(); if (!alive) return;   /* the cookie still good? (and its expiry moved on) */
         const s = { name: r.user.name, email: r.user.email, role: r.user.role || null };
         setSession(s); rememberSession(s); await actions.syncEntitlements();
         if (!had) actions.setAuthView('signin');

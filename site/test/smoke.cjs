@@ -1,19 +1,26 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
-/* End-to-end smoke test of the backend on a throw-away database.
-     node site/test/smoke.cjs
-   Walks the customer flow: catalogue → sign up → free sheet opens → paid sheet
-   is refused → quote → order → (demo) payment → entitlement → PDF streams;
+/* End-to-end smoke test of the backend on throw-away databases (PostgreSQL for accounts,
+   SQLite for the shop).
+     TEST_DATABASE_URL=postgres://… node site/test/smoke.cjs
+   Walks the customer flow: catalogue → sign up → password and Accept & Continue link by
+   email → confirm → sign in → free sheet opens → paid sheet
+   is refused → quote → order → Razorpay payment (its API stubbed here) → entitlement → PDF streams;
    access never expires, only an admin revoke ends it. Also checks tokens, cookies, cross-site
    refusal, the webhook signature, the admin key and password reset; that an OLD database is
    upgraded to the new catalogue without losing admin edits; the 79 printable PDFs; the contact
-   form and the admin inbox; cancelling an order; Stripe / PayPal answering 503 while they are not
-   configured; and the React site (index.html for app routes, 404 for missing files).
-   Needs Node 22.13+ and the PDFs in site/protected/. */
+   form and the admin inbox; cancelling an order; Razorpay, Stripe and PayPal answering 503 while
+   they are not configured (there is no demo gateway); and the React site (index.html for app
+   routes, 404 for missing files); and that a customer of the SQLite-only backend is carried
+   over to PostgreSQL with the same id, signs in with the old password and keeps their sheets.
+   Needs Node 22.13+, the PDFs in site/protected/ and TEST_DATABASE_URL (see test/helpers.cjs). */
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
+const { Readable } = require('node:stream');
+const H = require('./helpers.cjs');
+H.needDatabase();
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lww-'));
 process.env.DB_PATH = path.join(tmp, 'test.sqlite');
@@ -23,8 +30,21 @@ process.env.PROTECTED_DIR = path.join(tmp, 'protected');
 fs.cpSync(realProtected, process.env.PROTECTED_DIR, { recursive: true, dereference: true, filter: src => !/[\\/]uploads([\\/]|$)/.test(src.slice(realProtected.length)) });
 process.env.ADMIN_KEY = 'test-admin-key';
 process.env.RAZORPAY_WEBHOOK_SECRET = 'whsec_test';
-['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'STRIPE_SECRET_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'RESEND_API_KEY', 'MAIL_FROM', 'CORS_ORIGINS', 'SITE_URL'].forEach(k => delete process.env[k]);
-process.env.RESET_CODE_IN_RESPONSE = '1';
+process.env.RAZORPAY_KEY_ID = 'rzp_test_smoke'; process.env.RAZORPAY_KEY_SECRET = 'rzp_secret_smoke';
+['STRIPE_SECRET_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'RESEND_API_KEY', 'SMTP_HOST', 'MAIL_FROM', 'CORS_ORIGINS'].forEach(k => delete process.env[k]);
+Object.assign(process.env, { MAIL_TRANSPORT: 'memory', SITE_URL: 'https://site.test', LWW_NO_DOTENV: '1', NODE_ENV: 'test' });
+/* a stand-in for the Razorpay API, which the server reaches with fetch: orders are created, and a
+   payment pay_X belongs to order_X and is captured for that order's amount. Nothing leaves the machine. */
+const RZP_API = 'https://api.razorpay.com/v1', rzpOrders = new Map(), realFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  const u = String(url); if (!u.startsWith(RZP_API + '/')) return realFetch(url, init);
+  const ep = u.slice(RZP_API.length);
+  if (init.method === 'POST' && ep === '/orders') { const b = JSON.parse(init.body), o = { id: 'order_T' + (rzpOrders.size + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, status: 'created' }; rzpOrders.set(o.id, o); return Response.json(o); }
+  const pay = /^\/payments\/pay_(\w+)$/.exec(ep), o = pay && rzpOrders.get('order_' + pay[1]);
+  if (o) return Response.json({ id: 'pay_' + pay[1], order_id: o.id, amount: o.amount, currency: o.currency, status: 'captured' });
+  return Response.json({ error: { description: 'not found' } }, { status: 404 });
+};
+
 /* the site: the React build when it has been made (cd react-app && npm run build), else a tiny stand-in */
 const reactBuild = path.join(__dirname, '..', '..', 'react-app', 'dist');
 const realBuild = fs.existsSync(path.join(reactBuild, 'index.html'));
@@ -48,10 +68,16 @@ const { SEED_V1 } = require('../server/seed.cjs');
   old.prepare("UPDATE worksheets SET title = 'Animal homes (edited)' WHERE id = 'kg-evs-ani'").run();   /* admin title edit */
   old.prepare("UPDATE worksheets SET price = 25 WHERE id = 'az-Z'").run();                              /* admin price edit on a PDF */
   old.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('classes', JSON.stringify({ nursery: 'Nursery', kg: 'Kindergarten', c1: 'Class 1', c2: 'Class 2', c3: 'Class 3' }));
+  /* a customer of the SQLite-only backend (scrypt password) who bought kg-mat-cnt */
+  old.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, role TEXT, pw_hash TEXT NOT NULL, created_at INTEGER NOT NULL, last_login_at INTEGER);
+    CREATE TABLE entitlements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), scope TEXT NOT NULL, worksheet_id TEXT, cls TEXT, plan TEXT, order_id TEXT, kind TEXT NOT NULL, starts_at INTEGER NOT NULL, revoked_at INTEGER);`);
+  const salt = crypto.randomBytes(16);
+  old.prepare('INSERT INTO users (id, email, name, role, pw_hash, created_at) VALUES (5, ?, ?, ?, ?, ?)').run('old@example.com', 'Old Customer', 'parent', salt.toString('hex') + ':' + crypto.scryptSync('Oldpass123', salt, 64).toString('hex'), Date.now() - 86400e3);
+  old.prepare("INSERT INTO entitlements (user_id, scope, worksheet_id, kind, starts_at) VALUES (5, 'worksheet', 'kg-mat-cnt', 'paid', ?)").run(Date.now() - 3600e3);
   old.close();
 }
 
-const { server, db } = require('../server.cjs');
+let app, server, db, auth, access, pricing, pdb;
 let base = '', cookie = '', lastSetCookie = '';
 const req = async (method, p, body, extra) => {
   const h = Object.assign({ 'Content-Type': 'application/json', Origin: base, Cookie: cookie }, extra || {});
@@ -61,10 +87,18 @@ const req = async (method, p, body, extra) => {
   return { status: r.status, ct, body: ct.includes('json') ? await r.json() : Buffer.from(await r.arrayBuffer()) };
 };
 let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
+/* what Razorpay Checkout hands the browser after a payment: the ids and HMAC-SHA256(order|payment, key secret) */
+const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
+  const rzOrder = gateway.razorpay_order_id, payId = 'pay_' + rzOrder.slice('order_'.length);
+  return { order_id: order.id, razorpay_order_id: rzOrder, razorpay_payment_id: payId, razorpay_signature: crypto.createHmac('sha256', secret).update(rzOrder + '|' + payId).digest('hex') };
+};
 
 (async () => {
+  pdb = await H.freshDatabase(); process.env.DATABASE_URL = pdb.url;
+  app = await require('../server.cjs').createApp(); ({ server, db, auth, access, pricing } = app);
   await new Promise(r => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
-  console.log('smoke test against ' + base + '  db ' + process.env.DB_PATH);
+  console.log('smoke test against ' + base + '  shop ' + process.env.DB_PATH + '  accounts ' + pdb.name);
+  assert.deepEqual(app.imported, [5]); ok('the SQLite customer (id 5) was carried over to PostgreSQL with the same id');
 
   /* the old database was brought up to date on start */
   const row = id => db.q('SELECT * FROM worksheets WHERE id = ?').get(id);
@@ -77,8 +111,8 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   db.q("UPDATE worksheets SET price = 99 WHERE id = 'c2-mat-mul'").run(); db.q("UPDATE worksheets SET price = 19 WHERE id = 'az-Z'").run();
 
   let r = await req('GET', '/api/config');
-  assert.equal(r.status, 200); assert.deepEqual(r.body.gateways, { razorpay: 'demo', stripe: false, paypal: false }); assert.equal(r.body.rates.INR, 1); assert.ok(r.body.rates.USD > 0); assert.deepEqual(Object.keys(r.body.classes), ['kg', 'c1', 'c2', 'c3']);
-  ok('config: gateways razorpay=demo, stripe=false, paypal=false; rates for the currency display; classes kg c1 c2 c3');
+  assert.equal(r.status, 200); assert.deepEqual(r.body.gateways, { razorpay: 'test', stripe: false, paypal: false }); assert.equal(r.body.rates.INR, 1); assert.ok(r.body.rates.USD > 0); assert.deepEqual(Object.keys(r.body.classes), ['kg', 'c1', 'c2', 'c3']);
+  ok('config: gateways razorpay=test, stripe=false, paypal=false; rates for the currency display; classes kg c1 c2 c3');
 
   r = await req('GET', '/api/worksheets');
   assert.equal(r.status, 200); const cat = r.body.worksheets, byId = Object.fromEntries(cat.map(w => [w.id, w]));
@@ -94,8 +128,13 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   ok('free / paid defaults match the shelf: ' + FREE.length + ' free samples, ' + (79 - FREE.length) + ' PDFs at ₹19');
 
   r = await req('POST', '/api/access/az-A'); assert.equal(r.status, 401); ok('opening a sheet signed out → 401');
-  r = await req('POST', '/api/auth/signup', { name: 'Ria', email: 'ria@example.com', password: 'Secret123' }); assert.equal(r.status, 201); assert.ok(cookie.startsWith('lww_sid=')); ok('sign up → 201 + httpOnly session cookie');
-  r = await req('POST', '/api/auth/signup', { name: 'Ria', email: 'ria@example.com', password: 'Secret123' }); assert.equal(r.status, 409); ok('duplicate email → 409');
+  r = await req('POST', '/api/auth/signup', { name: 'Ria', email: 'ria@example.com' }); assert.equal(r.status, 201); assert.equal(cookie, ''); ok('sign up → 201, no session yet');
+  r = await req('POST', '/api/auth/signup', { name: 'Ria', email: 'ria@example.com' }); assert.equal(r.status, 409); ok('duplicate email → 409');
+  const welcome = H.lastMail(app, 'ria@example.com'), riaPass = H.passwordIn(welcome);
+  r = await req('POST', '/api/auth/login', { email: 'ria@example.com', password: riaPass }); assert.equal(r.status, 403); assert.equal(r.body.code, 'email_unverified'); ok('generated password emailed; sign-in refused until the email is confirmed');
+  r = await req('POST', '/api/auth/verify-email', { token: H.tokenIn(welcome, 'verify') }); assert.equal(r.status, 200);
+  r = await req('POST', '/api/auth/login', { email: 'ria@example.com', password: riaPass, remember: true }); assert.equal(r.status, 200); assert.ok(cookie.startsWith('lww_sid=')); assert.ok(r.body.user.id > 5);
+  ok('Accept & Continue confirms the email → sign in → httpOnly session cookie (new id ' + r.body.user.id + ' is past every old SQLite id)');
   r = await req('GET', '/api/auth/me'); assert.equal(r.status, 200); assert.equal(r.body.user.email, 'ria@example.com'); ok('GET /api/auth/me → the signed-in customer');
   r = await req('PATCH', '/api/auth/me', { role: 'teacher' }); assert.equal(r.status, 200); assert.equal(r.body.user.role, 'teacher'); ok('PATCH /api/auth/me saves the role picked after sign-up');
 
@@ -116,16 +155,31 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   const address = { country: 'IN', line1: '12 Lane', city: 'Pune', state: 'Maharashtra', postal: '411001' };
   r = await req('POST', '/api/quote', { worksheet: 'kg-mat-cnt', address }); assert.equal(r.status, 200); assert.ok(r.body.valid && r.body.sig); assert.equal(r.body.kind, 'worksheet'); const q1 = r.body; ok('signed quote for one PDF: ' + q1.currency + ' ' + q1.total + ' (' + q1.amountMinor + ' paise)');
   r = await req('POST', '/api/pay/order', { quote: Object.assign({}, q1, { total: 1 }), method: 'razorpay' }); assert.equal(r.status, 400); ok('edited quote → 400 (price cannot be changed in the browser)');
-  r = await req('POST', '/api/pay/order', { quote: q1, method: 'razorpay' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'demo'); const o1 = r.body.order; ok('order ' + o1.id + ' created — demo gateway (no Razorpay keys)');
+  {
+    /* the same server without Razorpay keys: no gateway at all, so nothing can be ordered or settled */
+    const keys = [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET];
+    delete process.env.RAZORPAY_KEY_ID; delete process.env.RAZORPAY_KEY_SECRET;
+    const off = require('../server/payments.cjs').make(db, auth, access);
+    [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET] = keys;
+    const call = async body => { const r = Object.assign(Readable.from([Buffer.from(JSON.stringify(body))]), { headers: { cookie } }); await auth.load(r); return r; };
+    assert.deepEqual(off.gateways, { razorpay: false, stripe: false, paypal: false });
+    await assert.rejects(off.createOrder(await call({ quote: q1, method: 'razorpay' }), null, pricing), e => e.status === 503 && e.extra.code === 'gateway_off');
+    await assert.rejects(off.verify(await call({ order_id: 'LWO-000000' }), null), e => e.status === 503 && e.extra.code === 'gateway_off');
+    ok('no Razorpay keys → razorpay=false in config; pay/order and pay/verify answer 503 gateway_off (no demo gateway)');
+  }
+  r = await req('POST', '/api/pay/order', { quote: q1, method: 'razorpay' }); assert.equal(r.status, 200); const o1 = r.body.order, g1 = r.body.gateway;
+  assert.equal(g1.provider, 'razorpay'); assert.equal(g1.key, 'rzp_test_smoke'); assert.equal(g1.amount, q1.amountMinor); assert.equal(o1.method, 'razorpay'); ok('order ' + o1.id + ' created with Razorpay order ' + g1.razorpay_order_id + ' for ' + g1.amount + ' paise');
   r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 402); ok('still 402 before the payment is confirmed');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.entitlement.scope, 'worksheet'); ok('payment confirmed → order paid → paid entitlement');
-  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid'); assert.equal(r.body.worksheet.real, false); ok('paid sheet now opens (no PDF uploaded yet → demo page)');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 200); r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.filter(e => e.order === o1.id).length, 1); ok('confirming twice is idempotent (one entitlement per order)');
+  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 404); ok('there is no demo gateway: /api/pay/demo/confirm → 404');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1, 'not-the-secret')); assert.equal(r.status, 400); r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 402); ok('a payment with a forged signature → 400, the sheet stays locked');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.entitlement.scope, 'worksheet'); ok('payment verified → order paid → paid entitlement');
+  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid'); assert.equal(r.body.worksheet.real, false); ok('paid sheet now opens (no PDF uploaded yet → placeholder page)');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.filter(e => e.order === o1.id).length, 1); ok('verifying twice is idempotent (one entitlement per order)');
 
   /* PAID path — class plan */
   r = await req('POST', '/api/quote', { cls: 'c1', plan: 'm1', address }); const q2 = r.body; assert.equal(q2.kind, 'class');
   r = await req('POST', '/api/pay/order', { quote: q2, method: 'razorpay' }); const o2 = r.body.order;
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o2.id }); assert.equal(r.body.entitlement.scope, 'class');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o2, r.body.gateway)); assert.equal(r.body.entitlement.scope, 'class');
   r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 200); const paid = r.body; ok('class plan → every sheet in Class 1 opens');
   r = await req('POST', '/api/access/c2-mat-mul'); assert.equal(r.status, 402); ok('…but Class 2 stays locked');
 
@@ -139,25 +193,24 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   /* PAID path — one printable PDF (₹19) with a real file */
   r = await req('POST', '/api/access/az-D'); assert.equal(r.status, 402); assert.equal(r.body.price, 19);
   r = await req('POST', '/api/quote', { worksheet: 'az-D', address }); assert.equal(r.status, 200); const q3 = r.body; assert.ok(q3.valid);
-  r = await req('POST', '/api/pay/order', { quote: q3, method: 'razorpay', via: 'qr' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'demo'); const o3 = r.body.order;
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o3.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.order.worksheet, 'az-D');
+  r = await req('POST', '/api/pay/order', { quote: q3, method: 'razorpay', via: 'qr' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'razorpay'); const o3 = r.body.order;
+  r = await req('POST', '/api/pay/verify', rzpPaid(o3, r.body.gateway)); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.order.worksheet, 'az-D');
   r = await req('POST', '/api/access/az-D'); assert.equal(r.status, 200); assert.equal(r.body.worksheet.real, true);
   const T3 = { 'X-View-Token': r.body.token };
   r = await req('GET', '/api/view/meta', undefined, T3); assert.equal(r.status, 200); assert.equal(r.body.kind, 'paid'); assert.ok(r.body.hasPdf && r.body.hasImages);
   r = await req('GET', '/api/view/file', undefined, T3); assert.equal(r.status, 200); assert.equal(r.body.subarray(0, 4).toString(), '%PDF');
   r = await req('GET', '/api/view/page?n=0', undefined, T3); assert.equal(r.status, 200); assert.ok(r.ct.startsWith('image/jpeg'));
-  ok('paid PDF az-D: 402 → quote ' + q3.currency + ' ' + q3.total + ' → demo order → demo confirm → opens; meta, PDF and page image stream');
+  ok('paid PDF az-D: 402 → quote ' + q3.currency + ' ' + q3.total + ' → Razorpay order → verified payment → opens; meta, PDF and page image stream');
   r = await req('POST', '/api/access/rc-I'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'free'); r = await req('POST', '/api/access/sd-A'); assert.equal(r.status, 402); ok('rc-I is a free sample, sd-A needs payment');
 
   /* cancel — back from a hosted page without paying */
   r = await req('POST', '/api/quote', { worksheet: 'az-E', address }); const q4 = r.body;
   r = await req('POST', '/api/pay/order', { quote: q4, method: 'razorpay' }); const o4 = r.body.order;
   r = await req('POST', '/api/pay/cancel', { order_id: o4.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'cancelled');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o4.id }); assert.equal(r.status, 400);
   r = await req('POST', '/api/access/az-E'); assert.equal(r.status, 402);
   r = await req('POST', '/api/pay/cancel', { order_id: o3.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.cancelled, false);
   r = await req('POST', '/api/pay/cancel', { order_id: 'LWO-000000' }); assert.equal(r.status, 404);
-  ok('pay/cancel: an unpaid order becomes cancelled and can no longer be confirmed; a paid order is left alone; unknown order → 404');
+  ok('pay/cancel: an unpaid order becomes cancelled and its sheet stays locked; a paid order is left alone; unknown order → 404');
 
   /* Stripe and PayPal are not configured in this test */
   r = await req('POST', '/api/pay/order', { quote: q4, method: 'stripe', via: 'stripe' }); assert.equal(r.status, 503); assert.equal(r.body.code, 'gateway_off');
@@ -176,7 +229,7 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
 
   /* security */
   r = await req('POST', '/api/access/az-A', undefined, { Origin: 'https://evil.example' }); assert.equal(r.status, 403); ok('cross-site POST → 403');
-  r = await req('GET', '/api/admin/stats'); assert.equal(r.status, 401); r = await req('GET', '/api/admin/stats', undefined, { 'x-admin-key': 'test-admin-key' }); assert.equal(r.status, 200); assert.equal(r.body.users, 1); ok('admin API needs the key; stats: ' + r.body.paid_orders + ' paid orders, ₹' + r.body.revenue_inr);
+  r = await req('GET', '/api/admin/stats'); assert.equal(r.status, 401); r = await req('GET', '/api/admin/stats', undefined, { 'x-admin-key': 'test-admin-key' }); assert.equal(r.status, 200); assert.equal(r.body.users, 2); ok('admin API needs the key; stats: ' + r.body.paid_orders + ' paid orders, ₹' + r.body.revenue_inr);
   r = await req('PUT', '/api/admin/worksheets/new-sheet', { title: 'New sheet', cls: 'c2', subject: 'Maths', price: 30 }, { 'x-admin-key': 'test-admin-key' }); assert.equal(r.status, 200);
   r = await req('POST', '/api/admin/worksheets/new-sheet/file', fs.readFileSync(path.join(__dirname, '..', 'protected', 'a-to-z', 'B.pdf')), { 'x-admin-key': 'test-admin-key', 'Content-Type': 'application/pdf' }); assert.equal(r.status, 200); assert.ok(r.body.worksheet.real); ok('admin creates a worksheet and uploads its PDF into private storage');
   r = await fetch(base + '/protected/a-to-z/A.pdf'); assert.equal(r.status, 404); r = await fetch(base + '/../protected/a-to-z/A.pdf'); assert.ok(r.status >= 400); ok('protected/ is not reachable as a static path');
@@ -184,12 +237,12 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   /* contact form → messages table → admin inbox */
   const A = { 'x-admin-key': 'test-admin-key' };
   r = await req('POST', '/api/contact', { name: 'Asha', email: 'not-an-email', message: 'hi' }); assert.equal(r.status, 400); assert.ok(r.body.errors.email && r.body.errors.message);
-  r = await req('POST', '/api/contact', { name: 'Asha Rao', email: 'asha@example.com', message: 'Do you have Class 2 Hindi sheets?' }); assert.equal(r.status, 201); assert.ok(r.body.id); assert.equal(r.body.mailed, false); const msgId = r.body.id;
+  r = await req('POST', '/api/contact', { name: 'Asha Rao', email: 'asha@example.com', message: 'Do you have Class 2 Hindi sheets?' }); assert.equal(r.status, 201); assert.ok(r.body.id); assert.equal(r.body.mailed, true); assert.ok(H.lastMail(app, 'learnwithwhy6@gmail.com')); const msgId = r.body.id;
   r = await req('POST', '/api/contact', { name: 'Evil', email: 'e@example.com', message: 'posted from another site' }, { Origin: 'https://evil.example' }); assert.equal(r.status, 403);
-  ok('contact: invalid note → 400 with field errors; valid note → 201 (saved, not emailed: no mail service); cross-site → 403');
+  ok('contact: invalid note → 400 with field errors; valid note → 201 (saved and emailed to the inbox); cross-site → 403');
   r = await req('GET', '/api/admin/messages'); assert.equal(r.status, 401);
   r = await req('GET', '/api/admin/messages', undefined, A); assert.equal(r.status, 200); assert.equal(r.body.inbox, 'learnwithwhy6@gmail.com');
-  let note = r.body.messages.find(x => x.id === msgId); assert.ok(note); assert.equal(note.name, 'Asha Rao'); assert.equal(note.email, 'asha@example.com'); assert.equal(note.body, 'Do you have Class 2 Hindi sheets?'); assert.equal(note.read, null); assert.equal(note.replied, null); assert.equal(note.mailed, false);
+  let note = r.body.messages.find(x => x.id === msgId); assert.ok(note); assert.equal(note.name, 'Asha Rao'); assert.equal(note.email, 'asha@example.com'); assert.equal(note.body, 'Do you have Class 2 Hindi sheets?'); assert.equal(note.read, null); assert.equal(note.replied, null); assert.equal(note.mailed, true);
   r = await req('GET', '/api/admin/stats', undefined, A); assert.equal(r.body.messages_unread, 1);
   r = await req('POST', '/api/admin/messages/read', { id: msgId }, A); assert.equal(r.status, 200); assert.ok(r.body.message.read); assert.equal(r.body.message.replied, null);
   r = await req('POST', '/api/admin/messages/replied', { id: msgId }, A); assert.equal(r.status, 200); assert.ok(r.body.message.replied);
@@ -211,15 +264,23 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   ok('site (' + (realBuild ? 'react-app/dist' : 'stand-in build') + '): / , /admin, /developer → index.html; viewer.html served; missing assets and dotfiles → 404; unknown /api → JSON 404');
 
   /* password reset + sign out */
-  r = await req('POST', '/api/auth/forgot', { email: 'ria@example.com' }); assert.equal(r.status, 200); const code = r.body.code; assert.ok(code);
-  r = await req('POST', '/api/auth/reset', { email: 'ria@example.com', code: '000000' }); assert.equal(r.status, 400);
-  r = await req('POST', '/api/auth/reset', { email: 'ria@example.com', code, password: 'Newpass123' }); assert.equal(r.status, 200);
-  r = await req('GET', '/api/auth/me'); assert.equal(r.status, 401); ok('password reset works and signs every session out');
-  r = await req('POST', '/api/auth/signin', { email: 'ria@example.com', password: 'Secret123' }); assert.equal(r.status, 401);
-  r = await req('POST', '/api/auth/signin', { email: 'ria@example.com', password: 'Newpass123' }); assert.equal(r.status, 200);
-  r = await req('POST', '/api/auth/signout'); assert.equal(r.status, 200); assert.ok(/Max-Age=0/.test(lastSetCookie)); r = await req('GET', '/api/auth/me'); assert.equal(r.status, 401); ok('sign in with the new password, sign out clears the cookie → 401');
-  r = await req('POST', '/api/auth/signin', { email: 'ria@example.com', password: 'Newpass123', remember: true }); assert.equal(r.status, 200); assert.ok(/HttpOnly/.test(lastSetCookie) && /SameSite=Lax/.test(lastSetCookie)); ok('the session cookie is HttpOnly + SameSite=Lax');
+  r = await req('POST', '/api/auth/forgot-password', { email: 'ria@example.com' }); assert.equal(r.status, 200); const resetToken = H.tokenIn(H.lastMail(app, 'ria@example.com'), 'reset'); assert.ok(resetToken);
+  r = await req('POST', '/api/auth/reset-password', { token: 'A'.repeat(43), password: 'Newpass123' }); assert.equal(r.status, 400);
+  r = await req('POST', '/api/auth/reset-password', { token: resetToken, password: 'Newpass123' }); assert.equal(r.status, 200);
+  r = await req('GET', '/api/auth/me'); assert.equal(r.status, 401); ok('password reset by email link works and signs every session out');
+  r = await req('POST', '/api/auth/login', { email: 'ria@example.com', password: riaPass }); assert.equal(r.status, 401);
+  r = await req('POST', '/api/auth/login', { email: 'ria@example.com', password: 'Newpass123' }); assert.equal(r.status, 200);
+  r = await req('POST', '/api/auth/logout'); assert.equal(r.status, 200); assert.ok(/Max-Age=0/.test(lastSetCookie)); cookie = ''; r = await req('GET', '/api/auth/me'); assert.equal(r.status, 401); ok('sign in with the new password, sign out clears the cookie → 401');
+  r = await req('POST', '/api/auth/login', { email: 'ria@example.com', password: 'Newpass123', remember: true }); assert.equal(r.status, 200); assert.ok(/HttpOnly/.test(lastSetCookie) && /SameSite=Lax/.test(lastSetCookie)); ok('the session cookie is HttpOnly + SameSite=Lax');
+
+  /* the customer from the SQLite-only backend */
+  cookie = '';
+  r = await req('POST', '/api/auth/login', { email: 'old@example.com', password: 'Oldpass123' }); assert.equal(r.status, 200); assert.equal(r.body.user.id, 5);
+  assert.match((await app.pg.one('SELECT password_hash FROM users WHERE id = 5')).password_hash, /^\$argon2id\$/);
+  r = await req('GET', '/api/me/entitlements'); assert.ok(r.body.entitlements.some(e => e.worksheet === 'kg-mat-cnt' && e.kind === 'paid'));
+  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid');
+  ok('the old customer signs in with their old password (now re-hashed with Argon2id) and still has the sheet they bought');
 
   console.log('\nall ' + step + ' checks passed');
-  server.close(); db.close(); fs.rmSync(tmp, { recursive: true, force: true }); process.exit(0);
-})().catch(e => { console.error('\n✗ FAILED at step ' + (step + 1) + ':', e); server.close(); process.exit(1); });
+  await app.close(); await pdb.drop(); fs.rmSync(tmp, { recursive: true, force: true }); process.exit(0);
+})().catch(async e => { console.error('\n✗ FAILED at step ' + (step + 1) + ':', e); if (app) await app.close().catch(() => {}); if (pdb) await pdb.drop().catch(() => {}); process.exit(1); });

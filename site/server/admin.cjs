@@ -2,23 +2,22 @@
 /* ADMIN API — every route needs the x-admin-key header (ADMIN_KEY env).
    Orders, customers, entitlements (grant / revoke), the worksheet catalogue
    with PDF upload into private storage, store settings, the logs and the
-   contact-form inbox (/api/admin/messages*, handled in contact.cjs). */
+   contact-form inbox (/api/admin/messages*, handled in contact.cjs).
+   Customers live in PostgreSQL (auth.staff); their orders and entitlements in the
+   SQLite shop store, matched by user id. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { fail, json, readBody, readRaw, timingEqual } = require('./http.cjs');
 
-function make(db, access, payments, protectedDir, contact) {
+function make(db, access, payments, protectedDir, contact, auth) {
   const ADMIN_KEY = process.env.ADMIN_KEY || 'change-me';
   const q = {
     orders: db.q('SELECT o.*, u.email, u.name FROM orders o JOIN users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 500'),
     order: db.q('SELECT * FROM orders WHERE id = ?'),
     setStatus: db.q('UPDATE orders SET status = ? WHERE id = ?'),
-    users: db.q(`SELECT u.id, u.email, u.name, u.role, u.created_at, u.last_login_at,
-      (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id AND o.status = 'paid') AS orders,
-      (SELECT COALESCE(SUM(o.total_inr), 0) FROM orders o WHERE o.user_id = u.id AND o.status = 'paid') AS spent_inr,
-      (SELECT COUNT(*) FROM entitlements e WHERE e.user_id = u.id AND e.revoked_at IS NULL) AS active
-      FROM users u ORDER BY u.created_at DESC LIMIT 1000`),
-    userByEmail: db.q('SELECT * FROM users WHERE email = ?'),
+    /* per customer, from the shop store; the customers themselves come from PostgreSQL */
+    orderStats: db.q("SELECT user_id, COUNT(*) AS orders, COALESCE(SUM(total_inr), 0) AS spent_inr FROM orders WHERE status = 'paid' GROUP BY user_id"),
+    entStats: db.q('SELECT user_id, COUNT(*) AS active FROM entitlements WHERE revoked_at IS NULL GROUP BY user_id'),
     ents: db.q('SELECT e.*, u.email, w.title FROM entitlements e JOIN users u ON u.id = e.user_id LEFT JOIN worksheets w ON w.id = e.worksheet_id ORDER BY e.starts_at DESC LIMIT 500'),
     revoke: db.q('UPDATE entitlements SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL'),
     worksheets: db.q('SELECT * FROM worksheets ORDER BY cls, id'),
@@ -45,15 +44,26 @@ function make(db, access, payments, protectedDir, contact) {
   async function handle(req, res, pathname, url) {
     guard(req);
     const m = req.method, seg = pathname.split('/').filter(Boolean);   /* ['api','admin',...] */
-    if (m === 'GET' && pathname === '/api/admin/stats') return json(res, 200, Object.assign({ gateway: payments.mode, gateways: payments.gateways }, q.stats.get(Date.now() - 86400e3)));
+    if (m === 'GET' && pathname === '/api/admin/stats') return json(res, 200, Object.assign({ gateway: payments.mode, gateways: payments.gateways }, q.stats.get(Date.now() - 86400e3), { users: await auth.staff.count() }));
     if (pathname === '/api/admin/messages' || pathname.startsWith('/api/admin/messages/')) { if (contact && (await contact.admin(req, res, pathname, url)) !== false) return; }
     if (m === 'GET' && pathname === '/api/admin/orders') return json(res, 200, { orders: q.orders.all().map(o => Object.assign(payments.pub(o), { email: o.email, name: o.name })) });
     if (m === 'PUT' && pathname === '/api/admin/orders') { const b = await readBody(req); const o = q.order.get(String(b.id || '')); if (!o) fail(404, 'No such order.'); const st = String(b.status || ''); if (!['created', 'paid', 'failed', 'refunded', 'cancelled'].includes(st)) fail(400, 'Unknown status.'); q.setStatus.run(st, o.id); return json(res, 200, { order: payments.pub(q.order.get(o.id)) }); }
-    if (m === 'GET' && pathname === '/api/admin/users') return json(res, 200, { users: q.users.all() });
+    if (m === 'GET' && pathname === '/api/admin/users') {
+      const byUser = rows => Object.fromEntries(rows.map(r => [r.user_id, r]));
+      const os = byUser(q.orderStats.all()), es = byUser(q.entStats.all());
+      const users = (await auth.staff.users()).map(u => ({ id: u.id, email: u.email, name: u.name, role: u.role, created_at: u.created_at, last_login_at: u.last_login_at, email_verified: u.email_verified, account_status: u.account_status, locked_until: u.locked_until,
+        orders: os[u.id] ? os[u.id].orders : 0, spent_inr: os[u.id] ? os[u.id].spent_inr : 0, active: es[u.id] ? es[u.id].active : 0 }));
+      return json(res, 200, { users });
+    }
+    /* PUT /api/admin/users/status { id, status: 'active' | 'suspended' } — suspending signs the customer out everywhere */
+    if (m === 'PUT' && pathname === '/api/admin/users/status') { const b = await readBody(req); return json(res, 200, { user: await auth.staff.setStatus(req, +b.id || 0, String(b.status || '')) }); }
+    if (m === 'GET' && pathname === '/api/admin/security-events') return json(res, 200, { events: await auth.staff.events(Math.min(2000, +url.searchParams.get('limit') || 300)) });
+    if (m === 'GET' && pathname === '/api/admin/login-activity') return json(res, 200, { logins: await auth.staff.logins(Math.min(2000, +url.searchParams.get('limit') || 300)) });
     if (m === 'GET' && pathname === '/api/admin/entitlements') return json(res, 200, { entitlements: q.ents.all().map(ent) });
     if (m === 'POST' && pathname === '/api/admin/entitlements/revoke') { const b = await readBody(req); const r = q.revoke.run(Date.now(), +b.id || 0); return json(res, 200, { ok: true, revoked: r.changes }); }
     if (m === 'POST' && pathname === '/api/admin/entitlements/grant') {
-      const b = await readBody(req); const u = q.userByEmail.get(String(b.email || '').trim().toLowerCase()); if (!u) fail(404, 'No customer with that email.');
+      const b = await readBody(req); const u = await auth.staff.byEmail(b.email); if (!u) fail(404, 'No customer with that email.');
+      auth.staff.mirror(u);   /* the shop's copy of the customer, which the entitlement points at */
       const scope = b.scope === 'class' ? 'class' : 'worksheet'; const ref = String(b.ref || '');
       if (scope === 'worksheet' && !q.ws.get(ref)) fail(404, 'No such worksheet.'); if (scope === 'class' && !db.get('classes')[ref]) fail(404, 'No such class.');
       const g = access.grant(u.id, scope, ref, 'paid', null, b.plan || null); return json(res, 200, { ok: true, entitlement: g });
