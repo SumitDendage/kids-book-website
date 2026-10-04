@@ -8,7 +8,8 @@ One Node process: the static site, the JSON API, the private PDF store and two d
 ```bash
 cd site
 npm install                      # pg, argon2, nodemailer
-cp .env.example .env             # set DATABASE_URL (+ SMTP_*, SITE_URL, ADMIN_KEY)
+git update-index --skip-worktree .env   # once: your local passwords in .env are never pushed
+# edit .env: DATABASE_URL (+ SMTP_*, SITE_URL, ADMIN_KEY); every option is explained in .env.example
 npm run migrate                  # optional: the server also migrates at every start
 npm start                        # http://127.0.0.1:4173
 TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
@@ -244,7 +245,7 @@ TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
    ```bash
    cd react-app && npm ci && npm run build          # the website → react-app/dist
    cd ../site && npm ci --omit=dev
-   cp .env.example .env                              # DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
+   git update-index --skip-worktree .env             # then edit .env: DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
    npm run migrate
    npm start
    ```
