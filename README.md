@@ -23,9 +23,7 @@ The repository holds two copies of the same website:
 | **`react-app/`** | **The website, built with React and Vite.** This is the version to work on and to upload. Same design, words, animations and features as before; only the way the code is organised is new. |
 | `site/dist/` | The original website as plain HTML and JavaScript (`index.html`, `viewer.html`, `admin.js`), with no build step. It is kept unchanged as a working backup. |
 
-Both talk to the same Node backend (`site/server.cjs`): a JSON API, a **SQLite database** (Node's built-in `node:sqlite`, no npm packages), **Razorpay** payments and a **private PDF store** that only streams a sheet to a signed-in customer who owns it.
-
-> **The backend files are not in this repository yet.** `site/server.cjs`, `site/server/`, `site/test/` and `site/.env.example` are listed in `.gitignore` and live only on the owner's computer. Pull request #1 adds an earlier copy of them back (from 21 September). That copy does not have the contact-form route (`/api/contact`), the admin Messages routes or the Stripe/PayPal return routes yet, so the contact form and Admin → Messages also need the owner's current server files. Until the backend runs somewhere, the website opens, but sign-in, checkout, the shop prices from the database and the sheet viewer do not work.
+Both talk to the same Node backend (`site/server.cjs`): a JSON API, a **PostgreSQL database for customer accounts** (sign-up with an emailed password, email confirmation, sign-in, sessions, password reset), a **SQLite store for the shop** (catalogue, orders, entitlements), **Razorpay** payments, email through **SMTP**, and a **private PDF store** that only streams a sheet to a signed-in customer who owns it. How it works, how to set it up and how to put it online: [`site/README.md`](site/README.md); every endpoint: [`site/API.md`](site/API.md).
 
 ## How a sheet is opened
 
@@ -41,7 +39,7 @@ Access is enforced on the server: the entitlement row in the database decides, a
 
 ## Quick start
 
-You need **Node.js 22.13 or newer** (https://nodejs.org). The website alone builds on Node 20.19+ or 22.12+, but the backend needs 22.13+ for its built-in SQLite. On Windows, open the folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder.
+You need **Node.js 22.13 or newer** (https://nodejs.org) and, for the backend, a **PostgreSQL** database ([how to get one](site/README.md#set-up-postgresql)). The website alone builds on Node 20.19+ or 22.12+, but the backend needs 22.13+ for its built-in SQLite. On Windows, open the folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder.
 
 **1. The website (React version)**
 
@@ -51,11 +49,16 @@ npm install        # first time only
 npm run dev        # → http://localhost:5173
 ```
 
-**2. The backend (optional, in a second window opened in the main `kids-book-website` folder)**
+**2. The backend (in a second window opened in the main `kids-book-website` folder)**
 
 ```bash
-node site/server.cjs     # → http://127.0.0.1:4173
+cd site
+npm install              # first time only
+cp .env.example .env     # first time only: set DATABASE_URL, and SITE_URL=http://localhost:5173 while using npm run dev
+npm start                # → http://127.0.0.1:4173
 ```
+
+Without an SMTP mail service in `site/.env`, the account emails (the generated password, the Accept & Continue link, reset links) are printed in this window instead of being sent.
 
 While `npm run dev` is running, every `/api/...` call from the website is forwarded to the backend on port 4173. Without the backend the pages still open, but anything that needs the server fails: sign-in shows "Request failed (502)", checkout shows "Pricing service unavailable" and the viewer shows "Could not open the sheet".
 
@@ -103,7 +106,7 @@ The private PDFs in `site/protected/` are **not** copied into `react-app/public/
 - **Cinematic scroll** — the six chapters glide as one stack while the 960 landscape frames scrub underneath; frames are decoded on demand with a memory cap, so the page stays smooth.
 - **Fox & rabbit preview** — a 50-frame animation plays inside the Sheets chapter and behind the store page.
 - **Glass UI** — transparent header pill with hover-jump links, logo tile with wordmark, frosted panels that let the landscape through.
-- **Sign up / Sign in** on the first screen (name, email, password) — real accounts in the database, scrypt-hashed passwords, httpOnly session cookies; *Forgot password* with a six-digit code, "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
+- **Sign up / Sign in** on the first screen — sign-up asks only for name and email; the server generates a password and emails it with an **Accept & Continue** link that confirms the address and leads back to sign-in. Accounts live in PostgreSQL with Argon2id-hashed passwords, httpOnly session cookies, a lock after 5 wrong passwords, and *Forgot password* by a single-use emailed link. "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
 - **Kindergarten skill board** — eight topic groups (pre-reading, alphabet, phonics, vocabulary, sight words, grammar & writing, reading, maths & the world); every skill opens its own shelf of sheets.
 - **68 printable PDF sheets in 5 skill types** — letter tracing A–Z, picture-reading charts, colour the letter, match the letters and spot the letters. The first few of each set are free; the rest are bought one by one.
 - **The store** — a page of its own with **New · Bestselling · Free · Subscription** views, classes, subjects and the five skill cards. (Subscription lists the paid sheets; class plans are no longer sold, so every PDF is bought on its own.)
@@ -167,8 +170,12 @@ kids-book-website/
 │   ├── dist/                  index.html · viewer.html · admin.js · frames · fonts · thumbnails (unchanged backup)
 │   ├── protected/             PRIVATE PDF STORAGE — never served as static files
 │   │   └── a-to-z/ · colour/ · matching/ · reading/ · spot/
-│   ├── README.md              the backend: flow, database tables, the main API routes, Razorpay setup
-│   └── (server.cjs, server/, test/, .env.example — backend, kept off GitHub for now; see pull request #1)
+│   ├── server.cjs · server/   the backend (accounts in PostgreSQL, shop in SQLite, payments, viewer, admin)
+│   ├── db/migrations/         the PostgreSQL schema
+│   ├── test/                  backend, database and end-to-end tests
+│   ├── API.md                 every endpoint
+│   ├── README.md              the backend: flow, databases, setup, email, tests, deployment
+│   └── .env.example           every setting, explained
 ├── LICENSE
 └── README.md
 ```
@@ -197,21 +204,23 @@ After any change, run `npm run build` again and upload everything inside the new
 ## Going live
 
 1. **Website** — build `react-app` and upload `dist/` to Hostinger ([see above](#put-it-on-hostinger)).
-2. **Backend** — run `node site/server.cjs` on hosting that runs Node, on the **same domain** as the website (`/api/*` must reach it), behind HTTPS (set `SITE_URL=https://…` so the session cookie is `Secure`; behind a proxy pass `X-Forwarded-Proto` and the country header). Keep `site/data/` and `site/protected/` on persistent storage and back them up.
+2. **Backend** — a PostgreSQL database plus `npm start` in `site/` on hosting that runs Node, on the **same domain** as the website (`/api/*` must reach it), behind HTTPS (set `SITE_URL=https://…` so the session cookie is `Secure` and email links are right; behind a proxy pass `X-Forwarded-Proto`, `X-Forwarded-For` and the country header). Keep `site/data/` and `site/protected/` on persistent storage and back them up with the database. Step by step: [`site/README.md` → Deploy](site/README.md#deploy).
 3. **Razorpay** — put `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `site/.env` (test keys first), add a webhook for `payment.captured`, `order.paid` and `payment.failed` at `https://<host>/api/pay/webhook` and put its secret in `RAZORPAY_WEBHOOK_SECRET`. Until keys are present the checkout shows payment as coming soon.
 4. **Admin key** — set `ADMIN_KEY` in `site/.env`, then save the same key in Admin → Settings → Server connection so the dashboards read the database.
 5. **PDFs** — upload each worksheet's PDF with `POST /api/admin/worksheets/:id/file` (or drop `<id>.pdf` into `site/protected/` and restart the backend; it is attached at the next start), and set its price with `PUT /api/admin/worksheets/:id`.
-6. **Email** — forgot-password codes are printed on the server console; set `NODE_ENV=production` so they are no longer returned to the browser, and plug a mail sender into the backend.
+6. **Email** — sign-up and forgot password send email: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `MAIL_FROM` in `site/.env` (and `NODE_ENV=production`), then sign up with your own address to check the email arrives.
 7. **Domain** — the SEO tags, sitemap and robots assume `https://learnwithwhy.in`; change them before deploying and submit the sitemap in Google Search Console.
 
 ## Roadmap
-- [x] Backend + SQLite database (accounts, orders, entitlements, access log)
+- [x] Backend + SQLite database (orders, entitlements, access log)
+- [x] Accounts in PostgreSQL: emailed generated password, email confirmation, lockout, sessions, reset by link
 - [x] Razorpay (orders, signature verification, webhook)
 - [x] Protected PDF storage, watermarked viewer, permanent entitlements (admin revoke)
 - [x] React + Vite version of the website (`react-app/`), same design
-- [ ] Backend files back in the repository (pull request #1)
 - [ ] PayPal / Stripe for international customers
-- [ ] Email for password reset and order receipts
+- [x] Email for sign-up and password reset (SMTP)
+- [ ] Email for order receipts
+- [ ] Shop data (orders, entitlements) in PostgreSQL too
 - [ ] Staff accounts and roles in the database
 - [ ] Server-side PDF stamping (the watermark is applied in the viewer today)
 

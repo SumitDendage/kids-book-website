@@ -22,15 +22,18 @@ export async function api(method, path, body) {
   return out;
 }
 
-/* ---------- accounts ---------- */
+/* ---------- accounts (PostgreSQL on the server; the session is an httpOnly cookie) ---------- */
 export const authApi = {
-  signup: body => api('POST', '/api/auth/signup', body),
-  signin: body => api('POST', '/api/auth/signin', body),
-  signout: () => api('POST', '/api/auth/signout'),
+  signup: body => api('POST', '/api/auth/signup', body),                            /* { name, email } — the password arrives by email */
+  login: body => api('POST', '/api/auth/login', body),                              /* { email, password, remember } */
+  logout: () => api('POST', '/api/auth/logout'),
   me: () => api('GET', '/api/auth/me'),
+  refresh: () => api('POST', '/api/auth/refresh-token'),                            /* new cookie token, later expiry; answers with the user */
   updateMe: body => api('PATCH', '/api/auth/me', body),
-  forgot: body => api('POST', '/api/auth/forgot', body),
-  reset: body => api('POST', '/api/auth/reset', body),
+  verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
+  resendVerification: body => api('POST', '/api/auth/resend-verification', body),   /* { email } */
+  forgotPassword: body => api('POST', '/api/auth/forgot-password', body),           /* { email } — a reset link is emailed */
+  resetPassword: body => api('POST', '/api/auth/reset-password', body),             /* { token, password } */
 };
 
 /* ---------- catalogue, entitlements, access ---------- */

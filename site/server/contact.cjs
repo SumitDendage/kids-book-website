@@ -44,15 +44,15 @@ function make(db, auth, mail) {
     const r = q.insert.run(Date.now(), name, email, message, user ? user.id : null, clientIp(req), String(req.headers['user-agent'] || '').slice(0, 200));
     const id = Number(r.lastInsertRowid);
     const sent = await mail.send({ to: INBOX, replyTo: email, subject: 'Learn With Why — note from ' + name, text: 'From: ' + name + ' <' + email + '>\n\n' + message + '\n\n— sent through the Contact us form (message #' + id + ')' });
-    q.mailed.run(sent.ok ? 1 : 0, sent.ok ? null : sent.error, id);
-    if (!sent.ok && mail.configured) console.warn('[contact] note #' + id + ' saved but not emailed: ' + sent.error);
-    json(res, 201, { ok: true, id, mailed: sent.ok });
+    q.mailed.run(sent.delivered ? 1 : 0, sent.delivered ? null : (sent.error || 'not sent — mail is in ' + mail.mode + ' mode'), id);
+    if (!sent.ok && mail.ready) console.warn('[contact] note #' + id + ' saved but not emailed: ' + sent.error);
+    json(res, 201, { ok: true, id, mailed: !!sent.delivered });
   }
 
   /* /api/admin/messages* — called from admin.cjs after the admin key is checked */
   async function admin(req, res, pathname, url) {
     const m = req.method;
-    if (m === 'GET' && pathname === '/api/admin/messages') return json(res, 200, { messages: q.all.all(Math.min(2000, +url.searchParams.get('limit') || 500)).map(pub), inbox: INBOX, mail: mail.configured });
+    if (m === 'GET' && pathname === '/api/admin/messages') return json(res, 200, { messages: q.all.all(Math.min(2000, +url.searchParams.get('limit') || 500)).map(pub), inbox: INBOX, mail: mail.delivers });
     if (m === 'POST' && (pathname === '/api/admin/messages/read' || pathname === '/api/admin/messages/replied')) {
       const b = await readBody(req); const id = parseInt(b.id, 10);
       if (!q.byId.get(id)) fail(404, 'No such message.');
