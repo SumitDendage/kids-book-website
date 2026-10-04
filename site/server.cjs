@@ -30,7 +30,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-try { process.loadEnvFile(path.join(__dirname, '.env')); } catch (_) { /* no .env yet: demo gateway, default admin key */ }
+try { process.loadEnvFile(path.join(__dirname, '.env')); } catch (_) { /* no .env yet: no payment gateway, default admin key */ }
 
 const { HttpError, json, readBody, sameOrigin, corsAllowed } = require('./server/http.cjs');
 const DB = require('./server/db.cjs');
@@ -97,7 +97,6 @@ async function api(req, res, pathname, url) {
   if (m === 'POST' && pathname === '/api/pay/order') return payments.createOrder(req, res, pricing);
   if (m === 'POST' && pathname === '/api/pay/verify') return payments.verify(req, res);
   if (m === 'POST' && pathname === '/api/pay/webhook') return payments.webhook(req, res);
-  if (m === 'POST' && pathname === '/api/pay/demo/confirm') return payments.demoConfirm(req, res);
   if (m === 'POST' && pathname === '/api/pay/cancel') return payments.cancel(req, res);
   if (m === 'POST' && pathname === '/api/pay/stripe/confirm') return payments.stripeConfirm(req, res);
   if (m === 'POST' && pathname === '/api/pay/paypal/capture') return payments.paypalCapture(req, res);
@@ -159,7 +158,7 @@ if (require.main === module) {
     console.log('Learn With Why: http://' + HOST + ':' + PORT);
     console.log('  site       ' + root + (fs.existsSync(path.join(root, 'index.html')) ? '' : '  (no index.html — build react-app first: cd react-app && npm run build)'));
     console.log('  database   ' + dbFile + (attached ? '  (' + attached + ' PDF' + (attached === 1 ? '' : 's') + ' attached from protected/)' : ''));
-    console.log('  gateway    Razorpay ' + payments.mode + (payments.mode === 'demo' ? '  — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in site/.env for real payments' : ''));
+    console.log('  gateway    Razorpay ' + (payments.mode || 'off — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in site/.env to take payments'));
     console.log('  stripe     ' + (payments.gateways.stripe || 'off — set STRIPE_SECRET_KEY to turn it on') + '   paypal ' + (payments.gateways.paypal || 'off — set PAYPAL_CLIENT_ID / PAYPAL_SECRET'));
     console.log('  mail       ' + (mail.configured ? 'Resend → contact notes go to ' + contact.INBOX : 'off — contact notes are kept in the admin Messages panel only'));
     console.log('  admin key  ' + (process.env.ADMIN_KEY ? 'set' : 'default "change-me" — set ADMIN_KEY in site/.env'));

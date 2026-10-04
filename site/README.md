@@ -3,7 +3,7 @@
 One Node process, no npm packages: the static site, the JSON API, the SQLite database and the private PDF store.
 
 ```bash
-cp site/.env.example site/.env   # add Razorpay keys + an admin key (optional for a local demo)
+cp site/.env.example site/.env   # add Razorpay keys (test keys locally) + an admin key
 node site/server.cjs             # http://127.0.0.1:4173
 node site/test/smoke.cjs         # end-to-end test on a throw-away database
 ```
@@ -47,7 +47,7 @@ Yours to keep         nothing expires; an admin revoke (POST /api/admin/entitlem
 | `server/seed.cjs` | The worksheet catalogue the database starts with (ids match the cards in `dist/index.html`). |
 | `server/auth.cjs` | Sign up / in / out, `me`, role, forgot-password codes, password reset. |
 | `server/pricing.cjs` | Countries, tax, fees, currency; signed quotes for a class plan or a single PDF. |
-| `server/payments.cjs` | Razorpay orders, signature verification, webhook, demo gateway; the one place an order becomes paid. |
+| `server/payments.cjs` | Razorpay orders, signature verification, webhook; Stripe and PayPal hosted pages; the one place an order becomes paid. |
 | `server/access.cjs` | Entitlements, the access check, view tokens, PDF/page streaming, access log, public catalogue. |
 | `server/admin.cjs` | Staff API (`x-admin-key`): orders, customers, entitlements, worksheets + PDF upload, settings, logs. |
 | `server/http.cjs` | JSON/raw bodies, cookies, same-origin check, rate limiter. |
@@ -70,7 +70,7 @@ Yours to keep         nothing expires; an admin revoke (POST /api/admin/entitlem
 | `password_resets` | hashed six-digit codes, 15-minute expiry, attempt counter |
 | `worksheets` | id, title, class, subject, pages, price (INR, 0 = free), `file` (path inside `protected/`), thumb, active |
 | `orders` | id `LWO-xxxxxx`, user, kind (`class` / `worksheet`), currency, total, INR total, amount in minor units, lines, coupon, address, method, status (`created` → `paid` / `failed` / `refunded`), Razorpay order + payment ids |
-| `payments` | every gateway event (order created, verify, webhook, demo) with outcome |
+| `payments` | every gateway event (order created, verify, webhook) with outcome |
 | `entitlements` | user, scope (`worksheet` or `class`), reference, kind (`free` / `paid`), order, `starts_at`, `revoked_at` — no expiry |
 | `access_log` | every access decision and PDF/page stream, with IP |
 | `settings` | JSON values: `plans`, `classes`, `coupons`, `discounts`, `rates`, `fees`, `secret` |
@@ -94,10 +94,9 @@ All responses are JSON. State-changing calls must come from the site's own origi
 | `POST /api/auth/signout` · `GET /api/auth/me` · `PATCH /api/auth/me` `{role,name}` | cookie | Session end, who am I, profile. |
 | `POST /api/auth/forgot` `{email}` → `POST /api/auth/reset` `{email,code[,password]}` | – | Six-digit code (printed on the server console; returned in the response outside production), then the new password. |
 | `POST /api/quote` `{cls,plan}` or `{worksheet}` + `coupon`, `address` | – | Signed quote, valid 15 minutes. |
-| `POST /api/pay/order` `{quote,method}` | cookie | Order + Razorpay order → `{gateway:{key,razorpay_order_id,amount,…}}`, or `{gateway:{provider:'demo'}}` without keys. |
+| `POST /api/pay/order` `{quote,method}` | cookie | Order + Razorpay order → `{gateway:{key,razorpay_order_id,amount,…}}`; 503 `gateway_off` without keys. |
 | `POST /api/pay/verify` `{order_id,razorpay_order_id,razorpay_payment_id,razorpay_signature}` | cookie | Verifies the signature, marks the order paid, grants the entitlement. |
 | `POST /api/pay/webhook` | Razorpay signature | Same grant from `payment.captured` / `order.paid`; `payment.failed` marks the order failed. Idempotent. |
-| `POST /api/pay/demo/confirm` `{order_id}` | cookie | Only while no gateway keys are configured. |
 | `GET /api/me/entitlements` · `GET /api/me/orders` | cookie | My plans / My worksheets; my orders. |
 | `POST /api/access/:worksheetId` | cookie | **The server access check.** 200 `{token,…}` · 402 `payment_required` · 404. |
 | `GET /api/view/meta` · `GET /api/view/file` · `GET /api/view/page?n=0` | cookie + `X-View-Token` | Viewer metadata (watermark identity), the PDF bytes, a pre-rendered page image. 403 once the entitlement is revoked. |
@@ -122,7 +121,7 @@ A PDF dropped into `protected/` as `<worksheet id>.pdf` is attached automaticall
 2. Dashboard → Settings → Webhooks: URL `https://<your host>/api/pay/webhook`, events `payment.captured`, `order.paid`, `payment.failed`; put the secret in `RAZORPAY_WEBHOOK_SECRET`.
 3. Amounts go to Razorpay in the smallest unit of the quote's currency (paise for INR). Non-INR currencies need international payments enabled on the Razorpay account.
 
-Without keys the server runs the **demo gateway**: the checkout says so, a confirmation replaces the card form, and the order is settled by `POST /api/pay/demo/confirm`. The route does not exist once keys are set.
+Without keys Razorpay is **not connected**: `/api/config` reports `razorpay: false`, the checkout shows card, QR code, UPI and wallet as coming soon, and `POST /api/pay/order` and `/api/pay/verify` answer 503. There is no demo gateway — to try a payment locally, use test keys.
 
 ## Protection model
 
@@ -136,7 +135,7 @@ Without keys the server runs the **demo gateway**: the checkout says so, a confi
 
 | Variable | Meaning |
 |---|---|
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Gateway keys; empty = demo gateway. |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Gateway keys; empty = Razorpay off (nothing can be bought). |
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook signature secret; empty = webhooks are acknowledged but ignored. |
 | `ADMIN_KEY` | Staff API key (default `change-me` — change it). |
 | `SITE_URL` | `https://…` turns on the `Secure` cookie flag. |

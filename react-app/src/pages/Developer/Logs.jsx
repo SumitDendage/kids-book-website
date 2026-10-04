@@ -12,7 +12,7 @@ export function Payments() {
   return (
     <section className="panel"><p className="eyebrow">Payment logs · {p.length}</p><p className="auth-sub">One row per gateway call.</p>
       <DataTable head={['When', 'Order', 'Gateway', 'Amount', 'Status']} empty="No payments yet." filter="Filter payments…"
-        rows={p.map((x, i) => ({ key: i, cells: [fmt(x.at), <b key="o">{x.order}</b>, x.gateway, money(x.amount), <span key="s"><Pill tone="ok">{x.status}</Pill>{x.demo ? <> <small>demo</small></> : null}</span>] }))} />
+        rows={p.map((x, i) => ({ key: i, cells: [fmt(x.at), <b key="o">{x.order}</b>, x.gateway, money(x.amount), <Pill key="s" tone="ok">{x.status}</Pill>] }))} />
     </section>
   );
 }

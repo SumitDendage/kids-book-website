@@ -11,9 +11,9 @@ import { flagOf, shortClass } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
 
 /* The payment page. Nothing is priced here: the server returns a signed quote for
-   the address and coupon; /api/pay/order turns it into an order; Razorpay (or the
-   labelled demo gateway, or a hosted Stripe / PayPal page) takes the payment; the
-   server verifies it and grants the entitlement. */
+   the address and coupon; /api/pay/order turns it into an order; Razorpay (or a
+   hosted Stripe / PayPal page) takes the payment; the server verifies it and grants
+   the entitlement. A gateway the server has not connected is shown as coming soon. */
 const keep = { code: '', touched: {}, via: 'qr' };   /* like the original page: the coupon, touched fields and way to pay survive closing the page */
 
 export default function Checkout() {
@@ -76,10 +76,11 @@ export default function Checkout() {
   const C = (config && (config.countries.find(c => c.code === addr.country) || config.countries[config.countries.length - 1])) || null;
   const india = C ? C.code === 'IN' : true;
   const gw = (config && config.gateways) || {};
-  /* PayPal and Stripe switch on the moment the server has those gateways connected; until then they are shown as coming soon */
-  const live = m => !m.gateway || (gw[m.gateway] && gw[m.gateway] !== false);
+  /* each way to pay switches on the moment the server has its gateway connected (Razorpay for card / QR / UPI / wallet); until then it is shown as coming soon */
+  const live = m => !!gw[m.gateway || 'razorpay'];
   const ways = PAY_VIA.filter(m => india || !m.india);
-  const via = ways.some(m => m.id === payVia && live(m)) ? payVia : (india ? 'qr' : 'card');
+  const canPay = ways.some(live);
+  const via = ways.some(m => m.id === payVia && live(m)) ? payVia : ((ways.find(live) || {}).id || (india ? 'qr' : 'card'));
   useEffect(() => { if (via !== payVia) setPayVia(via); });
   const viaOf = PAY_VIA.find(m => m.id === via) || PAY_VIA[0];
   /* a method is offered when the country allows it AND the server has that gateway connected */
@@ -106,9 +107,9 @@ export default function Checkout() {
   );
   const text = (k, props) => <input id={'co-' + k} name={k} value={addr[k] || ''} placeholder=" " onChange={e => change(k, e.target.value)} onBlur={blur(k)} {...props} />;
 
-  /* ---------- 1. /api/pay/order  2. Razorpay Checkout (or the demo confirm)  3. /api/pay/verify → entitlement ---------- */
+  /* ---------- 1. /api/pay/order  2. Razorpay Checkout  3. /api/pay/verify → entitlement ---------- */
   async function placeOrder() {
-    if (!quote || !quote.valid || busy) return;
+    if (!quote || !quote.valid || busy || !canPay) return;
     const session = access.session; if (!session) return;
     setBusy(true); setError('');
     const q = quote, method = 'Razorpay · ' + viaOf.label;
@@ -117,38 +118,32 @@ export default function Checkout() {
       const o = out.order, g = out.gateway;
       write('lww_address', addr);
       pushLog('lww_orders', { id: o.id, at: o.at, email: session.email, name: session.name, cls: o.cls, plan: o.plan, worksheet: o.worksheet, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'created', address: q.address }, 1000);
-      let done;
       if (g.provider === 'stripe' || g.provider === 'paypal') {
         /* hosted pages: remember the order, hand over to the gateway; the site finishes it on the way back */
         try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: o.id, provider: g.provider, total: q.total, currency: q.currency, worksheet: itemId, via })); } catch (_) {}
         location.href = g.url; return;
       }
-      if (g.provider === 'razorpay') {
-        await loadRazorpay();
-        done = await new Promise((res, rej) => {
-          /* only the PUBLIC key id (g.key) comes from the server; the secret never leaves it */
-          const rz = new window.Razorpay({
-            key: g.key, amount: g.amount, currency: g.currency, order_id: g.razorpay_order_id, name: g.name, description: g.description, prefill: g.prefill, theme: g.theme, notes: { order: o.id, via },
-            config: { display: RZP_DISPLAY[via] || RZP_DISPLAY.card },   /* open straight on the chosen way to pay */
-            handler: resp => payApi.verify({ order_id: o.id, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej),
-            modal: { ondismiss: () => rej(Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true })) },
-          });
-          rz.on('payment.failed', r => { pushLog('lww_payments', { at: Date.now(), order: o.id, gateway: 'Razorpay', status: 'failed', reason: r.error && r.error.description }, 400); });
-          rz.open();
+      if (g.provider !== 'razorpay') throw new Error('Online payment is not available right now — nothing was charged.');
+      await loadRazorpay();
+      const done = await new Promise((res, rej) => {
+        /* only the PUBLIC key id (g.key) comes from the server; the secret never leaves it */
+        const rz = new window.Razorpay({
+          key: g.key, amount: g.amount, currency: g.currency, order_id: g.razorpay_order_id, name: g.name, description: g.description, prefill: g.prefill, theme: g.theme, notes: { order: o.id, via },
+          config: { display: RZP_DISPLAY[via] || RZP_DISPLAY.card },   /* open straight on the chosen way to pay */
+          handler: resp => payApi.verify({ order_id: o.id, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej),
+          modal: { ondismiss: () => rej(Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true })) },
         });
-      } else {
-        /* no gateway keys on the server: a clearly labelled demo confirmation instead of a card form */
-        if (!window.confirm('DEMO GATEWAY — no ' + (g.via || 'Razorpay') + ' keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' by ' + viaOf.label + ' for ' + g.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
-        done = await payApi.demoConfirm({ order_id: o.id });
-      }
+        rz.on('payment.failed', r => { pushLog('lww_payments', { at: Date.now(), order: o.id, gateway: 'Razorpay', status: 'failed', reason: r.error && r.error.description }, 400); });
+        rz.open();
+      });
       const paid = done.order;
       pushLog('lww_orders', { id: paid.id, at: paid.at, email: session.email, name: session.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
-      pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: g.provider === 'razorpay' ? 'Razorpay' : 'Demo', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured', demo: g.provider !== 'razorpay' }, 400);
+      pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: 'Razorpay', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured' }, 400);
       logEvent(q.kind === 'worksheet' ? 'buy' : 'subscribe', { order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency });
       await syncEntitlements();
       setCode(''); setCouponInput(''); setQuote(null); setBusy(false);
       closeCheckout();
-      showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: itemId, total: fmtCur(q.total, q.currency), method: (g.provider === 'razorpay' ? 'Razorpay' : 'Demo gateway') + ' · ' + viaOf.label });
+      showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: itemId, total: fmtCur(q.total, q.currency), method });
     } catch (err) { setBusy(false); setError(err.message); if (!err.cancelled) requestQuote(true); else toast(err.message); }
   }
 
@@ -170,7 +165,9 @@ export default function Checkout() {
       {q && q.currency !== 'INR' && <p className="co-note">≈ ₹{Math.round(q.total / q.rate)} at 1 INR = {q.rate} {q.currency}. You are charged in {q.currency}.</p>}
       {q && q.coupon && <p className="co-note ok">Coupon {q.coupon} applied — ₹{q.discountInr} off</p>}
       {q && error && <p className="alert err">{error}</p>}
-      <button type="button" className="btn btn-pay" id="payNow" disabled={!q || !q.valid || busy} onClick={placeOrder}><span>{q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>{q && q.valid ? 'by ' + viaOf.label + ' →' : 'to unlock payment'}</small></button>
+      <button type="button" className="btn btn-pay" id="payNow" disabled={!q || !q.valid || busy || !canPay} onClick={placeOrder}>{!canPay
+        ? <><span>Payment coming soon</span><small>online payment is not available yet</small></>
+        : <><span>{q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>{q && q.valid ? 'by ' + viaOf.label + ' →' : 'to unlock payment'}</small></>}</button>
       <ul className="trust"><li>🔒 Priced &amp; signed on the server</li><li>🛡️ No card details stored here</li><li>↺ Cancel any time</li></ul>
       {q && <p className="co-note" style={{ textAlign: 'center' }}>Quote valid until {new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>}
     </aside>

@@ -1920,9 +1920,9 @@ function paintMethods() {
   /* the ways to pay: UPI / QR / net banking / wallets in India, card everywhere */
   const india = C ? C.code === 'IN' : true;
   const ways = PAY_VIA.filter(m => india || !m.india);
-  /* PayPal and Stripe switch on the moment the server has those gateways connected; until then they are shown as coming soon */
-  const live = m => !m.gateway || (gw[m.gateway] && gw[m.gateway] !== false);
-  if (!ways.some(m => m.id === payVia && live(m))) payVia = india ? 'qr' : 'card';
+  /* each way to pay switches on the moment the server has its gateway connected (Razorpay for card / QR / UPI / wallet); until then it is shown as coming soon */
+  const live = m => !!gw[m.gateway || 'razorpay'];
+  if (!ways.some(m => m.id === payVia && live(m))) payVia = (ways.find(live) || {}).id || (india ? 'qr' : 'card');
   payMethod = (payViaOf().gateway) || 'razorpay';
   el.innerHTML = ways.map(m => { const on = live(m); return `<label class="method${m.id === payVia ? ' on' : ''}${on ? '' : ' off'}"><input type="radio" name="pay" value="${m.id}"${m.id === payVia ? ' checked' : ''}${on ? '' : ' disabled'}><span class="mark">${BRAND_MARK[m.id]}</span><span class="txt"><b>${m.label}</b><small>${on ? esc(m.note) : 'Coming soon'}</small></span><span class="ring"></span></label>`; }).join('')
     + `<p class="pay-secure">${BRAND_MARK.razorpay}<span><b>100% secure payment</b> — powered by Razorpay, PCI-DSS certified and 256-bit encrypted. Your card and UPI details go straight to the bank; we never see or store them.</span></p>`;
@@ -1979,7 +1979,7 @@ function loadRazorpay() {
   if (window.Razorpay) return Promise.resolve();
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout — check your connection.')); document.head.appendChild(s); });
 }
-/* 1. /api/pay/order  2. Razorpay Checkout (or the demo confirm)  3. /api/pay/verify → entitlement */
+/* 1. /api/pay/order  2. Razorpay Checkout  3. /api/pay/verify → entitlement */
 async function placeOrder() {
   if (!coQuote || !coQuote.valid || coBusy) return;
   coBusy = true; coError = ''; paintSummary();
@@ -2007,19 +2007,15 @@ async function placeOrder() {
         rz.on('payment.failed', r => { pushLog('lww_payments', { at: Date.now(), order: o.id, gateway: 'Razorpay', status: 'failed', reason: r.error && r.error.description }, 400); });
         rz.open();
       });
-    } else {
-      /* no gateway keys on the server: a clearly labelled demo confirmation instead of a card form */
-      if (!confirm('DEMO GATEWAY — no ' + (gw.via || 'Razorpay') + ' keys are configured on the server, so nothing will be charged.\n\nConfirm the demo payment of ' + fmtCur(q.total, q.currency) + ' by ' + payViaOf().label + ' for ' + gw.description + '?')) throw Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true });
-      done = await api('POST', '/api/pay/demo/confirm', { order_id: o.id });
-    }
+    } else throw new Error('Online payment is not available right now — nothing was charged.');
     const paid = done.order, ent = done.entitlement;
     pushLog('lww_orders', { id: paid.id, at: paid.at, email: session.email, name: session.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
-    pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: gw.provider === 'razorpay' ? 'Razorpay' : 'Demo', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured', demo: gw.provider !== 'razorpay' }, 400);
+    pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: 'Razorpay', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured' }, 400);
     logEvent(q.kind === 'worksheet' ? 'buy' : 'subscribe', { order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency });
     await syncEntitlements();
     coCode = ''; coQuote = null; coBusy = false; const boughtItem = coItem; coItem = null;
     closeCheckout(); renderPlayer(); renderWorksheets(); renderBag(); if (shop.classList.contains('open')) renderShop(); if (session) showRole();
-    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: boughtItem, total: fmtCur(q.total, q.currency), method: (gw.provider === 'razorpay' ? 'Razorpay' : 'Demo gateway') + ' · ' + payViaOf().label });
+    showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: boughtItem, total: fmtCur(q.total, q.currency), method });
   } catch (err) { coBusy = false; coError = err.message; paintSummary(); if (!err.cancelled) requestQuote(true); }
 }
 document.addEventListener('input', e => {
@@ -2261,7 +2257,7 @@ const flow = (() => {
 })();
 
 /* =====================================================================
-   SHEET MODAL · BAG · UNLOCK (demo checkout — no payment is taken)
+   SHEET MODAL · BAG · UNLOCK
    ===================================================================== */
 const modalScrim = document.getElementById('modalScrim'), modal = document.getElementById('modal');
 let modalSheet = null;

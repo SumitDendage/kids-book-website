@@ -2,18 +2,20 @@
 /* End-to-end smoke test of the backend on a throw-away database.
      node site/test/smoke.cjs
    Walks the customer flow: catalogue → sign up → free sheet opens → paid sheet
-   is refused → quote → order → (demo) payment → entitlement → PDF streams;
+   is refused → quote → order → Razorpay payment (its API stubbed here) → entitlement → PDF streams;
    access never expires, only an admin revoke ends it. Also checks tokens, cookies, cross-site
    refusal, the webhook signature, the admin key and password reset; that an OLD database is
    upgraded to the new catalogue without losing admin edits; the 79 printable PDFs; the contact
-   form and the admin inbox; cancelling an order; Stripe / PayPal answering 503 while they are not
-   configured; and the React site (index.html for app routes, 404 for missing files).
+   form and the admin inbox; cancelling an order; Razorpay, Stripe and PayPal answering 503 while
+   they are not configured (there is no demo gateway); and the React site (index.html for app
+   routes, 404 for missing files).
    Needs Node 22.13+ and the PDFs in site/protected/. */
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
+const { Readable } = require('node:stream');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lww-'));
 process.env.DB_PATH = path.join(tmp, 'test.sqlite');
@@ -23,8 +25,21 @@ process.env.PROTECTED_DIR = path.join(tmp, 'protected');
 fs.cpSync(realProtected, process.env.PROTECTED_DIR, { recursive: true, dereference: true, filter: src => !/[\\/]uploads([\\/]|$)/.test(src.slice(realProtected.length)) });
 process.env.ADMIN_KEY = 'test-admin-key';
 process.env.RAZORPAY_WEBHOOK_SECRET = 'whsec_test';
-['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'STRIPE_SECRET_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'RESEND_API_KEY', 'MAIL_FROM', 'CORS_ORIGINS', 'SITE_URL'].forEach(k => delete process.env[k]);
+process.env.RAZORPAY_KEY_ID = 'rzp_test_smoke'; process.env.RAZORPAY_KEY_SECRET = 'rzp_secret_smoke';
+['STRIPE_SECRET_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'RESEND_API_KEY', 'MAIL_FROM', 'CORS_ORIGINS', 'SITE_URL'].forEach(k => delete process.env[k]);
 process.env.RESET_CODE_IN_RESPONSE = '1';
+/* a stand-in for the Razorpay API, which the server reaches with fetch: orders are created, and a
+   payment pay_X belongs to order_X and is captured for that order's amount. Nothing leaves the machine. */
+const RZP_API = 'https://api.razorpay.com/v1', rzpOrders = new Map(), realFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  const u = String(url); if (!u.startsWith(RZP_API + '/')) return realFetch(url, init);
+  const ep = u.slice(RZP_API.length);
+  if (init.method === 'POST' && ep === '/orders') { const b = JSON.parse(init.body), o = { id: 'order_T' + (rzpOrders.size + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, status: 'created' }; rzpOrders.set(o.id, o); return Response.json(o); }
+  const pay = /^\/payments\/pay_(\w+)$/.exec(ep), o = pay && rzpOrders.get('order_' + pay[1]);
+  if (o) return Response.json({ id: 'pay_' + pay[1], order_id: o.id, amount: o.amount, currency: o.currency, status: 'captured' });
+  return Response.json({ error: { description: 'not found' } }, { status: 404 });
+};
+
 /* the site: the React build when it has been made (cd react-app && npm run build), else a tiny stand-in */
 const reactBuild = path.join(__dirname, '..', '..', 'react-app', 'dist');
 const realBuild = fs.existsSync(path.join(reactBuild, 'index.html'));
@@ -51,7 +66,7 @@ const { SEED_V1 } = require('../server/seed.cjs');
   old.close();
 }
 
-const { server, db } = require('../server.cjs');
+const { server, db, auth, access, pricing } = require('../server.cjs');
 let base = '', cookie = '', lastSetCookie = '';
 const req = async (method, p, body, extra) => {
   const h = Object.assign({ 'Content-Type': 'application/json', Origin: base, Cookie: cookie }, extra || {});
@@ -61,6 +76,11 @@ const req = async (method, p, body, extra) => {
   return { status: r.status, ct, body: ct.includes('json') ? await r.json() : Buffer.from(await r.arrayBuffer()) };
 };
 let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
+/* what Razorpay Checkout hands the browser after a payment: the ids and HMAC-SHA256(order|payment, key secret) */
+const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
+  const rzOrder = gateway.razorpay_order_id, payId = 'pay_' + rzOrder.slice('order_'.length);
+  return { order_id: order.id, razorpay_order_id: rzOrder, razorpay_payment_id: payId, razorpay_signature: crypto.createHmac('sha256', secret).update(rzOrder + '|' + payId).digest('hex') };
+};
 
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
@@ -77,8 +97,8 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   db.q("UPDATE worksheets SET price = 99 WHERE id = 'c2-mat-mul'").run(); db.q("UPDATE worksheets SET price = 19 WHERE id = 'az-Z'").run();
 
   let r = await req('GET', '/api/config');
-  assert.equal(r.status, 200); assert.deepEqual(r.body.gateways, { razorpay: 'demo', stripe: false, paypal: false }); assert.equal(r.body.rates.INR, 1); assert.ok(r.body.rates.USD > 0); assert.deepEqual(Object.keys(r.body.classes), ['kg', 'c1', 'c2', 'c3']);
-  ok('config: gateways razorpay=demo, stripe=false, paypal=false; rates for the currency display; classes kg c1 c2 c3');
+  assert.equal(r.status, 200); assert.deepEqual(r.body.gateways, { razorpay: 'test', stripe: false, paypal: false }); assert.equal(r.body.rates.INR, 1); assert.ok(r.body.rates.USD > 0); assert.deepEqual(Object.keys(r.body.classes), ['kg', 'c1', 'c2', 'c3']);
+  ok('config: gateways razorpay=test, stripe=false, paypal=false; rates for the currency display; classes kg c1 c2 c3');
 
   r = await req('GET', '/api/worksheets');
   assert.equal(r.status, 200); const cat = r.body.worksheets, byId = Object.fromEntries(cat.map(w => [w.id, w]));
@@ -116,16 +136,31 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   const address = { country: 'IN', line1: '12 Lane', city: 'Pune', state: 'Maharashtra', postal: '411001' };
   r = await req('POST', '/api/quote', { worksheet: 'kg-mat-cnt', address }); assert.equal(r.status, 200); assert.ok(r.body.valid && r.body.sig); assert.equal(r.body.kind, 'worksheet'); const q1 = r.body; ok('signed quote for one PDF: ' + q1.currency + ' ' + q1.total + ' (' + q1.amountMinor + ' paise)');
   r = await req('POST', '/api/pay/order', { quote: Object.assign({}, q1, { total: 1 }), method: 'razorpay' }); assert.equal(r.status, 400); ok('edited quote → 400 (price cannot be changed in the browser)');
-  r = await req('POST', '/api/pay/order', { quote: q1, method: 'razorpay' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'demo'); const o1 = r.body.order; ok('order ' + o1.id + ' created — demo gateway (no Razorpay keys)');
+  {
+    /* the same server without Razorpay keys: no gateway at all, so nothing can be ordered or settled */
+    const keys = [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET];
+    delete process.env.RAZORPAY_KEY_ID; delete process.env.RAZORPAY_KEY_SECRET;
+    const off = require('../server/payments.cjs').make(db, auth, access);
+    [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET] = keys;
+    const call = body => Object.assign(Readable.from([Buffer.from(JSON.stringify(body))]), { headers: { cookie } });
+    assert.deepEqual(off.gateways, { razorpay: false, stripe: false, paypal: false });
+    await assert.rejects(off.createOrder(call({ quote: q1, method: 'razorpay' }), null, pricing), e => e.status === 503 && e.extra.code === 'gateway_off');
+    await assert.rejects(off.verify(call({ order_id: 'LWO-000000' }), null), e => e.status === 503 && e.extra.code === 'gateway_off');
+    ok('no Razorpay keys → razorpay=false in config; pay/order and pay/verify answer 503 gateway_off (no demo gateway)');
+  }
+  r = await req('POST', '/api/pay/order', { quote: q1, method: 'razorpay' }); assert.equal(r.status, 200); const o1 = r.body.order, g1 = r.body.gateway;
+  assert.equal(g1.provider, 'razorpay'); assert.equal(g1.key, 'rzp_test_smoke'); assert.equal(g1.amount, q1.amountMinor); assert.equal(o1.method, 'razorpay'); ok('order ' + o1.id + ' created with Razorpay order ' + g1.razorpay_order_id + ' for ' + g1.amount + ' paise');
   r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 402); ok('still 402 before the payment is confirmed');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.entitlement.scope, 'worksheet'); ok('payment confirmed → order paid → paid entitlement');
-  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid'); assert.equal(r.body.worksheet.real, false); ok('paid sheet now opens (no PDF uploaded yet → demo page)');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 200); r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.filter(e => e.order === o1.id).length, 1); ok('confirming twice is idempotent (one entitlement per order)');
+  r = await req('POST', '/api/pay/demo/confirm', { order_id: o1.id }); assert.equal(r.status, 404); ok('there is no demo gateway: /api/pay/demo/confirm → 404');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1, 'not-the-secret')); assert.equal(r.status, 400); r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 402); ok('a payment with a forged signature → 400, the sheet stays locked');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.entitlement.scope, 'worksheet'); ok('payment verified → order paid → paid entitlement');
+  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid'); assert.equal(r.body.worksheet.real, false); ok('paid sheet now opens (no PDF uploaded yet → placeholder page)');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.filter(e => e.order === o1.id).length, 1); ok('verifying twice is idempotent (one entitlement per order)');
 
   /* PAID path — class plan */
   r = await req('POST', '/api/quote', { cls: 'c1', plan: 'm1', address }); const q2 = r.body; assert.equal(q2.kind, 'class');
   r = await req('POST', '/api/pay/order', { quote: q2, method: 'razorpay' }); const o2 = r.body.order;
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o2.id }); assert.equal(r.body.entitlement.scope, 'class');
+  r = await req('POST', '/api/pay/verify', rzpPaid(o2, r.body.gateway)); assert.equal(r.body.entitlement.scope, 'class');
   r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 200); const paid = r.body; ok('class plan → every sheet in Class 1 opens');
   r = await req('POST', '/api/access/c2-mat-mul'); assert.equal(r.status, 402); ok('…but Class 2 stays locked');
 
@@ -139,25 +174,24 @@ let step = 0; const ok = (msg) => console.log('  ✓ ' + (++step) + '. ' + msg);
   /* PAID path — one printable PDF (₹19) with a real file */
   r = await req('POST', '/api/access/az-D'); assert.equal(r.status, 402); assert.equal(r.body.price, 19);
   r = await req('POST', '/api/quote', { worksheet: 'az-D', address }); assert.equal(r.status, 200); const q3 = r.body; assert.ok(q3.valid);
-  r = await req('POST', '/api/pay/order', { quote: q3, method: 'razorpay', via: 'qr' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'demo'); const o3 = r.body.order;
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o3.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.order.worksheet, 'az-D');
+  r = await req('POST', '/api/pay/order', { quote: q3, method: 'razorpay', via: 'qr' }); assert.equal(r.status, 200); assert.equal(r.body.gateway.provider, 'razorpay'); const o3 = r.body.order;
+  r = await req('POST', '/api/pay/verify', rzpPaid(o3, r.body.gateway)); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.order.worksheet, 'az-D');
   r = await req('POST', '/api/access/az-D'); assert.equal(r.status, 200); assert.equal(r.body.worksheet.real, true);
   const T3 = { 'X-View-Token': r.body.token };
   r = await req('GET', '/api/view/meta', undefined, T3); assert.equal(r.status, 200); assert.equal(r.body.kind, 'paid'); assert.ok(r.body.hasPdf && r.body.hasImages);
   r = await req('GET', '/api/view/file', undefined, T3); assert.equal(r.status, 200); assert.equal(r.body.subarray(0, 4).toString(), '%PDF');
   r = await req('GET', '/api/view/page?n=0', undefined, T3); assert.equal(r.status, 200); assert.ok(r.ct.startsWith('image/jpeg'));
-  ok('paid PDF az-D: 402 → quote ' + q3.currency + ' ' + q3.total + ' → demo order → demo confirm → opens; meta, PDF and page image stream');
+  ok('paid PDF az-D: 402 → quote ' + q3.currency + ' ' + q3.total + ' → Razorpay order → verified payment → opens; meta, PDF and page image stream');
   r = await req('POST', '/api/access/rc-I'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'free'); r = await req('POST', '/api/access/sd-A'); assert.equal(r.status, 402); ok('rc-I is a free sample, sd-A needs payment');
 
   /* cancel — back from a hosted page without paying */
   r = await req('POST', '/api/quote', { worksheet: 'az-E', address }); const q4 = r.body;
   r = await req('POST', '/api/pay/order', { quote: q4, method: 'razorpay' }); const o4 = r.body.order;
   r = await req('POST', '/api/pay/cancel', { order_id: o4.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'cancelled');
-  r = await req('POST', '/api/pay/demo/confirm', { order_id: o4.id }); assert.equal(r.status, 400);
   r = await req('POST', '/api/access/az-E'); assert.equal(r.status, 402);
   r = await req('POST', '/api/pay/cancel', { order_id: o3.id }); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.cancelled, false);
   r = await req('POST', '/api/pay/cancel', { order_id: 'LWO-000000' }); assert.equal(r.status, 404);
-  ok('pay/cancel: an unpaid order becomes cancelled and can no longer be confirmed; a paid order is left alone; unknown order → 404');
+  ok('pay/cancel: an unpaid order becomes cancelled and its sheet stays locked; a paid order is left alone; unknown order → 404');
 
   /* Stripe and PayPal are not configured in this test */
   r = await req('POST', '/api/pay/order', { quote: q4, method: 'stripe', via: 'stripe' }); assert.equal(r.status, 503); assert.equal(r.body.code, 'gateway_off');

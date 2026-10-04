@@ -11,8 +11,8 @@
                              signed with the webhook secret — the same grant happens
                              here if the browser closed before step 2. Idempotent.
 
-   Without RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET the server runs a clearly
-   labelled DEMO gateway so the site can be tried locally; nothing is charged.
+   Without RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET Razorpay is not connected: no
+   order can be paid through it and no access is granted without a real payment.
 
    STRIPE and PAYPAL are hosted pages (the checkout sends the browser away and it
    comes back to /?pay=…). Each switches on only when its keys are set:
@@ -24,8 +24,8 @@
              back at /?pay=paypal&order=…&token=…    → POST /api/pay/paypal/capture captures it
              and settles only when PayPal says COMPLETED for this amount and currency.
      cancel  back at /?pay=cancel&order=…            → POST /api/pay/cancel marks the order cancelled.
-   /api/config reports each gateway as false while it is not configured, and the
-   checkout shows it as "coming soon"; calling it anyway answers 503. */
+   /api/config reports each gateway (Razorpay included) as false while it is not
+   configured, and the checkout shows it as "coming soon"; calling it anyway answers 503. */
 const crypto = require('node:crypto');
 const { fail, json, readBody, readRaw, timingEqual } = require('./http.cjs');
 
@@ -38,7 +38,7 @@ class GatewayError extends Error { constructor(message, status, body) { super(me
 function make(db, auth, access) {
   const KEY_ID = process.env.RAZORPAY_KEY_ID || '', KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '', WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
   const live = !!(KEY_ID && KEY_SECRET);
-  const mode = !live ? 'demo' : KEY_ID.startsWith('rzp_live_') ? 'live' : 'test';
+  const mode = !live ? false : KEY_ID.startsWith('rzp_live_') ? 'live' : 'test';
   const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
   const stripeMode = !STRIPE_KEY ? false : STRIPE_KEY.startsWith('sk_live_') || STRIPE_KEY.startsWith('rk_live_') ? 'live' : 'test';
   const PP_ID = process.env.PAYPAL_CLIENT_ID || '', PP_SECRET = process.env.PAYPAL_SECRET || '';
@@ -114,19 +114,18 @@ function make(db, auth, access) {
   async function createOrder(req, res, pricing) {
     const user = auth.requireUser(req); const b = await readBody(req); const qt = b.quote;
     if (!pricing.verify(qt)) fail(400, 'This quote is not valid any more — refresh the price and try again.');
-    const method = String(b.method || 'razorpay'), via = String(b.via || '').slice(0, 20);
+    const method = String(b.method || 'razorpay');
     if (!['razorpay', 'stripe', 'paypal'].includes(method)) fail(400, 'Unknown payment method.');
     if (!qt.methods.includes(method)) fail(400, 'That payment method is not available in ' + qt.countryName + '.');
+    if (method === 'razorpay' && !live) fail(503, 'Razorpay is not connected on this server yet — online payment is not available.', { code: 'gateway_off' });
     if (method === 'stripe' && !stripeMode) fail(503, 'Stripe is not connected on this server yet — pick another way to pay.', { code: 'gateway_off' });
     if (method === 'paypal' && !paypalMode) fail(503, 'PayPal is not connected on this server yet — pick another way to pay.', { code: 'gateway_off' });
     if (qt.amountMinor < 100 && qt.currency === 'INR') fail(400, 'The amount is below the gateway minimum (₹1).');
     const id = newId();
-    const stored = method === 'razorpay' ? (live ? 'razorpay' : 'demo') : method;
-    q.insert.run(id, user.id, qt.kind, qt.cls || null, qt.plan || null, qt.worksheet || null, qt.currency, qt.total, pricing.round(qt.total / qt.rate, 'INR'), qt.amountMinor, JSON.stringify(qt.lines), qt.coupon || null, JSON.stringify(qt.address), stored, Date.now());
+    q.insert.run(id, user.id, qt.kind, qt.cls || null, qt.plan || null, qt.worksheet || null, qt.currency, qt.total, pricing.round(qt.total / qt.rate, 'INR'), qt.amountMinor, JSON.stringify(qt.lines), qt.coupon || null, JSON.stringify(qt.address), method, Date.now());
     const order = q.byId.get(id);
     const description = qt.kind === 'worksheet' ? qt.title : qt.className + ' plan · ' + qt.planLabel;
     if (method === 'stripe' || method === 'paypal') return hostedOrder(req, res, user, order, method, description);
-    if (!live) { event(id, 'demo', 'order.created', true, 'demo gateway — no Razorpay keys configured' + (via ? ' · via ' + via : '')); return json(res, 200, { order: pub(order), gateway: { provider: 'demo', via: 'Razorpay', description, note: 'Demo gateway — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to take real payments.' } }); }
     let rz;
     try { rz = await rzp('POST', '/orders', { amount: qt.amountMinor, currency: qt.currency, receipt: id, notes: { order: id, email: user.email, kind: qt.kind, cls: qt.cls || '', worksheet: qt.worksheet || '' } }); }
     catch (e) { q.setStatus.run('failed', id); event(id, 'razorpay', 'order.create_failed', false, e.message); fail(502, 'Could not reach the payment gateway: ' + e.message); }
@@ -136,9 +135,10 @@ function make(db, auth, access) {
 
   /* POST /api/pay/verify — from Razorpay Checkout's success handler */
   async function verify(req, res) {
+    if (!live) fail(503, 'Razorpay is not connected on this server.', { code: 'gateway_off' });
     const user = auth.requireUser(req); const b = await readBody(req);
     const order = q.byId.get(String(b.order_id || '')); if (!order || order.user_id !== user.id) fail(404, 'No such order.');
-    if (order.method !== 'razorpay' || !live) fail(400, 'This order does not use Razorpay.');
+    if (order.method !== 'razorpay') fail(400, 'This order does not use Razorpay.');
     const rzOrder = String(b.razorpay_order_id || ''), payId = String(b.razorpay_payment_id || ''), sig = String(b.razorpay_signature || '');
     if (rzOrder !== order.gateway_order_id) { event(order.id, 'razorpay', 'verify.mismatch', false, rzOrder); fail(400, 'Payment does not belong to this order.'); }
     const expect = crypto.createHmac('sha256', KEY_SECRET).update(rzOrder + '|' + payId).digest('hex');
@@ -253,19 +253,9 @@ function make(db, auth, access) {
     json(res, 200, { ok: true, cancelled: true, order: pub(q.byId.get(order.id)) });
   }
 
-  /* POST /api/pay/demo/confirm — only exists while no gateway keys are configured */
-  async function demoConfirm(req, res) {
-    if (live) fail(404, 'Not found');
-    const user = auth.requireUser(req); const b = await readBody(req);
-    const order = q.byId.get(String(b.order_id || '')); if (!order || order.user_id !== user.id) fail(404, 'No such order.');
-    if (order.method !== 'demo') fail(400, 'This order does not use the demo gateway.');
-    if (order.status === 'cancelled' || order.status === 'failed') fail(400, 'This order was ' + order.status + ' — start the checkout again.');
-    const s = settle(order, 'demo_' + crypto.randomBytes(6).toString('hex'), 'demo.confirm');
-    json(res, 200, { ok: true, demo: true, order: pub(s.order), entitlement: access.pub(s.ent) });
-  }
   function mine(req, res) { const u = auth.requireUser(req); json(res, 200, { orders: q.mine.all(u.id).map(pub) }); }
 
-  return { mode, live, gateways, createOrder, verify, webhook, demoConfirm, stripeConfirm, paypalCapture, cancel, mine, pub, settle };
+  return { mode, live, gateways, createOrder, verify, webhook, stripeConfirm, paypalCapture, cancel, mine, pub, settle };
 }
 
 module.exports = { make };

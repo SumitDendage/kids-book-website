@@ -47,7 +47,6 @@ export const payApi = {
   quote: body => api('POST', '/api/quote', body),
   order: body => api('POST', '/api/pay/order', body),
   verify: body => api('POST', '/api/pay/verify', body),
-  demoConfirm: body => api('POST', '/api/pay/demo/confirm', body),
   cancel: body => api('POST', '/api/pay/cancel', body),
   stripeConfirm: body => api('POST', '/api/pay/stripe/confirm', body),
   paypalCapture: body => api('POST', '/api/pay/paypal/capture', body),
