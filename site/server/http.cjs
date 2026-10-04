@@ -16,7 +16,8 @@ function json(res, code, body, headers) {
 function readRaw(req, limit) {
   return new Promise((resolve, reject) => {
     const chunks = []; let size = 0;
-    req.on('data', c => { size += c.length; if (size > limit) { reject(new HttpError(413, 'Request too large')); req.destroy(); return; } chunks.push(c); });
+    /* too large: stop keeping the bytes (the rest is read and dropped) so a proper 413 answer can still be sent */
+    req.on('data', c => { if (size > limit) return; size += c.length; if (size > limit) { chunks.length = 0; reject(new HttpError(413, 'Request too large')); return; } chunks.push(c); });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
@@ -63,4 +64,4 @@ const timingEqual = (a, b) => { const A = Buffer.from(String(a)), B = Buffer.fro
 const b64url = buf => Buffer.from(buf).toString('base64url');
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
 
-module.exports = { HttpError, fail, json, readBody, readRaw, cookies, setCookie, clientIp, sameOrigin, corsAllowed, rateLimiter, sha256, timingEqual, b64url, isEmail };
+module.exports = { HttpError, fail, json, readBody, readRaw, cookies, setCookie, clientIp, isSecure, sameOrigin, corsAllowed, rateLimiter, sha256, timingEqual, b64url, isEmail };

@@ -28,7 +28,7 @@ const STAFF = { admin: true, developer: true };
    pages open over it (the <Outlet/>), exactly like the old #admin overlay. */
 function Site() {
   const site = useSite();
-  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, loadCurrency } = site;
+  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, handleAuthLink, loadCurrency } = site;
   const navigate = useNavigate();
   const contentRef = useRef(null), engineRef = useRef(null);
   const [veil, setVeil] = useState({ gone: false, slow: false });
@@ -55,6 +55,7 @@ function Site() {
         stage.jump(IDS.indexOf(h));
         hintTimer = setTimeout(stage.onHideHint, 6000);
         handlePaymentReturn();   /* finish a Stripe / PayPal payment if we just came back from one */
+        handleAuthLink();        /* an Accept & Continue or password-reset link from an account email */
         loadCurrency();          /* the currency the prices are shown in */
       }
     }, 100);

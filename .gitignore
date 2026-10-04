@@ -5,6 +5,8 @@ out/
 archive/papercub-react/dist/
 
 # secrets / local
+# (site/.env is the one exception: it is committed with BLANK values only, as a fill-in template —
+#  never commit real passwords in it; run `git update-index --skip-worktree site/.env` after cloning)
 .env
 .env.local
 *.local
