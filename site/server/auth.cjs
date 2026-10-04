@@ -189,31 +189,35 @@ function make(db, mail, cfg, shop) {
     if (password.length > passwords.MAX_LENGTH) fail(401, BAD_LOGIN, { code: 'bad_credentials' });
     if (!limit.loginIp(ip || '-') || !limit.login((ip || '-') + '|' + email)) { await loginActivity(req, null, email, 'rate_limited'); tooMany(); }
 
-    const user = await db.one('SELECT *, (locked_until IS NOT NULL AND locked_until > now()) AS locked FROM users WHERE email = $1', [email]);
+    const user = await db.one('SELECT * FROM users WHERE email = $1', [email]);
     if (!user) { await passwords.verify(await dummyHash(), password); await loginActivity(req, null, email, 'bad_credentials'); fail(401, BAD_LOGIN, { code: 'bad_credentials' }); }
     const lockedFail = until => fail(429, 'Too many wrong passwords — this account is locked for ' + Math.max(1, Math.ceil((until - Date.now()) / 60e3)) + ' more minute(s). You can unlock it now with Forgot password.', { code: 'account_locked', lockedUntil: until });
-    if (user.locked) { await loginActivity(req, user.id, email, 'account_locked'); lockedFail(user.locked_until); }
+    const lock = async () => (await db.one('UPDATE users SET locked_until = COALESCE(locked_until, now() + make_interval(mins => $2)) WHERE id = $1 RETURNING locked_until', [user.id, A.lockMinutes])).locked_until;
+
+    /* Take a numbered attempt BEFORE the (slow) password check, in one atomic statement, so a burst
+       of parallel guesses cannot all slip past the lock: attempt N+1 and later are refused unchecked.
+       A lock that has run out starts the count again. */
+    const slot = await db.one(`UPDATE users SET
+        failed_login_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= now() THEN 1 ELSE failed_login_attempts + 1 END,
+        locked_until = CASE WHEN locked_until IS NOT NULL AND locked_until <= now() THEN NULL ELSE locked_until END
+      WHERE id = $1 AND (locked_until IS NULL OR locked_until <= now()) RETURNING failed_login_attempts AS n`, [user.id]);
+    if (!slot) { await loginActivity(req, user.id, email, 'account_locked'); lockedFail((await db.one('SELECT locked_until FROM users WHERE id = $1', [user.id])).locked_until); }
+    if (slot.n > A.maxFailedLogins) { const until = await lock(); await loginActivity(req, user.id, email, 'account_locked'); lockedFail(until); }
 
     if (!(await passwords.verify(user.password_hash, password))) {
-      /* count the failure; the Nth in a row locks the account (an expired lock starts the count again) */
-      const r = await db.one(`UPDATE users SET
-          failed_login_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= now() THEN 1 ELSE failed_login_attempts + 1 END,
-          locked_until = CASE
-            WHEN (CASE WHEN locked_until IS NOT NULL AND locked_until <= now() THEN 1 ELSE failed_login_attempts + 1 END) >= $2 THEN now() + make_interval(mins => $3)
-            WHEN locked_until IS NOT NULL AND locked_until <= now() THEN NULL
-            ELSE locked_until END
-        WHERE id = $1 RETURNING failed_login_attempts, locked_until`, [user.id, A.maxFailedLogins, A.lockMinutes]);
       await loginActivity(req, user.id, email, 'bad_credentials');
-      if (r.locked_until && r.failed_login_attempts >= A.maxFailedLogins) {
-        await securityEvent(req, user.id, 'account_locked', { attempts: r.failed_login_attempts, minutes: A.lockMinutes });
-        lockedFail(r.locked_until);
+      /* the Nth wrong password in a row locks the account */
+      if (slot.n >= A.maxFailedLogins) {
+        const until = await lock();
+        await securityEvent(req, user.id, 'account_locked', { attempts: slot.n, minutes: A.lockMinutes });
+        lockedFail(until);
       }
       fail(401, BAD_LOGIN, { code: 'bad_credentials' });
     }
     /* the password is right — but only a confirmed, active account may sign in */
+    if (user.account_status === 'suspended' || !user.email_verified) await db.run('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
     if (user.account_status === 'suspended') { await loginActivity(req, user.id, email, 'account_suspended'); fail(403, 'This account is suspended — write to us if you think this is a mistake.', { code: 'account_suspended' }); }
     if (!user.email_verified) {
-      await db.run('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
       await loginActivity(req, user.id, email, 'email_unverified');
       fail(403, 'Please confirm your email first: open the email we sent to ' + email + ' and press Accept & Continue.', { code: 'email_unverified', email });
     }
@@ -273,10 +277,12 @@ function make(db, mail, cfg, shop) {
     const bad = () => fail(400, 'This confirmation link is not valid. Sign in to get a new one sent to you.', { code: 'token_invalid' });
     if (!TOKEN_RE.test(token)) bad();
     const out = await db.tx(async () => {
-      const t = await db.one(`SELECT t.id, t.user_id, t.used_at, (t.expires_at <= now()) AS expired, u.email, u.email_verified
-        FROM email_verification_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = $1 FOR UPDATE OF t`, [sha256(token)]);
+      const t = await db.one('SELECT id, user_id, used_at, (expires_at <= now()) AS expired FROM email_verification_tokens WHERE token_hash = $1 FOR UPDATE', [sha256(token)]);
       if (!t) return { error: 'invalid' };
-      if (t.email_verified) return { already: true, email: t.email };
+      /* the account is read only now, after the lock, so a second click that waited on the first sees it confirmed */
+      const u = await db.one('SELECT email, email_verified FROM users WHERE id = $1', [t.user_id]);
+      t.email = u.email;
+      if (u.email_verified) return { already: true, email: t.email };
       if (t.used_at) return { error: 'invalid' };
       if (t.expired) return { error: 'expired', email: t.email };
       await db.run('UPDATE email_verification_tokens SET used_at = now() WHERE id = $1', [t.id]);

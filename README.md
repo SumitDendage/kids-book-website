@@ -54,7 +54,8 @@ npm run dev        # → http://localhost:5173
 ```bash
 cd site
 npm install              # first time only
-cp .env.example .env     # first time only: set DATABASE_URL, and SITE_URL=http://localhost:5173 while using npm run dev
+# first time only: open site/.env and set DATABASE_URL (and SITE_URL=http://localhost:5173 while using npm run dev).
+# site/.env is on GitHub with blank values only — never push your real passwords (see the top of the file).
 npm start                # → http://127.0.0.1:4173
 ```
 

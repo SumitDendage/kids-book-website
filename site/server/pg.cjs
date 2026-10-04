@@ -40,15 +40,16 @@ function connect(cfg) {
     async tx(fn) {
       if (als.getStore()) return fn();   /* already inside one: join it */
       const client = await pool.connect();
+      let broken;
       try {
         await client.query('BEGIN');
         const out = await als.run(client, fn);
         await client.query('COMMIT');
         return out;
       } catch (e) {
-        await client.query('ROLLBACK').catch(() => {});
+        await client.query('ROLLBACK').catch(err => { broken = err; });
         throw e;
-      } finally { client.release(); }
+      } finally { client.release(broken); }   /* a connection that could not roll back is closed, not reused */
     },
     close() { return pool.end(); },
   };

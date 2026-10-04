@@ -8,7 +8,8 @@ One Node process: the static site, the JSON API, the private PDF store and two d
 ```bash
 cd site
 npm install                      # pg, argon2, nodemailer
-cp .env.example .env             # set DATABASE_URL (+ SMTP_*, SITE_URL, ADMIN_KEY)
+git update-index --skip-worktree .env   # once: your local passwords in .env are never pushed
+# edit .env: DATABASE_URL (+ SMTP_*, SITE_URL, ADMIN_KEY); every option is explained in .env.example
 npm run migrate                  # optional: the server also migrates at every start
 npm start                        # http://127.0.0.1:4173
 TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
@@ -233,7 +234,7 @@ TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
 
 `TEST_DATABASE_URL` points at a PostgreSQL server where that user may `CREATE DATABASE`. Each test file makes its own `lww_test_…` database and drops it afterwards; `DATABASE_URL` is never touched.
 
-- `test/auth.test.cjs` (19 tests): sign-up and the email, duplicate emails, confirmation (valid / expired / reused), sign-in, cookie flags, hashes only, the protected routes, refresh-token rotation, logout, lockout, forgot / reset (single use, expiry, sessions revoked), resend, mail failure rollback, SQL injection, rate limits, suspension, headers.
+- `test/auth.test.cjs` (21 tests): sign-up and the email, duplicate emails, confirmation (valid / expired / reused / double-clicked), sign-in, cookie flags, hashes only, the protected routes, refresh-token rotation, logout, lockout (also against a burst of parallel guesses), forgot / reset (single use, expiry, sessions revoked), resend, mail failure rollback, SQL injection, rate limits, suspension, headers.
 - `test/db.test.cjs` (9 tests): migrations (once, concurrent, edited file refused, failed file rolled back), tables and columns, constraints, cascades, transactions, the carry-over of old SQLite accounts.
 - `test/smoke.cjs` (59 checks): the whole shop end to end — catalogue, sign-up → confirm → sign-in, free and paid sheets, Razorpay (stubbed), webhook, viewer, admin, contact, reset — and an old SQLite customer signing in and keeping their sheet.
 
@@ -244,7 +245,7 @@ TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
    ```bash
    cd react-app && npm ci && npm run build          # the website → react-app/dist
    cd ../site && npm ci --omit=dev
-   cp .env.example .env                              # DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
+   git update-index --skip-worktree .env             # then edit .env: DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
    npm run migrate
    npm start
    ```
