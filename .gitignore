@@ -4,9 +4,7 @@ node_modules/
 out/
 archive/papercub-react/dist/
 
-# secrets / local — backend/.env holds the real settings and is never committed (this rule).
-# site/.env is an OLD blank template that stays tracked for now, so older checkouts can still pull;
-# the server reads it only while backend/.env does not exist yet.
+# secrets / local
 .env
 .env.local
 *.local
@@ -21,12 +19,12 @@ archive/papercub-react/public/frames-webp/
 .claude/
 __pycache__/
 
-# the shop database (SQLite: orders, purchases) and PDFs uploaded through the admin API
-database/data/
-backend/protected/uploads/
+# the backend (server, private PDFs, settings) and the databases are kept OFF GitHub on purpose
+# (October 2026): they live only on the owner's computer and the server, next to frontend/.
+/backend/
+/database/
 
-# left behind on older checkouts after the move to frontend/ backend/ database/ (October 2026):
-# react-app/node_modules and its old build, site/node_modules, site/data, site/protected/uploads
+# left behind on older checkouts after the move to frontend/ (October 2026)
 /react-app/
-/site/*
+/site/
 

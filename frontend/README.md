@@ -25,8 +25,11 @@ is not served any more.
 
 Sign-in, the shop, checkout and the sheet viewer talk to the Node backend
 (http://127.0.0.1:4173), which lives in the `backend` folder next to this one.
-Start it in a second window opened in the `backend` folder, or open a second
-window here and type `cd ..\backend` first. Then type:
+The `backend` and `database` folders are not on GitHub: they are kept only on
+your computer and the server (a fresh copy comes from `backend-and-database.zip`,
+see "Moving to the new folders" in the main README). Start the backend in a
+second window opened in the `backend` folder, or open a second window here and
+type `cd ..\backend` first. Then type:
 
 ```
 npm install
@@ -34,7 +37,7 @@ npm start
 ```
 
 The backend needs PostgreSQL running and its own settings file: the first time,
-type `copy .env.example .env` in the `backend` folder and fill in `DATABASE_URL`
+type `if not exist .env copy .env.example .env` in the `backend` folder and fill in `DATABASE_URL`
 in `backend\.env` (see `backend\README.md`). The React dev server then forwards
 every `/api/...` call to it. Without the backend the pages still open, but
 anything that needs the server fails: sign-in shows "Request failed (502)",
@@ -81,7 +84,7 @@ change anything:
 Never put secret keys (Razorpay secret, admin key, database passwords) in `.env.local`
 for this app: everything starting with `VITE_` ends up inside the public website.
 Secrets belong only in the backend's own `backend/.env` (made by copying
-`backend/.env.example`; it is git-ignored, so it never goes to GitHub).
+`backend/.env.example`; like the whole backend, it never goes to GitHub).
 
 One exception to watch: staff paste `ADMIN_KEY` into Admin → Settings → Server
 connection. It is kept as plain text in that browser's storage and is included in
