@@ -1,4 +1,0 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
-/* ---------- toast ---------- */
-.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translate(-50%, 12px); z-index: 500; padding: 11px 18px; border-radius: var(--r-pill); background: #fff; color: #14181c; font-size: 0.85rem; font-weight: 600; box-shadow: 0 14px 34px rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s var(--ease); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
-.toast.show { opacity: 1; transform: translate(-50%, 0); }

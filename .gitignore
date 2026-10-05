@@ -2,26 +2,26 @@
 node_modules/
 .next/
 out/
-archive/papercub-react/dist/
 
 # secrets / local
-# (site/.env is the one exception: it is committed with BLANK values only, as a fill-in template —
-#  never commit real passwords in it; run `git update-index --skip-worktree site/.env` after cloning)
 .env
 .env.local
 *.local
 .DS_Store
 
-# archives and duplicates of the 960 landscape frames (kept once, in aura-clone/dist/frames-webp)
+# zip archives (e.g. backend-and-database.zip unpacked in this folder) are never uploaded
 *.zip
-aura-clone-new
-archive/papercub-react/public/frames-webp/
 
 # editor / tooling
 .claude/
 __pycache__/
 
-# server database (SQLite: customers, orders, entitlements) and PDFs uploaded through the admin API
-site/data/
-site/protected/uploads/
+# the backend (server, private PDFs, settings) and the databases are kept OFF GitHub on purpose
+# (October 2026): they live only on the owner's computer and the server, next to frontend/.
+/backend/
+/database/
+
+# left behind on older checkouts after the move to frontend/ (October 2026)
+/react-app/
+/site/
 

@@ -1,0 +1,29 @@
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
+/* ---------- chapter 02: sheets (player) ---------- */
+.sheets-head { text-align: center; margin-bottom: 18px; }
+.sheets-head .h2 { margin-bottom: 6px; }
+.sheets-head p { color: var(--fg-muted); font-size: var(--fs-small); letter-spacing: 0.02em; }
+.player { position: relative; height: clamp(380px, 62vh, 560px); border-radius: 26px; overflow: hidden; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 40px 90px rgba(0,0,0,0.5); background: #0b1520; isolation: isolate; }
+.player canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.player .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,14,22,0.72) 0%, rgba(6,14,22,0.25) 42%, rgba(6,14,22,0.1) 60%, rgba(6,14,22,0.55) 100%), linear-gradient(0deg, rgba(6,14,22,0.7) 0%, transparent 40%); }
+.player-copy { position: absolute; left: clamp(20px, 4vw, 48px); top: 50%; transform: translateY(-52%); max-width: 360px; }
+.player-copy .h2 { font-size: clamp(1.8rem, 1.2rem + 2.2vw, 3rem); }
+.player-copy p { color: var(--fg-muted); font-size: var(--fs-small); line-height: 1.6; margin-bottom: 18px; }
+.player-card { position: absolute; right: clamp(16px, 3vw, 36px); top: 50%; transform: translateY(-50%); width: min(300px, 44%); padding: 20px 20px 18px; text-align: center; background: rgba(10,22,30,0.5); }
+.player-card .glyph { font-family: var(--font-display); font-size: clamp(2.4rem, 4.5vw, 3.6rem); font-weight: 500; letter-spacing: 0.12em; line-height: 1; margin-bottom: 14px; }
+.player-card .eyebrow { margin-bottom: 10px; font-size: 0.6rem; }
+.player-card .meta { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-dim); margin-bottom: 6px; }
+.player-card .card-title { font-size: 1.35rem; margin-bottom: 6px; }
+.player-card .price { font-size: var(--fs-small); color: var(--fg-muted); margin-bottom: 14px; }
+.player-card .price.free { color: #fff; font-weight: 600; }
+.player-ctrl { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; }
+.dots { display: flex; gap: 7px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; border: none; padding: 0; background: rgba(255,255,255,0.35); cursor: pointer; transition: transform var(--d-fast) var(--ease), background var(--d-fast); }
+.dot.on { background: #fff; transform: scale(1.35); }
+.slide-swap { animation: fadeUp 0.5s var(--ease) both; }
+@media (max-width: 760px) {
+  .player { height: auto; min-height: 520px; }
+  .player-copy { position: static; transform: none; max-width: none; padding: 26px 22px 0; }
+  .player-card { position: static; transform: none; width: auto; margin: 18px 22px 70px; }
+  .player .shade { background: linear-gradient(180deg, rgba(6,14,22,0.75) 0%, rgba(6,14,22,0.35) 50%, rgba(6,14,22,0.85) 100%); }
+}

@@ -1,0 +1,17 @@
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
+/* Kindergarten only: the free A to Z demo section (26 real PDFs, no sign-in, no plan) */
+.az { margin-bottom: 26px; padding: 18px 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); background: rgba(8,18,26,0.14); backdrop-filter: blur(8px); }
+.az-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.az-head .eyebrow { margin-bottom: 6px; }
+.az-head h3 { font-size: 1.5rem; }
+.az-head h3 em { font-style: italic; color: var(--ok); }
+.az-head p { font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.6; max-width: 380px; }
+.az-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.az-card { display: grid; gap: 6px; padding: 10px 8px 12px; border-radius: 14px; background: var(--paper); color: var(--ink); text-align: center; text-decoration: none; font: inherit; cursor: pointer; border: 1px solid transparent; transition: transform var(--d-base) var(--ease), box-shadow var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 25ms); }
+.az-card:hover, .az-card:focus-visible { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.25); outline: none; border-color: #1f6b47; }
+.az-card .glyph { font-family: var(--font-display); font-size: 2.4rem; font-weight: 500; line-height: 1; }
+.az-card .glyph small { font-size: 1.3rem; color: var(--ink-muted); margin-left: 2px; }
+.az-card.paid b, .rc-card.paid .rc-pic b { background: rgba(20,24,28,0.82); color: #fff; letter-spacing: 0; font-size: 0.6rem; padding: 3px 7px; }
+.az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
+.az-card span { font-size: 0.62rem; color: var(--ink-muted); }
+.az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }

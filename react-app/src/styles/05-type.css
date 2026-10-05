@@ -1,9 +1,0 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
-/* ---------- type ---------- */
-.eyebrow { font-size: var(--fs-eyebrow); font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase; color: var(--fg-dim); margin-bottom: 18px; }
-.display { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-display); line-height: 1.02; letter-spacing: -0.005em; margin-bottom: 22px; max-width: 14ch; text-shadow: 0 8px 40px rgba(0,0,0,0.55); }
-.h2 { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-h2); line-height: 1.04; margin-bottom: 14px; text-shadow: 0 6px 30px rgba(0,0,0,0.5); }
-.display em, .h2 em { font-style: italic; font-weight: 400; }
-.lede { font-size: var(--fs-lede); color: var(--fg-muted); line-height: 1.65; max-width: 52ch; margin-bottom: 26px; text-shadow: 0 2px 18px rgba(0,0,0,0.6); }
-.arrow-link { display: inline-flex; align-items: center; gap: 8px; color: var(--fg); font-size: var(--fs-ui); font-weight: 600; background: none; border: none; cursor: pointer; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.35); padding-bottom: 2px; transition: border-color var(--d-fast), gap var(--d-fast); }
-.arrow-link:hover { border-bottom-color: #fff; gap: 12px; }
