@@ -1,0 +1,93 @@
+/* ---------- the "Ask AI" assistant on the landing page (components/ai/) ----------
+   Built from the page's own pieces: the white round logo tile with a soft gold glow,
+   the tinted glass of the cards, Cormorant for the name, Inter for the words, white
+   pill buttons, and the same easing. The panel slides in from the right over the page. */
+.ai-assistant { --ai-gold: #ffd977; --ai-mint: #a8f0c6; --ai-tint: 214, 184, 255; }
+
+/* the round button */
+.ai-fab { position: fixed; right: clamp(20px, 5vw, 72px); bottom: calc(54px + env(safe-area-inset-bottom)); z-index: 200; width: 60px; height: 60px; padding: 0; border: none; border-radius: 50%; background: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 30px rgba(0,0,0,0.35); transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), opacity var(--d-base), visibility 0s; animation: aiFabIn 0.8s var(--ease) backwards; }
+.ai-fab::before { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,217,119,0.32), 0 0 30px 6px rgba(255,217,119,0.5); animation: aiGlow 3.6s ease-in-out infinite; pointer-events: none; }
+.ai-fab img { width: 72%; height: auto; display: block; pointer-events: none; user-select: none; }
+.ai-fab:hover { transform: scale(1.08); box-shadow: 0 16px 36px rgba(0,0,0,0.4); }
+.ai-fab:active { transform: scale(0.96); }
+.ai-fab:focus-visible { outline: 2px solid var(--ai-gold); outline-offset: 5px; }
+.ai-fab.is-hidden { opacity: 0; visibility: hidden; transform: scale(0.6); pointer-events: none; transition-property: transform, box-shadow, opacity, visibility; transition-duration: var(--d-base); }
+.ai-fab-dot { position: absolute; top: 1px; right: 1px; width: 15px; height: 15px; border-radius: 50%; background: #ff8fb1; border: 2.5px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.ai-fab-tip { position: absolute; right: calc(100% + 14px); top: 50%; transform: translate(6px, -50%); padding: 7px 13px; border-radius: var(--r-pill); background: rgba(8,18,26,0.85); border: 1px solid var(--glass-border); color: var(--fg); font: 600 var(--fs-small)/1.2 var(--font-body); letter-spacing: 0.04em; white-space: nowrap; box-shadow: 0 8px 22px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity var(--d-fast), transform var(--d-base) var(--ease); }
+.ai-fab:hover .ai-fab-tip, .ai-fab:focus-visible .ai-fab-tip { opacity: 1; transform: translate(0, -50%); }
+@keyframes aiFabIn { from { opacity: 0; transform: translateY(16px) scale(0.8); } }
+@keyframes aiGlow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* the panel */
+.ai-panel { position: fixed; right: clamp(16px, 3vw, 40px); bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 200; width: min(410px, calc(100vw - 32px)); height: min(620px, calc(100vh - 116px)); height: min(620px, calc(100dvh - 116px)); display: flex; flex-direction: column; overflow: hidden; color: var(--fg); font-family: var(--font-body); border-radius: var(--r-lg); border: 1px solid rgba(var(--ai-tint), 0.55); background: linear-gradient(165deg, rgba(var(--ai-tint), 0.26) 0%, rgba(10,22,30,0.6) 45%, rgba(8,18,26,0.74) 100%); box-shadow: 0 24px 60px rgba(4,10,16,0.45), inset 0 1px 0 rgba(255,255,255,0.3); backdrop-filter: blur(20px) saturate(1.15); transform-origin: bottom right; opacity: 0; visibility: hidden; transform: translateX(32px) scale(0.98); pointer-events: none; transition: opacity var(--d-base) var(--ease), transform 0.5s var(--ease), visibility var(--d-base); }
+.ai-panel.open { opacity: 1; visibility: visible; transform: none; pointer-events: auto; transition: opacity var(--d-base) var(--ease), transform 0.5s var(--ease), visibility 0s; }   /* visible at once, so the typing box can take focus */
+
+/* header: logo, name, Online, minimize, close */
+.ai-head { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
+.ai-head-text { flex: 1; min-width: 0; }
+.ai-name { margin: 0; font-family: var(--font-display); font-size: 1.32rem; font-weight: 600; line-height: 1.1; letter-spacing: 0.01em; color: var(--ai-gold); text-shadow: 0 1px 14px rgba(6,14,20,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-status { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: var(--fs-small); color: var(--fg-muted); }
+.ai-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ai-mint); animation: aiOnline 2.4s ease-out infinite; }
+.ai-head .icon-btn { width: 34px; height: 34px; }
+.ai-head .icon-btn svg { width: 16px; height: 16px; }
+@keyframes aiOnline { 0% { box-shadow: 0 0 0 0 rgba(168,240,198,0.6); } 70%, 100% { box-shadow: 0 0 0 7px rgba(168,240,198,0); } }
+
+/* the logo in a white circle */
+.ai-avatar { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 2px rgba(255,217,119,0.35); }
+.ai-avatar img { width: 74%; height: auto; display: block; user-select: none; }
+.ai-avatar.lg { width: 42px; height: 42px; }
+
+/* messages */
+.ai-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 12px; padding: 18px 16px 12px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
+.ai-msg { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; animation: aiMsgIn 0.45s var(--ease) both; }
+.ai-msg.from-user { align-self: flex-end; }
+.ai-bubble { padding: 10px 14px; border-radius: 18px; font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.from-ai .ai-bubble { background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.16); border-bottom-left-radius: 6px; color: var(--fg); text-shadow: 0 1px 10px rgba(6,14,20,0.35); }
+.from-user .ai-bubble { background: #fff; color: #14181c; border-bottom-right-radius: 6px; box-shadow: 0 8px 22px rgba(0,0,0,0.22); }
+.ai-file { display: block; margin-bottom: 2px; font-size: var(--fs-small); font-weight: 600; opacity: 0.8; }
+.ai-typing { display: inline-flex; align-items: center; gap: 5px; height: 1.4em; padding: 0 2px; }
+.ai-typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); animation: aiDot 1.2s ease-in-out infinite; }
+.ai-typing i:nth-child(2) { animation-delay: 0.15s; }
+.ai-typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes aiMsgIn { from { opacity: 0; transform: translateY(10px); } }
+@keyframes aiDot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+/* the input: attach, speak, type, send */
+.ai-input { flex-shrink: 0; padding: 10px 12px 12px; border-top: 1px solid rgba(255,255,255,0.12); background: rgba(8,18,26,0.35); }
+.ai-input-row { display: flex; align-items: flex-end; gap: 4px; }
+.ai-input textarea { flex: 1; min-width: 0; height: 42px; max-height: 132px; margin-left: 2px; padding: 10px 14px; resize: none; border-radius: 21px; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border); color: #fff; font: inherit; font-size: 0.92rem; line-height: 1.4; outline: none; touch-action: pan-y; scrollbar-width: none; transition: border-color var(--d-fast), background var(--d-fast); }
+.ai-input textarea::placeholder { color: rgba(255,255,255,0.45); }
+.ai-input textarea:focus { border-color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.11); }
+.ai-tool { flex-shrink: 0; width: 36px; height: 42px; display: grid; place-items: center; padding: 0; border: none; border-radius: var(--r-pill); background: none; color: var(--fg-muted); cursor: pointer; transition: color var(--d-fast), background var(--d-fast); }
+.ai-tool:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.ai-tool.on { color: #14181c; background: var(--ai-mint); animation: aiGlow 1.4s ease-in-out infinite; }
+.ai-tool svg { width: 19px; height: 19px; }
+.ai-send { flex-shrink: 0; width: 42px; height: 42px; margin-left: 4px; display: grid; place-items: center; padding: 0; border: none; border-radius: 50%; background: #fff; color: #14181c; box-shadow: 0 8px 24px rgba(0,0,0,0.3); cursor: pointer; transition: transform var(--d-fast) var(--ease), box-shadow var(--d-fast), opacity var(--d-fast); }
+.ai-send:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+.ai-send:active:not(:disabled) { transform: scale(0.95); }
+.ai-send:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+.ai-send svg { width: 18px; height: 18px; }
+.ai-tool:focus-visible, .ai-send:focus-visible, .ai-head .icon-btn:focus-visible { outline: 2px solid var(--ai-gold); outline-offset: 2px; }
+.ai-attached { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; margin: 0 0 8px 4px; padding: 5px 6px 5px 12px; border-radius: var(--r-pill); background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); font-size: var(--fs-small); color: var(--fg); }
+.ai-attached span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-attached button { flex-shrink: 0; width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%; background: rgba(255,255,255,0.14); color: #fff; font-size: 0.7rem; cursor: pointer; }
+
+/* phones: almost the whole screen; header and input stay put, the messages scroll.
+   --ai-vv-* (set while open) keep the input above the on-screen keyboard. */
+@media (max-width: 600px) {
+  .ai-fab { width: 54px; height: 54px; bottom: calc(56px + env(safe-area-inset-bottom)); }
+  .ai-fab-tip { display: none; }
+  .ai-panel { top: calc(var(--ai-vv-top, 0px) + max(10px, env(safe-area-inset-top))); left: 10px; right: 10px; bottom: auto; width: auto; height: calc(var(--ai-vv-h, 100dvh) - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom))); border-radius: 20px; }
+  .ai-msg { max-width: 92%; }
+  .ai-input textarea { font-size: 16px; }   /* 16px or more, or iPhones zoom in when you tap the box */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-fab, .ai-fab::before, .ai-status i, .ai-msg, .ai-tool.on { animation: none; }
+  .ai-fab:hover, .ai-panel { transform: none; }
+  .ai-panel { transition: opacity var(--d-fast), visibility var(--d-fast); }
+  .ai-panel.open { transition: opacity var(--d-fast), visibility 0s; }
+  .ai-typing i { animation-name: aiDotFade; }
+}
+@keyframes aiDotFade { 0%, 60%, 100% { opacity: 0.35; } 30% { opacity: 1; } }
+@media print { .ai-assistant { display: none; } }

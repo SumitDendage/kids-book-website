@@ -19,6 +19,7 @@ import TestimonialsChapter from '../components/home/TestimonialsChapter.jsx';
 import Store from '../components/store/Store.jsx';
 import Checkout from '../components/checkout/Checkout.jsx';
 import SheetModal from '../components/modals/SheetModal.jsx';
+import AIAssistant from '../components/ai/AIAssistant.jsx';
 import { IDS } from '../data/content.js';
 
 const STAFF = { admin: true, developer: true };
@@ -81,6 +82,7 @@ function Site() {
         </div>
       </main>
       <StageChrome />
+      <AIAssistant />
       <Suspense fallback={null}><Outlet /></Suspense>
       <Store bagCount={activeCount} />
       <Checkout />

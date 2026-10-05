@@ -220,6 +220,7 @@ The private PDFs in `backend/protected/` are **not** copied into `frontend/publi
 - **Protected PDF viewer** — PDFs live outside the web root and are streamed only to the signed-in buyer, rendered with pdf.js, stamped with the customer's name, email and time. Context menu, drag, copy, print and save shortcuts are blocked; the page blurs when the window loses focus.
 - **My Account → My Worksheets** lists every sheet on the customer's account (the PDFs they bought and the free sheets they have opened), straight from the database.
 - **Contact form** — notes go to learnwithwhy6@gmail.com through the backend.
+- **Ask AI** — a round logo button at the bottom right of the landing page (and only there) opens a chat panel over the page. For now it gives practice answers from `frontend/src/data/aiAssistant.js`; build with `VITE_AI_CHAT=live` once the backend answers `POST /api/ai/chat` (`{ "message": "…" }` in, `{ "reply": "…" }` out).
 - **Creative copy for children** — a rotating *"Today's why"* question and playful lines in every chapter.
 - **SEO** — descriptive title/description, Open Graph & Twitter cards, JSON-LD (Organization, WebSite, ItemList of products), sitemap, robots, favicon, crawlable anchors.
 
@@ -316,6 +317,7 @@ Everything the customer reads lives in `frontend/src/data/`:
 | `catalogue.js` | `AZ_FREE`, `RC_FREE`, `SHEET_PRICE` | which tracing, colour and picture-reading PDFs are free (Match and Spot: the first three ranges), and the fallback price |
 | `catalogue.js` | `KG_TOPICS` | the Kindergarten skill board |
 | `checkout.js` | `PAY_VIA` | the ways to pay offered at checkout |
+| `aiAssistant.js` | `AI_NAME`, `AI_WELCOME`, `AI_ANSWERS` | the Ask AI helper's name, first message and practice answers |
 
 Chapter text is in the components under `frontend/src/components/home/` and `frontend/src/components/sheets/`. Prices, page counts and which sheets have a real PDF come from the database at load time (`GET /api/worksheets`) and override the constants; change them with the admin API (`PUT /api/admin/worksheets/:id`, `POST …/:id/file` to upload the PDF) — see `backend\README.md`.
 

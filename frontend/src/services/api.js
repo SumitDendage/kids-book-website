@@ -63,6 +63,16 @@ export async function sendContact(body) {
   return j;
 }
 
+/* ---------- the AI assistant on the landing page: { message } in, { reply } out ---------- */
+export const aiApi = {
+  chat: async (message, signal) => {
+    const r = await fetch(apiUrl('/api/ai/chat'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }), credentials: CREDENTIALS, signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'The assistant could not answer just now.');
+    return j;
+  },
+};
+
 /* ---------- staff: the admin key is typed in by staff and kept in their browser only ---------- */
 export async function adminApi(key, method, path, body) {
   const r = await fetch(apiUrl(path), { method, headers: Object.assign({ 'x-admin-key': key }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined, cache: 'no-store', credentials: CREDENTIALS });
