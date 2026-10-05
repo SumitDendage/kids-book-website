@@ -1,6 +1,6 @@
 # Learn With Why — API reference
 
-Base URL: the site itself (`https://<your site>/api/...`). The React app calls these through `react-app/src/services/api.js`.
+Base URL: the site itself (`https://<your site>/api/...`). The React app calls these through `frontend/src/services/api.js`.
 
 ## Conventions
 
@@ -142,7 +142,7 @@ These are unchanged by the PostgreSQL accounts, apart from going through the sam
 | `GET /api/health` | – | `200 { ok, database, gateway, mail }`; `503` when PostgreSQL does not answer. |
 | `POST /api/contact` `{name,email,message}` | – | The contact form (5 notes per IP per 10 minutes). |
 | `POST /api/quote` `{worksheet}` or `{cls,plan}` + `coupon`, `address` | – | Signed price quote, valid 15 minutes. |
-| 🔒 `POST /api/pay/order` · `/api/pay/verify` · `/api/pay/cancel` · `/api/pay/stripe/confirm` · `/api/pay/paypal/capture` | cookie | Checkout (see `site/README.md` → Razorpay). |
+| 🔒 `POST /api/pay/order` · `/api/pay/verify` · `/api/pay/cancel` · `/api/pay/stripe/confirm` · `/api/pay/paypal/capture` | cookie | Checkout (see `backend/README.md` → Razorpay). |
 | `POST /api/pay/webhook` | Razorpay signature | Payment events from Razorpay. |
 | 🔒 `GET /api/me/entitlements` · `GET /api/me/orders` | cookie | My worksheets; my orders. Each entitlement has `start`, `end` (a class plan's last moment; `null` for no end) and `active`. |
 | 🔒 `POST /api/access/:worksheetId` | cookie | The server access check: `200 {token,…}` · `402 payment_required` · `404`. |
@@ -156,7 +156,7 @@ These are unchanged by the PostgreSQL accounts, apart from going through the sam
 | `PUT /api/admin/users/status` `{id, status}` | `active` or `suspended`. Suspending revokes every session at once. |
 | `GET /api/admin/security-events?limit=300` | Sign-ups, confirmations, lockouts, resets, sign-outs, suspensions. |
 | `GET /api/admin/login-activity?limit=300` | Every sign-in attempt, with the reason it failed. |
-| `GET /api/admin/stats` · `orders` · `entitlements` · `worksheets` · `settings` · `access-log` · `payments` · `messages` | Read the shop (see `site/README.md`). |
+| `GET /api/admin/stats` · `orders` · `entitlements` · `worksheets` · `settings` · `access-log` · `payments` · `messages` | Read the shop (see `backend/README.md`). |
 | `PUT /api/admin/orders` · `plans` · `rates` · `coupons` · `worksheets/:id` · `POST …/entitlements/grant` · `…/revoke` · `…/worksheets/:id/file` | Change the shop. |
 
 ## Try it from the shell

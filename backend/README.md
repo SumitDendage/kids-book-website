@@ -1,19 +1,32 @@
-# `site/` — the Learn With Why website and backend
+# `backend/` — the Learn With Why backend
 
-One Node process: the static site, the JSON API, the private PDF store and two databases:
+One Node process: the built website (`frontend/dist`), the JSON API, the private PDF store (`backend/protected`) and two databases:
 
 - **PostgreSQL** holds the **customer accounts**: users, email confirmation and password-reset tokens, sessions, login activity and security events.
-- **SQLite** (`data/lww.sqlite`) holds **the shop**: catalogue, orders, payments, entitlements, access log, contact notes and settings. Its rows point at a customer by the PostgreSQL `users.id`.
+- **SQLite** (`database/data/lww.sqlite`) holds **the shop**: catalogue, orders, payments, entitlements, access log, contact notes and settings. Its rows point at a customer by the PostgreSQL `users.id`.
 
-```bash
-cd site
-npm install                      # pg, argon2, nodemailer
-git update-index --skip-worktree .env   # once: your local passwords in .env are never pushed
-# edit .env: DATABASE_URL (+ SMTP_*, SITE_URL, ADMIN_KEY); every option is explained in .env.example
-npm run migrate                  # optional: the server also migrates at every start
-npm start                        # http://127.0.0.1:4173
-TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
+The website's own code is in `frontend/` (see [frontend/README.md](../frontend/README.md)); the database files are in `database/`. Paths outside `backend/` are written from the `kids-book-website` folder.
+
+Run it on your computer (Windows Command Prompt, in the `kids-book-website` folder; PostgreSQL must be running, see [Set up PostgreSQL](#set-up-postgresql)):
+
+```bat
+git pull
+cd frontend
+npm install
+npm run build
+cd ..\backend
+npm install
+if not exist .env copy .env.example .env
+notepad .env
+npm start
 ```
+
+- `npm run build` in `frontend` makes the website (`frontend\dist`) that this server shows. Without it every page says "Not found: the website is not built yet".
+- `npm install` in `backend` fetches pg, argon2 and nodemailer (Node 22.13 or newer).
+- `if not exist .env copy .env.example .env` makes your settings file the first time and does nothing after that. `backend\.env` holds your settings and passwords; it is git-ignored, so it never goes to GitHub. Fill in `DATABASE_URL` (+ `SMTP_*`, `SITE_URL`, `ADMIN_KEY`); every option is explained in `.env.example`. Your settings are still in the old `site\.env`? See [Folders and older checkouts](#folders-and-older-checkouts).
+- `npm start` migrates PostgreSQL and starts the server: open http://127.0.0.1:4173 (Ctrl+F5). `npm run migrate` does only the migration, if you want it on its own. Lines the server prints that start with `!!` tell you something to do.
+- Free sheets open after sign-in; paid ones need the Razorpay keys in `backend\.env` (see [Razorpay](#razorpay)).
+- Tests, in the `backend` folder: `set "TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres" && npm test` (see [Tests](#tests)).
 
 The full endpoint reference is in **[API.md](API.md)**. Setup from scratch and going online are covered under [Set up PostgreSQL](#set-up-postgresql), [Email](#email) and [Deploy](#deploy) below.
 
@@ -35,14 +48,14 @@ FREE ─────────────────────────
  │                               │  POST /api/pay/verify       HMAC-SHA256(order|payment) checked with the key secret
  │                               │  POST /api/pay/webhook      payment.captured / order.paid, signed with the webhook secret
  │                               ↓
- │                        ENTITLEMENT row (paid) — permanent
+ │                        ENTITLEMENT row (paid) — a sheet for good, a class plan for its months
  └──────────────┬────────────────┘
                 ↓
 Server access check   POST /api/access/:id   → free sheet: a free entitlement is minted on the spot
                 ↓                            → paid sheet: needs an entitlement (this PDF, or its class) else 402
-Private PDF storage   site/protected/        never served as a static file
+Private PDF storage   backend/protected/     never served as a static file
                 ↓
-The PDF viewer        dist/viewer.html       GET /api/view/meta · file · page — cookie + view token + entitlement, every request
+The PDF viewer        frontend/viewer.html   GET /api/view/meta · file · page — cookie + view token + entitlement, every request
                 ↓
 Watermark             name · email · time baked into every page
                 ↓
@@ -52,37 +65,65 @@ Yours to keep         a bought or free sheet never expires; a class plan ends af
 
 ## Files
 
+Inside `backend/`. The code in `src/` is grouped by job: `config` (settings and folders), `http` (helpers and middleware), `routes` (one file per part of the API), `services` (prices, email, passwords) and `database` (PostgreSQL, the SQLite shop, the seed).
+
 | File | Purpose |
 |---|---|
-| `server.cjs` | Entry point: loads `.env`, migrates PostgreSQL, opens the shop store, runs the middleware and routes, serves the React build. `createApp()` is what the tests start. |
-| `server/config.cjs` | Every environment setting in one place (database, email, account limits). |
-| `server/pg.cjs` | PostgreSQL connection pool; parameterised queries; `tx()` transactions. |
-| `server/migrate.cjs` · `db/migrations/*.sql` | Numbered schema migrations, applied once each (checksummed, advisory-locked). |
-| `server/auth.cjs` | Accounts: sign-up with a generated password, email confirmation, login with lockout, sessions and refresh, logout, forgot/reset password, `me`, the staff helpers. |
-| `server/passwords.cjs` | Argon2id hashing, the password generator, the password rule; old scrypt hashes still verify. |
-| `server/mail.cjs` · `server/emails.cjs` | Nodemailer (SMTP) and the account emails (text + HTML). |
-| `server/middleware.cjs` | Security headers, CORS, the cross-site check, and `requireAuth` for the protected routes. |
-| `server/legacy.cjs` | Carries accounts from the SQLite-only backend over to PostgreSQL once, with the same ids. |
-| `server/db.cjs` | The shop store: SQLite via `node:sqlite`, schema, settings (JSON values), seeding, PDF attachment. |
-| `server/seed.cjs` | The worksheet catalogue the database starts with (ids match the cards in `dist/index.html`). |
-| `server/pricing.cjs` | Countries, tax, fees, currency; signed quotes for a class plan or a single PDF. |
-| `server/payments.cjs` | Razorpay orders, signature verification, webhook; Stripe and PayPal hosted pages; the one place an order becomes paid. |
-| `server/access.cjs` | Entitlements, the access check, view tokens, PDF/page streaming, access log, public catalogue. |
-| `server/admin.cjs` | Staff API (`x-admin-key`): orders, customers, entitlements, worksheets + PDF upload, settings, logs. |
-| `server/http.cjs` | JSON/raw bodies, cookies, same-origin check, rate limiter. |
+| `server.cjs` | Entry point (`npm start`): loads `backend/.env`, migrates PostgreSQL, opens the shop store, runs the middleware and routes, serves the React build (`frontend/dist`). `createApp()` is what the tests start. |
+| `package.json` | The packages (`argon2`, `nodemailer`, `pg`), Node 22.13 or newer, and the `npm start` · `npm run migrate` · `npm test` commands. |
+| `.env.example` · `.env` | Every setting, explained · your own settings (git-ignored, never on GitHub; copy `.env.example` to `.env`). See [Configuration](#configuration-backendenv). |
+| `src/config/config.cjs` | Every environment setting in one place (database, email, account limits). |
+| `src/config/paths.cjs` | Every folder in one place, and what happens with files an older `site/` checkout left behind. See [Folders and older checkouts](#folders-and-older-checkouts). |
+| `src/http/http.cjs` | JSON/raw bodies, cookies, same-origin check, rate limiter. |
+| `src/http/middleware.cjs` | Security headers, CORS, the cross-site check, and `requireAuth` for the protected routes. |
+| `src/routes/auth.cjs` | Accounts: sign-up with a generated password, email confirmation, login with lockout, sessions and refresh, logout, forgot/reset password, `me`, the staff helpers. |
+| `src/routes/access.cjs` | Entitlements, the access check, view tokens, PDF/page streaming, access log, public catalogue. |
+| `src/routes/payments.cjs` | Razorpay orders, signature verification, webhook; Stripe and PayPal hosted pages; the one place an order becomes paid. |
+| `src/routes/admin.cjs` | Staff API (`x-admin-key`): orders, customers, entitlements, worksheets + PDF upload, settings, logs. |
+| `src/routes/contact.cjs` | The contact form (`POST /api/contact`): the note is saved in the `messages` table first, then a copy is emailed to the shop inbox; the admin Messages inbox (`/api/admin/messages`). |
+| `src/services/pricing.cjs` | Countries, tax, fees, currency; signed quotes for a class plan or a single PDF. |
+| `src/services/mail.cjs` | Nodemailer (SMTP); in development without SMTP the emails are printed in the server log. |
+| `src/services/emails.cjs` | The account emails (text + HTML). |
+| `src/services/passwords.cjs` | Argon2id hashing, the password generator, the password rule; old scrypt hashes still verify. |
+| `src/database/pg.cjs` | PostgreSQL connection pool; parameterised queries; `tx()` transactions. |
+| `src/database/db.cjs` | The shop store: SQLite via `node:sqlite`, its tables (written out in this file), settings (JSON values), seeding, PDF attachment. |
+| `src/database/migrate.cjs` | Applies the numbered schema migrations in `database/postgresql/migrations/*.sql`, once each (checksummed, advisory-locked). |
+| `src/database/legacy.cjs` | Carries accounts from the SQLite-only backend over to PostgreSQL once, with the same ids. |
+| `src/database/seed.cjs` | The worksheet catalogue the database starts with (ids match the React shelf in `frontend/src/data/catalogue.js`). |
 | `scripts/migrate.cjs` | `npm run migrate`. |
 | `test/auth.test.cjs` · `test/db.test.cjs` · `test/smoke.cjs` | Account API tests, database tests, and the end-to-end walk through the whole shop. See [Tests](#tests). |
+| `test/helpers.cjs` | What the tests share: a throw-away PostgreSQL database per test file, a server on a random port, a client that keeps the session cookie. |
 | `API.md` | The API reference. |
-| `data/lww.sqlite` | The shop store (git-ignored, created on first run; settings are copied from the old `data/db.json` if present). |
-| `protected/` | Private PDF storage. `a-to-z/` ships with the 26 free sheets; admin uploads land in `uploads/`. |
-| `dist/index.html` | The customer site: styles, the six chapters, and the page script (auth, catalogue, checkout, viewer hand-off). |
-| `dist/viewer.html` | The protected viewer: pdf.js rendering, watermark, copy/print protection. |
-| `dist/admin.js` | Admin + Developer dashboards. With the admin key saved they read orders, customers and entitlements from the database. |
-| `dist/frames-webp/`, `dist/preview-frames/`, `dist/fonts/`, `dist/sheets/` | Landscape frames, fox & rabbit frames, fonts, public thumbnails. |
+| `protected/` | Private PDF storage: the 79 sheets (each PDF with its JPG page image) in `a-to-z/`, `colour/`, `matching/`, `reading/`, `sound/`, `sound-exercise/` and `spot/`. Admin uploads land in `protected/uploads/` (git-ignored). |
+
+Outside `backend/`:
+
+| Path | Purpose |
+|---|---|
+| `database/postgresql/migrations/001_auth_schema.sql` | The PostgreSQL schema for the accounts, applied automatically at every start. |
+| `database/data/lww.sqlite` | The shop store (git-ignored, created on first run; settings are copied from an old `db.json` in the same folder if present). |
+| `frontend/` | The React website: the customer site, the admin (`/admin`) and developer (`/developer`) dashboards and the protected viewer (`viewer.html`). `npm run build` there makes `frontend/dist`, which this server serves. See [frontend/README.md](../frontend/README.md). |
+| `legacy/old-static-site/` | The original plain-HTML site (it was `site/dist`). Kept for reference only; it is **not served** any more. |
+| `site/.env` | The OLD blank settings template. Still on GitHub for now so older checkouts can pull; it will be removed later. Read only while `backend/.env` does not exist. |
+
+## Folders and older checkouts
+
+Every folder the server uses is set in one file, `src/config/paths.cjs`: the built website `frontend/dist` (or `STATIC_DIR`), the private PDFs in `backend/protected` (or `PROTECTED_DIR`), the schema in `database/postgresql/migrations`, the shop in `database/data/lww.sqlite` (or `DB_PATH`) and your settings in `backend/.env`.
+
+Until October 2026 the backend lived in `site/` and the website in `react-app/`. When a computer with that older layout runs `git pull`, git moves every file it tracks, but files git never tracked (your settings, the shop database, PDFs uploaded in the admin panel) stay in `site\`. The server finds them, keeps using them or stops before changing anything, and prints the exact command to move them. It never moves, copies or deletes them itself. Type the commands it prints in the `kids-book-website` folder.
+
+- **Settings.** The server reads `backend\.env`. While that file does not exist, it reads the old `site\.env` instead and prints a `!!` line with the command: `copy site\.env backend\.env`.
+- **Shop database.** While the shop (`lww.sqlite`, or an older `db.json`) is still in `site\data` and `database\data` has none, it is used where it is, so no order is lost, and a `!!` line says how to move it: stop the server (Ctrl+C), then for example `move site\data database\data`. When both folders have one, the one in `database\data` is used and a `!!` line says the old one is not.
+- **Uploaded PDFs.** When PDFs uploaded in the admin panel are still only in `site\protected\uploads`, the server stops with "… so nothing was started or changed" and the move command, for example `move site\protected\uploads backend\protected\uploads`. Move them, then `npm start` again.
+- **PDF folder missing.** When `backend\protected` (or `PROTECTED_DIR`) is missing or holds no PDFs, the server stops the same way, before a half-finished update could unlink every sheet from its PDF. Run `git status` and `git pull` in the `kids-book-website` folder, then `npm start` again.
+- **Other `!!` lines** at start: the website is not built yet (in `frontend`: `npm install`, then `npm run build`, then start the server again), or an old `react-app\dist` is left over and is not used.
+- **`npm start` before `npm install`** in `backend` says the packages (pg, argon2, nodemailer) are not installed yet, instead of a "Cannot find module" error. Run `npm install`, then `npm start`.
+
+On a Linux server the same messages show `cp` / `mv` and forward slashes.
 
 ## Database
 
-### PostgreSQL — accounts (`db/migrations/001_auth_schema.sql`)
+### PostgreSQL — accounts (`database/postgresql/migrations/001_auth_schema.sql`)
 
 | Table | Holds |
 |---|---|
@@ -103,22 +144,25 @@ SELECT id, email, email_verified, account_status, last_login_at FROM users ORDER
 SELECT created_at, email, success, failure_reason, ip FROM login_activity ORDER BY id DESC LIMIT 20;
 ```
 
-### SQLite — the shop (`data/lww.sqlite`, WAL mode)
+### SQLite — the shop (`database/data/lww.sqlite`, WAL mode)
+
+The tables are written out in `src/database/db.cjs` and made at the first start.
 
 | Table | Holds |
 |---|---|
 | `users` | the shop's copy of each signed-in customer (same id, email, name, role) so orders and entitlements can point at them; `pw_hash` is `!postgresql` — passwords live only in PostgreSQL |
-| `worksheets` | id, title, class, subject, pages, price (INR, 0 = free), `file` (path inside `protected/`), thumb, active |
+| `worksheets` | id, title, class, subject, pages, price (INR, 0 = free), `file` (path inside `backend/protected/`), thumb, active |
 | `orders` | id `LWO-xxxxxx`, user, kind (`class` / `worksheet`), currency, total, INR total, amount in minor units, lines, coupon, address, method, status (`created` → `paid` / `failed` / `refunded`), Razorpay order + payment ids |
 | `payments` | every gateway event (order created, verify, webhook) with outcome |
-| `entitlements` | user, scope (`worksheet` or `class`), reference, kind (`free` / `paid`), plan, order, `starts_at`, `revoked_at` — a class plan ends `starts_at` + its months (from the plan settings); everything else has no end |
+| `entitlements` | user, scope (`worksheet` or `class`), reference, kind (`free` / `paid`), plan, order, `starts_at`, `revoked_at` — a sheet bought on its own and a free sheet never expire; a class plan ends `starts_at` + its months (1, 3, 6 or 12, from the plan settings), and a renewal bought while it runs starts when it ends; a class the admin gives without a plan does not run out |
 | `access_log` | every access decision and PDF/page stream, with IP |
+| `messages` | notes from the contact form: name, email, message, user, IP, when it was read / replied to, whether the email copy went out |
 | `settings` | JSON values: `plans`, `classes`, `coupons`, `discounts`, `rates`, `fees`, `secret` |
 
-Inspect it with any SQLite client, or from Node:
+Inspect it with any SQLite client, or from Node (in the `kids-book-website` folder):
 
 ```bash
-node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync('site/data/lww.sqlite');console.table(d.prepare('SELECT id,user_id,scope,worksheet_id,cls,kind,datetime(starts_at/1000,\"unixepoch\") AS since,revoked_at FROM entitlements').all())"
+node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync('database/data/lww.sqlite');console.table(d.prepare('SELECT id,user_id,scope,worksheet_id,cls,kind,datetime(starts_at/1000,\"unixepoch\") AS since,revoked_at FROM entitlements').all())"
 ```
 
 ## API
@@ -145,7 +189,7 @@ All responses are JSON. State-changing calls must come from the site's own origi
 | `PUT /api/admin/orders` `{id,status}` · `PUT /api/admin/plans` · `PUT /api/admin/rates` · `PUT /api/admin/coupons` | `x-admin-key` | Change status and store settings. |
 | `POST /api/admin/entitlements/grant` `{email,scope,ref}` · `POST /api/admin/entitlements/revoke` `{id}` | `x-admin-key` | Manual access; revoke ends an open viewer within a minute. |
 | `PUT /api/admin/worksheets/:id` `{title,cls,subject,pages,price,active}` · `DELETE …/:id` | `x-admin-key` | Create / edit / retire a worksheet. |
-| `POST /api/admin/worksheets/:id/file` (body = the PDF) | `x-admin-key` | Upload the PDF into `protected/uploads/`. |
+| `POST /api/admin/worksheets/:id/file` (body = the PDF) | `x-admin-key` | Upload the PDF into `backend/protected/uploads/`. |
 
 Upload a PDF from the shell:
 
@@ -154,11 +198,11 @@ curl -X PUT http://127.0.0.1:4173/api/admin/worksheets/kg-mat-cnt -H "x-admin-ke
 curl -X POST http://127.0.0.1:4173/api/admin/worksheets/kg-mat-cnt/file -H "x-admin-key: change-me" -H "Content-Type: application/pdf" --data-binary @count-to-20.pdf
 ```
 
-A PDF dropped into `protected/` as `<worksheet id>.pdf` is attached automatically at the next start.
+A PDF dropped into `backend/protected/` as `<worksheet id>.pdf` is attached automatically at the next start.
 
 ## Razorpay
 
-1. Dashboard → Settings → API keys: put `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `site/.env`. Test keys (`rzp_test_…`) run the real checkout without moving money.
+1. Dashboard → Settings → API keys: put `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `backend/.env`. Test keys (`rzp_test_…`) run the real checkout without moving money.
 2. Dashboard → Settings → Webhooks: URL `https://<your host>/api/pay/webhook`, events `payment.captured`, `order.paid`, `payment.failed`; put the secret in `RAZORPAY_WEBHOOK_SECRET`.
 3. Amounts go to Razorpay in the smallest unit of the quote's currency (paise for INR). Non-INR currencies need international payments enabled on the Razorpay account.
 
@@ -184,9 +228,9 @@ Sheets and payments:
 - The viewer blocks the context menu, drag, copy, print and save shortcuts, blurs when the window is not in front, and hides everything in print media.
 - Prices are computed and signed on the server; an edited quote is refused. Only Razorpay's signature (or its signed webhook) turns an order into an entitlement.
 
-## Configuration (`site/.env`)
+## Configuration (`backend/.env`)
 
-Every variable is explained in [`.env.example`](.env.example).
+Every variable is explained in [`.env.example`](.env.example). Make your own settings file once, in the `backend` folder: `copy .env.example .env` (on Linux: `cp .env.example .env`). `backend/.env` is git-ignored, so your passwords never go to GitHub. After changing it, stop the server (Ctrl+C) and start it again. (An older checkout may still have its settings in `site/.env`; see [Folders and older checkouts](#folders-and-older-checkouts).)
 
 | Variable | Meaning |
 |---|---|
@@ -201,7 +245,7 @@ Every variable is explained in [`.env.example`](.env.example).
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Gateway keys; empty = Razorpay off (nothing can be bought). |
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook signature secret; empty = webhooks are acknowledged but ignored. |
 | `ADMIN_KEY` | Staff API key (default `change-me` — change it). |
-| `PORT`, `HOST`, `DB_PATH`, `PROTECTED_DIR` | Where to listen, where the shop store lives, where the private PDFs live. |
+| `PORT`, `HOST`, `DB_PATH`, `PROTECTED_DIR` | Where to listen, where the shop store lives (default `database/data/lww.sqlite`), where the private PDFs live (default `backend/protected`). |
 | `NODE_ENV` | `production` requires real email and TLS to the database by default. |
 
 ## Set up PostgreSQL
@@ -217,19 +261,29 @@ Any PostgreSQL 13 or newer works. Pick one:
 - **Docker**: `docker run -d --name lww-pg -e POSTGRES_USER=lww -e POSTGRES_PASSWORD=a-long-random-password -e POSTGRES_DB=lww -p 5432:5432 -v lww-pg:/var/lib/postgresql/data postgres:16`
 - **Managed** (Neon, Supabase, Render, Railway, DigitalOcean, AWS RDS, …): create a database and copy its connection string into `DATABASE_URL`. Keep `DATABASE_SSL=require` (the production default).
 
-Then `npm run migrate` (or just `npm start`) creates the tables. Migrations live in `db/migrations/NNN_name.sql`. To change the schema, add a new numbered file; never edit one that already ran (the server refuses to start if a file's checksum changed).
+Then `npm run migrate` (or just `npm start`) creates the tables. Migrations live in `database/postgresql/migrations/NNN_name.sql`. To change the schema, add a new numbered file; never edit one that already ran (the server refuses to start if a file's checksum changed).
 
-**Customers from before PostgreSQL.** At the first start, every account in the SQLite `users` table is copied into PostgreSQL **with the same id**, so their orders and sheets stay theirs. Their old password keeps working (it is re-hashed with Argon2id at the next sign-in), they count as confirmed, and everyone signs in once more. The id sequence is moved past every old id. Back up `data/lww.sqlite` before the first start, as always before an upgrade.
+**Customers from before PostgreSQL.** At the first start, every account in the SQLite `users` table is copied into PostgreSQL **with the same id**, so their orders and sheets stay theirs. Their old password keeps working (it is re-hashed with Argon2id at the next sign-in), they count as confirmed, and everyone signs in once more. The id sequence is moved past every old id. Back up `database/data/lww.sqlite` before the first start, as always before an upgrade.
 
 ## Email
 
 Sign-up and Forgot password send email, so production needs an SMTP service: fill in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `MAIL_FROM` (examples for Gmail, Hostinger, Brevo and Resend are in `.env.example`). At start the server logs `mail SMTP ready` or the reason it is not. For good delivery, send from your own domain and add the SPF and DKIM records your provider gives you.
 
-In development without SMTP, every email (with the password and links) is **printed in the server log**. Set `SITE_URL=http://localhost:5173` when using `npm run dev`, so the links open the Vite dev server. To catch real SMTP mail locally, run [Mailpit](https://mailpit.axllent.org) and set `SMTP_HOST=127.0.0.1 SMTP_PORT=1025`.
+In development without SMTP, every email (with the password and links) is **printed in the server log**. Set `SITE_URL=http://localhost:5173` when using `npm run dev` in `frontend`, so the links open the Vite dev server. To catch real SMTP mail locally, run [Mailpit](https://mailpit.axllent.org) and set `SMTP_HOST=127.0.0.1 SMTP_PORT=1025`.
 
 ## Tests
 
+Run them in the `backend` folder. Windows (Command Prompt):
+
+```bat
+cd backend
+set "TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres" && npm test
+```
+
+Linux / macOS:
+
 ```bash
+cd backend
 TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
 ```
 
@@ -244,18 +298,20 @@ TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test
 1. **PostgreSQL**: create the database (above) and note its `DATABASE_URL`.
 2. **Server**: Node 22.13 or newer, on hosting that runs Node (a VPS, Render, Railway, Hostinger VPS / Node.js hosting …). Copy the repository, then:
    ```bash
-   cd react-app && npm ci && npm run build          # the website → react-app/dist
-   cd ../site && npm ci --omit=dev
-   git update-index --skip-worktree .env             # then edit .env: DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
+   cd frontend && npm ci && npm run build           # the website → frontend/dist
+   cd ../backend && npm ci --omit=dev
+   cp .env.example .env                              # then edit .env: DATABASE_URL, SITE_URL=https://your-domain, SMTP_*, MAIL_FROM, ADMIN_KEY, NODE_ENV=production, HOST=0.0.0.0
    npm run migrate
    npm start
    ```
-   Keep it running with a process manager (`pm2 start server.cjs --name lww`, or a systemd service), and keep `site/data/` and `site/protected/` on persistent storage.
+   Keep it running with a process manager (`pm2 start server.cjs --name lww`, or a systemd service), and keep `database/data/` and `backend/protected/` on persistent storage.
 3. **HTTPS**: put the server behind a proxy that terminates TLS and passes `X-Forwarded-Proto` and `X-Forwarded-For` (nginx, Caddy, Cloudflare, or the host's own). The site and `/api` must be on the **same domain**.
 4. **Check**: `curl https://your-domain/api/health` → `{"ok":true,"database":true,…}`; sign up with your own address and confirm the email arrives.
-5. **Backups**: back up PostgreSQL (`pg_dump "$DATABASE_URL" > lww-$(date +%F).sql`, or the provider's backups) and `site/data/lww.sqlite`.
+5. **Backups**: back up PostgreSQL (`pg_dump "$DATABASE_URL" > lww-$(date +%F).sql`, or the provider's backups) and `database/data/lww.sqlite`.
 
-The old plain-HTML backup site in `dist/` predates email confirmation: its sign-in still works, but its sign-up and forgot-password forms do not match the new flow. Serve the React build.
+**Hostinger file hosting** (`public_html`) can hold only the website: upload everything inside `frontend\dist` (including the hidden `.htaccess`) into `public_html`. That hosting cannot run this backend, so the backend must run on Node hosting on the **same domain**.
+
+The original plain-HTML site is kept in `legacy/old-static-site/` (it was `site/dist`) for reference only. The server does not serve it any more, not even when the React site is not built: then every page says "Not found: the website is not built yet" and the server window says how to build it.
 
 ## Accessibility & motion
 
