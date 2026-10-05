@@ -53,7 +53,6 @@
 .shop-card .price.free { color: var(--ok); }
 .skill-card { display: flex; flex-direction: column; padding: 0; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,0.15); background: rgba(8,18,26,0.05); backdrop-filter: blur(12px); cursor: pointer; text-align: left; color: inherit; transition: transform var(--d-base) var(--ease), border-color var(--d-base), background var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 50ms); overflow: hidden; position: relative; min-height: 220px; }
 .skill-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); background: rgba(8,18,26,0.12); }
-.skill-bg { position: absolute; inset: 0; background: var(--skill-bg); opacity: 0.18; }
 .skill-content { position: relative; z-index: 1; padding: 20px 18px; display: flex; flex-direction: column; height: 100%; }
 .skill-desc { color: var(--fg-muted); font-size: var(--fs-small); line-height: 1.5; margin-top: 6px; }
 .skill-list { list-style: none; padding: 0; margin: 0; }
@@ -72,7 +71,7 @@
 #shop .shop-head { display: inline-block; padding: 10px 18px; border-radius: var(--r-lg); }
 #shop .shop-head p, #shop .side-note { color: var(--ink-soft); }
 #shop .shop-actions .btn-ghost, #shop .shop-actions .icon-btn { background: #fff; color: var(--ink); border: 1px solid rgba(43,36,64,0.15); }
-#shop .shop-actions .btn { white-space: nowrap; }
+#shop .shop-actions .btn, #shop .shop-card .btn { white-space: nowrap; }
 #shop .side-btn { color: var(--ink); }
 #shop .side-btn small { color: var(--ink-soft); }
 #shop .side-btn:hover { background: rgba(43,36,64,0.07); color: var(--ink); }
@@ -91,7 +90,6 @@
 #shop .shop-grid > :nth-child(7n+7) { --edge: #22b3a5; --title: #08756b; --tint: 214,247,244; }
 #shop .shop-card, #shop .skill-card { background: rgba(var(--tint), 0.4); border: 2.5px solid var(--edge); color: var(--ink); backdrop-filter: blur(18px) saturate(1.1) brightness(1.08); box-shadow: 0 10px 26px rgba(60,40,90,0.2); text-shadow: 0 0 6px rgba(255,255,255,0.85); }
 #shop .shop-card:hover, #shop .skill-card:hover { background: rgba(var(--tint), 0.5); border-color: var(--title); box-shadow: 0 16px 34px rgba(60,40,90,0.28); }
-#shop .skill-bg { display: none; }
 #shop .skill-card .card-title, #shop .shop-card .card-title { color: var(--title); font-weight: 600; }
 #shop .skill-card .skill-desc, #shop .skill-card .skill-list, #shop .skill-card span, #shop .shop-card p, #shop .shop-card .meta { color: var(--ink) !important; font-weight: 600; }
 #shop .shop-card .price { color: var(--title); }
@@ -119,3 +117,58 @@
 #shop .sub-plan b { font-family: var(--font-body); font-size: var(--fs-ui); color: var(--ink); }
 #shop .sub-plan span { font-weight: 700; color: #5e35b8; }
 #shop .sub-plan small { font-size: 0.66rem; color: var(--ink-soft); }
+/* ---------- Oct 5: the shelf as in Sumit's reference picture ----------
+   a light see-through top bar, a cream side panel with bigger words, the title in a white box,
+   and two columns of picture cards: each skill has its own corner of the Learn With Why picture
+   with a soft cream wash at the top left, so the words read over it */
+#shop .shop-bar { background: rgba(255,252,246,0.78); backdrop-filter: blur(6px); box-shadow: none; border-bottom: 1px solid rgba(255,255,255,0.75); }
+#shop .shop-bar .eyebrow { font-size: 0.82rem; letter-spacing: 0.24em; }
+#shop .shop-bar .card-title { font-size: clamp(1.6rem, 1rem + 2.4vw, 2.75rem); }
+#shop .shop-body { grid-template-columns: 300px 1fr; gap: 28px; padding-top: 18px; }
+@media (max-width: 860px) { #shop .shop-body { grid-template-columns: 1fr; gap: 18px; } }
+#shop .shop-side { padding: 26px 20px 22px; border-radius: 26px; background: rgba(253,249,241,0.95); backdrop-filter: none; }
+#shop .side-title { margin: 4px 14px 12px; font-size: 1.02rem; font-weight: 600; letter-spacing: 0.22em; color: #b44a72; }
+#shop .side-list + .side-title { margin-top: 0; padding-top: 18px; border-top: 1px solid rgba(43,36,64,0.12); }
+#shop .side-list { gap: 4px; margin-bottom: 18px; }
+#shop .side-btn { min-height: 50px; padding: 12px 16px; border-radius: 16px; font-size: 1.06rem; }
+#shop .side-btn small { font-size: 0.8rem; font-weight: 500; }
+#shop .side-btn .side-n { min-width: 30px; padding: 6px 9px; text-align: center; font-size: 0.8rem; }
+#shop .side-btn .side-n.soon { padding: 5px 11px; font-weight: 600; }
+/* phones: the filters become small chips, so the cards come into view sooner */
+@media (max-width: 860px) {
+  #shop .shop-side { padding: 18px 14px 12px; }
+  #shop .side-title { margin: 2px 6px 10px; font-size: 0.86rem; }
+  #shop .side-list + .side-title { padding-top: 14px; }
+  #shop .side-list { gap: 8px; margin-bottom: 14px; }
+  #shop .side-btn { width: auto; min-height: 42px; padding: 8px 10px 8px 14px; gap: 10px; font-size: 0.95rem; }
+  #shop .side-btn .side-lbl { flex: none; }
+  #shop .side-btn small { display: none; }
+  #shop .side-note { font-size: 0.95rem; }
+}
+#shop .shop-head { margin: 0 0 22px; padding: 16px 30px 18px; border-radius: 26px; background: rgba(255,255,255,0.74); backdrop-filter: blur(6px); }
+#shop .shop-head h3 { font-size: clamp(2rem, 1.3rem + 1.9vw, 2.9rem); }
+#shop .shop-head p { margin-top: 6px; font-size: 1.02rem; }
+#shop .shop-grid.skills { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 22px; }
+#shop .skill-card { min-height: 330px; border: 3px solid rgba(255,255,255,0.95); border-radius: 26px; background: #fdf8ee; backdrop-filter: none; box-shadow: 0 12px 30px rgba(60,40,90,0.22); text-shadow: 0 0 3px rgba(255,255,255,0.95), 0 0 10px rgba(255,255,255,0.9); }
+#shop .skill-card:hover { background: #fdf8ee; border-color: #fff; box-shadow: 0 18px 38px rgba(60,40,90,0.3); }
+#shop .skill-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--pic-at, 70% 60%); transition: transform 0.6s var(--ease); }
+#shop .skill-card:hover .skill-pic { transform: scale(1.04); }
+#shop .skill-card::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(115deg, rgba(255,252,244,0.84) 0%, rgba(255,252,244,0.58) 26%, rgba(255,252,244,0.2) 48%, rgba(255,252,244,0) 62%); }
+#shop .skill-content { z-index: 2; padding: 24px 24px 22px; }
+#shop .skill-card .card-title { font-size: clamp(1.7rem, 1.2rem + 1vw, 2.15rem); line-height: 1.1; }
+#shop .skill-card .skill-desc { max-width: 32ch; margin-top: 10px; font-size: 1rem; font-weight: 500; line-height: 1.5; }
+#shop .skill-card .skill-list { display: grid; gap: 4px; margin: 14px 0 20px; font-size: 0.98rem; font-weight: 500; }
+#shop .skill-list li::before { content: '•'; margin-right: 8px; }
+#shop .skill-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; }
+#shop .skill-card .skill-count { font-size: 1.02rem; font-weight: 800; white-space: nowrap; }
+#shop .skill-card .btn-primary { flex: 1 1 auto; max-width: 270px; justify-content: space-between; gap: 16px; padding: 14px 24px; font-size: 1.04rem; font-weight: 700; }
+/* each card keeps its own colour for the title and button */
+#shop .shop-grid > .skill-letter-formation { --title: #c2185b; --pic-at: 70% 45%; }
+#shop .shop-grid > .skill-letter-sounds { --title: #17703d; --pic-at: 50% 60%; }
+#shop .shop-grid > .skill-uppercase-lowercase { --title: #1a56b0; --pic-at: 50% 60%; }
+#shop .shop-grid > .skill-spot-the-letters { --title: #8a4b08; --pic-at: 60% 60%; }
+#shop .shop-grid > .skill-colour-matching { --title: #5e35b8; --pic-at: 40% 60%; }
+#shop .shop-grid > .skill-beginning-sounds { --title: #b8460f; --pic-at: 50% 50%; }
+#shop .shop-grid > .skill-ending-sounds { --title: #08756b; --pic-at: 50% 60%; }
+#shop .shop-grid > .skill-missing-letters { --title: #3949ab; --pic-at: 50% 40%; }
+@media (prefers-reduced-motion: reduce) { #shop .skill-pic { transition: none; } #shop .skill-card:hover .skill-pic { transform: none; } }

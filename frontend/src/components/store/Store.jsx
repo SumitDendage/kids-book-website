@@ -13,6 +13,8 @@ function SideButton({ on, onClick, n, children }) {
   return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
 
+const CARD_PICS = '/shop/cards/';
+
 /* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" */
 const SOON = { c1: true, c2: true, c3: true };
 
@@ -76,22 +78,19 @@ export default function Store({ bagCount }) {
         </aside>
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
-          <div className="shop-grid" id="shopGrid">
+          <div className={'shop-grid' + (showSkills ? ' skills' : '')} id="shopGrid">
             {view === 'paid' && !skill && !soon && <SubscribeBox cls={cls === 'all' ? 'kg' : cls} sub={access.activeSub(cls === 'all' ? 'kg' : cls)} openCheckout={openCheckout} />}
             {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
-              <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
-                <div className="skill-bg" />
+              <article key={c.id} className={'skill-card skill-' + c.id} style={{ '--n': n }}>
+                {/* each skill has its own corner of the Learn With Why picture (public/shop/cards/) */}
+                <img className="skill-pic" src={CARD_PICS + c.id + '.webp'} alt="" loading="lazy" decoding="async" />
                 <div className="skill-content">
                   <h3 className="card-title">{c.label}</h3>
                   <p className="skill-desc">{c.description}</p>
-                  <ul className="skill-list" style={{ marginTop: '12px', marginBottom: '12px', color: 'var(--fg-muted)', fontSize: 'var(--fs-small)' }}>
-                    <li style={{ marginBottom: '4px' }}>· Free sample to explore</li>
-                    <li style={{ marginBottom: '4px' }}>· Printable and watermarked</li>
-                    <li style={{ marginBottom: '4px' }}>· Buy or subscribe to unlock</li>
-                  </ul>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px 12px', marginTop: 'auto' }}>
-                    <span style={{ fontWeight: 700, fontSize: 'var(--fs-small)', color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{c.count} sheets</span>
-                    <button type="button" className="btn btn-sm btn-primary" onClick={() => setShopFilter({ skill: SKILL_PREFIX[c.id], view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
+                  <ul className="skill-list"><li>Free sample to explore</li><li>Printable and watermarked</li><li>Buy or subscribe to unlock</li></ul>
+                  <div className="skill-foot">
+                    <span className="skill-count">{c.count} sheets</span>
+                    <button type="button" className="btn btn-primary" onClick={() => setShopFilter({ skill: SKILL_PREFIX[c.id], view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
                   </div>
                 </div>
               </article>
