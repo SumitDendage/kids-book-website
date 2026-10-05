@@ -1,0 +1,56 @@
+/* ---------- the first screen's moving words (HomeChapter.jsx, AnimatedText.jsx, WhyLine.jsx) ----------
+   Once the opening veil lifts (body[data-stage="site"]) with the landing chapter open: the
+   small capitals appear letter by letter with a twinkling ✦, the headline floats in word by
+   word out of a soft blur while its colours keep drifting through the words, "why" gives a
+   little hop now and then, the paragraph follows word by word, today's why is typed out,
+   and the arrow nudges towards the collection. Reduced motion shows everything still. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* small capitals: letter by letter */
+.hero-eyebrow .tl { opacity: 0; }
+[data-stage="site"] .chapter.is-active .hero-eyebrow .tl { animation: heroLetterIn 0.5s ease-out both; animation-delay: calc(var(--c) * 26ms + 550ms); }
+#content .hero-eyebrow::before { content: '✦'; display: inline-block; margin-right: 0.5em; animation: heroTwinkle 2.8s ease-in-out infinite; }
+
+/* headline: the shimmer moves from the whole line onto each word, so a moving word keeps its colours */
+#content .hero-title, #content .hero-title em { background: none; animation: none; padding-right: 0; }
+#content .hero-title .tw {
+  display: inline-block; opacity: 0;
+  padding: 0.06em 0.06em 0.16em; margin: -0.06em -0.06em -0.16em; /* room for tails like y and g inside the coloured text */
+  background: linear-gradient(100deg, #ffd977 0%, #ffb39a 22%, #ffe9a8 40%, #a8f0c6 58%, #b9e3ff 76%, #ffd977 100%);
+  background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+#content .hero-title em .tw { background-image: linear-gradient(100deg, #ffb39a, #ff9fcf, #d6b8ff, #ffb39a); background-size: 220% 100%; padding-right: 0.14em; transform-origin: 50% 85%; }
+[data-stage="site"] .chapter.is-active .hero-title .tw {
+  animation: heroWordIn 1s var(--ease) both, storyShimmer 9s ease-in-out infinite alternate;
+  animation-delay: calc(var(--w) * 120ms + 700ms), calc(var(--w) * -0.8s);
+}
+[data-stage="site"] .chapter.is-active .hero-title em .tw {
+  animation: heroWordIn 1s var(--ease) both, storyShimmer 6s ease-in-out infinite alternate, heroWhyHop 5s ease-in-out infinite;
+  animation-delay: calc(var(--w) * 120ms + 700ms), calc(var(--w) * -0.8s), 3s;
+}
+
+/* paragraph: word by word, quick and soft, after the headline */
+.hero-lede .tw { display: inline-block; opacity: 0; }
+[data-stage="site"] .chapter.is-active .hero-lede .tw { animation: heroLedeIn 0.7s var(--ease) both; animation-delay: calc(var(--w) * 22ms + 1500ms); }
+
+/* today's why: typed out with a blinking cursor; the hidden full line holds the space */
+.why-line em > span { grid-area: 1 / 1; }
+.why-line .why-ghost { visibility: hidden; }
+.why-caret { display: inline-block; width: 2px; height: 0.95em; margin-left: 3px; vertical-align: -0.1em; background: currentColor; border-radius: 1px; animation: heroCaret 1s steps(1) infinite; }
+
+/* the arrow to the collection nudges now and then */
+.hero-peek .arrow-link span { display: inline-block; animation: heroNudge 2.6s ease-in-out 3s infinite; }
+
+@keyframes heroLetterIn { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: blur(0); } }
+@keyframes heroWordIn { from { opacity: 0; transform: translateY(0.45em) rotate(-4deg) scale(0.92); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes heroLedeIn { from { opacity: 0; transform: translateY(6px); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes heroWhyHop { 0%, 74%, 100% { transform: none; } 80% { transform: translateY(-0.16em) rotate(-5deg) scale(1.06); } 87% { transform: translateY(0.02em) scale(1.04, 0.95); } 93% { transform: translateY(-0.05em) rotate(2deg); } }
+@keyframes heroTwinkle { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(0.7) rotate(45deg); opacity: 0.6; } }
+@keyframes heroCaret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@keyframes heroNudge { 0%, 60%, 100% { transform: none; } 75% { transform: translateX(6px); } 85% { transform: translateX(1px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #content .hero-eyebrow .tl, #content .hero-title .tw, #content .hero-lede .tw { opacity: 1; animation: none; filter: none; transform: none; }
+  #content .hero-eyebrow::before, .hero-peek .arrow-link span { animation: none; }
+  .why-caret { display: none; }
+}

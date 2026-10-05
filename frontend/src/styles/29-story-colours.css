@@ -5,7 +5,7 @@
 #content, #nav { --gold: #ffd977; --peach: #ffb39a; --mint: #a8f0c6; --sky: #b9e3ff; --cream: rgba(255, 238, 214, 0.9); }
 #content .display, #content .h2, #content .az-head h3, #content .kg-head h3, #content .ws-soon b { color: var(--gold); }
 #content .display em, #content .h2 em, #content .az-head h3 em, #content .kg-head h3 em, #content .why-line em, #content .whisper { color: var(--peach); }
-#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line span { color: var(--mint); }
+#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line > span:first-child { color: var(--mint); }
 #content .card-title:not(.paper *):not(.rc-card *):not(.az-card *), #content .kg-tile h3 { color: var(--sky); }
 #content .lede, #content .aside, #content .az-head > p, #content .kg-head p, #content .ws-soon p { color: var(--cream); }
 #content .lede em, #content .aside em, #content .az-head > p b { color: var(--peach); }

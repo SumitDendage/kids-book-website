@@ -269,7 +269,7 @@ kids-book-website/
 │   │   ├── preview-frames/    50 fox & rabbit frames
 │   │   ├── fonts/             Cormorant Garamond + Inter, self-hosted
 │   │   ├── sheets/            public thumbnails only (never the PDFs)
-│   │   ├── animals/ · shop/   butterfly pictures · the store page's wallpaper
+│   │   ├── shop/              the store page's wallpaper
 │   │   └── favicon.svg · og.jpg · robots.txt · sitemap.xml
 │   └── dist/                  made by npm run build — upload everything inside it (never on GitHub)
 ├── backend/                   ← THE SERVER (Node) — npm start (was site/) · NOT ON GITHUB: your computer and the server only
