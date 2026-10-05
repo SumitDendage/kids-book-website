@@ -40,7 +40,7 @@ export default function ContactChapter() {
           <Rise as="h2" i={1} className="h2">A little question?<br />A big <em>idea</em>?</Rise>
           <Rise as="p" i={2} className="lede">Tell us what your learners need. We&apos;d love to make their next discovery a little more wonderful.</Rise>
           <Rise as="p" i={2} className="whisper">Even the rabbit wrote in once. We answered before teatime.</Rise>
-          <Rise i={3} className="contact-lines"><span>✉ <a href={'mailto:' + INBOX}>{INBOX}</a></span><span>Mon – Sat, 10:00 – 18:00 IST · Pune, India</span></Rise>
+          <Rise i={3} className="contact-lines"><span>✉ <a href={'mailto:' + INBOX}>{INBOX}</a></span></Rise>
         </div>
         <Rise as="form" i={2} className="panel contact-card" id="contactForm" noValidate onSubmit={onSubmit}>
           <h2 className="card-title">Leave a little note.</h2>
@@ -49,7 +49,6 @@ export default function ContactChapter() {
           {field('ctEmail', 'Email address', <input id="ctEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} />)}
           {field('ctMsg', 'Your message', <textarea id="ctMsg" placeholder="What's on your mind?" value={f.msg} onChange={set('msg')} />)}
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Sending…' : 'Send a little note →'}</button>
-          <p className="switch">Your note goes straight to <a href={'mailto:' + INBOX}>{INBOX}</a>.</p>
         </Rise>
       </div>
     </Chapter>
