@@ -95,8 +95,12 @@ export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
-   (the admin's book studio has a Topic field). Letter tracing holds the 26 A to Z sheets.
-   The Alphabet group follows the Kindergarten content plan: eight sub-categories in its order. */
+   (the admin's book studio has a Topic field). The Alphabet group follows the Kindergarten
+   content plan: eight sub-categories in its order. Which sheets sit in each is Sumit's own
+   list (Oct 5): tracing = A to Z + the Group 1 reading charts, recognition = Colour A to Z,
+   match = Matching, before and after = the Spot sheets ("Uppercase to Lowercase" zip),
+   beginning and ending sounds = their Sound Exercise sheets + the Sound charts A to E,
+   missing letters = Missing A to Z. */
 export const KG_TOPICS = [
   { id: 'pre', title: 'Pre-reading skills', tone: 'blue', items: [['picture-matching', 'Picture matching'], ['same-different', 'Same and different'], ['visual-discrimination', 'Visual discrimination'], ['listening', 'Listening activities'], ['following-instructions', 'Following instructions'], ['story-sequencing', 'Story sequencing'], ['rhyming-words', 'Rhyming words'], ['odd-one-out', 'Odd one out'], ['bme-sounds', 'Beginning, middle and ending sounds'], ['syllable-clapping', 'Syllable clapping'], ['oral-blending', 'Oral blending and segmenting']] },
   { id: 'alpha', title: 'Alphabet', tone: 'teal', items: [   /* as in the Kindergarten content plan: id, name, learning focus */
@@ -116,7 +120,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd', 'rc'], 'ending-sounds': ['ex'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt', 'sp'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -129,7 +133,7 @@ export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.item
 export function topicSheets(id) {
   /* printable sets by id prefix, in the order TOPIC_SHEETS lists them; anything else is an item id */
   const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
-    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem) };
+    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem) };
   const out = [];
   (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !out.includes(it)) out.push(it); }); });
   ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
@@ -153,7 +157,7 @@ export const mtItem = code => keepSheet('mt-' + code, () => { const i = MT_RANGE
   about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Spot the letters — circle every lowercase letter that matches the capital, five ranges */
 export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('sp-' + code, i < 3);
-  return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/spot/thumb/' + code + '.jpg', topic: 'match-upper-lower',
+  return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/spot/thumb/' + code + '.jpg', topic: 'before-after-letters',
   blurb: 'Read the capital letter, then circle every small letter in the row that matches it: ' + letters + '.',
   about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Beginning and ending sounds (Sep 30): the "Read aloud" charts A to E and three
@@ -175,20 +179,30 @@ const exerciseItem = (pre, n, map, what, file, topic) => keepSheet(pre + '-' + n
 export const SOUND_EXERCISES = [1, 2, 3];
 export const bxItem = n => exerciseItem('bx', n, BX, 'Beginning Sound', 'beginning-sound', 'beginning-sounds');
 export const exItem = n => exerciseItem('ex', n, EX, 'Ending Sound', 'ending-sound', 'ending-sounds');
+/* Find the missing letters (Oct 5, Sumit's Missing A to Z zip): three capital-letter sheets
+   (free, the first three of the set) and three small-letter sheets, in sheets/missing/ */
+export const MS_CODES = ['U1', 'U2', 'U3', 'L1', 'L2', 'L3'];
+const MS = { 1: ['Apples', 'Write the missing letters on the blank apples, from ', ' to ', '.', 'Twenty-six apples in alphabet order; some letters are there, the rest are blank.'],
+  2: ['Alphabet path', 'Follow the winding path of boxes and write the missing letters from ', ' to ', '.', 'One long path of boxes, from the apple to the zebra, with a few letters as clues.'],
+  3: ['Rows with pictures', 'Fill in the missing letters in short rows of five, each with a little picture.', '', '', 'Four rows of five boxes with two or three letters given in each row.'] };
+export const msItem = code => keepSheet('ms-' + code, () => { const big = code[0] === 'U', n = +code[1], m = MS[n] || MS[1], first = big ? 'A' : 'a', last = big ? 'Z' : 'z', kind = big ? 'capital' : 'small', price = sheetPrice('ms-' + code, big);
+  const blurb = n === 3 ? m[1] : m[1] + first + m[2] + last + m[3];
+  return ({ id: 'ms-' + code, chart: true, tileName: (big ? 'Capitals ' : 'Small letters ') + n, tileSub: m[0] + ' · ' + first + '–' + last, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Missing ' + kind + ' letters ' + n + ' — ' + m[0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/missing/thumb/' + (big ? 'upper-' : 'lower-') + n + '.jpg', topic: 'missing-letters',
+  blurb, about: soundAbout(price, [m[4], 'Say the alphabet aloud and write each missing ' + kind + ' letter in its place.']) }); });
 /* Every printable PDF joins the catalogue, so "All sheets" and the store's filters
    show the whole shelf — the letter, colour, matching and reading pages as well as the books. */
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
   MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])),
-  SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem));
+  SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem), MS_CODES.map(msItem));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-const sheetOfRaw = id => id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+const sheetOfRaw = id => id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
 export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
-/* only sheets with a real PDF are listed: the sound sheets are the newest, the A to Z set the favourites */
-export const NEW_IDS = ['bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
+/* only sheets with a real PDF are listed: the missing-letter and sound sheets are the newest, the A to Z set the favourites */
+export const NEW_IDS = ['ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
 export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
 /* the four sheets in the Sheets chapter's preview carousel */
 export const PLAYER_IDS = ['az-A', 'rc-B', 'cl-C', 'bx-1'];
@@ -204,10 +218,11 @@ export const SKILL_CATEGORIES = [
   { id: 'colour-matching', label: 'Colour matching', description: 'Sort, name and match colours with tracing practice', color: 'rgba(67, 219, 131, 0.4)', count: 26 },
   { id: 'beginning-sounds', label: 'Beginning sounds', description: 'Hear, circle and write the first sound, with read-aloud charts A to E', color: 'rgba(219, 67, 131, 0.4)' },
   { id: 'ending-sounds', label: 'Ending sounds', description: 'Choose and write the last sound, then find words that end the same', color: 'rgba(219, 191, 67, 0.4)' },
+  { id: 'missing-letters', label: 'Missing letters', description: 'Fill in the missing capital and small letters from A to Z', color: 'rgba(67, 191, 219, 0.4)' },
 ];
 /* the store's skill filter: category id → the id prefix of its printable PDFs */
-export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl', 'beginning-sounds': 'bs', 'ending-sounds': 'es' };
-export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching', bs: 'Beginning sounds', es: 'Ending sounds' };
+export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl', 'beginning-sounds': 'bs', 'ending-sounds': 'es', 'missing-letters': 'ms' };
+export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching', bs: 'Beginning sounds', es: 'Ending sounds', ms: 'Missing letters' };
 /* the PDF sheets in a skill: every sheet whose id starts with one of its prefixes, so each PDF is counted once */
 const SKILL_SETS = { bs: ['bx', 'sd'], es: ['ex'] };
 export const skillSheets = skill => PDF_SHEETS.filter(it => (SKILL_SETS[skill] || [skill]).includes(it.id.split('-')[0]));

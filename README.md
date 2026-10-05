@@ -24,7 +24,7 @@ The website talks to a Node backend (`backend/server.cjs`): a JSON API, a **Post
 |---|---|---|
 | **`frontend/`** | yes | **The website, built with React and Vite** (was `react-app/`): the customer site, the staff panels (`/admin`, `/developer`) and the protected viewer (`viewer.html`). This is the part you build and upload. |
 | `legacy/old-static-site/` | yes | The original plain-HTML website (was `site/dist/`), kept for reference only. |
-| `backend/` | **no** — your computer and the server only | The Node server (was `site/`): `server.cjs` (`npm start`), the API, accounts, payments, email and the 79 private PDFs in `backend/protected/`. Your own settings go in `backend/.env`. |
+| `backend/` | **no** — your computer and the server only | The Node server (was `site/`): `server.cjs` (`npm start`), the API, accounts, payments, email and the 85 private PDFs in `backend/protected/`. Your own settings go in `backend/.env`. |
 | `database/` | **no** — your computer and the server only | The databases themselves, no JavaScript: the PostgreSQL schema in `database/postgresql/migrations/` and the shop database in `database/data/` (made on the first start). |
 
 `backend/` and `database/` are listed in `.gitignore`, so git never uploads them and `git pull` never changes them. A fresh copy of both comes from **`backend-and-database.zip`** (kept in the Claude project's files): in the `kids-book-website` folder run `tar -xf "%USERPROFILE%\Downloads\backend-and-database.zip"` (or put the zip's own path between the quotes). They are gone only from the current files on GitHub: older commits in the repository's history (and older branches) still hold the old copies, so GitHub is neither a backup of them nor a place they have been erased from. Keep that zip safe and back up your settings, orders and uploads yourself (`database\README.md` → Backups).
@@ -288,7 +288,7 @@ kids-book-website/
 │   │   └── database/          pg.cjs (PostgreSQL) · db.cjs (the SQLite shop and its tables) · migrate.cjs · legacy.cjs · seed.cjs
 │   ├── test/                  backend, database and end-to-end tests (npm test; needs TEST_DATABASE_URL)
 │   └── protected/             PRIVATE PDF STORAGE — never served as static files
-│       ├── a-to-z/ · colour/ · matching/ · reading/ · sound/ · sound-exercise/ · spot/   the 79 PDFs + preview JPGs
+│       ├── a-to-z/ · colour/ · matching/ · missing/ · reading/ · sound/ · sound-exercise/ · spot/   the 85 PDFs + preview JPGs
 │       └── uploads/           PDFs uploaded in the admin panel
 ├── database/                  the databases themselves, no JavaScript · NOT ON GITHUB: your computer and the server only
 │   ├── postgresql/migrations/ 001_auth_schema.sql — the accounts tables, applied automatically at every start
