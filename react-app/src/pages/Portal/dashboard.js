@@ -73,7 +73,7 @@ export async function syncFromServer(force) {
     save('lww_orders', o.orders.slice().reverse().map(x => ({ id: x.id, at: x.at, email: x.email, name: x.name, cls: x.cls, plan: x.plan, worksheet: x.worksheet, amount: x.totalInr, currency: x.currency, total: x.total, method: ({ razorpay: 'Razorpay', stripe: 'Stripe', paypal: 'PayPal' })[x.method] || x.method, payment: x.paymentId, coupon: x.coupon, status: STATUS[x.status] || x.status, address: x.address, server: true })));
     save('lww_users', u.users.map(x => ({ id: x.id, name: x.name, email: x.email, role: x.role, created: x.created_at, lastLogin: x.last_login_at, spent: x.spent_inr, orders: x.orders, active: x.active })));
     const subs = {}, owned = {};
-    e.entitlements.forEach(x => { if (x.scope === 'class') (subs[x.email] = subs[x.email] || []).push({ cls: x.cls, plan: x.plan || 'm1', start: x.start, at: x.start, id: x.id, revoked: x.revoked }); else if (!(owned[x.email] || []).includes(x.worksheet)) (owned[x.email] = owned[x.email] || []).push(x.worksheet); });
+    e.entitlements.forEach(x => { if (x.scope === 'class') (subs[x.email] = subs[x.email] || []).push({ cls: x.cls, plan: x.plan || 'm1', start: x.start, at: x.start, end: x.end || null, ended: !!(x.end && x.end <= Date.now()), id: x.id, revoked: x.revoked }); else if (!(owned[x.email] || []).includes(x.worksheet)) (owned[x.email] = owned[x.email] || []).push(x.worksheet); });
     save('lww_subs', subs); save('lww_owned', owned);
     if (c.messages) { save('lww_messages', c.messages); if (c.inbox) save('lww_inbox', c.inbox); }
     sync.at = Date.now(); return true;

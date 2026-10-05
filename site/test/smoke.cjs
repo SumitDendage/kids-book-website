@@ -5,7 +5,8 @@
    Walks the customer flow: catalogue → sign up → password and Accept & Continue link by
    email → confirm → sign in → free sheet opens → paid sheet
    is refused → quote → order → Razorpay payment (its API stubbed here) → entitlement → PDF streams;
-   access never expires, only an admin revoke ends it. Also checks tokens, cookies, cross-site
+   a bought sheet never expires, a class plan ends after its months (a renewal carries on), and an
+   admin revoke ends either. Also checks tokens, cookies, cross-site
    refusal, the webhook signature, the admin key and password reset; that an OLD database is
    upgraded to the new catalogue without losing admin edits; the 79 printable PDFs; the contact
    form and the admin inbox; cancelling an order; Razorpay, Stripe and PayPal answering 503 while
@@ -175,6 +176,7 @@ const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
   r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); assert.equal(r.body.order.status, 'paid'); assert.equal(r.body.entitlement.scope, 'worksheet'); ok('payment verified → order paid → paid entitlement');
   r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.kind, 'paid'); assert.equal(r.body.worksheet.real, false); ok('paid sheet now opens (no PDF uploaded yet → placeholder page)');
   r = await req('POST', '/api/pay/verify', rzpPaid(o1, g1)); assert.equal(r.status, 200); r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.filter(e => e.order === o1.id).length, 1); ok('verifying twice is idempotent (one entitlement per order)');
+  r = await req('POST', '/api/pay/order', { quote: q1, method: 'razorpay' }); assert.equal(r.status, 409); assert.equal(r.body.code, 'already_owned'); ok('a second order for a sheet already on the account → 409, nothing is charged twice');
 
   /* PAID path — class plan */
   r = await req('POST', '/api/quote', { cls: 'c1', plan: 'm1', address }); const q2 = r.body; assert.equal(q2.kind, 'class');
@@ -183,8 +185,30 @@ const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
   r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 200); const paid = r.body; ok('class plan → every sheet in Class 1 opens');
   r = await req('POST', '/api/access/c2-mat-mul'); assert.equal(r.status, 402); ok('…but Class 2 stays locked');
 
-  /* NO EXPIRY — access is permanent; only an admin revoke ends it */
-  assert.equal(paid.entitlement.end, undefined); assert.equal(paid.until, undefined); ok('entitlements carry no expiry — the sheet stays on the account');
+  /* PLAN LENGTH — a class plan runs for its months; a renewal starts when it ends; a sheet bought on its own never ends */
+  const { addMonths } = require('../server/access.cjs');
+  assert.equal(addMonths(Date.UTC(2027, 0, 31, 10), 1), Date.UTC(2027, 1, 28, 10)); assert.equal(addMonths(Date.UTC(2027, 4, 5, 9), 6), Date.UTC(2027, 10, 5, 9)); ok('months are calendar months (31 January + 1 month = 28 February)');
+  assert.equal(paid.entitlement.end, addMonths(paid.entitlement.start, 1)); assert.equal(paid.entitlement.active, true); ok('a 1-month Class 1 plan ends one month after it starts');
+  r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.find(e => e.order === o1.id).end, null); ok('a sheet bought on its own has no end');
+  r = await req('POST', '/api/quote', { cls: 'c1', plan: 'm3', address }); r = await req('POST', '/api/pay/order', { quote: r.body, method: 'razorpay' }); const oRenew = r.body.order;
+  r = await req('POST', '/api/pay/verify', rzpPaid(oRenew, r.body.gateway)); const renew = r.body.entitlement;
+  assert.equal(renew.start, paid.entitlement.end); assert.equal(renew.end, addMonths(paid.entitlement.end, 3)); assert.equal(renew.active, false); ok('a 3-month renewal bought while the plan runs starts the day it ends — no day lost');
+  r = await req('GET', '/api/view/meta', undefined, { 'X-View-Token': paid.token }); assert.equal(r.status, 200); assert.equal(r.body.scope, 'class'); assert.equal(r.body.until, paid.entitlement.end); ok('the viewer is told the plan and when it ends');
+  /* time passes: the first month is over, the renewal has begun — the open tab carries on with it */
+  const shift = (id, ms) => db.q('UPDATE entitlements SET starts_at = starts_at - ? WHERE id = ?').run(ms, id);
+  const month = paid.entitlement.end - paid.entitlement.start + 1000;
+  shift(paid.entitlement.id, month); shift(renew.id, month);
+  r = await req('GET', '/api/view/meta', undefined, { 'X-View-Token': paid.token }); assert.equal(r.status, 200); assert.equal(r.body.until, addMonths(renew.start - month, 3)); ok('first month over → the open sheet keeps going on the renewal');
+  r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 200); assert.equal(r.body.entitlement.id, renew.id); ok('…and opening it again uses the renewal');
+  /* …and the renewal is over too: the plan has ended */
+  shift(paid.entitlement.id, 120 * 864e5); shift(renew.id, 120 * 864e5);
+  r = await req('GET', '/api/view/meta', undefined, { 'X-View-Token': paid.token }); assert.equal(r.status, 403); assert.equal(r.body.code, 'expired'); ok('plan over → the open viewer gets 403 "plan has ended" and closes');
+  r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 402); ok('…and Class 1 sheets ask for payment again');
+  r = await req('POST', '/api/access/kg-mat-cnt'); assert.equal(r.status, 200); ok('…while the sheet bought on its own still opens');
+  r = await req('GET', '/api/me/entitlements'); assert.ok(r.body.entitlements.filter(e => e.scope === 'class').every(e => e.active === false)); ok('My plans shows the ended plans as not active');
+  shift(paid.entitlement.id, -(month + 120 * 864e5)); db.q('DELETE FROM entitlements WHERE id = ?').run(renew.id);   /* back to the running 1-month plan for the checks below */
+
+  /* ADMIN REVOKE ends any entitlement at once */
   r = await req('POST', '/api/admin/entitlements/revoke', { id: paid.entitlement.id }, { 'x-admin-key': 'test-admin-key' }); assert.equal(r.body.revoked, 1);
   r = await req('GET', '/api/view/meta', undefined, { 'X-View-Token': paid.token }); assert.equal(r.status, 403); assert.equal(r.body.code, 'revoked'); ok('admin revoke → the open viewer gets 403 and closes');
   r = await req('POST', '/api/access/c1-mat-sub'); assert.equal(r.status, 402); ok('…and the sheet is 402 again');

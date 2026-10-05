@@ -149,7 +149,7 @@ export default function AuthCard() {
         <p className="auth-sub" id="roleLine" hidden={!hasRole}><span id="signedRole">{hasRole ? roleOf(session.role).label : ''}</span> account — your subscriptions and free sheets are kept with it. <button type="button" className="link" id="roleChange" onClick={() => setChangingRole(true)}>Change</button></p>
         <p className="auth-sub" id="subLine" hidden={!hasRole}>
           {subs.length
-            ? <>Subscribed to {subs.map((x, n) => <span key={x.cls}>{n ? ', ' : ''}<b>{classById(x.cls).label}</b> since {dateOf(x.start)}</span>)}.</>
+            ? <>Subscribed to {subs.map((x, n) => <span key={x.cls}>{n ? ', ' : ''}<b>{classById(x.cls).label}</b> {x.end ? 'until ' + dateOf(x.end) : 'since ' + dateOf(x.start)}</span>)}.</>
             : <>Your sheets are under My Account → My Worksheets — <button type="button" className="link" onClick={() => openShop('all')}>browse all sheets</button>.</>}
         </p>
         <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => openShop('all')}>Explore the sheets →</button><button type="button" className="btn btn-ghost" id="signOutBtn" onClick={signOut}>Sign out</button></div>

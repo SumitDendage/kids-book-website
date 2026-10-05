@@ -12,7 +12,7 @@ import { classById, planOf } from '../../data/content.js';
 export default function Overview() {
   const { go } = useDash();
   const os = orders(), good = os.filter(o => o.status !== 'cancelled' && o.status !== 'refunded'), rev = good.reduce((n, o) => n + o.amount, 0);
-  const ev = events(), subs = Object.values(read('lww_subs', {})).flat().filter(x => !x.revoked);
+  const ev = events(), subs = Object.values(read('lww_subs', {})).flat().filter(x => !x.revoked && !x.ended);
   const days = lastDays(14), salesS = days.map(d => os.filter(o => day(o.at) === d).reduce((n, o) => n + o.amount, 0));
   const delta = (arr, unit) => { const a = arr.slice(-7).reduce((n, v) => n + v, 0), b = arr.slice(-14, -7).reduce((n, v) => n + v, 0); return b ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '% from last week' : (a ? '+' + a + (unit || '') + ' this week' : 'No change'); };
   const today = ev.filter(e => e.type === 'visit' && day(e.at) === day(Date.now())).length, hour = ev.filter(e => e.type === 'visit' && e.at > Date.now() - 36e5).length;

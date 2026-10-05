@@ -28,7 +28,7 @@
                  or /api/pay/paypal/capture; /?pay=cancel → POST /api/pay/cancel)
      viewer     GET  /api/view/meta · file · page  (cookie + token + entitlement, every request)
      contact    POST /api/contact → messages table (+ email copy)   staff: /api/admin/messages
-     Entitlements do not expire: a sheet that was opened or bought stays on the account.
+     A sheet that was opened or bought stays on the account; a class plan runs for its months.
 
    Every /api request: security headers → CORS → cross-site check → session loaded from
    PostgreSQL → requireAuth on protected routes (middleware.cjs) → handler. Full reference: API.md.

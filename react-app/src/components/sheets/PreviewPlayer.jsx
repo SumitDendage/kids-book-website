@@ -32,7 +32,7 @@ export default function PreviewPlayer({ active }) {
       <div className="panel player-card" id="playerCard" aria-live="polite">
         <div className="slide-swap" key={slide}>
           <div className="glyph">{s.glyph || s.az || s.rc || s.letter || 'Aa'}</div><p className="eyebrow">Learn With Why · Preview</p><p className="meta">{classById(s.cls).label} · {s.subject}</p><h3 className="card-title">{s.title}</h3>
-          <p className={'price' + (s.price === 0 ? ' free' : '')}>{owned ? (s.price === 0 ? 'Free · open any time' : 'Yours to keep ✓') : s.price === 0 ? 'Free access sheet' : 'Yours to keep once bought'}</p>
+          <p className={'price' + (s.price === 0 ? ' free' : '')}>{owned ? (s.price === 0 ? 'Free · open any time' : access.itemEnt(s.id) ? 'Yours to keep ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'Yours to keep once bought'}</p>
           {owned ? <button type="button" className="btn btn-primary" onClick={() => openViewer(s.id)}>Open PDF ↗</button>
             : s.price === 0 ? <button type="button" className="btn btn-primary" onClick={() => unlock(s.id)}>Open it free →</button>
             : <button type="button" className="btn btn-primary" onClick={() => buy(s.id)}>Buy PDF →</button>}

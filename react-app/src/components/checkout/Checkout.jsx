@@ -7,7 +7,7 @@ import { initialAddress, loadCoConfig, loadRazorpay } from '../../services/check
 import { PAY_VIA, RZP_DISPLAY, PAY } from '../../data/checkout.js';
 import { classById, planOf, plansFor } from '../../data/content.js';
 import { sheetOf } from '../../data/catalogue.js';
-import { flagOf, shortClass } from '../../utils/format.js';
+import { flagOf, shortClass, dateOf } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
 
 /* The payment page. Nothing is priced here: the server returns a signed quote for
@@ -36,6 +36,7 @@ export default function Checkout() {
   const itemId = checkout.item;
   /* a class subscription instead of one PDF: the plan is picked on this page */
   const subCls = !itemId && checkout.cls ? checkout.cls : null;
+  const running = subCls ? access.activeSub(subCls) : null;   /* a renewal starts when this plan ends */
   const [planPick, setPlanPick] = useState(checkout.plan || 'm3');
   const plans = plansFor(addr.country);
   const plan = plans.some(x => x.id === planPick) ? planPick : (plans.some(x => x.id === 'm6') ? 'm6' : plans[0].id);
@@ -152,7 +153,12 @@ export default function Checkout() {
       setCode(''); setCouponInput(''); setQuote(null); setBusy(false);
       closeCheckout();
       showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: itemId, total: fmtCur(q.total, q.currency), method });
-    } catch (err) { setBusy(false); setError(err.message); if (!err.cancelled) requestQuote(true); else toast(err.message); }
+    } catch (err) {
+      setBusy(false);
+      /* already on the account (bought in another tab or device): no second payment — show the sheet instead */
+      if (err.status === 409 && err.body && err.body.code === 'already_owned') { await syncEntitlements(); closeCheckout(); toast(err.message); site.openSheet(itemId); return; }
+      setError(err.message); if (!err.cancelled) requestQuote(true); else toast(err.message);
+    }
   }
 
   /* changing country can drop the 12-month plan (India): ask again with the plan that is shown */
@@ -168,7 +174,7 @@ export default function Checkout() {
       <div className="sum-head"><p className="eyebrow">Order summary</p>{q && <span className={'region-chip' + (q.region === 'IN' ? ' in' : '')}>{q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + q.countryName + ' · ' + q.currency}</span>}</div>
       {item
         ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · yours to keep</small></div></div>
-        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planOf(plan).label} · every sheet in the class</small></div></div>}
+        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planOf(plan).label} · every sheet in the class{running && running.end ? ' · starts ' + dateOf(running.end) + ', when your current plan ends' : ''}</small></div></div>}
       <div className={'co-lines' + (busy ? ' busy' : '')}>
         {q ? q.lines.map((l, i) => <div key={i} className="co-line"><span>{l.label}<small>{l.note || ''}</small></span><b>{fmtCur(l.amount, q.currency)}</b></div>)
           : error ? <p className="alert err">{error}</p> : <><div className="sk-line" /><div className="sk-line" /><div className="sk-line short" /></>}

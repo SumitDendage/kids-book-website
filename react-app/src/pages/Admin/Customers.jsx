@@ -28,7 +28,7 @@ function CustomerCard({ u, subsAll, os, prints, ownedAll, onClose }) {
         <MetricCard label="Prints" value={sum(pu)} icon="file" />
       </div>
       <div className="grid-2">
-        <div><p className="eyebrow" style={{ marginBottom: '8px' }}>Subscriptions</p><DataTable plain head={['Class', 'Plan', 'Since', 'Status']} empty="None." rows={(subsAll[u.email] || []).map((x, i) => ({ key: i, cells: [clsLabel(x.cls), planOf(x.plan).label, fmt(x.start || x.at), <Pill key="p" tone={x.revoked ? 'bad' : 'ok'}>{x.revoked ? 'revoked' : 'active'}</Pill>] }))} /></div>
+        <div><p className="eyebrow" style={{ marginBottom: '8px' }}>Subscriptions</p><DataTable plain head={['Class', 'Plan', 'Since', 'Until', 'Status']} empty="None." rows={(subsAll[u.email] || []).map((x, i) => ({ key: i, cells: [clsLabel(x.cls), planOf(x.plan).label, fmt(x.start || x.at), x.end ? fmt(x.end) : 'no end', <Pill key="p" tone={x.revoked ? 'bad' : x.ended ? 'neutral' : 'ok'}>{x.revoked ? 'revoked' : x.ended ? 'ended' : x.start > Date.now() ? 'renewal' : 'active'}</Pill>] }))} /></div>
         <div><p className="eyebrow" style={{ marginBottom: '8px' }}>Orders</p><DataTable plain head={['Order', 'When', 'Amount', 'Status']} empty="None." rows={uo.map(o => ({ key: o.id, cells: [o.id, fmt(o.at), money(o.amount), <Pill key="p">{o.status}</Pill>] }))} /></div>
       </div>
       <div><p className="eyebrow" style={{ marginBottom: '8px' }}>Print usage</p><DataTable plain head={['Sheet', 'Prints']} empty="Nothing printed yet." rows={Object.keys(pu).map(id => ({ key: id, cells: [(itemById(id) || { title: id }).title, pu[id]] }))} /></div>
@@ -48,7 +48,7 @@ export default function Customers() {
       <section className="panel"><p className="eyebrow">Customer list · {us.length}</p><p className="auth-sub">Every account that signed up on the site.</p>
         <DataTable head={['Name', 'Email', 'Role', 'Subscriptions', 'Orders', 'Total spent', 'Downloads', 'Prints', '']} empty="No customers yet." filter="Filter customers…"
           rows={us.map(u => {
-            const uo = os.filter(o => o.email === u.email), act = (subsAll[u.email] || []).filter(x => !x.revoked);
+            const uo = os.filter(o => o.email === u.email), act = (subsAll[u.email] || []).filter(x => !x.revoked && !x.ended);
             return { key: u.email, cells: [
               <span key="n" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><span className="av round" style={{ width: '28px', height: '28px', fontSize: '11px' }}>{initialsOf(u.name)}</span><b>{u.name}</b></span>,
               u.email, <Pill key="r" tone="neutral">{roleOf(u.role).label}</Pill>,

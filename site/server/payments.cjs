@@ -103,7 +103,8 @@ function make(db, auth, access) {
       const now = Date.now();
       q.markPaid.run(now, paymentId || null, order.id);
       const scope = fresh.kind === 'worksheet' ? 'worksheet' : 'class';
-      const g = access.grant(fresh.user_id, scope, scope === 'worksheet' ? fresh.worksheet_id : fresh.cls, 'paid', fresh.id, fresh.plan, now);
+      /* a plan bought while one for the class still runs starts when that one ends */
+      const g = access.grant(fresh.user_id, scope, scope === 'worksheet' ? fresh.worksheet_id : fresh.cls, 'paid', fresh.id, fresh.plan, scope === 'class' ? access.planStart(fresh.user_id, fresh.cls, now) : now);
       if (fresh.coupon) { const cs = db.get('coupons'); if (cs[fresh.coupon]) { cs[fresh.coupon].uses = (cs[fresh.coupon].uses || 0) + 1; db.set('coupons', cs); } }
       event(order.id, fresh.method, source, true, paymentId);
       return { order: q.byId.get(order.id), ent: db.q('SELECT * FROM entitlements WHERE id = ?').get(g.id), already: false };
@@ -121,6 +122,8 @@ function make(db, auth, access) {
     if (method === 'stripe' && !stripeMode) fail(503, 'Stripe is not connected on this server yet — pick another way to pay.', { code: 'gateway_off' });
     if (method === 'paypal' && !paypalMode) fail(503, 'PayPal is not connected on this server yet — pick another way to pay.', { code: 'gateway_off' });
     if (qt.amountMinor < 100 && qt.currency === 'INR') fail(400, 'The amount is below the gateway minimum (₹1).');
+    /* never charge twice for a sheet that is already open to this customer (bought in another tab, or in their plan) */
+    if (qt.kind === 'worksheet' && access.owns(user.id, qt.worksheet)) fail(409, 'This sheet is already on your account — open it from My Worksheets.', { code: 'already_owned', worksheet: qt.worksheet });
     const id = newId();
     q.insert.run(id, user.id, qt.kind, qt.cls || null, qt.plan || null, qt.worksheet || null, qt.currency, qt.total, pricing.round(qt.total / qt.rate, 'INR'), qt.amountMinor, JSON.stringify(qt.lines), qt.coupon || null, JSON.stringify(qt.address), method, Date.now());
     const order = q.byId.get(id);

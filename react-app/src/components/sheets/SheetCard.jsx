@@ -2,7 +2,8 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
 import { NEW_IDS, BEST_IDS } from '../../data/catalogue.js';
 
-export const priceLine = (free, mine) => (mine ? (free ? 'Free · open any time' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought');
+/* mine: 'plan' when it opens through a class plan (which runs out), true when it is bought */
+export const priceLine = (free, mine) => (mine ? (free ? 'Free · open any time' : mine === 'plan' ? 'In your plan ✓' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought');
 
 /* the Open / Open free / Buy PDF button of a card — it wins over the card's own click */
 export function CardAction({ it, mine, openLabel = 'Open ↗', openClass = 'btn btn-ghost', freeLabel = 'Open free', buyLabel = 'Buy PDF' }) {
@@ -21,7 +22,7 @@ export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.ke
    printed page when there is a thumbnail and the New / Bestseller tags. */
 export default function SheetCard({ it, n, store = false }) {
   const { access, openSheet } = useSite();
-  const free = it.price === 0, mine = access.canOpen(it);
+  const free = it.price === 0, mine = access.canOpen(it) && (free || access.itemEnt(it.id) ? true : 'plan');
   const tag = mine ? <b className="tag">{free ? 'Free' : 'Unlocked'}</b>
     : store && NEW_IDS.includes(it.id) ? <b className="tag" style={{ background: '#3b5bdb' }}>New</b>
     : store && BEST_IDS.includes(it.id) ? <b className="tag" style={{ background: '#b8862b' }}>Bestseller</b>

@@ -32,10 +32,10 @@ Learn With Why website → public worksheet catalogue → customer selects a PDF
         FREE ─────────────────────────── PAID → Razorpay Checkout → backend verifies the signature → entitlement
           └──────────────── server access check (POST /api/access/:id) ────────────────┘
                      → private PDF storage (site/protected/) → the PDF viewer (viewer.html)
-                     → watermark (name · email · time) — the sheet stays on the account, no expiry
+                     → watermark (name · email · time) — a bought sheet stays on the account; a class plan runs for its months
 ```
 
-Access is enforced on the server: the entitlement row in the database decides, and the viewer only shows what `/api/view/*` streams. The watermark is drawn by the viewer in the browser, so an entitled customer is sent the unstamped PDF (server-side stamping is on the roadmap). Entitlements do not expire; an admin can revoke one, and the open viewer closes within a minute.
+Access is enforced on the server: the entitlement row in the database decides, and the viewer only shows what `/api/view/*` streams. The watermark is drawn by the viewer in the browser, so an entitled customer is sent the unstamped PDF (server-side stamping is on the roadmap). A sheet bought on its own (or a free sheet) never expires. A class plan runs for its 1, 3, 6 or 12 months; a renewal bought while it runs starts the day it ends. When a plan ends, or an admin revokes an entitlement, the open viewer closes within a minute.
 
 ## Quick start
 

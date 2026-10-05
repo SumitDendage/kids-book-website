@@ -144,9 +144,9 @@ These are unchanged by the PostgreSQL accounts, apart from going through the sam
 | `POST /api/quote` `{worksheet}` or `{cls,plan}` + `coupon`, `address` | – | Signed price quote, valid 15 minutes. |
 | 🔒 `POST /api/pay/order` · `/api/pay/verify` · `/api/pay/cancel` · `/api/pay/stripe/confirm` · `/api/pay/paypal/capture` | cookie | Checkout (see `site/README.md` → Razorpay). |
 | `POST /api/pay/webhook` | Razorpay signature | Payment events from Razorpay. |
-| 🔒 `GET /api/me/entitlements` · `GET /api/me/orders` | cookie | My worksheets; my orders. |
+| 🔒 `GET /api/me/entitlements` · `GET /api/me/orders` | cookie | My worksheets; my orders. Each entitlement has `start`, `end` (a class plan's last moment; `null` for no end) and `active`. |
 | 🔒 `POST /api/access/:worksheetId` | cookie | The server access check: `200 {token,…}` · `402 payment_required` · `404`. |
-| 🔒 `GET /api/view/meta` · `file` · `page?n=0` | cookie + `X-View-Token` | The protected viewer. |
+| 🔒 `GET /api/view/meta` · `file` · `page?n=0` | cookie + `X-View-Token` | The protected viewer. `meta` has `scope` and `until` (when the class plan ends); a plan that has ended answers `403 expired`. |
 
 ## Staff (`x-admin-key` header = `ADMIN_KEY`)
 

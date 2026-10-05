@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { CLASSES, SUBJECTS, PLANS, classById, subjectById } from '../../data/content.js';
 import { money, isIndia } from '../../services/currency.js';
+import { dateOf } from '../../utils/format.js';
 import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
@@ -14,6 +15,20 @@ function SideButton({ on, onClick, n, children }) {
 
 /* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" */
 const SOON = { c1: true, c2: true, c3: true };
+
+/* Subscribe to a class (1, 3, 6 months; 12 outside India). With a plan running it says until
+   when, and the same buttons renew it — the new plan starts the day the current one ends. */
+function SubscribeBox({ cls, sub, openCheckout }) {
+  const label = classById(cls).label;
+  return (
+    <div className="shop-sub">
+      {sub
+        ? <div><b>Your {label} plan is active{sub.end ? ' until ' + dateOf(sub.end) : ''}</b><p>Every sheet in the class opens for you — tap any sheet below.{sub.end ? ' Renew any time: the new plan starts the day this one ends.' : ''}</p></div>
+        : <div><b>Subscribe to {label}</b><p>Every sheet in the class opens while your plan runs. {isIndia() ? 'In India: 1, 3 or 6 months.' : 'Choose 1, 3, 6 or 12 months.'}</p></div>}
+      {(!sub || sub.end) && <div className="shop-sub-plans">{PLANS.filter(x => !isIndia() || x.id !== 'y1').map(x => <button key={x.id} type="button" className="sub-plan" onClick={() => openCheckout({ cls, plan: x.id })}><b>{sub ? 'Renew · ' + x.label : x.label}</b><span>{money(x.price)}</span>{x.note ? <small>{x.note}</small> : null}</button>)}</div>}
+    </div>
+  );
+}
 
 export default function Store({ bagCount }) {
   const { shop, setShopFilter, closeShop, openDrawer, openCheckout, access } = useSite();
@@ -62,10 +77,7 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className="shop-grid" id="shopGrid">
-            {view === 'paid' && !skill && !soon && (access.activeSub(cls === 'all' ? 'kg' : cls) ? <div className="shop-sub"><div><b>Your {classById(cls === 'all' ? 'kg' : cls).label} plan is active</b><p>Every sheet in the class opens for you — tap any sheet below.</p></div></div> : <div className="shop-sub">
-              <div><b>Subscribe to {classById(cls === 'all' ? 'kg' : cls).label}</b><p>Every sheet in the class opens while your plan runs. {isIndia() ? 'In India: 1, 3 or 6 months.' : 'Choose 1, 3, 6 or 12 months.'}</p></div>
-              <div className="shop-sub-plans">{PLANS.filter(x => !isIndia() || x.id !== 'y1').map(x => <button key={x.id} type="button" className="sub-plan" onClick={() => openCheckout({ cls: cls === 'all' ? 'kg' : cls, plan: x.id })}><b>{x.label}</b><span>{money(x.price)}</span>{x.note ? <small>{x.note}</small> : null}</button>)}</div>
-            </div>)}
+            {view === 'paid' && !skill && !soon && <SubscribeBox cls={cls === 'all' ? 'kg' : cls} sub={access.activeSub(cls === 'all' ? 'kg' : cls)} openCheckout={openCheckout} />}
             {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className="skill-card" style={{ '--n': n, '--skill-bg': c.color }}>
                 <div className="skill-bg" />

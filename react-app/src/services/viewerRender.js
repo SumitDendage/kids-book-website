@@ -52,7 +52,11 @@ export async function renderImages(stage, { pages, stamp, isEnded, fetchPage, on
   for (let n = 0; n < pages; n++) {
     if (isEnded()) return;
     const r = await fetchPage(n);
-    if (!r.ok) { if (r.status === 401 || r.status === 403) { const e = await r.json().catch(() => ({})); onDenied(e.error); } return; }
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      if (r.status === 401 || r.status === 403) { onDenied(e.error); return; }
+      throw new Error(e.error || 'Page ' + (n + 1) + ' could not be loaded');   /* never a blank page shown as if it had loaded */
+    }
     const bmp = await createImageBitmap(await r.blob()), cv = pageEl(stage, n, pages, stamp); cv.width = bmp.width; cv.height = bmp.height;
     const ctx = cv.getContext('2d'); ctx.drawImage(bmp, 0, 0); bake(ctx, bmp.width, bmp.height, stamp); bmp.close();
   }

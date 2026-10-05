@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext.jsx';
 import { createStage } from '../services/chapterStage.js';
 import { authApi, catalogueApi, payApi, setUnauthorizedHandler } from '../services/api.js';
-import { loadSession, rememberSession, storeSession, read, logEvent, pushLog, setLogIdentity } from '../services/storage.js';
+import { loadSession, rememberSession, storeSession, read, write, logEvent, pushLog, setLogIdentity } from '../services/storage.js';
 import { applyAdminProducts, applyLocalPrices, applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
 import { PLANS, WHYS } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
@@ -21,9 +21,32 @@ export const useSite = () => useContext(SiteContext);
 applyLocalPrices(PLANS);
 applyAdminProducts();
 
+/* What to do once the customer is signed in, kept in this browser so it survives the
+   email-confirmation link opening in a new tab: { do: 'sheet', id } · { do: 'shop' } ·
+   { do: 'checkout', what } · { do: 'pay', ret, pending }. It is used once, and an old one
+   (more than two hours) is dropped, so a sheet clicked long ago never pops up by surprise. */
+const NEXT_KEY = 'lww_next', NEXT_TTL = 2 * 3600e3;
+const saveNext = n => { try { if (n) localStorage.setItem(NEXT_KEY, JSON.stringify({ ...n, at: Date.now() })); else localStorage.removeItem(NEXT_KEY); } catch (_) {} };
+const takeNext = () => { const n = read(NEXT_KEY, null); saveNext(null); return n && n.do && Date.now() - (n.at || 0) < NEXT_TTL ? n : null; };
+/* true when this browser may still hold a session cookie (it signed in and did not sign out) —
+   guests skip the session check at start, so it does not show up as a failed request.
+   Browsers from before this hint fall back to "has signed in here before". */
+const MAYBE_IN = 'lww_maybe_in';
+const maybeSignedIn = () => { const v = read(MAYBE_IN, null); return v == null ? !!read('lww_seen', false) : !!v; };
+
 export function makeAccess(session, ent) {
-  const subsOf = () => ent.filter(e => e.scope === 'class').map(e => ({ cls: e.cls, plan: e.plan || 'm1', start: e.start, at: e.start }));
-  const activeSub = cls => subsOf().find(x => x.cls === cls) || null;
+  /* Class plans run from their start to their end (the server sends both). A renewal starts where
+     the plan before it ends, so a class is covered while one of its plans has begun, and it runs
+     until the last one ends; a plan the admin gave with no end does not run out. */
+  const now = Date.now();
+  const plans = ent.filter(e => e.scope === 'class' && !(e.end && e.end <= now));   /* revoked ones are not sent */
+  const subOf = cls => {
+    const mine = plans.filter(e => e.cls === cls), cur = mine.filter(e => e.start <= now).sort((a, b) => b.start - a.start)[0];
+    if (!cur) return null;
+    return { cls, plan: cur.plan || 'm1', start: cur.start, at: cur.start, end: mine.some(e => !e.end) ? null : Math.max(...mine.map(e => e.end)) };
+  };
+  const subsOf = () => Array.from(new Set(plans.map(e => e.cls))).map(subOf).filter(Boolean);
+  const activeSub = cls => subOf(cls);
   /* a paid single-PDF purchase, or a free sheet already opened once */
   const itemEnt = id => ent.filter(e => e.scope === 'worksheet' && e.worksheet === id).sort((a, b) => b.start - a.start)[0] || null;
   const ownedOf = () => Array.from(new Set(ent.filter(e => e.scope === 'worksheet').map(e => e.worksheet)));
@@ -64,7 +87,6 @@ export function SiteProvider({ children }) {
   const [shop, setShop] = useState({ open: false, view: 'all', cls: 'all', subject: 'all', skill: null });
   const [checkout, setCheckout] = useState({ open: false, item: null, nonce: 0 });
   const [auth, setAuth] = useState(() => ({ view: loadSession() ? 'signin' : 'signup', alert: null, nonce: 0, token: null }));
-  const pendingAfterSignIn = useRef(null);
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
   const portalCloser = useRef(null);
   const portalKind = pathname === '/admin' ? 'admin' : pathname === '/developer' ? 'developer' : null;
@@ -105,26 +127,32 @@ export function SiteProvider({ children }) {
       catch (err) { if (err.status !== 401) console.warn('entitlements', err.message); return entRef.current; }
     };
     a.forgetSession = () => {
-      setSession(null); setEnt([]); rememberSession(null);
+      setSession(null); setEnt([]); rememberSession(null); write(MAYBE_IN, false);
       a.setAuthView('signin');
     };
     a.signedIn = async (s, msg, remember = true) => {
       const next = { name: s.name, email: s.email, role: s.role || null };
-      setSession(next); storeSession(next, remember);
+      setSession(next); storeSession(next, remember); write(MAYBE_IN, true);
       await a.syncEntitlements();
       toast(msg);
-      const p = pendingAfterSignIn.current; pendingAfterSignIn.current = null;
-      if (p) setTimeout(p, 400);
+      const n = takeNext();
+      if (n) setTimeout(() => a.runNext(n), 400);
     };
-    a.signOut = () => { authApi.logout().catch(() => {}); a.forgetSession(); toast('Signed out. See you soon.'); };
+    a.runNext = n => {
+      if (n.do === 'sheet' && n.id) a.openSheet(n.id);
+      else if (n.do === 'shop') a.openShop('all');
+      else if (n.do === 'checkout' && n.what) a.openCheckout(n.what);
+      else if (n.do === 'pay' && n.ret) a.finishPayment(n.ret, n.pending || null);
+    };
+    a.signOut = () => { authApi.logout().catch(() => {}); saveNext(null); a.forgetSession(); toast('Signed out. See you soon.'); };
     a.setRole = role => {
       const s = sessionRef.current; if (!s) return;
       const next = { ...s, role }; setSession(next); rememberSession(next);
       if (role) authApi.updateMe({ role }).catch(err => toast(err.message));
     };
-    /* something that needs an account: remember it, go to chapter 01, say why */
-    a.requireSignIn = (then, why, view) => {
-      pendingAfterSignIn.current = then;
+    /* something that needs an account: remember what comes next, go to chapter 01, say why */
+    a.requireSignIn = (next, why, view) => {
+      saveNext(next);
       a.closeModal(); a.closeDrawers(); a.closeCheckout(); a.closeShop(); stage.goTo(0);
       a.setAuthView(view || (read('lww_seen', false) ? 'signin' : 'signup'));
       setTimeout(() => a.setAuthAlert({ type: 'ok', msg: why }), 500);
@@ -142,13 +170,13 @@ export function SiteProvider({ children }) {
     /* openCheckout({ worksheet: 'kg-mat-cnt' }) buys one PDF; openCheckout({ cls: 'kg', plan: 'm3' }) subscribes to a class */
     a.openCheckout = what => {
       if (what && what.cls) {
-        if (!sessionRef.current) { a.requireSignIn(() => a.openCheckout(what), 'Sign in to subscribe — every sheet in the class opens as soon as you have paid.'); return; }
+        if (!sessionRef.current) { a.requireSignIn({ do: 'checkout', what }, 'Sign in to subscribe — every sheet in the class opens as soon as you have paid.'); return; }
         setDrawer(null); a.closeModal();
         setCheckout(c => ({ open: true, item: null, cls: what.cls, plan: what.plan || 'm3', nonce: c.nonce + 1 }));
         return;
       }
       if (!what || !what.worksheet) { toast('Pick a sheet to buy — each PDF is bought on its own.'); return; }
-      if (!sessionRef.current) { a.requireSignIn(() => a.openCheckout(what), 'Sign in to buy this PDF — it opens as soon as you have paid.'); return; }
+      if (!sessionRef.current) { a.requireSignIn({ do: 'checkout', what }, 'Sign in to buy this PDF — it opens as soon as you have paid.'); return; }
       if (!sheetOf(what.worksheet)) return;
       setDrawer(null); a.closeModal();
       setCheckout(c => ({ open: true, item: what.worksheet, cls: null, plan: null, nonce: c.nonce + 1 }));
@@ -158,8 +186,14 @@ export function SiteProvider({ children }) {
        402 when payment is needed, 401 when the session is gone. The page only follows that answer. */
     a.openViewer = async id => {
       const it = sheetOf(id); if (!it) return;
-      if (!sessionRef.current) { a.requireSignIn(() => a.openViewer(id), 'Sign in to open ' + it.title + ' — free and paid sheets both need an account.'); return; }
-      if (it.price !== 0 && !accessNow().canOpen(it)) { a.closeModal(); a.openCheckout({ worksheet: id }); return; }   /* we already know: straight to checkout */
+      if (!sessionRef.current) { a.requireSignIn({ do: 'sheet', id }, 'Sign in to open ' + it.title + ' — free and paid sheets both need an account.'); return; }
+      if (it.price !== 0 && !accessNow().canOpen(it)) {
+        /* this browser's copy says it is not yours — but it may be old (bought in another tab or on
+           another device), so the server is asked before anyone is sent to pay */
+        const fresh = await a.syncEntitlements();
+        if (!makeAccess(sessionRef.current, fresh).canOpen(it)) { a.closeModal(); a.openCheckout({ worksheet: id }); return; }
+        a.openSheet(id); toast(it.title + ' is on your account — tap Open to read it.'); return;   /* a new tab needs a fresh tap */
+      }
       const win = window.open('', '_blank');   /* open synchronously so the browser allows the tab */
       try {
         const r = await catalogueApi.access(id);
@@ -170,13 +204,19 @@ export function SiteProvider({ children }) {
       } catch (err) {
         if (win) win.close();
         if (err.status === 402) { a.closeModal(); toast('Payment needed to open this sheet'); a.openCheckout({ worksheet: id }); return; }
-        if (err.status === 401) { a.requireSignIn(() => a.openViewer(id), 'Your session ended — sign in again to open ' + it.title + '.', 'signin'); return; }
+        if (err.status === 401) { a.requireSignIn({ do: 'sheet', id }, 'Your session ended — sign in again to open ' + it.title + '.', 'signin'); return; }
         toast(err.message);
       }
     };
     /* a card's own buttons: unlock (free) and buy (paid) */
     a.unlock = id => { if (!sessionRef.current) { a.showAccountPopup(id); return; } a.openViewer(id); };
-    a.buy = id => { if (!sessionRef.current) { a.showAccountPopup(id); return; } a.closeModal(); a.openCheckout({ worksheet: id }); };
+    a.buy = async id => {
+      if (!sessionRef.current) { a.showAccountPopup(id); return; }
+      /* bought already in another tab or on another device? then there is nothing to pay */
+      const it = sheetOf(id), fresh = await a.syncEntitlements();
+      if (it && makeAccess(sessionRef.current, fresh).canOpen(it)) { a.openSheet(id); toast(it.title + ' is already on your account — tap Open to read it.'); return; }
+      a.closeModal(); a.openCheckout({ worksheet: id });
+    };
     a.openPortal = kind => { setDrawer(null); a.closeModal(); a.closeCheckout(); navigate('/' + kind); };
     a.closePortal = () => { if (portalCloser.current) portalCloser.current(); else navigate('/' + window.location.hash); };
     /* after a purchase: My Worksheets */
@@ -206,18 +246,31 @@ export function SiteProvider({ children }) {
       }
     };
     /* Back from Stripe or PayPal: ?pay=stripe&order=…&session=…  ·  ?pay=paypal&order=…&token=…  ·  ?pay=cancel&order=… */
-    a.handlePaymentReturn = async () => {
+    a.handlePaymentReturn = () => {
       const u = new URL(window.location.href), pay = u.searchParams.get('pay'); if (!pay) return;
-      const orderId = u.searchParams.get('order') || '';
+      const ret = { pay, order: u.searchParams.get('order') || '', session: u.searchParams.get('session') || '', token: u.searchParams.get('token') || '' };
       let pending = null; try { pending = JSON.parse(sessionStorage.getItem('lww_pending_pay') || 'null'); sessionStorage.removeItem('lww_pending_pay'); } catch (_) {}
       history.replaceState(history.state, '', u.pathname + u.hash);   /* clean the address bar */
-      const s = sessionRef.current;
-      if (!s) { a.requireSignIn(() => {}, 'Sign in again to finish your payment.'); return; }
+      a.finishPayment(ret, pending);
+    };
+    /* confirm the payment with the server; with no session in this tab, the cookie is tried once,
+       then the customer signs in and the confirmation carries on from there */
+    a.finishPayment = async (ret, pending) => {
+      if (!sessionRef.current) {
+        try {
+          const r = await authApi.refresh(); const s = { name: r.user.name, email: r.user.email, role: r.user.role || null };
+          setSession(s); rememberSession(s); write(MAYBE_IN, true);
+        } catch (_) {
+          if (ret.pay === 'cancel') { toast('Payment cancelled — nothing was charged.'); return; }   /* nothing to finish */
+          a.requireSignIn({ do: 'pay', ret, pending }, 'Sign in again to finish your payment — you will not be charged twice.', 'signin'); return;
+        }
+      }
+      const s = sessionRef.current, { pay, order: orderId } = ret;
       try {
         let done;
         if (pay === 'cancel') { if (orderId) await payApi.cancel({ order_id: orderId }); toast('Payment cancelled — nothing was charged.'); if (pending && pending.worksheet) a.openSheet(pending.worksheet); return; }
-        if (pay === 'stripe') done = await payApi.stripeConfirm({ order_id: orderId, session_id: u.searchParams.get('session') || '' });
-        else if (pay === 'paypal') done = await payApi.paypalCapture({ order_id: orderId, token: u.searchParams.get('token') || '' });
+        if (pay === 'stripe') done = await payApi.stripeConfirm({ order_id: orderId, session_id: ret.session });
+        else if (pay === 'paypal') done = await payApi.paypalCapture({ order_id: orderId, token: ret.token });
         else return;
         const paid = done.order, cur = paid.currency || (pending && pending.currency) || 'INR';
         pushLog('lww_orders', { id: paid.id, at: paid.at, email: s.email, name: s.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: cur, total: paid.total, method: pay === 'stripe' ? 'Stripe' : 'PayPal', status: 'paid' }, 1000);
@@ -225,7 +278,10 @@ export function SiteProvider({ children }) {
         logEvent('buy', { order: paid.id, worksheet: paid.worksheet, amount: paid.totalInr, currency: cur, gateway: pay });
         await a.syncEntitlements();
         a.showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, total: fmtCur(paid.total, cur), method: pay === 'stripe' ? 'Stripe' : 'PayPal' });
-      } catch (err) { toast(err.message || 'Could not confirm the payment'); if (pending && pending.worksheet) a.openSheet(pending.worksheet); }
+      } catch (err) {
+        if (err.status === 401) { a.requireSignIn({ do: 'pay', ret, pending }, 'Sign in again to finish your payment — you will not be charged twice.', 'signin'); return; }
+        toast(err.message || 'Could not confirm the payment'); if (pending && pending.worksheet) a.openSheet(pending.worksheet);
+      }
     };
     /* the currency the prices are shown in */
     a.loadCurrency = () => loadCoConfig().then(cfg => { if (setCurrencyFromCountry(cfg, initialAddress().country)) a.rerenderAll(); }).catch(() => {});   /* the same country the checkout starts with */
@@ -262,12 +318,13 @@ export function SiteProvider({ children }) {
     })();
     (async () => {
       const had = !!sessionRef.current;
+      if (!had && !maybeSignedIn()) return;   /* a guest: no cookie to check */
       try {
         const r = await authApi.refresh(); if (!alive) return;   /* the cookie still good? (and its expiry moved on) */
         const s = { name: r.user.name, email: r.user.email, role: r.user.role || null };
-        setSession(s); rememberSession(s); await actions.syncEntitlements();
+        setSession(s); rememberSession(s); write(MAYBE_IN, true); await actions.syncEntitlements();
         if (!had) actions.setAuthView('signin');
-      } catch (err) { if (err.status === 401 && had) actions.forgetSession(); }
+      } catch (err) { if (err.status === 401) { if (had) actions.forgetSession(); else write(MAYBE_IN, false); } }
     })();
     logEvent('visit', { path: window.location.hash || '/', ref: document.referrer ? new URL(document.referrer).hostname : 'direct', ua: navigator.userAgent.slice(0, 80) });
     return () => { alive = false; };

@@ -53,7 +53,9 @@ export default function Viewer() {
       const meta = await r.json(); if (r0.cancelled) return; r0.meta = meta;
       document.title = meta.title + ' — Learn With Why';
       const who = (meta.user.name ? meta.user.name + ' · ' : '') + meta.user.email;
-      const info = { title: meta.title, sub: meta.pages > 1 ? ' · ' + meta.pages + ' pages' : '', lic: meta.kind === 'free' ? 'Free · yours' : 'Yours to keep', who, since: (meta.kind === 'free' ? 'Free sheet' : 'Bought') + ' · on your account since ' + fmt(meta.since) };
+      const plan = meta.scope === 'class';   /* opened through a class plan: it runs until meta.until (null: no end) */
+      const info = { title: meta.title, sub: meta.pages > 1 ? ' · ' + meta.pages + ' pages' : '', lic: meta.kind === 'free' ? 'Free · yours' : plan ? 'In your plan' : 'Yours to keep', who,
+        since: plan ? 'In your class plan' + (meta.until ? ' · until ' + fmt(meta.until) : '') : (meta.kind === 'free' ? 'Free sheet' : 'Bought') + ' · on your account since ' + fmt(meta.since) };
       setHead(info);
       const stamp = who + ' · ' + new Date().toLocaleDateString('en-IN') + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       timer = setInterval(recheck, 60e3);
@@ -72,7 +74,7 @@ export default function Viewer() {
       } catch (err) { if (!isEnded()) screen('Could not render this sheet', String(err.message || err) + ' — try again from the site.', { back: true }); return; }
       if (isEnded()) return;
       fit();
-      screen(meta.title, 'Licensed to ' + meta.user.email + ' — it stays on your account. Copying, downloading and screenshots are not permitted.', { action: 'Open full screen', onAction: () => { goFull(); setVeil(v => ({ ...v, off: true })); }, back: true });
+      screen(meta.title, 'Licensed to ' + meta.user.email + (plan ? '' : ' — it stays on your account') + '. Copying, downloading and screenshots are not permitted.', { action: 'Open full screen', onAction: () => { goFull(); setVeil(v => ({ ...v, off: true })); }, back: true });
     })();
 
     /* ---- protection: no menu, no drag, no copy/save/print keys, blur when the window is not in front ---- */

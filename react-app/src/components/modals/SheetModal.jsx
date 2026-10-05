@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf } from '../../data/content.js';
+import { dateOf } from '../../utils/format.js';
 
 /* Not signed in? Every worksheet first shows what a free account includes. */
 function AccountPopup({ id }) {
-  const { closeModal, requireSignIn, openSheet, openShop } = useSite();
+  const { closeModal, requireSignIn } = useSite();
   const it = sheetOf(id);
-  const go = view => requireSignIn(() => { if (id) openSheet(id); else openShop('all'); }, view === 'signup' ? 'Create your free account — then sign in and your sheet will be waiting for you.' : 'Sign in — your sheet will be waiting for you.', view);
+  const go = view => requireSignIn(id ? { do: 'sheet', id } : { do: 'shop' }, view === 'signup' ? 'Create your free account — then sign in and your sheet will be waiting for you.' : 'Sign in — your sheet will be waiting for you.', view);
   return (
     <>
       <button type="button" className="icon-btn close-x" aria-label="Close" onClick={closeModal}>✕</button>
@@ -36,7 +37,7 @@ function SheetDetail({ id }) {
         <div className="boxes"><div><span className="glyph">{it.glyph}</span>{it.skills ? it.skills[0] : it.subject}</div><div><span className="pic">{it.pages ? it.pages : '✎'}</span>{it.pages ? 'A4 pages' : 'Activity'}</div></div>
         <div className="lines"><i /><i /><i /><i /><i /></div><small>{it.title} · {it.subject}</small></div>
     );
-  const accessLine = free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (sub ? 'In your ' + cls.label + ' plan · yours to keep' : 'Bought · yours to keep') : 'Yours to keep once bought';
+  const accessLine = free ? (session ? 'Free access · signed in' : 'Free access · sign in to open') : mine ? (access.itemEnt(it.id) ? 'Bought · yours to keep' : 'In your ' + cls.label + ' plan' + (sub && sub.end ? ' · until ' + dateOf(sub.end) : '')) : 'Yours to keep once bought';
   /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab */
   const actions = mine
     ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
@@ -59,10 +60,11 @@ function SheetDetail({ id }) {
   );
 }
 
-/* shown right after a successful purchase — access never expires */
+/* shown right after a successful purchase — a bought PDF never expires; a class plan runs until its end date */
 function PurchasePopup({ p }) {
-  const { closeModal, openViewer, openMyWorksheets } = useSite();
+  const { access, closeModal, openViewer, openMyWorksheets } = useSite();
   const cls = classById(p.cls), item = p.worksheet ? sheetOf(p.worksheet) : null;
+  const sub = !item && p.cls ? access.activeSub(p.cls) : null, until = sub && sub.end ? dateOf(sub.end) : null;
   return (
     <>
       <div className="purchase-icon" aria-hidden="true">✓</div>
@@ -70,9 +72,11 @@ function PurchasePopup({ p }) {
       <h3 id="modalTitle">Your purchase has been completed successfully.</h3>
       <p className="lead">You can now access your PDF.</p>
       <p>{item ? <><b>{item.title}</b> has</> : <>Every sheet in <b>{cls && cls.label}</b> has</>} been added to your account.</p>
-      <div className="expiry"><small>{item ? 'This PDF is' : 'These PDFs are'} yours to keep</small><b>No expiry</b><small>Open {item ? 'it' : 'them'} as often as you like, on any device you sign in to.</small></div>
+      {item || !until
+        ? <div className="expiry"><small>{item ? 'This PDF is' : 'These PDFs are'} yours to keep</small><b>No expiry</b><small>Open {item ? 'it' : 'them'} as often as you like, on any device you sign in to.</small></div>
+        : <div className="expiry"><small>Your {planOf(p.plan).label} plan runs</small><b>Until {until}</b><small>Open every sheet as often as you like, on any device you sign in to. Renew any time from the shop and the new plan starts when this one ends.</small></div>}
       <p>You can open {item ? 'it' : 'them'} any time from:<br /><b>My Account → My Worksheets</b></p>
-      <div className="rows"><div><span>{item ? 'Sheet' : 'Class'}</span><b>{item ? item.title : (cls && cls.label) + ' · every sheet'}</b></div><div><span>Paid</span><b>{p.total} via {p.method}</b></div><div><span>{item ? 'Access' : 'Plan'}</span><b>{item ? 'Does not expire' : planOf(p.plan).label}</b></div></div>
+      <div className="rows"><div><span>{item ? 'Sheet' : 'Class'}</span><b>{item ? item.title : (cls && cls.label) + ' · every sheet'}</b></div><div><span>Paid</span><b>{p.total} via {p.method}</b></div><div><span>{item ? 'Access' : 'Plan'}</span><b>{item ? 'Does not expire' : planOf(p.plan).label + (until ? ' · until ' + until : '')}</b></div></div>
       <div className="sheet-actions">
         {item && <button type="button" className="btn btn-primary" onClick={() => openViewer(item.id)}>Open the PDF now ↗</button>}
         <button type="button" className={'btn ' + (item ? 'btn-ghost' : 'btn-primary')} onClick={openMyWorksheets}>Open My Worksheets</button>

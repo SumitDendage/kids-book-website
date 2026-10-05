@@ -46,7 +46,8 @@ The PDF viewer        dist/viewer.html       GET /api/view/meta · file · page 
                 ↓
 Watermark             name · email · time baked into every page
                 ↓
-Yours to keep         nothing expires; an admin revoke (POST /api/admin/entitlements/revoke) is the only way access ends
+Yours to keep         a bought or free sheet never expires; a class plan ends after its months (a renewal starts
+                      when it ends); an admin revoke (POST /api/admin/entitlements/revoke) ends either
 ```
 
 ## Files
@@ -110,7 +111,7 @@ SELECT created_at, email, success, failure_reason, ip FROM login_activity ORDER 
 | `worksheets` | id, title, class, subject, pages, price (INR, 0 = free), `file` (path inside `protected/`), thumb, active |
 | `orders` | id `LWO-xxxxxx`, user, kind (`class` / `worksheet`), currency, total, INR total, amount in minor units, lines, coupon, address, method, status (`created` → `paid` / `failed` / `refunded`), Razorpay order + payment ids |
 | `payments` | every gateway event (order created, verify, webhook) with outcome |
-| `entitlements` | user, scope (`worksheet` or `class`), reference, kind (`free` / `paid`), order, `starts_at`, `revoked_at` — no expiry |
+| `entitlements` | user, scope (`worksheet` or `class`), reference, kind (`free` / `paid`), plan, order, `starts_at`, `revoked_at` — a class plan ends `starts_at` + its months (from the plan settings); everything else has no end |
 | `access_log` | every access decision and PDF/page stream, with IP |
 | `settings` | JSON values: `plans`, `classes`, `coupons`, `discounts`, `rates`, `fees`, `secret` |
 
