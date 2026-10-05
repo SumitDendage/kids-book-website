@@ -4,9 +4,9 @@ node_modules/
 out/
 archive/papercub-react/dist/
 
-# secrets / local
-# (site/.env is the one exception: it is committed with BLANK values only, as a fill-in template —
-#  never commit real passwords in it; run `git update-index --skip-worktree site/.env` after cloning)
+# secrets / local — backend/.env holds the real settings and is never committed (this rule).
+# site/.env is an OLD blank template that stays tracked for now, so older checkouts can still pull;
+# the server reads it only while backend/.env does not exist yet.
 .env
 .env.local
 *.local
@@ -21,7 +21,12 @@ archive/papercub-react/public/frames-webp/
 .claude/
 __pycache__/
 
-# server database (SQLite: customers, orders, entitlements) and PDFs uploaded through the admin API
-site/data/
-site/protected/uploads/
+# the shop database (SQLite: orders, purchases) and PDFs uploaded through the admin API
+database/data/
+backend/protected/uploads/
+
+# left behind on older checkouts after the move to frontend/ backend/ database/ (October 2026):
+# react-app/node_modules and its old build, site/node_modules, site/data, site/protected/uploads
+/react-app/
+/site/*
 
