@@ -3,13 +3,13 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { CLASSES, SUBJECTS, PLANS, classById, subjectById } from '../../data/content.js';
 import { money, isIndia } from '../../services/currency.js';
 import { dateOf } from '../../utils/format.js';
-import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_PREFIX, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
+import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
    (public/shop/learn-with-why-wallpaper.webp). Each skill card shows its own corner of that
-   picture (public/shop/cards/); the sheet cards are see-through, each in its own colour. */
+   picture (public/shop/cards/<section id>.webp); the sheet cards are see-through, each in its own colour. */
 function SideButton({ on, onClick, n, children }) {
   return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
@@ -91,7 +91,7 @@ export default function Store({ bagCount }) {
                   <ul className="skill-list"><li>Free sample to explore</li><li>Printable and watermarked</li><li>Buy or subscribe to unlock</li></ul>
                   <div className="skill-foot">
                     <span className="skill-count">{c.count} sheets</span>
-                    <button type="button" className="btn btn-primary" onClick={() => setShopFilter({ skill: SKILL_PREFIX[c.id], view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
+                    <button type="button" className="btn btn-primary" onClick={() => setShopFilter({ skill: c.id, view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
                   </div>
                 </div>
               </article>

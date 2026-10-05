@@ -163,12 +163,11 @@
 #shop .skill-card .skill-count { font-size: 1.02rem; font-weight: 800; white-space: nowrap; }
 #shop .skill-card .btn-primary { flex: 1 1 auto; max-width: 270px; justify-content: space-between; gap: 16px; padding: 14px 24px; font-size: 1.04rem; font-weight: 700; }
 /* each card keeps its own colour for the title and button */
-#shop .shop-grid > .skill-letter-formation { --title: #c2185b; --pic-at: 70% 45%; }
-#shop .shop-grid > .skill-letter-sounds { --title: #17703d; --pic-at: 50% 60%; }
-#shop .shop-grid > .skill-uppercase-lowercase { --title: #1a56b0; --pic-at: 50% 60%; }
-#shop .shop-grid > .skill-spot-the-letters { --title: #8a4b08; --pic-at: 60% 60%; }
-#shop .shop-grid > .skill-colour-matching { --title: #5e35b8; --pic-at: 40% 60%; }
-#shop .shop-grid > .skill-beginning-sounds { --title: #b8460f; --pic-at: 50% 50%; }
-#shop .shop-grid > .skill-ending-sounds { --title: #08756b; --pic-at: 50% 60%; }
-#shop .shop-grid > .skill-missing-letters { --title: #3949ab; --pic-at: 50% 40%; }
+#shop .shop-grid > .skill-letter-tracing { --title: #c2185b; --pic-at: 70% 45%; }
+#shop .shop-grid > .skill-letter-recognition { --title: #17703d; --pic-at: 40% 60%; }
+#shop .shop-grid > .skill-match-upper-lower { --title: #1a56b0; --pic-at: 50% 60%; }
+#shop .shop-grid > .skill-before-after-letters { --title: #8a4b08; --pic-at: 50% 50%; }
+#shop .shop-grid > .skill-beginning-sounds { --title: #5e35b8; --pic-at: 60% 60%; }
+#shop .shop-grid > .skill-ending-sounds { --title: #b8460f; --pic-at: 50% 60%; }
+#shop .shop-grid > .skill-missing-letters { --title: #08756b; --pic-at: 50% 40%; }
 @media (prefers-reduced-motion: reduce) { #shop .skill-pic { transition: none; } #shop .skill-card:hover .skill-pic { transform: none; } }

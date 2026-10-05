@@ -96,8 +96,8 @@ export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
    (the admin's book studio has a Topic field). The Alphabet group follows the Kindergarten
-   content plan: eight sub-categories in its order. Which sheets sit in each is Sumit's own
-   list (Oct 5): tracing = A to Z + the Group 1 reading charts, recognition = Colour A to Z,
+   content plan, in its order, as the seven sections Sumit listed (Oct 5; Middle Sounds was
+   taken out). Which sheets sit in each is Sumit's own list: tracing = A to Z + the Group 1 reading charts, recognition = Colour A to Z,
    match = Matching, before and after = the Spot sheets ("Uppercase to Lowercase" zip),
    beginning and ending sounds = their Sound Exercise sheets + the Sound charts A to E,
    missing letters = Missing A to Z. */
@@ -110,7 +110,6 @@ export const KG_TOPICS = [
     ['before-after-letters', 'Letters Before and After', 'Children identify the letter that comes before or after the given letter.'],
     ['beginning-sounds', 'Beginning Sounds', 'Children identify the first sound heard in a pictured word.'],
     ['ending-sounds', 'Ending Sounds', 'Children identify the final sound heard in a pictured word.'],
-    ['middle-sounds', 'Middle Sounds', 'Children identify the middle sound heard in a simple word.'],
     ['missing-letters', 'Find the Missing Letters', 'Children complete alphabet sequences by writing the missing letters.'],
   ] },
   { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
@@ -210,23 +209,14 @@ export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
 ];
-export const SKILL_CATEGORIES = [
-  { id: 'letter-formation', label: 'Letter Formation', description: 'Uppercase and lowercase with dotted guides and picture cues', color: 'rgba(59, 91, 219, 0.4)', count: 26 },
-  { id: 'letter-sounds', label: 'Letter Sounds', description: 'Consonant blending, rhyming words and phonetic awareness', color: 'rgba(139, 67, 219, 0.4)', count: 6 },
-  { id: 'uppercase-lowercase', label: 'Uppercase & lowercase', description: 'Match upper to lower case letters in fun activities', color: 'rgba(67, 167, 219, 0.4)', count: 5 },
-  { id: 'spot-the-letters', label: 'Spot the letters', description: 'Visual discrimination and letter recognition practice', color: 'rgba(219, 131, 67, 0.4)', count: 5 },
-  { id: 'colour-matching', label: 'Colour matching', description: 'Sort, name and match colours with tracing practice', color: 'rgba(67, 219, 131, 0.4)', count: 26 },
-  { id: 'beginning-sounds', label: 'Beginning sounds', description: 'Hear, circle and write the first sound, with read-aloud charts A to E', color: 'rgba(219, 67, 131, 0.4)' },
-  { id: 'ending-sounds', label: 'Ending sounds', description: 'Choose and write the last sound, then find words that end the same', color: 'rgba(219, 191, 67, 0.4)' },
-  { id: 'missing-letters', label: 'Missing letters', description: 'Fill in the missing capital and small letters from A to Z', color: 'rgba(67, 191, 219, 0.4)' },
-];
-/* the store's skill filter: category id → the id prefix of its printable PDFs */
-export const SKILL_PREFIX = { 'letter-formation': 'az', 'letter-sounds': 'rc', 'uppercase-lowercase': 'mt', 'spot-the-letters': 'sp', 'colour-matching': 'cl', 'beginning-sounds': 'bs', 'ending-sounds': 'es', 'missing-letters': 'ms' };
-export const SKILL_NAME = { az: 'Letter Formation', rc: 'Letter Sounds', mt: 'Uppercase & lowercase', sp: 'Spot the letters', cl: 'Colour matching', bs: 'Beginning sounds', es: 'Ending sounds', ms: 'Missing letters' };
-/* the PDF sheets in a skill: every sheet whose id starts with one of its prefixes, so each PDF is counted once */
-const SKILL_SETS = { bs: ['bx', 'sd'], es: ['ex'] };
-export const skillSheets = skill => PDF_SHEETS.filter(it => (SKILL_SETS[skill] || [skill]).includes(it.id.split('-')[0]));
-SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(SKILL_PREFIX[c.id]).length; });
+/* the store's cards are the same seven Alphabet sections as the Kindergarten tiles (Sumit, Oct 5),
+   each with the same sheets: a card's id is its section id */
+const ALPHA_ITEMS = KG_TOPICS.find(g => g.id === 'alpha').items;
+export const SKILL_CATEGORIES = ALPHA_ITEMS.map(([id, label, description]) => ({ id, label, description }));
+export const SKILL_NAME = Object.fromEntries(SKILL_CATEGORIES.map(c => [c.id, c.label]));
+/* the PDF sheets in a section (the Sound charts A to E sit in both Beginning and Ending Sounds) */
+export const skillSheets = skill => topicSheets(skill).filter(it => it.pdf);
+SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(c.id).length; });
 
 /* prices the admin changed in this browser */
 export function applyLocalPrices(PLANS) { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); }

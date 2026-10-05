@@ -2,7 +2,7 @@ import { KG_TOPICS, ITEMS, topicSheets } from '../../data/catalogue.js';
 import SheetCard from './SheetCard.jsx';
 import { AzTile, PicTile } from './SheetTiles.jsx';
 
-/* Kindergarten follows the Kindergarten content plan: one tile for each of the eight
+/* Kindergarten follows the Kindergarten content plan: one tile for each of the seven
    Alphabet sub-categories, in order. A tile opens to every sheet in it. */
 const ALPHA = KG_TOPICS.find(g => g.id === 'alpha');
 const inSections = () => new Set(ALPHA.items.flatMap(([id]) => topicSheets(id).map(it => it.id)));
