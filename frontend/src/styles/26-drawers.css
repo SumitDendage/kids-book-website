@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- bag drawer + menu ---------- */
 .drawer-scrim { position: fixed; inset: 0; z-index: 260; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
 .drawer-scrim.open { opacity: 1; visibility: visible; }

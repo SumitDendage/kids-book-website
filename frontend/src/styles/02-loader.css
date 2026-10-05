@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- loader ---------- */
 #veil { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; background: #06101a; transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1), visibility 0.9s; }
 #veil.gone { transform: translateY(-100%); visibility: hidden; }

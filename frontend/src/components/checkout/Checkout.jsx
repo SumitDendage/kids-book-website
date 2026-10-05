@@ -194,7 +194,7 @@ export default function Checkout() {
 
   let body;
   if (status === 'loading') body = <section className="panel"><p className="cart-empty">Loading secure checkout…</p></section>;
-  else if (status === 'error') body = <section className="panel"><p className="alert err">{loadError}. Start the site with <code>node server.cjs</code> so the pricing API is available.</p></section>;
+  else if (status === 'error') body = <section className="panel"><p className="alert err">{loadError}. Start the server (<code>npm start</code> in the <code>backend</code> folder) so the pricing API is available.</p></section>;
   else {
     const stateField = C.states
       ? <select id="co-state" name="state" className={addr.state ? 'filled' : undefined} value={addr.state || ''} onChange={e => change('state', e.target.value)} onBlur={blur('state')}>{['', ...C.states].map(x => <option key={x} value={x}>{x}</option>)}</select>

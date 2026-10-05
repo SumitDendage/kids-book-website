@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- nav ---------- */
 .nav-brand { display: inline-flex; align-items: center; gap: 12px; background: none; border: none; cursor: pointer; text-align: left; }
 .wordmark { font-family: var(--font-display); font-weight: 500; font-size: 1.45rem; line-height: 1; letter-spacing: 0.01em; color: var(--fg); text-shadow: 0 2px 14px rgba(0,0,0,0.6); }

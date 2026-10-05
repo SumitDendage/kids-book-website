@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- chapter 06: testimonials (coverflow) ---------- */
 .flow { position: relative; height: 340px; perspective: 1400px; margin: 10px 0 8px; }
 .quote-card { position: absolute; left: 50%; top: 50%; width: min(520px, 78vw); padding: 26px 28px 24px; border-radius: 20px; background: var(--paper); color: var(--ink); box-shadow: 0 30px 70px rgba(0,0,0,0.45); transform-style: preserve-3d; transition: transform 0.8s var(--ease), opacity 0.8s var(--ease), filter 0.8s; cursor: pointer; }

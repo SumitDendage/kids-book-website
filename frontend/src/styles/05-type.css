@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- type ---------- */
 .eyebrow { font-size: var(--fs-eyebrow); font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase; color: var(--fg-dim); margin-bottom: 18px; }
 .display { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-display); line-height: 1.02; letter-spacing: -0.005em; margin-bottom: 22px; max-width: 14ch; text-shadow: 0 8px 40px rgba(0,0,0,0.55); }

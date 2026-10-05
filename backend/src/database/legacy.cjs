@@ -11,7 +11,7 @@
 
    Afterwards the PostgreSQL id sequence is moved past every id the SQLite store has
    used, so a new account can never receive the id of an old customer's orders. */
-const { normEmail, cleanName } = require('./auth.cjs');
+const { normEmail, cleanName } = require('../routes/auth.cjs');
 const ROLES = ['parent', 'teacher', 'tutor', 'school'];
 
 async function importAccounts(pg, shop) {

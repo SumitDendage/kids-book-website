@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- chapter 03: what we do ---------- */
 .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 880px) { .trio { grid-template-columns: 1fr; } }

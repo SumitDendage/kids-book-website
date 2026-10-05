@@ -7,7 +7,7 @@
    SQLite shop store, matched by user id. */
 const fs = require('node:fs');
 const path = require('node:path');
-const { fail, json, readBody, readRaw, timingEqual } = require('./http.cjs');
+const { fail, json, readBody, readRaw, timingEqual } = require('../http/http.cjs');
 
 function make(db, access, payments, protectedDir, contact, auth) {
   const ADMIN_KEY = process.env.ADMIN_KEY || 'change-me';

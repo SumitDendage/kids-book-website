@@ -9,14 +9,14 @@
    it runs starts when it ends, so no day is lost. A class the admin gives without
    a plan does not run out. An admin can still revoke any of them.
 
-   The PDFs live in site/protected/, outside the web root, and are only ever
+   The PDFs live in backend/protected/, outside the web root, and are only ever
    streamed through /api/view/* — every request re-checks the session cookie
    AND the entitlement row, so a link cannot be shared and a revoked sheet
    closes even in a tab that is still open. */
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { fail, json, clientIp, timingEqual, b64url } = require('./http.cjs');
+const { fail, json, clientIp, timingEqual, b64url } = require('../http/http.cjs');
 
 const FILE_TYPES = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 

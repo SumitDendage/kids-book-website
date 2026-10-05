@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- buttons ---------- */
 .btn { padding: 12px 22px; border-radius: var(--r-pill); font-size: var(--fs-ui); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; text-decoration: none; transition: transform var(--d-fast) var(--ease), background var(--d-fast), box-shadow var(--d-fast), color var(--d-fast); }
 .btn-primary { background: #fff; color: #14181c; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }

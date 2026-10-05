@@ -15,7 +15,7 @@ const ADMIN_URL = process.env.TEST_DATABASE_URL;
 function needDatabase() {
   if (ADMIN_URL) return;
   console.error('\nTEST_DATABASE_URL is not set. Point it at a PostgreSQL server where the user may create databases, e.g.\n' +
-    '  TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test\n(see site/README.md → Tests)\n');
+    '  TEST_DATABASE_URL=postgres://lww:lww@127.0.0.1:5432/postgres npm test\n(see backend/README.md → Tests)\n');
   process.exit(1);
 }
 

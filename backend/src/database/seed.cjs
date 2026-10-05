@@ -1,8 +1,8 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* CATALOGUE SEED — the worksheets the database starts with. Ids, titles, classes,
-   subjects, pages and default prices match the React shelf (react-app/src/data/catalogue.js);
+   subjects, pages and default prices match the React shelf (frontend/src/data/catalogue.js);
    price is in INR and 0 means a free access sheet. `file` is the PDF's path inside
-   site/protected/ (never inside the web root); `thumb` is the public preview image.
+   backend/protected/ (never inside the web root); `thumb` is the public preview image.
 
    Classes are kg, c1, c2, c3 (Nursery was folded into Kindergarten). Subjects are
    English, Maths and Science only.
@@ -52,7 +52,7 @@ const SEED_WORKSHEETS = [
   C('ws-time', 'Telling the time', 'c3', 'Maths', 14, 89),
 ];
 
-/* the printable PDFs (PDF_SHEETS): one A4 page each, Kindergarten English, a real file in protected/ */
+/* the printable PDFs (PDF_SHEETS): one A4 page each, Kindergarten English, a real file in backend/protected/ */
 const pdf = (id, title, folder, name, free) => ({ id, title, cls: 'kg', subject: 'English', pages: 1, price: free ? 0 : SHEET_PRICE, file: folder + '/' + name + '.pdf', thumb: 'sheets/' + folder + '/thumb/' + name + '.jpg' });
 const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), FIRST3 = ['A', 'B', 'C'];
 const RANGES = ['AE', 'FJ', 'KO', 'PT', 'UZ'];

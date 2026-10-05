@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* End-to-end smoke test of the backend on throw-away databases (PostgreSQL for accounts,
    SQLite for the shop).
-     TEST_DATABASE_URL=postgres://… node site/test/smoke.cjs
+     TEST_DATABASE_URL=postgres://… node backend/test/smoke.cjs
    Walks the customer flow: catalogue → sign up → password and Accept & Continue link by
    email → confirm → sign in → free sheet opens → paid sheet
    is refused → quote → order → Razorpay payment (its API stubbed here) → entitlement → PDF streams;
@@ -13,7 +13,7 @@
    they are not configured (there is no demo gateway); and the React site (index.html for app
    routes, 404 for missing files); and that a customer of the SQLite-only backend is carried
    over to PostgreSQL with the same id, signs in with the old password and keeps their sheets.
-   Needs Node 22.13+, the PDFs in site/protected/ and TEST_DATABASE_URL (see test/helpers.cjs). */
+   Needs Node 22.13+, the PDFs in backend/protected/ and TEST_DATABASE_URL (see test/helpers.cjs). */
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -25,7 +25,7 @@ H.needDatabase();
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lww-'));
 process.env.DB_PATH = path.join(tmp, 'test.sqlite');
-/* a private store of its own: a copy of site/protected, so admin uploads never touch the real one */
+/* a private store of its own: a copy of backend/protected, so admin uploads never touch the real one */
 const realProtected = path.join(__dirname, '..', 'protected');
 process.env.PROTECTED_DIR = path.join(tmp, 'protected');
 fs.cpSync(realProtected, process.env.PROTECTED_DIR, { recursive: true, dereference: true, filter: src => !/[\\/]uploads([\\/]|$)/.test(src.slice(realProtected.length)) });
@@ -46,8 +46,8 @@ globalThis.fetch = async (url, init = {}) => {
   return Response.json({ error: { description: 'not found' } }, { status: 404 });
 };
 
-/* the site: the React build when it has been made (cd react-app && npm run build), else a tiny stand-in */
-const reactBuild = path.join(__dirname, '..', '..', 'react-app', 'dist');
+/* the site: the React build when it has been made (cd frontend && npm run build), else a tiny stand-in */
+const reactBuild = require('../src/config/paths.cjs').FRONTEND_BUILD;   /* the folder the server serves */
 const realBuild = fs.existsSync(path.join(reactBuild, 'index.html'));
 if (!realBuild) {
   const st = path.join(tmp, 'static'); fs.mkdirSync(path.join(st, 'assets'), { recursive: true });
@@ -58,7 +58,7 @@ if (!realBuild) {
 /* AN OLD DATABASE, as the first version of the server left it: no seed tracking, Nursery,
    Hindi and Art sheets, and two things the admin changed by hand (a price and a title). */
 const { DatabaseSync } = require('node:sqlite');
-const { SEED_V1 } = require('../server/seed.cjs');
+const { SEED_V1 } = require('../src/database/seed.cjs');
 {
   const old = new DatabaseSync(process.env.DB_PATH);
   old.exec(`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -160,7 +160,7 @@ const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
     /* the same server without Razorpay keys: no gateway at all, so nothing can be ordered or settled */
     const keys = [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET];
     delete process.env.RAZORPAY_KEY_ID; delete process.env.RAZORPAY_KEY_SECRET;
-    const off = require('../server/payments.cjs').make(db, auth, access);
+    const off = require('../src/routes/payments.cjs').make(db, auth, access);
     [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET] = keys;
     const call = async body => { const r = Object.assign(Readable.from([Buffer.from(JSON.stringify(body))]), { headers: { cookie } }); await auth.load(r); return r; };
     assert.deepEqual(off.gateways, { razorpay: false, stripe: false, paypal: false });
@@ -186,7 +186,7 @@ const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
   r = await req('POST', '/api/access/c2-mat-mul'); assert.equal(r.status, 402); ok('…but Class 2 stays locked');
 
   /* PLAN LENGTH — a class plan runs for its months; a renewal starts when it ends; a sheet bought on its own never ends */
-  const { addMonths } = require('../server/access.cjs');
+  const { addMonths } = require('../src/routes/access.cjs');
   assert.equal(addMonths(Date.UTC(2027, 0, 31, 10), 1), Date.UTC(2027, 1, 28, 10)); assert.equal(addMonths(Date.UTC(2027, 4, 5, 9), 6), Date.UTC(2027, 10, 5, 9)); ok('months are calendar months (31 January + 1 month = 28 February)');
   assert.equal(paid.entitlement.end, addMonths(paid.entitlement.start, 1)); assert.equal(paid.entitlement.active, true); ok('a 1-month Class 1 plan ends one month after it starts');
   r = await req('GET', '/api/me/entitlements'); assert.equal(r.body.entitlements.find(e => e.order === o1.id).end, null); ok('a sheet bought on its own has no end');
@@ -285,7 +285,7 @@ const rzpPaid = (order, gateway, secret = process.env.RAZORPAY_KEY_SECRET) => {
   pg = await page('/assets/does-not-exist.js'); assert.equal(pg.status, 404); pg = await page('/missing.png'); assert.equal(pg.status, 404); pg = await page('/.htaccess'); assert.equal(pg.status, 404);
   const asset = (index.match(/\/assets\/[^"']+\.js/) || ['/assets/main-test.js'])[0]; pg = await page(asset); assert.equal(pg.status, 200); assert.ok(pg.ct.startsWith('text/javascript')); if (realBuild) assert.ok(/immutable/.test(pg.h.get('cache-control')));
   r = await req('GET', '/api/nope'); assert.equal(r.status, 404); assert.ok(r.ct.includes('json'));
-  ok('site (' + (realBuild ? 'react-app/dist' : 'stand-in build') + '): / , /admin, /developer → index.html; viewer.html served; missing assets and dotfiles → 404; unknown /api → JSON 404');
+  ok('site (' + (realBuild ? 'frontend/dist' : 'stand-in build') + '): / , /admin, /developer → index.html; viewer.html served; missing assets and dotfiles → 404; unknown /api → JSON 404');
 
   /* password reset + sign out */
   r = await req('POST', '/api/auth/forgot-password', { email: 'ria@example.com' }); assert.equal(r.status, 200); const resetToken = H.tokenIn(H.lastMail(app, 'ria@example.com'), 'reset'); assert.ok(resetToken);

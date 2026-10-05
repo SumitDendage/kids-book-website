@@ -27,7 +27,7 @@
    /api/config reports each gateway (Razorpay included) as false while it is not
    configured, and the checkout shows it as "coming soon"; calling it anyway answers 503. */
 const crypto = require('node:crypto');
-const { fail, json, readBody, readRaw, timingEqual } = require('./http.cjs');
+const { fail, json, readBody, readRaw, timingEqual } = require('../http/http.cjs');
 
 const RZP_API = 'https://api.razorpay.com/v1';
 const STRIPE_API = 'https://api.stripe.com/v1';

@@ -1,6 +1,6 @@
 /* FRAME ENGINE — 960 frames, a ladder of key frames stays resident and a window
    follows the playhead; the rest is released (memory-safe). Moved from the page
-   script in site/dist/index.html with the same numbers:
+   script in legacy/old-static-site/index.html with the same numbers:
    KEY 24 (every 24th frame is kept), WINDOW 32 frames either side of the playhead,
    at most 96 decoded frames in memory, 6 downloads at a time, 3 retries per frame.
    Nothing here touches React: the canvas is drawn directly. */

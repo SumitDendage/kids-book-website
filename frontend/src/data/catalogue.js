@@ -1,5 +1,5 @@
 /* The shelf — every sheet, book and printable PDF the site knows about.
-   Moved from the page script in site/dist/index.html. The items are plain
+   Moved from the page script in legacy/old-static-site/index.html. The items are plain
    objects that the server (GET /api/worksheets) and the admin's book studio
    update in place; components re-render through the catalogue version in the
    site store (see src/context/SiteContext.jsx). */

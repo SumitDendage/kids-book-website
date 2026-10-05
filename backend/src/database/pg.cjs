@@ -26,7 +26,7 @@ function sslOption(mode) {
 }
 
 function connect(cfg) {
-  if (!cfg.url) throw new Error('DATABASE_URL is not set — point it at your PostgreSQL database (see site/.env.example).');
+  if (!cfg.url) throw new Error('DATABASE_URL is not set — point it at your PostgreSQL database (put it in backend/.env — see backend/.env.example).');
   const pool = new Pool({ connectionString: cfg.url, ssl: sslOption(cfg.ssl), max: cfg.max, types: TYPES, statement_timeout: 15000, connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000, application_name: 'learn-with-why' });
   pool.on('error', err => console.error('[pg] idle client error:', err.message));
   const als = new AsyncLocalStorage();

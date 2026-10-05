@@ -1,14 +1,18 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* Learn With Why — the backend.   npm start (node server.cjs)  →  http://127.0.0.1:4173
 
-   The React site (react-app/dist, or STATIC_DIR) + JSON API (/api/*) + private
-   PDF storage (protected/), on one Node process.
+   The React site (frontend/dist, or STATIC_DIR) + JSON API (/api/*) + private
+   PDF storage (backend/protected/), on one Node process. Every folder is in
+   src/config/paths.cjs; the code is grouped as src/config, src/http (helpers and
+   middleware), src/routes (one file per part of the API), src/services (prices,
+   email, passwords) and src/database (PostgreSQL, the SQLite shop, the seed).
 
    Two stores:
      PostgreSQL (DATABASE_URL)   customer accounts: users, email confirmation and password
                                  reset tokens, sessions, login activity, security events.
-                                 Schema = site/db/migrations, applied at every start.
-     SQLite (data/lww.sqlite)    the shop: catalogue, orders, payments, entitlements, access
+                                 Schema = database/postgresql/migrations, applied at every start.
+     SQLite (database/data/lww.sqlite)
+                                 the shop: catalogue, orders, payments, entitlements, access
                                  log, contact notes, store settings. Rows point at a customer
                                  by the PostgreSQL users.id.
 
@@ -36,38 +40,39 @@
    Pages: every path that is not a file (/, /admin, /developer, …) gets index.html so
    the React router can draw it; a missing file with an extension (/assets/x.js) is a 404.
 
-   Configuration is read from site/.env (see .env.example). */
+   Configuration is read from backend/.env (see .env.example). */
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-/* site/.env (the tests set LWW_NO_DOTENV so a developer's .env never leaks into them) */
-if (!process.env.LWW_NO_DOTENV) { try { process.loadEnvFile(path.join(__dirname, '.env')); } catch (_) { /* no .env: defaults, and DATABASE_URL must come from the environment */ } }
+/* backend/.env (or the old site/.env while backend/.env does not exist yet) */
+const Paths = require('./src/config/paths.cjs');
+if (require.main === module) Paths.needInstall();
+Paths.loadEnv();
 
-const { HttpError, json, readBody } = require('./server/http.cjs');
-const Config = require('./server/config.cjs');
-const PG = require('./server/pg.cjs');
-const { migrate } = require('./server/migrate.cjs');
-const { importAccounts } = require('./server/legacy.cjs');
-const { securityHeaders, cors, crossSiteRefused, requireAuth } = require('./server/middleware.cjs');
-const DB = require('./server/db.cjs');
-const Auth = require('./server/auth.cjs');
-const Pricing = require('./server/pricing.cjs');
-const Access = require('./server/access.cjs');
-const Payments = require('./server/payments.cjs');
-const Admin = require('./server/admin.cjs');
-const Mail = require('./server/mail.cjs');
-const Contact = require('./server/contact.cjs');
+const { HttpError, json, readBody } = require('./src/http/http.cjs');
+const Config = require('./src/config/config.cjs');
+const PG = require('./src/database/pg.cjs');
+const { migrate } = require('./src/database/migrate.cjs');
+const { importAccounts } = require('./src/database/legacy.cjs');
+const { securityHeaders, cors, crossSiteRefused, requireAuth } = require('./src/http/middleware.cjs');
+const DB = require('./src/database/db.cjs');
+const Auth = require('./src/routes/auth.cjs');
+const Pricing = require('./src/services/pricing.cjs');
+const Access = require('./src/routes/access.cjs');
+const Payments = require('./src/routes/payments.cjs');
+const Admin = require('./src/routes/admin.cjs');
+const Mail = require('./src/services/mail.cjs');
+const Contact = require('./src/routes/contact.cjs');
 
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.webp': 'image/webp', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.webmanifest': 'application/manifest+json', '.map': 'application/json', '.wasm': 'application/wasm' };
 
 async function createApp() {
   const cfg = Config.load();
-  /* the built site: STATIC_DIR (relative to site/), else the React build next door, else the old site/dist */
-  const reactBuild = path.join(__dirname, '..', 'react-app', 'dist');
-  const root = path.resolve(__dirname, process.env.STATIC_DIR || (fs.existsSync(path.join(reactBuild, 'index.html')) ? reactBuild : 'dist'));
-  const protectedDir = path.resolve(process.env.PROTECTED_DIR || path.join(__dirname, 'protected'));
-  const dbFile = process.env.DB_PATH || path.join(__dirname, 'data', 'lww.sqlite');
+  /* the built site (frontend/dist), the private PDFs and the shop database — checked before anything is opened */
+  const root = Paths.staticRoot();
+  const protectedDir = Paths.protectedDir();
+  const dbFile = Paths.shopDb();
 
   const pg = PG.connect(cfg.db);
   let db = null, imported;
@@ -154,7 +159,7 @@ async function createApp() {
         json(res, 500, { error: 'Something went wrong on the server.' });
       });
     }
-    /* static files — the built site only; protected/ is never reachable here */
+    /* static files — the built site only; backend/protected is never reachable here */
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { Allow: 'GET, HEAD' }); return res.end(); }
     const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
     if (file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
@@ -164,7 +169,7 @@ async function createApp() {
       /* not a file: a page of the single-page app (/admin, /developer, …) gets index.html; a missing asset is a 404 */
       if (path.extname(pathname)) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Not found'); }
       const index = path.join(root, 'index.html');
-      fs.stat(index, (e2, st2) => { if (e2 || !st2.isFile()) { res.writeHead(404); return res.end('Not found'); } sendFile(req, res, root, index, st2); });
+      fs.stat(index, (e2, st2) => { if (e2 || !st2.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Not found: the website is not built yet (see the server window).'); } sendFile(req, res, root, index, st2); });
     });
   });
 
@@ -198,16 +203,19 @@ async function start() {
   const { cfg, mail, payments } = app;
   app.server.listen(cfg.port, cfg.host, async () => {
     console.log('Learn With Why: http://' + cfg.host + ':' + cfg.port + '   (links in emails: ' + cfg.siteUrl + ')');
-    console.log('  site       ' + app.root + (fs.existsSync(path.join(app.root, 'index.html')) ? '' : '  (no index.html — build react-app first: cd react-app && npm run build)'));
-    if (!process.env.STATIC_DIR && app.root === path.resolve(__dirname, 'dist')) console.log('\n  !! react-app is not built, so this is the OLD site (site/dist), without the newest pages.\n  !! Build it once:  cd react-app  →  npm install  →  npm run build   then start the server again.\n');
+    const built = fs.existsSync(path.join(app.root, 'index.html'));
+    console.log('  site       ' + app.root + (built ? '' : '  (NOT BUILT YET)'));
+    if (!built) Paths.notes.push('the website is not built yet, so every page says "Not found". Build it once: cd ' + path.relative(process.cwd(), path.join(Paths.ROOT, 'frontend')) + '  →  npm install  →  npm run build   and then start the server again.');
+    if (fs.existsSync(path.join(Paths.ROOT, 'react-app', 'dist', 'index.html'))) Paths.notes.push('react-app' + path.sep + 'dist is an OLD build from before the folders moved and is not used. The website is built in frontend now.');
     console.log('  accounts   PostgreSQL (migrations applied' + (app.imported.length ? '; ' + app.imported.length + ' account(s) carried over from SQLite' : '') + ')');
-    console.log('  shop       ' + app.dbFile + (app.attached ? '  (' + app.attached + ' PDF' + (app.attached === 1 ? '' : 's') + ' attached from protected/)' : ''));
+    console.log('  shop       ' + app.dbFile + (app.attached ? '  (' + app.attached + ' PDF' + (app.attached === 1 ? '' : 's') + ' attached from backend/protected)' : ''));
     const mc = await mail.check();
     console.log('  mail       ' + (mail.mode === 'smtp' ? 'SMTP ' + (mc.ok ? 'ready' : 'NOT READY — ' + mc.problem) : mail.mode === 'console' ? 'console — emails are printed here, not sent (set SMTP_* for real mail)' : mail.mode + (mail.problem ? ' — ' + mail.problem : '')));
-    console.log('  gateway    Razorpay ' + (payments.mode || 'off — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in site/.env to take payments'));
+    console.log('  gateway    Razorpay ' + (payments.mode || 'off — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in backend/.env to take payments'));
     console.log('  stripe     ' + (payments.gateways.stripe || 'off — set STRIPE_SECRET_KEY to turn it on') + '   paypal ' + (payments.gateways.paypal || 'off — set PAYPAL_CLIENT_ID / PAYPAL_SECRET'));
-    console.log('  admin key  ' + (process.env.ADMIN_KEY ? 'set' : 'default "change-me" — set ADMIN_KEY in site/.env'));
+    console.log('  admin key  ' + (process.env.ADMIN_KEY && process.env.ADMIN_KEY !== 'change-me' ? 'set' : '"change-me" — choose your own ADMIN_KEY in backend/.env'));
     if (cfg.production && !process.env.SITE_URL) console.warn('  WARNING    SITE_URL is not set: links in emails point at ' + cfg.siteUrl);
+    if (Paths.notes.length) console.log('\n' + Paths.notes.map(n => '  !! ' + n).join('\n') + '\n');
   });
   const stop = sig => { console.log('\n' + sig + ' — shutting down'); app.close().then(() => process.exit(0), () => process.exit(1)); setTimeout(() => process.exit(1), 10000).unref(); };
   process.on('SIGTERM', () => stop('SIGTERM')); process.on('SIGINT', () => stop('SIGINT'));

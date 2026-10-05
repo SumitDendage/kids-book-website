@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* staff pages */
 #portal:not(.is-dash) .shop-bar { display: flex !important; }
 #portal:not(.is-dash) .portal-body { width: min(100% - 36px, 1240px) !important; margin: 10px auto 60px !important; min-height: 0 !important; display: grid !important; }

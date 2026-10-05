@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
-/* MIGRATIONS — the PostgreSQL schema is the numbered .sql files in site/db/migrations,
+/* MIGRATIONS — the PostgreSQL schema is the numbered .sql files in database/postgresql/migrations,
    applied in order, each in its own transaction, once. schema_migrations remembers
    what was applied and a checksum of it: a file that changed after it ran stops the
    server (write a new migration instead). An advisory lock keeps two servers that
@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const DIR = path.join(__dirname, '..', 'db', 'migrations');
+const { MIGRATIONS: DIR } = require('../config/paths.cjs');
 const LOCK = 7310227;   /* any constant: the advisory lock this app takes while migrating */
 
 const checksum = sql => crypto.createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex');

@@ -92,7 +92,7 @@ export default function AuthCard() {
       }
     } catch (err) {
       const fe = err.body && err.body.errors; if (fe) setErrs({ auName: fe.name, auEmail: fe.email, auPass: fe.password });
-      setAuthAlert({ type: 'err', msg: err.status === 0 || /fetch/i.test(err.message) ? 'Cannot reach the server — start it with npm start in site/.' : err.message });
+      setAuthAlert({ type: 'err', msg: err.status === 0 || /fetch/i.test(err.message) ? 'Cannot reach the server — start it with npm start in the backend folder.' : err.message });
     } finally { busyOn(false); }
   }
 

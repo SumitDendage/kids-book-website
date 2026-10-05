@@ -1,4 +1,4 @@
-/* Staff dashboards (Admin + Developer) — moved verbatim from the <style> block site/dist/admin.js injected into <head>. Loaded globally and last, like the original: a few rules (.stat, .card) also shape the site itself. */
+/* Staff dashboards (Admin + Developer) — moved verbatim from the <style> block legacy/old-static-site/admin.js injected into <head>. Loaded globally and last, like the original: a few rules (.stat, .card) also shape the site itself. */
 .dash {
   --radius: 0.625rem;
   --background: oklch(1 0 0); --foreground: oklch(0.129 0.042 264.695);

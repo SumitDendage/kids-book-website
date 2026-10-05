@@ -1,7 +1,7 @@
 /* CHAPTERS — one continuous glide through six screens. Native scrolling is
    replaced by an eased playhead in pixels through the chapter stack; the stack is
    moved with a transform and the landscape frame follows from how far along it
-   we are. Moved from the page script in site/dist/index.html; the numbers
+   we are. Moved from the page script in legacy/old-static-site/index.html; the numbers
    (0.06 glide, 0.6 wheel, 1.2 touch, 0.85 screen per key) are unchanged. */
 import { IDS } from '../data/content.js';
 

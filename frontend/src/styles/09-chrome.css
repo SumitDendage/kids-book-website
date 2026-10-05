@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- chrome ---------- */
 /* soft bands behind the fixed header and the chapter counter so text scrolling under them stays readable */
 .edge-scrim { position: fixed; left: 0; right: 0; z-index: 60; pointer-events: none; }

@@ -1,8 +1,8 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
 /* DATABASE — SQLite through Node's built-in node:sqlite (no npm packages).
-   One file, data/lww.sqlite, holds everything the business needs to remember:
+   One file, database/data/lww.sqlite, holds everything the business needs to remember:
    customers, sessions, the worksheet catalogue, orders, payments, entitlements
-   (who may open what — once granted, for good), the access log and the notes sent
+   (who may open what — a bought sheet for good, a class plan for its months), the access log and the notes sent
    through the contact form. Store settings that the
    admin can change (plans, coupons, rates, fees, access hours) live in the
    settings table as JSON values. */
@@ -213,7 +213,7 @@ function syncSeed(api) {
 }
 
 /* Attach PDFs that exist on disk: a worksheet whose `file` is empty gets
-   protected/<id>.pdf or its seed path if that file is present. The admin can also
+   backend/protected/<id>.pdf or its seed path if that file is present. The admin can also
    upload a PDF through the API, which sets `file` directly. */
 function attachFiles(api, protectedDir) {
   const rows = api.q('SELECT id, file FROM worksheets').all();

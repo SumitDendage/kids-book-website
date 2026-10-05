@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- chapter 03: worksheets ---------- */
 .ws-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .ws-head .aside { max-width: 260px; font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.6; text-align: right; }

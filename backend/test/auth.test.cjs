@@ -4,7 +4,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const H = require('./helpers.cjs');
-const { PASSWORD_LINE } = require('../server/emails.cjs');
+const { PASSWORD_LINE } = require('../src/services/emails.cjs');
 
 let app, pdb, env, ipN = 0;
 /* each test gets its own client IP, so the per-IP rate limits of one test do not spill into the next */

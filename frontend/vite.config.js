@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   /* `npm run dev` forwards /api/* to the Node backend when one is running
-     (node site/server.cjs listens on 127.0.0.1:4173). Production never uses this. */
+     (npm start in backend/ listens on 127.0.0.1:4173). Production never uses this. */
   const apiTarget = env.VITE_DEV_API_PROXY || 'http://127.0.0.1:4173';
   return {
     plugins: [react()],

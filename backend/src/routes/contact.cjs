@@ -10,7 +10,7 @@
    The note is stored FIRST, so nothing is lost when mail is down. Each IP may send
    5 notes per 10 minutes; a hidden `website` field filled in by a bot is accepted
    and quietly dropped. */
-const { fail, json, readBody, clientIp, rateLimiter, isEmail } = require('./http.cjs');
+const { fail, json, readBody, clientIp, rateLimiter, isEmail } = require('../http/http.cjs');
 
 const noteLimit = rateLimiter(5, 10 * 60e3);
 const INBOX_DEFAULT = 'learnwithwhy6@gmail.com';

@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* picture-card tiles: reading charts (landscape) and matching sheets (portrait) */
 .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
 .rc-card { position: relative; display: grid; gap: 8px; padding: 8px 8px 10px; border-radius: 16px; background: var(--paper); color: var(--ink); border: 1px solid transparent; font: inherit; text-align: left; cursor: pointer; transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), border-color var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); }

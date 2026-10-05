@@ -1,6 +1,6 @@
 /* Shared by the Admin and Developer dashboards: sections, permissions, the staff
    identity, the demo storage and the sync with the server (/api/admin/*).
-   Moved from site/dist/admin.js; behaviour unchanged. */
+   Moved from legacy/old-static-site/admin.js; behaviour unchanged. */
 import { read, write, audit, staffSession } from '../../services/storage.js';
 import { adminApi as callAdmin } from '../../services/api.js';
 

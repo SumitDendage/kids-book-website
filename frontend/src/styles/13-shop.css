@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- the shop: a full screen of its own, the fox and rabbit behind it ---------- */
 .shop { position: fixed; inset: 0; z-index: 250; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: #071018; color: var(--fg); opacity: 0; visibility: hidden; transform: translateY(28px); transition: opacity 0.45s var(--ease), transform 0.55s var(--ease), visibility 0.45s; }
 .shop.open { opacity: 1; visibility: visible; transform: none; }

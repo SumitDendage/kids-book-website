@@ -1,4 +1,4 @@
-/* Moved verbatim from site/dist/index.html (<style>). */
+/* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- checkout: the payment page ---------- */
 .checkout-body { position: relative; z-index: 2; width: min(100% - 36px, 980px); margin: 10px auto 60px; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; align-items: start; }
 @media (max-width: 860px) { .checkout-body { grid-template-columns: 1fr; } }

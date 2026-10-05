@@ -1,4 +1,4 @@
-/* The protected sheet viewer — moved verbatim from site/dist/viewer.html. Only viewer.html loads it. */
+/* The protected sheet viewer — moved verbatim from legacy/old-static-site/viewer.html. Only viewer.html loads it. */
 :root { --bg: #0b1017; --fg: #f4f1ea; --dim: rgba(255,255,255,0.55); --paper: #f8f5ee; --ink: #1d2126; --green: #1f6b47; }
 * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }

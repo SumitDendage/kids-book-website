@@ -30,9 +30,9 @@
    row in the SQLite users table with the same id ("mirror"), which the shop's orders and
    entitlements point at. */
 const crypto = require('node:crypto');
-const { fail, json, readBody, cookies, setCookie, clientIp, rateLimiter, sha256, isEmail } = require('./http.cjs');
-const passwords = require('./passwords.cjs');
-const emails = require('./emails.cjs');
+const { fail, json, readBody, cookies, setCookie, clientIp, rateLimiter, sha256, isEmail } = require('../http/http.cjs');
+const passwords = require('../services/passwords.cjs');
+const emails = require('../services/emails.cjs');
 
 const COOKIE = 'lww_sid';
 const ROTATE_GRACE_SECONDS = 60;         /* the token before a refresh still works this long */

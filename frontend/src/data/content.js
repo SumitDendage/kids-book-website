@@ -1,5 +1,5 @@
 /* Everything the customer reads — moved from the top of the page script in
-   site/dist/index.html. Edit copy, categories and questions here. */
+   legacy/old-static-site/index.html. Edit copy, categories and questions here. */
 
 export const BRAND = 'Learn With Why';
 export const SITE_VERSION = '2026.09.17';

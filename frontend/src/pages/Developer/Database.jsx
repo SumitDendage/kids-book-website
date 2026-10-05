@@ -19,7 +19,7 @@ export default function Database() {
         <MetricCard label="Used" value={kb(total)} sub="across all tables" icon="file" />
         <MetricCard label="Quota" value={<Quota />} sub="browser estimate" icon="activity" />
       </div>
-      <section className="panel"><p className="eyebrow">Database health</p><p className="auth-sub">localStorage in demo mode. The real tables live in the server&apos;s SQLite database (site/data/lww.sqlite).</p><DataTable plain head={['Table', 'Size', 'Bytes']} empty="Empty." rows={rows} /></section>
+      <section className="panel"><p className="eyebrow">Database health</p><p className="auth-sub">localStorage in demo mode. The real tables live in the server&apos;s SQLite database (database/data/lww.sqlite).</p><DataTable plain head={['Table', 'Size', 'Bytes']} empty="Empty." rows={rows} /></section>
     </>
   );
 }

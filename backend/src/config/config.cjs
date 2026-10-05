@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Learn With Why. All rights reserved. Proprietary — see LICENSE. This notice may not be removed. */
-/* CONFIG — every setting the server reads from the environment (site/.env, see
-   .env.example), in one place. load() is called once at start; the tests call it
+/* CONFIG — every setting the server reads from the environment (backend/.env, see
+   .env.example; folders are in paths.cjs), in one place. load() is called once at start; the tests call it
    again after changing process.env. */
 const int = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? n : d; };
 const flag = (v, d) => (v === undefined || v === '' ? d : ['1', 'true', 'yes', 'on'].includes(String(v).toLowerCase()));

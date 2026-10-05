@@ -9,11 +9,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const H = require('./helpers.cjs');
-const PG = require('../server/pg.cjs');
-const { migrate, DIR } = require('../server/migrate.cjs');
-const { importAccounts } = require('../server/legacy.cjs');
-const passwords = require('../server/passwords.cjs');
-const DB = require('../server/db.cjs');
+const PG = require('../src/database/pg.cjs');
+const { migrate, DIR } = require('../src/database/migrate.cjs');
+const { importAccounts } = require('../src/database/legacy.cjs');
+const passwords = require('../src/services/passwords.cjs');
+const DB = require('../src/database/db.cjs');
 
 let pdb, db;
 const rejects = (p, constraint) => assert.rejects(p, e => (constraint ? e.constraint === constraint : true) && /^23/.test(e.code), 'expected constraint ' + constraint);

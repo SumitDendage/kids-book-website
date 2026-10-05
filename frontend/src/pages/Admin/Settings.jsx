@@ -23,7 +23,7 @@ export default function Settings() {
       <section className="panel"><p className="eyebrow">Server connection</p><p className="auth-sub">With the admin key saved here, Orders, Customers and the dashboard read the database (SQLite behind <code>/api/admin/*</code>) instead of this browser&apos;s copy, and order status changes are written back.</p>
         <form className="grid-2" style={{ gap: '24px' }} onSubmit={submit}>
           <div>
-            <div className="field"><label htmlFor="adminKey">Admin key</label><input id="adminKey" name="key" type="password" defaultValue={adminKey()} placeholder="ADMIN_KEY from site/.env" autoComplete="off" /><small>Set <code>ADMIN_KEY</code> in <code>site/.env</code> (the default is <code>change-me</code>) and enter the same value here.</small></div>
+            <div className="field"><label htmlFor="adminKey">Admin key</label><input id="adminKey" name="key" type="password" defaultValue={adminKey()} placeholder="ADMIN_KEY from backend/.env" autoComplete="off" /><small>Set <code>ADMIN_KEY</code> in <code>backend/.env</code> (the default is <code>change-me</code>) and enter the same value here.</small></div>
             <div className="btn-row"><button type="submit" className="btn btn-primary">Save &amp; connect</button><span className="note" role="status" style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>{status}</span></div>
           </div>
           <div>

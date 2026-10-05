@@ -1,6 +1,6 @@
 /* Drawing the licensed pages. Canvas pixels are drawn straight into the stage
    element (not through React state): each page is a canvas, the watermark overlay
-   and the page number. Moved from site/dist/viewer.html; the only change is that
+   and the page number. Moved from legacy/old-static-site/viewer.html; the only change is that
    PDF.js is bundled (pdfjs-dist, loaded on demand) instead of fetched from a CDN. */
 
 /* one page: canvas + 24 watermark stamps + "n / total" */
