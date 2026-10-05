@@ -8,7 +8,8 @@ import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
-   (public/shop/learn-with-why-wallpaper.webp); the cards are see-through, each in its own colour. */
+   (public/shop/learn-with-why-wallpaper.webp). Each skill card shows its own corner of that
+   picture (public/shop/cards/); the sheet cards are see-through, each in its own colour. */
 function SideButton({ on, onClick, n, children }) {
   return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
