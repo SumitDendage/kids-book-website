@@ -33,16 +33,17 @@ type `cd ..\backend` first. Then type:
 
 ```
 npm install
+if not exist .env copy .env.example .env
 npm start
 ```
 
-The backend needs PostgreSQL running and its own settings file: the first time,
-type `if not exist .env copy .env.example .env` in the `backend` folder and fill in `DATABASE_URL`
-in `backend\.env` (see `backend\README.md`). The React dev server then forwards
-every `/api/...` call to it. Without the backend the pages still open, but
-anything that needs the server fails: sign-in shows "Request failed (502)",
-checkout shows "Pricing service unavailable" and the viewer shows "Could not
-open the sheet".
+The backend needs PostgreSQL running and its own settings file: the `if not exist`
+line makes `backend\.env` the first time; before the first `npm start`, type
+`notepad .env`, fill in `DATABASE_URL` and save (see `backend\README.md`). The
+React dev server then forwards every `/api/...` call to it. Without the backend
+the pages still open, but anything that needs the server fails: sign-in shows
+"Request failed (502)", checkout shows "Pricing service unavailable" and the
+viewer shows "Could not open the sheet".
 
 ## Build the files for Hostinger
 

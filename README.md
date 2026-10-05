@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Moving to the new folders](#moving-to-the-new-folders-october-2026) · [Put it on Hostinger](#put-it-on-hostinger) · [Features](#features) · [Structure](#repository-structure) · [Staff panels](#staff-panels) · [Go live](#going-live) · [Roadmap](#roadmap)
 
-![Site version](https://img.shields.io/badge/version-2026.09.17-f0b455) ![Front end](https://img.shields.io/badge/front%20end-React%2019%20%2B%20Vite%208-61dafb) ![Backend](https://img.shields.io/badge/backend-Node%2022%20%2B%20SQLite-1f6b47) ![Payments](https://img.shields.io/badge/payments-Razorpay-3395ff) ![License](https://img.shields.io/badge/license-proprietary-555)
+![Site version](https://img.shields.io/badge/version-2026.09.17-f0b455) ![Front end](https://img.shields.io/badge/front%20end-React%2019%20%2B%20Vite%208-61dafb) ![Backend](https://img.shields.io/badge/backend-Node%2022%20%2B%20PostgreSQL%20%2B%20SQLite-1f6b47) ![Payments](https://img.shields.io/badge/payments-Razorpay-3395ff) ![License](https://img.shields.io/badge/license-proprietary-555)
 
 </div>
 
@@ -27,7 +27,7 @@ The website talks to a Node backend (`backend/server.cjs`): a JSON API, a **Post
 | `backend/` | **no** — your computer and the server only | The Node server (was `site/`): `server.cjs` (`npm start`), the API, accounts, payments, email and the 79 private PDFs in `backend/protected/`. Your own settings go in `backend/.env`. |
 | `database/` | **no** — your computer and the server only | The databases themselves, no JavaScript: the PostgreSQL schema in `database/postgresql/migrations/` and the shop database in `database/data/` (made on the first start). |
 
-`backend/` and `database/` are listed in `.gitignore`, so git never uploads them and `git pull` never changes them. A fresh copy of both comes from **`backend-and-database.zip`** (kept in the Claude project's files): unpack it in the `kids-book-website` folder with `tar -xf backend-and-database.zip`. Because GitHub keeps no copy of them, keep that zip safe and back up your settings, orders and uploads yourself (`database\README.md` → Backups).
+`backend/` and `database/` are listed in `.gitignore`, so git never uploads them and `git pull` never changes them. A fresh copy of both comes from **`backend-and-database.zip`** (kept in the Claude project's files): in the `kids-book-website` folder run `tar -xf "%USERPROFILE%\Downloads\backend-and-database.zip"` (or put the zip's own path between the quotes). They are gone only from the current files on GitHub: older commits in the repository's history (and older branches) still hold the old copies, so GitHub is neither a backup of them nor a place they have been erased from. Keep that zip safe and back up your settings, orders and uploads yourself (`database\README.md` → Backups).
 
 The old plain-HTML copy is no longer served: the server only serves the React website built in `frontend/dist`. If that is not built yet, every page says "Not found: the website is not built yet" and the server window says how to build it. More about the old copy: [`legacy/README.md`](legacy/README.md).
 
@@ -45,7 +45,7 @@ Access is enforced on the server: the entitlement row in the database decides, a
 
 ## Quick start
 
-You need **Node.js 22.13 or newer** (https://nodejs.org) and, for the backend, a **PostgreSQL** database (how to get one: `backend\README.md` → Set up PostgreSQL). The website alone builds on Node 20.19+ or 22.12+, but the backend needs 22.13+ for its built-in SQLite. The `backend` and `database` folders must already be in the `kids-book-website` folder (from `backend-and-database.zip`, see [Moving to the new folders](#moving-to-the-new-folders-october-2026)). On Windows, open the `kids-book-website` folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder.
+You need **Git** (https://git-scm.com/download/win), **Node.js 22.13 or newer** (https://nodejs.org) and, for the backend, a **PostgreSQL** database (how to get one: `backend\README.md` → Set up PostgreSQL). The website alone builds on Node 20.19+ or 22.12+, but the backend needs 22.13+ for its built-in SQLite. The `backend` and `database` folders must already be in the `kids-book-website` folder (from `backend-and-database.zip`, see [Moving to the new folders](#moving-to-the-new-folders-october-2026)). If your `kids-book-website` folder still has `site` and `react-app` folders in it, do not run `git pull` there: do [Moving to the new folders](#moving-to-the-new-folders-october-2026) first. On Windows, open the `kids-book-website` folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder. Use this Command Prompt (cmd), not PowerShell or VS Code's terminal: the commands here do not work there.
 
 **1. Build the website**
 
@@ -67,7 +67,7 @@ cd ..\backend
 if not exist .env copy .env.example .env
 ```
 
-Open `backend\.env` in Notepad (or VS Code) and change two lines; every other setting is explained in the file and has a working default:
+In the same window type `notepad .env` and press Enter, change two lines, then save with Ctrl+S. Every other setting is explained in the file and has a working default:
 
 - `DATABASE_URL` — replace `CHANGE-ME` with your PostgreSQL password (or paste the connection string your provider gives you).
 - `ADMIN_KEY` — replace `change-me` with a key of your own.
@@ -82,7 +82,7 @@ npm install
 npm start
 ```
 
-Open http://127.0.0.1:4173 and press Ctrl+F5. Free sheets open after sign-in; paid ones need the Razorpay keys (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) in `backend\.env`.
+Open http://127.0.0.1:4173, click on the page and press Ctrl+F5 (on some laptops Fn+Ctrl+F5, or Ctrl+Shift+R). Free sheets open after sign-in; paid ones need the Razorpay keys (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) in `backend\.env`.
 
 When it starts, the server prints a few lines about the site, the accounts, the shop, mail, payments and the admin key. A line starting with `!!` tells you what to do, for example when the website is not built yet. If `backend\protected` is missing, the server stops with "nothing was started or changed" and says what to do. If you type `npm start` before `npm install`, it says the packages are not installed yet.
 
@@ -116,18 +116,22 @@ Do this once, after this change is on GitHub's main branch. It leaves your curre
 
 Before you start, download **`backend-and-database.zip`** from the Claude project into your **Downloads** folder.
 
-1. **Stop everything.** Press Ctrl+C in every black window that runs npm (the website and the server), and close VS Code.
+Use a Command Prompt (cmd) window, not PowerShell: if the line where you type starts with `PS`, type `cmd` and press Enter first. Type or paste the commands **one line at a time** and press Enter after each one; wait for the line ending in `>` to come back before the next one.
 
-2. **Keep your current folder as a backup.** In File Explorer, right-click the `kids-book-website` folder, choose Rename and call it `kids-book-website-old`. If Windows says the folder is in use, close every window and try again.
+**Already typed `git pull` in your current folder?** If it said `Your local changes to the following files would be overwritten by merge: site/.env` and `Aborting`, nothing was changed. If it printed `Fast-forward`, the old server files are gone from that folder, but your orders (`site\data`) and uploaded PDFs (`site\protected\uploads`) are still in it, even though `git status` does not show them. Either way, do **not** run `git commit`, `git stash` or `git reset`: just start at step 1.
 
-3. **Get a fresh copy of the website.** In that same File Explorer window (the one that now shows `kids-book-website-old`), click the address bar, type `cmd` and press Enter. Then:
+1. **Stop everything.** In every black window that runs npm (the website and the server), press Ctrl+C; if it asks `Terminate batch job (Y/N)?`, type `Y` and press Enter. Then close every black window (click its X) and close VS Code. Leave one File Explorer window open.
+
+2. **Keep your current folder as a backup.** In File Explorer, right-click the `kids-book-website` folder, choose Rename and call it `kids-book-website-old`. If Windows says the folder is in use, check that no black window or VS Code is still open and try again; if the folder is in OneDrive, pause syncing first (OneDrive icon → Pause syncing); if it still says in use, restart the computer and rename the folder before opening anything else.
+
+3. **Get a fresh copy of the website.** In that File Explorer window (the one that now shows `kids-book-website-old`, not inside it), click the address bar, type `cmd` and press Enter. Type `dir` and press Enter: the list must show `kids-book-website-old` and must not show `kids-book-website`. Then:
 
    ```bat
    git clone https://github.com/SumitDendage/kids-book-website.git
    cd kids-book-website
    ```
 
-   If a GitHub sign-in window opens, sign in.
+   This downloads about 270 MB and can take a few minutes. If a **Connect to GitHub** window opens (look in the taskbar if nothing seems to happen), sign in with your browser as SumitDendage. If git says `Repository not found`, Git is signed in as another GitHub account: open **Credential Manager** → Windows Credentials, remove `git:https://github.com`, and run the `git clone` line again. If git says `destination path 'kids-book-website' already exists`, step 2 did not work: close this window and do step 2 again.
 
 4. **Put the backend and database next to it:**
 
@@ -136,16 +140,21 @@ Before you start, download **`backend-and-database.zip`** from the Claude projec
    dir
    ```
 
-   The list should show `backend`, `database`, `frontend` and `legacy`. If you saved the zip somewhere else, put its path between the quotes.
+   The list should show `backend`, `database`, `frontend` and `legacy`. If it shows `react-app` and `site` instead of `frontend` and `legacy`, this change is not on GitHub's main branch yet: stop, close the window, delete the new `kids-book-website` folder and rename `kids-book-website-old` back to `kids-book-website`.
 
-5. **Bring over your own settings, orders and uploaded PDFs** from the old folder (a line with nothing to copy does nothing):
+   If tar says `Failed to open`, find the zip in File Explorer, hold Shift, right-click it and choose **Copy as path**; then type `tar -xf ` (with a space at the end), press Ctrl+V and press Enter. If your Downloads folder has more than one copy (for example `backend-and-database (1).zip`), use the newest one. If tar says `This does not look like a tar archive`, type the line again with `C:\Windows\System32\tar.exe` in place of `tar`.
+
+5. **Bring over your own settings, orders and uploaded PDFs** from the old folder (each line only acts when there is something to copy):
 
    ```bat
-   copy ..\kids-book-website-old\site\.env backend\.env
+   if exist ..\kids-book-website-old\site\.env if not exist backend\.env copy ..\kids-book-website-old\site\.env backend\.env
+   if not exist backend\.env copy backend\.env.example backend\.env
    if exist ..\kids-book-website-old\site\data xcopy ..\kids-book-website-old\site\data database\data\ /E /I /Y
    if exist ..\kids-book-website-old\site\protected\uploads xcopy ..\kids-book-website-old\site\protected\uploads backend\protected\uploads\ /E /I /Y
    if exist ..\kids-book-website-old\react-app\.env.local copy ..\kids-book-website-old\react-app\.env.local frontend\.env.local
    ```
+
+   Your settings are now in `backend\.env`. The notes at the top of that file may still talk about `site\.env` and GitHub; you can ignore them. If you never filled in your settings in the old folder, type `notepad backend\.env` and change `DATABASE_URL` and `ADMIN_KEY` as in [Quick start](#quick-start) step 2.
 
 6. **Build the website:**
 
@@ -163,9 +172,9 @@ Before you start, download **`backend-and-database.zip`** from the Claude projec
    npm start
    ```
 
-   Open http://127.0.0.1:4173 and press Ctrl+F5. In the black window the `shop` line should end in `database\data\lww.sqlite`. If a line starts with `!!`, it tells you what to do.
+   Open http://127.0.0.1:4173, click on the page and press Ctrl+F5 (on some laptops Fn+Ctrl+F5, or Ctrl+Shift+R). In the black window the `shop` line should show `…\kids-book-website\database\data\lww.sqlite`. The first line, `ExperimentalWarning: SQLite is an experimental feature…`, is normal. If you see `EADDRINUSE`, another server is still running: close the other black windows and type `npm start` again. If a line starts with `!!`, it tells you what to do.
 
-8. **When the site has worked for a few days**, you can delete the `kids-book-website-old` folder.
+8. **When the site has worked for a few days**, make one backup as in `database\README.md` → Backups (stop the server first). Then you can delete the `kids-book-website-old` folder; until then it is the only other copy of your orders and uploaded PDFs.
 
 From then on, every day, in the `kids-book-website` folder: `git pull` (it updates only the website), then `cd frontend`, `npm install`, `npm run build`, then `cd ..\backend`, `npm start`. `git pull` never touches `backend` or `database`, so back them up yourself (`database\README.md` → Backups).
 
