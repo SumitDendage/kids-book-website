@@ -89,8 +89,8 @@ export default function Store({ bagCount }) {
                     <li style={{ marginBottom: '4px' }}>· Printable and watermarked</li>
                     <li style={{ marginBottom: '4px' }}>· Buy or subscribe to unlock</li>
                   </ul>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-                    <span style={{ fontWeight: 700, fontSize: 'var(--fs-small)', color: 'var(--fg-muted)' }}>{c.count} sheets</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px 12px', marginTop: 'auto' }}>
+                    <span style={{ fontWeight: 700, fontSize: 'var(--fs-small)', color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{c.count} sheets</span>
                     <button type="button" className="btn btn-sm btn-primary" onClick={() => setShopFilter({ skill: SKILL_PREFIX[c.id], view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
                   </div>
                 </div>

@@ -51,7 +51,7 @@
 .shop-card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shop-card .price { font-weight: 700; font-size: var(--fs-body); }
 .shop-card .price.free { color: var(--ok); }
-.skill-card { display: flex; flex-direction: column; padding: 0; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,0.15); background: rgba(8,18,26,0.05); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); cursor: pointer; text-align: left; color: inherit; transition: transform var(--d-base) var(--ease), border-color var(--d-base), background var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 50ms); overflow: hidden; position: relative; min-height: 220px; }
+.skill-card { display: flex; flex-direction: column; padding: 0; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,0.15); background: rgba(8,18,26,0.05); backdrop-filter: blur(12px); cursor: pointer; text-align: left; color: inherit; transition: transform var(--d-base) var(--ease), border-color var(--d-base), background var(--d-base); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 50ms); overflow: hidden; position: relative; min-height: 220px; }
 .skill-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); background: rgba(8,18,26,0.12); }
 .skill-bg { position: absolute; inset: 0; background: var(--skill-bg); opacity: 0.18; }
 .skill-content { position: relative; z-index: 1; padding: 20px 18px; display: flex; flex-direction: column; height: 100%; }
@@ -65,13 +65,14 @@
 .shop-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .shop-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; display: block; }
 /* light cream glass for the bar, the side panel and the title, with dark words */
-#shop .shop-bar, #shop .shop-side, #shop .shop-head { background: rgba(255,251,242,0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: var(--ink); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 30px rgba(60,40,90,0.18); }
+#shop .shop-bar, #shop .shop-side, #shop .shop-head { background: rgba(255,251,242,0.88); backdrop-filter: blur(10px); color: var(--ink); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 30px rgba(60,40,90,0.18); }
 #shop .shop-bar { border-width: 0 0 1px; }
 #shop .shop-bar .eyebrow, #shop .side-title { color: #b0577c; }
 #shop .shop-bar .card-title, #shop .shop-head h3 { color: var(--ink); }
 #shop .shop-head { display: inline-block; padding: 10px 18px; border-radius: var(--r-lg); }
 #shop .shop-head p, #shop .side-note { color: var(--ink-soft); }
 #shop .shop-actions .btn-ghost, #shop .shop-actions .icon-btn { background: #fff; color: var(--ink); border: 1px solid rgba(43,36,64,0.15); }
+#shop .shop-actions .btn { white-space: nowrap; }
 #shop .side-btn { color: var(--ink); }
 #shop .side-btn small { color: var(--ink-soft); }
 #shop .side-btn:hover { background: rgba(43,36,64,0.07); color: var(--ink); }
@@ -79,8 +80,8 @@
 #shop .side-btn.on small { color: rgba(255,255,255,0.75); }
 #shop .side-btn .side-n { background: rgba(43,36,64,0.1); }
 #shop .side-btn.on .side-n { background: rgba(255,255,255,0.2); }
-/* the cards are 75% see-through frosted glass over the picture, each tinted in its own
-   colour, so the picture still shows but never runs into the words */
+/* the cards are see-through frosted glass over the picture, each tinted in its own colour:
+   the picture shows through softly blurred and a little lightened, so it never runs into the words */
 #shop .shop-grid > * { --edge: #e2558f; --title: #c2185b; --tint: 255,224,236; }
 #shop .shop-grid > :nth-child(7n+2) { --edge: #3fae6a; --title: #17703d; --tint: 220,247,230; }
 #shop .shop-grid > :nth-child(7n+3) { --edge: #4a95e8; --title: #1a56b0; --tint: 220,239,255; }
@@ -88,8 +89,8 @@
 #shop .shop-grid > :nth-child(7n+5) { --edge: #8f6ae0; --title: #5e35b8; --tint: 236,227,255; }
 #shop .shop-grid > :nth-child(7n+6) { --edge: #f08a3c; --title: #b8460f; --tint: 255,230,212; }
 #shop .shop-grid > :nth-child(7n+7) { --edge: #22b3a5; --title: #08756b; --tint: 214,247,244; }
-#shop .shop-card, #shop .skill-card { background: rgba(var(--tint), 0.25); border: 2.5px solid var(--edge); color: var(--ink); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2); box-shadow: 0 10px 26px rgba(60,40,90,0.2); text-shadow: 0 0 2px #fff, 0 0 8px rgba(255,255,255,0.9); }
-#shop .shop-card:hover, #shop .skill-card:hover { background: rgba(var(--tint), 0.35); border-color: var(--title); box-shadow: 0 16px 34px rgba(60,40,90,0.28); }
+#shop .shop-card, #shop .skill-card { background: rgba(var(--tint), 0.4); border: 2.5px solid var(--edge); color: var(--ink); backdrop-filter: blur(18px) saturate(1.1) brightness(1.08); box-shadow: 0 10px 26px rgba(60,40,90,0.2); text-shadow: 0 0 6px rgba(255,255,255,0.85); }
+#shop .shop-card:hover, #shop .skill-card:hover { background: rgba(var(--tint), 0.5); border-color: var(--title); box-shadow: 0 16px 34px rgba(60,40,90,0.28); }
 #shop .skill-bg { display: none; }
 #shop .skill-card .card-title, #shop .shop-card .card-title { color: var(--title); font-weight: 600; }
 #shop .skill-card .skill-desc, #shop .skill-card .skill-list, #shop .skill-card span, #shop .shop-card p, #shop .shop-card .meta { color: var(--ink) !important; font-weight: 600; }
