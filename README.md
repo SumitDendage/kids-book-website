@@ -208,6 +208,7 @@ The private PDFs in `backend/protected/` are **not** copied into `frontend/publi
 
 ### Customer site
 - **Cinematic scroll** — the six chapters glide as one stack while the 960 landscape frames scrub underneath; frames are decoded on demand with a memory cap, so the page stays smooth.
+- **Walking friends** — the fox, deer and rabbit from the landscape picture walk along the bottom of the screen as the page scrolls, on a canvas of their own (`services/walkers.js`, sprites in `src/assets/scene/`), sized for each screen so they are always whole.
 - **Fox & rabbit preview** — a 50-frame animation plays inside the Sheets chapter and behind the store page.
 - **Glass UI** — transparent header pill with hover-jump links, logo tile with wordmark, frosted panels that let the landscape through.
 - **Sign up / Sign in** on the first screen — sign-up asks only for name and email; the server generates a password and emails it with an **Accept & Continue** link that confirms the address and leads back to sign-in. Accounts live in PostgreSQL with Argon2id-hashed passwords, httpOnly session cookies, a lock after 5 wrong passwords, and *Forgot password* by a single-use emailed link. "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
