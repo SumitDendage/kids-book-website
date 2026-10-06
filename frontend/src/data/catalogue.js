@@ -114,13 +114,17 @@ export const KG_TOPICS = [
     ['missing-letters', 'Find the Missing Letters', 'Children complete alphabet sequences by writing the missing letters.'],
   ] },
   { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
-  { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [['colours-shapes-numbers', 'Colours, shapes and numbers'], ['animals', 'Animals, birds and insects'], ['food', 'Fruits, vegetables and food'], ['clothes-toys', 'Clothes and toys'], ['body-family', 'Body and family'], ['school-home', 'School and home objects'], ['transport-helpers', 'Transport and helpers'], ['action-words', 'Action words'], ['opposites', 'Opposites'], ['position-words', 'Position words'], ['simple-meanings', 'Simple meanings']] },
+  { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [   /* Sumit's twelve topics (Oct 6 picture): id, name, picture */
+    ['vocab-colours', 'Colours', 'colours'], ['vocab-shapes', 'Shapes', 'shapes'], ['vocab-sizes', 'Sizes', 'sizes'], ['vocab-animals', 'Animals', 'animals'],
+    ['vocab-animal-babies', 'Animal Babies', 'animal-babies'], ['vocab-transport', 'Transport', 'transport'], ['vocab-fruits', 'Fruits', 'fruits'], ['vocab-vegetables', 'Vegetables', 'vegetables'],
+    ['vocab-body-parts', 'Body Parts', 'body-parts'], ['vocab-clothes', 'Clothes', 'clothes'], ['vocab-my-family', 'My Family', 'my-family'], ['vocab-weather', 'Weather', 'weather'],
+  ] },
   { id: 'sight', title: 'Sight words', tone: 'purple', items: [['sight-lists', 'Pre-KG, KG1 and KG2 lists'], ['read-trace', 'Read and trace'], ['find-sight-word', 'Find the sight word'], ['complete-sentence', 'Complete the sentence'], ['sight-colouring', 'Sight-word colouring'], ['sight-passages', 'Sight-word passages']] },
   { id: 'gram', title: 'Grammar & writing', tone: 'yellow', items: [['pre-writing', 'Pre-writing strokes'], ['pencil-control', 'Pencil control'], ['name-writing', 'Name writing'], ['word-tracing', 'Word tracing and copying'], ['label-picture', 'Label the picture'], ['sentence-formation', 'Sentence formation'], ['capitals-full-stops', 'Capital letters and full stops'], ['naming-action', 'Naming and action words'], ['one-many', 'One and many'], ['this-that', 'This/that; these/those'], ['is-am-are', 'Is/am/are'], ['he-she-it', 'He/she/it'], ['position-words', 'Position words']] },
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -133,7 +137,7 @@ export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.item
 export function topicSheets(id) {
   /* printable sets by id prefix, in the order TOPIC_SHEETS lists them; anything else is an item id */
   const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
-    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem) };
+    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)) };
   const out = [];
   (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !out.includes(it)) out.push(it); }); });
   ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
@@ -189,20 +193,54 @@ export const msItem = code => keepSheet('ms-' + code, () => { const big = code[0
   const blurb = n === 3 ? m[1] : m[1] + first + m[2] + last + m[3];
   return ({ id: 'ms-' + code, chart: true, tileName: (big ? 'Capitals ' : 'Small letters ') + n, tileSub: m[0] + ' · ' + first + '–' + last, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Missing ' + kind + ' letters ' + n + ' — ' + m[0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/missing/thumb/' + (big ? 'upper-' : 'lower-') + n + '.jpg', topic: 'missing-letters',
   blurb, about: soundAbout(price, [m[4], 'Say the alphabet aloud and write each missing ' + kind + ' letter in its place.']) }); });
+/* Vocabulary · Colours and Shapes (Oct 6, Sumit's Colours and Shapes zips): ten sheets each in
+   sheets/vocab-colours/ and sheets/vocab-shapes/. Most have a second page: the same sheet with the
+   answers filled in. Per sheet: short name for the tile, what the child does, number of pages. */
+export const VOCAB_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const VOCAB = {
+  vc: { name: 'Colours', topic: 'vocab-colours', folder: 'vocab-colours', file: 'colours', sheets: {
+    1: ['Write the colour names', 'Look at each colour and write its name, using the words in the box.', 2],
+    2: ['Circle the colour word', 'Look at each colour and circle the word that names it.', 2],
+    3: ['Match the colour', 'Draw a line from each coloured heart to its name.', 2],
+    4: ['Read and colour the pencils', 'Read the colour word under each pencil and colour the pencil in.', 1],
+    5: ['Read and colour the pictures', 'Read the words, find the matching pictures and colour each one in its colour.', 1],
+    6: ['I spy something blue', 'Circle all the things that are blue.', 2],
+    7: ['I spy something yellow', 'Circle all the things that are yellow.', 2],
+    8: ['I spy something red', 'Circle all the things that are red.', 2],
+    9: ['Circle the colour', 'Look at each paint splash and circle the name of its colour.', 2],
+    10: ['Match the crayon', 'Draw a line from each crayon to the picture of the same colour.', 2] } },
+  vs: { name: 'Shapes', topic: 'vocab-shapes', folder: 'vocab-shapes', file: 'shapes', sheets: {
+    1: ['Name the shapes', 'Twelve shapes with their names: look at each one and say its name aloud.', 1],
+    2: ['Colour the correct shape', 'Read the shape word and colour the shape that matches it.', 2],
+    3: ['Match objects to shapes', 'Draw a line from each object to the shape it looks like.', 2],
+    4: ['Match the word to the shape', 'Join the dots to match each shape word to its shape.', 2],
+    5: ['Circle the shape word', 'Look at each picture and circle the word for its shape.', 2],
+    6: ['2D shapes and their names', 'Draw a line to connect each shape with its name.', 2],
+    7: ['Which one is different?', 'Look at the objects in each row and colour the one with a different shape.', 2],
+    8: ['Circle the shape name', 'Look at each shape and circle its correct name.', 2],
+    9: ['Count the shapes', 'Count the shapes in each row and write the number in the box.', 2],
+    10: ['Cut and paste', 'Cut out the objects and paste each one under the shape it matches.', 1] } },
+};
+const lowerFirst = t => /^(I |2D)/.test(t) ? t : t[0].toLowerCase() + t.slice(1);   /* "I spy" and "2D" keep their capitals */
+export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = VOCAB[set], s = v.sheets[n], id = set + '-' + n, price = sheetPrice(id);
+  return ({ id, chart: true, tileName: v.name + ' ' + n, tileSub: s[0], cls: 'kg', subject: 'English', subjectId: 'english', title: v.name + ' ' + n + ' — ' + lowerFirst(s[0]), pages: s[2], price, free: price === 0, real: true, img: '/sheets/' + v.folder + '/thumb/' + v.file + '-' + n + '.jpg', topic: v.topic,
+  blurb: s[1], about: [s[1], s[2] === 2 ? 'Two A4 pages: the sheet, then the same sheet with the answers filled in.' : 'One A4 page.', 'Opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Every printable PDF joins the catalogue, so "All sheets" and the store's filters
    show the whole shelf — the letter, colour, matching and reading pages as well as the books. */
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
   MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])),
-  SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem), MS_CODES.map(msItem));
+  SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem), MS_CODES.map(msItem),
+  VOCAB_NUMBERS.map(n => vocabItem('vc', n)), VOCAB_NUMBERS.map(n => vocabItem('vs', n)));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-const sheetOfRaw = id => id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+const vocabOf = id => { const m = /^(vc|vs)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
+const sheetOfRaw = id => /^v[cs]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
 export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
-/* only sheets with a real PDF are listed: the missing-letter and sound sheets are the newest, the A to Z set the favourites */
-export const NEW_IDS = ['ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
+/* only sheets with a real PDF are listed: the Colours and Shapes sheets are the newest, then the missing-letter and sound sheets; the A to Z set the favourites */
+export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
 export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
 /* the four sheets in the Sheets chapter's preview carousel */
 export const PLAYER_IDS = ['az-A', 'rc-B', 'cl-C', 'bx-1'];
