@@ -4,6 +4,8 @@
 export const BRAND = 'Learn With Why';
 export const SITE_VERSION = '2026.09.17';
 export const INBOX = 'learnwithwhy6@gmail.com';
+/* WhatsApp chat link: wa.me needs the full number with the country code (91 for India), no + or spaces */
+export const WHATSAPP = 'https://wa.me/919822287983';
 
 export const NAV = ['Home', 'About us', 'What we do', 'Sheets', 'Contact us', 'Testimonials'];
 /* the chapter anchors: /#home, /#about, … /#testimonials */
