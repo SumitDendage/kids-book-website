@@ -14,12 +14,6 @@ export default function AboutChapter() {
         <p className="lede">Our goal is simple: to help children understand, ask “why” and grow into confident learners.</p>
         <p className="lede">At Learn with Why, our worksheets are designed by a team of experienced teachers with backgrounds in the American and British curriculum. Drawing on their classroom experience, they create clear, engaging activities that help children build essential skills, grow in confidence, and enjoy learning.</p>
       </Rise>
-      <Rise i={3} className="about-grid">
-        <div className="panel"><h3>Why we started</h3><p>We kept printing worksheets that were loud, cluttered and full of clip art. So we drew our own: one idea per page, generous white space, and a question at the bottom that starts with why.</p>
-          <ul className="ticks"><li>Designed with teachers, not stock templates</li><li>Ink-friendly — a full pack costs pennies to print</li><li>One purchase, unlimited home printing within your licence</li></ul></div>
-        <div className="panel"><h3>How it works</h3><p>Pick a sheet or a worksheet, unlock it, and print it at home as many times as your licence allows. Free access sheets need nothing but a printer.</p>
-          <div className="stats"><div className="stat"><b>120+</b><span>Sheets</span></div><div className="stat"><b>310</b><span>Classrooms</span></div><div className="stat"><b>4.9</b><span>Parent rating</span></div></div></div>
-      </Rise>
     </Chapter>
   );
 }
