@@ -78,17 +78,18 @@ export const ABOUT = {
 };
 /* The free A to Z demo sheets (Kindergarten): the "Say it" picture on each one. */
 export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'elephant', F: 'fish', G: 'grapes', H: 'house', I: 'igloo', J: 'jam', K: 'kite', L: 'lion', M: 'monkey', N: 'nest', O: 'orange', P: 'parrot', Q: 'quilt', R: 'rabbit', S: 'snake', T: 'tiger', U: 'umbrella', V: 'van', W: 'whale', X: 'x-ray', Y: 'yak', Z: 'zebra' };
-/* Letter tracing and picture reading: the first three letters of each set are free samples,
-   the rest are single PDFs to buy. The server's catalogue is the source of truth — SHEET_PRICE
-   is only the built-in fallback until /api/worksheets answers. */
-export const AZ_FREE = ['A', 'B', 'C'], RC_FREE = ['A', 'I', 'N'], SHEET_PRICE = 19;
-const sheetPrice = (id, free) => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (free ? 0 : SHEET_PRICE));
+/* Only two printable PDFs are free (Sumit, Oct 6): the Alphabet A and B tracing sheets.
+   Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
+   FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
+export const FREE_PDFS = ['az-A', 'az-B'], SHEET_PRICE = 19;
+export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
+const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */
 /* Each real PDF is built once and kept, so the store, the topic board and the sheet
    page all hold the same object — a price from the server reaches every one of them. */
 const PDF_CACHE = {};
 const keepSheet = (id, build) => PDF_CACHE[id] || (PDF_CACHE[id] = build());
-export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice('az-' + L, AZ_FREE.includes(L)); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: '/sheets/a-to-z/thumb/' + L + '.jpg',
+export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice('az-' + L); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: '/sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
   about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
@@ -141,50 +142,50 @@ export function topicSheets(id) {
 /* Picture-reading charts: six landscape pages (A, I, N, P, S, T) — a big letter with pictures whose names carry its sound. */
 export const RC_LETTERS = 'AINPST'.split('');
 export const RC_WORDS = { A: 'aeroplane, ant, apple, jam and hat', I: 'igloo, ink, insects, tin and spin', N: 'net, nest, nap, nine and pan', P: 'pup, pen, pit, panda and map', S: 'sun, star, snake, sand and bus', T: 'tent, train, tiger, tree and sit' };
-export const rcItem = L => keepSheet('rc-' + L, () => { const price = sheetPrice('rc-' + L, RC_FREE.includes(L)); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: '/sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
+export const rcItem = L => keepSheet('rc-' + L, () => { const price = sheetPrice('rc-' + L); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: '/sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
   blurb: 'Look at the pictures, say the words, hear the ' + L.toLowerCase() + ' sound: ' + RC_WORDS[L] + '.',
   about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
-/* Colour the letter (26) and Match the letters (5 ranges) — first three of each set free */
+/* Colour the letter (26) and Match the letters (5 ranges) */
 export const CL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-export const clItem = L => keepSheet('cl-' + L, () => { const price = sheetPrice('cl-' + L, AZ_FREE.includes(L)); return ({ id: 'cl-' + L, letter: L, tileLabel: 'Colour ' + L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Colour the letter ' + L, pages: 1, price, free: price === 0, real: true, img: '/sheets/colour/thumb/' + L + '.jpg', topic: 'letter-recognition',
+export const clItem = L => keepSheet('cl-' + L, () => { const price = sheetPrice('cl-' + L); return ({ id: 'cl-' + L, letter: L, tileLabel: 'Colour ' + L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Colour the letter ' + L, pages: 1, price, free: price === 0, real: true, img: '/sheets/colour/thumb/' + L + '.jpg', topic: 'letter-recognition',
   blurb: 'Find every ' + L + ' and ' + L.toLowerCase() + ' hiding among the other letters, and colour them in.',
   about: ['A grid of twenty letters — some are ' + L + ' or ' + L.toLowerCase() + ', most are not.', 'Colour in only the ones that match, and leave the rest.', 'Trains letter recognition: spotting a letter by its shape, in both cases.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 export const MT_RANGES = [['AE', 'A B C D E'], ['FJ', 'F G H I J'], ['KO', 'K L M N O'], ['PT', 'P Q R S T'], ['UZ', 'U V W X Y Z']];
-export const mtItem = code => keepSheet('mt-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('mt-' + code, i < 3);
+export const mtItem = code => keepSheet('mt-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('mt-' + code);
   return ({ id: 'mt-' + code, chart: true, tileName: 'Match ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Match the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/matching/thumb/' + code + '.jpg', topic: 'match-upper-lower',
   blurb: 'Trace the dots to join each capital letter to its small letter: ' + letters + '.',
   about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Spot the letters — circle every lowercase letter that matches the capital, five ranges */
-export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('sp-' + code, i < 3);
+export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('sp-' + code);
   return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/spot/thumb/' + code + '.jpg', topic: 'before-after-letters',
   blurb: 'Read the capital letter, then circle every small letter in the row that matches it: ' + letters + '.',
   about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
 /* Beginning and ending sounds (Sep 30): the "Read aloud" charts A to E and three
    exercises each for beginning and ending sounds. The exercises come first in their
-   sub-category, and those three are free, as the content plan asks; the charts are paid.
+   sub-category.
    Files keep the folders of the zips they came in: sound/ and sound-exercise/. */
 export const SD_LETTERS = 'ABCDE'.split('');
 const SD_WORDS = { A: 'apple, arm, ant, panda, sofa and pizza', B: 'bat, bee, bag, tub, web and crab', C: 'cat, cup, car, sock, duck and magic', D: 'dog, doll, door, road, bed and bird', E: 'eagle, elephant, elbow, tree, knee and three' };
 const soundAbout = (price, lines) => lines.concat(['One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.']);
-export const sdItem = L => keepSheet('sd-' + L, () => { const price = sheetPrice('sd-' + L, false);
+export const sdItem = L => keepSheet('sd-' + L, () => { const price = sheetPrice('sd-' + L);
   return ({ id: 'sd-' + L, chart: true, tileName: 'Sound ' + L, tileSub: 'Read aloud · beginning & ending', cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — beginning and ending sounds', pages: 1, price, free: price === 0, real: true, img: '/sheets/sound/thumb/' + L + '.jpg', topic: 'beginning-sounds',
   blurb: 'Read the pictures aloud and hear ' + L + ' at the start or the end of each word: ' + SD_WORDS[L] + '.',
   about: soundAbout(price, ['A big letter ' + L + ' with six pictures around it: ' + SD_WORDS[L] + '.', 'The letter is underlined where it sits in each word, at the start or at the end.', 'Point, say the word, and listen for the ' + L + ' sound.']) }); });
 const BX = { 1: ['Write the missing sound', 'Look at each picture and write the missing beginning sound of the word.'], 2: ['Circle the sound', 'Look at each picture and circle the sound its name begins with.'], 3: ['Same beginning sound', 'Read each row and circle the two words that begin with the same sound.'] };
 const EX = { 1: ['Choose the ending sound', 'Look at each picture and circle the sound its name ends with.'], 2: ['Write the ending sound', 'Write the last sound of each word under its picture.'], 3: ['Same ending sound', 'Read each row and circle the two words that end with the same sound.'] };
-const exerciseItem = (pre, n, map, what, file, topic) => keepSheet(pre + '-' + n, () => { const price = sheetPrice(pre + '-' + n, true);
+const exerciseItem = (pre, n, map, what, file, topic) => keepSheet(pre + '-' + n, () => { const price = sheetPrice(pre + '-' + n);
   return ({ id: pre + '-' + n, chart: true, tileName: what + ' ' + n, tileSub: map[n][0], cls: 'kg', subject: 'English', subjectId: 'english', title: what + ' ' + n + ' — ' + map[n][0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/sound-exercise/thumb/' + file + '-' + n + '.jpg', topic,
   blurb: map[n][1], about: soundAbout(price, [map[n][1], 'Friendly pictures for every word, with a worked example to start.']) }); });
 export const SOUND_EXERCISES = [1, 2, 3];
 export const bxItem = n => exerciseItem('bx', n, BX, 'Beginning Sound', 'beginning-sound', 'beginning-sounds');
 export const exItem = n => exerciseItem('ex', n, EX, 'Ending Sound', 'ending-sound', 'ending-sounds');
 /* Find the missing letters (Oct 5, Sumit's Missing A to Z zip): three capital-letter sheets
-   (free, the first three of the set) and three small-letter sheets, in sheets/missing/ */
+   and three small-letter sheets, in sheets/missing/ */
 export const MS_CODES = ['U1', 'U2', 'U3', 'L1', 'L2', 'L3'];
 const MS = { 1: ['Apples', 'Write the missing letters on the blank apples, from ', ' to ', '.', 'Twenty-six apples in alphabet order; some letters are there, the rest are blank.'],
   2: ['Alphabet path', 'Follow the winding path of boxes and write the missing letters from ', ' to ', '.', 'One long path of boxes, from the apple to the zebra, with a few letters as clues.'],
   3: ['Rows with pictures', 'Fill in the missing letters in short rows of five, each with a little picture.', '', '', 'Four rows of five boxes with two or three letters given in each row.'] };
-export const msItem = code => keepSheet('ms-' + code, () => { const big = code[0] === 'U', n = +code[1], m = MS[n] || MS[1], first = big ? 'A' : 'a', last = big ? 'Z' : 'z', kind = big ? 'capital' : 'small', price = sheetPrice('ms-' + code, big);
+export const msItem = code => keepSheet('ms-' + code, () => { const big = code[0] === 'U', n = +code[1], m = MS[n] || MS[1], first = big ? 'A' : 'a', last = big ? 'Z' : 'z', kind = big ? 'capital' : 'small', price = sheetPrice('ms-' + code);
   const blurb = n === 3 ? m[1] : m[1] + first + m[2] + last + m[3];
   return ({ id: 'ms-' + code, chart: true, tileName: (big ? 'Capitals ' : 'Small letters ') + n, tileSub: m[0] + ' · ' + first + '–' + last, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Missing ' + kind + ' letters ' + n + ' — ' + m[0].toLowerCase(), pages: 1, price, free: price === 0, real: true, img: '/sheets/missing/thumb/' + (big ? 'upper-' : 'lower-') + n + '.jpg', topic: 'missing-letters',
   blurb, about: soundAbout(price, [m[4], 'Say the alphabet aloud and write each missing ' + kind + ' letter in its place.']) }); });

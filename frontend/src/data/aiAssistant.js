@@ -6,7 +6,7 @@ export const AI_WELCOME = 'Hi! 👋 Welcome. How can I help you today?';
 export const AI_PLACEHOLDER = 'Ask me anything...';
 
 export const AI_ANSWERS = [
-  { words: ['free', 'sample', 'try'], reply: 'Many sheets are free to try. Open the shop, look for the Free label, and sign in to open them.' },
+  { words: ['free', 'sample', 'try'], reply: 'Two sheets are free to try: Alphabet A and B tracing. Open the shop, pick Free, and sign in to open them. Every other sheet is bought on its own or opens with a class plan.' },
   { words: ['subscribe', 'subscription', 'plan', 'month'], reply: 'You can subscribe to Kindergarten for 1, 3 or 6 months (12 months too outside India). Pick a plan in the shop’s Subscription view; the price shows on the payment page.' },
   { words: ['price', 'cost', 'pay', 'buy', 'rupee', '₹', 'payment'], reply: 'You can buy single sheets or subscribe to Kindergarten. Each sheet card in the shop shows its price, and you pay on our secure payment page.' },
   { words: ['class 1', 'class 2', 'class 3', 'grade', 'standard'], reply: 'Class 1, 2 and 3 sheets are coming soon. The Kindergarten sheets are ready now.' },

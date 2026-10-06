@@ -14,7 +14,7 @@ function AccountPopup({ id }) {
       <button type="button" className="icon-btn close-x" aria-label="Close" onClick={closeModal}>✕</button>
       <h3 id="modalTitle">Free Account Includes:</h3>
       <ul className="perks">
-        <li><i aria-hidden="true">✓</i><span>Free access sheets in every class — open them in the full-screen viewer</span></li>
+        <li><i aria-hidden="true">✓</i><span>Free access sheets — open them in the full-screen viewer</span></li>
         <li><i aria-hidden="true">✓</i><span>Suggest a Resource! You want it? We&apos;ll make it</span></li>
         <li><i aria-hidden="true">✓</i><span>Customer support (with real people!)</span></li>
       </ul>

@@ -212,7 +212,7 @@ The private PDFs in `backend/protected/` are **not** copied into `frontend/publi
 - **Glass UI** — transparent header pill with hover-jump links, logo tile with wordmark, frosted panels that let the landscape through.
 - **Sign up / Sign in** on the first screen — sign-up asks only for name and email; the server generates a password and emails it with an **Accept & Continue** link that confirms the address and leads back to sign-in. Accounts live in PostgreSQL with Argon2id-hashed passwords, httpOnly session cookies, a lock after 5 wrong passwords, and *Forgot password* by a single-use emailed link. "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
 - **Kindergarten skill board** — eight topic groups (pre-reading, alphabet, phonics, vocabulary, sight words, grammar & writing, reading, maths & the world); every skill opens its own shelf of sheets.
-- **68 printable PDF sheets in 5 skill types** — letter tracing A–Z, picture-reading charts, colour the letter, match the letters and spot the letters. The first few of each set are free; the rest are bought one by one.
+- **68 printable PDF sheets in 5 skill types** — letter tracing A–Z, picture-reading charts, colour the letter, match the letters and spot the letters. Only two are free (the Alphabet A and B tracing sheets); the rest are bought one by one.
 - **The store** — a page of its own with **New · Bestselling · Free · Subscription** views, classes, subjects and the five skill cards. (Subscription lists the paid sheets; class plans are no longer sold, so every PDF is bought on its own.)
 - **Buy one PDF** — every purchase grants **a permanent entitlement**: the sheet stays on the account. Free sheets open for anyone signed in. Coupons apply at checkout.
 - **Razorpay** — the checkout creates a Razorpay order for the signed total, opens Razorpay Checkout straight on the chosen method (card, UPI QR code, UPI ID, wallet), and the backend verifies the payment signature — and the signed webhook — before it grants access. Until keys are configured its ways to pay are shown as coming soon and nothing can be bought (there is no demo gateway); the same goes for PayPal and Stripe.
@@ -314,7 +314,7 @@ Everything the customer reads lives in `frontend/src/data/`:
 | `content.js` | `QUOTES`, `THANKS` | the testimonials and the scrolling thank-you notes |
 | `content.js` | `WHYS` | the rotating "Today's why" questions |
 | `catalogue.js` | `CATALOGUE`, `SHEETS`, `WORKSHEETS`, `ABOUT` | the shelf (`price: 0` = free) and what is inside each sheet |
-| `catalogue.js` | `AZ_FREE`, `RC_FREE`, `SHEET_PRICE` | which tracing, colour and picture-reading PDFs are free (Match and Spot: the first three ranges), and the fallback price |
+| `catalogue.js` | `FREE_PDFS`, `SHEET_PRICE` | which printable PDFs are free (now only `az-A` and `az-B`) and the fallback price; the server's prices (backend `seed.cjs`, or the admin) win |
 | `catalogue.js` | `KG_TOPICS` | the Kindergarten skill board |
 | `checkout.js` | `PAY_VIA` | the ways to pay offered at checkout |
 | `aiAssistant.js` | `AI_NAME`, `AI_WELCOME`, `AI_ANSWERS` | the Ask AI helper's name, first message and practice answers |
