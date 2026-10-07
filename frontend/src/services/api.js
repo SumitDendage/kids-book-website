@@ -68,7 +68,8 @@ export async function sendContact({ name, email, message }) {
   form.append('message', message);
   const r = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: form }).catch(() => null);
   const j = r ? await r.json().catch(() => ({})) : {};
-  if (!r || !j.success) throw new Error('We could not send that just now. Please try again in a moment.');
+  /* Web3Forms says why it refused (a wrong key, too many notes); a failed fetch means no connection */
+  if (!r || !j.success) throw new Error('We could not send that just now' + (r && j.message ? ' (' + j.message + ')' : '') + '. Please try again in a moment.');
   return j;
 }
 

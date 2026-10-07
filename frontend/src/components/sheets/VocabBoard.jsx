@@ -24,9 +24,9 @@ export default function VocabBoard({ open, onOpen }) {
       </div>
       <div className="vocab-grid">
         {all.map((x, n) => {
-          const k = x.list.length, inside = (
+          const k = x.list.length, free = x.list.filter(it => it.price === 0).length, inside = (
             <>
-              {k ? <span className="vocab-n">{k} {k === 1 ? 'sheet' : 'sheets'}</span> : null}
+              {k ? <span className="vocab-n">{k} {k === 1 ? 'sheet' : 'sheets'}{free ? ' · ' + free + ' free' : ''}</span> : null}
               <span className="vocab-pic"><img src={picOf(x.pic)} alt="" loading="lazy" decoding="async" /></span>
               <span className="vocab-name">{x.label}</span>
               {k ? <span className="vocab-go">Explore <span aria-hidden="true">→</span></span> : <span className="vocab-soon">Coming soon</span>}
@@ -34,7 +34,7 @@ export default function VocabBoard({ open, onOpen }) {
           );
           const style = { '--card': 'var(--c-' + x.tone + ')', '--n': n };
           return k
-            ? <button key={x.id} type="button" className="vocab-card" style={style} onClick={() => onOpen(x.id)} aria-label={'Explore ' + x.label + ', ' + k + ' sheets'}>{inside}</button>
+            ? <button key={x.id} type="button" className="vocab-card" style={style} onClick={() => onOpen(x.id)} aria-label={'Explore ' + x.label + ', ' + k + ' sheets' + (free ? ', ' + free + ' free' : '')}>{inside}</button>
             : <div key={x.id} className="vocab-card soon" style={style}>{inside}</div>;
         })}
       </div>

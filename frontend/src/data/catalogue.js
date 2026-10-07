@@ -78,10 +78,11 @@ export const ABOUT = {
 };
 /* The free A to Z demo sheets (Kindergarten): the "Say it" picture on each one. */
 export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'elephant', F: 'fish', G: 'grapes', H: 'house', I: 'igloo', J: 'jam', K: 'kite', L: 'lion', M: 'monkey', N: 'nest', O: 'orange', P: 'parrot', Q: 'quilt', R: 'rabbit', S: 'snake', T: 'tiger', U: 'umbrella', V: 'van', W: 'whale', X: 'x-ray', Y: 'yak', Z: 'zebra' };
-/* Only two printable PDFs are free (Sumit, Oct 6): the Alphabet A and B tracing sheets.
+/* Eight printable PDFs are free: the Alphabet A and B tracing sheets (Sumit, Oct 6), and the
+   first three Colours and first three Shapes sheets in Vocabulary (Sumit, Oct 7).
    Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
    FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
-export const FREE_PDFS = ['az-A', 'az-B'], SHEET_PRICE = 19;
+export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2', 'vs-3'], SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */

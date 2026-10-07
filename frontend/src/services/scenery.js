@@ -4,6 +4,11 @@
    - The four birds of the picture never sit: they fly side to side all the time, each on its
      own height and rhythm, turning round at each end ("the bird is side moving not sitting").
      Their paths cross the middle of the picture, so phones see them too.
+   - Each bird really flaps (Sumit, Oct 7: "it fly animation is not good"): the sprite is cut
+     into its body and its two wings, and the wings beat up and down from the shoulder, a
+     quick downstroke and a slower upstroke, with the body lifting a little on each beat.
+     After a few beats the bird glides with its wings held out, then flaps again, and at the
+     end of its path it turns round instead of flipping.
    - Birds cross the sky one after another, and a far flock passes now and then.
    - The water in the waterfalls keeps running from the top to the bottom.
    Everything is drawn in the picture's own pixels (1600 × 900) through the same camera move
@@ -21,12 +26,13 @@ function camera(i) {
 }
 
 /* the picture's four birds (two bluebirds, two purple birds): the middle and half-width of
-   each one's side-to-side flight, its height, width, seconds for there and back, and phase */
+   each one's side-to-side flight, its height, width, seconds for there and back, phase,
+   seconds per wing beat, beats before a glide and how long the glide lasts */
 const GLIDERS = [
-  { fly: 'blue', cx: 430, span: 330, y: 560, w: 77, period: 17, phase: 0 },
-  { fly: 'purple', cx: 1180, span: 330, y: 500, w: 82, period: 19, phase: 1.7 },
-  { fly: 'blue', cx: 760, span: 420, y: 655, w: 52, period: 21, phase: 3.1 },
-  { fly: 'purple', cx: 930, span: 480, y: 390, w: 88, period: 23, phase: 4.4 },
+  { fly: 'blue', cx: 430, span: 330, y: 560, w: 77, period: 17, phase: 0, beat: 0.26, flaps: 6, glide: 0.8 },
+  { fly: 'purple', cx: 1180, span: 330, y: 500, w: 82, period: 19, phase: 1.7, beat: 0.28, flaps: 5, glide: 0.9 },
+  { fly: 'blue', cx: 760, span: 420, y: 655, w: 52, period: 21, phase: 3.1, beat: 0.22, flaps: 7, glide: 0.6 },
+  { fly: 'purple', cx: 930, span: 480, y: 390, w: 88, period: 23, phase: 4.4, beat: 0.3, flaps: 4, glide: 1.0 },
 ];
 /* birds crossing the sky: which look, from x to x, height, how long the crossing takes, how
    often it comes round and when it starts; the flying sprite faces left */
@@ -41,6 +47,38 @@ const WATER = { x: 600, y: 255, w: 770, h: 550, speed: 150, drops: 290, tile: 25
 
 const load = src => { const img = new Image(); img.decoding = 'async'; img.src = src; return img; };
 const ready = img => img.complete && img.naturalWidth > 0;
+
+/* the flying sprites are 77 × 77 and face left. Their two wings, in sprite pixels: the near
+   wing (the big one on the right) and the far wing (behind the head), each with the shoulder
+   it turns from; the body keeps a patch round each shoulder so no gap opens when a wing moves */
+const BIRD = 77;
+const NEAR = { pts: [[28, 40], [33, 30], [42, 20], [52, 8], [58, 1], [67, 0], [76, 5], [76, 30], [71, 43], [64, 50], [54, 52], [46, 51], [38, 50], [30, 47]], at: [36, 46], keep: [35, 44, 8, 6] };
+const FAR = { pts: [[0, 4], [11, 3], [23, 11], [30, 21], [32, 29], [27, 31], [21, 27], [13, 25], [5, 26], [0, 27]], at: [26, 29], keep: [26, 29, 4, 3] };
+function cutBird(img) {
+  const piece = () => { const c = document.createElement('canvas'); c.width = c.height = BIRD; return c; };
+  const path = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+  const wing = w => { const c = piece(), g = c.getContext('2d'); path(g, w.pts); g.clip(); g.drawImage(img, 0, 0, BIRD, BIRD); return c; };
+  const body = piece(), g = body.getContext('2d');
+  g.drawImage(img, 0, 0, BIRD, BIRD);
+  g.globalCompositeOperation = 'destination-out'; path(g, NEAR.pts); g.fill(); path(g, FAR.pts); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  [NEAR, FAR].forEach(w => { const [x, y, rx, ry] = w.keep; g.save(); g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 2 * Math.PI); g.clip(); g.drawImage(img, 0, 0, BIRD, BIRD); g.restore(); });
+  return { body, near: wing(NEAR), far: wing(FAR) };
+}
+
+/* where the wings are at time t: 1 = up as drawn, -1 = down. A beat is a quick downstroke and
+   a slower upstroke; after `flaps` beats the bird glides with its wings half out, then flaps
+   again. lift is how far the body rises (in picture pixels) */
+function wingsAt(t, beat, flaps, glide, phase) {
+  const cyc = flaps * beat + glide, c = ((t + phase) % cyc + cyc) % cyc;
+  if (c >= flaps * beat) {   /* gliding: wings ease out to half way and back up, the bird sinks a little */
+    const g = (c - flaps * beat) / glide;
+    return { pos: 1 - 0.62 * Math.sin(Math.PI * g), lift: -2.5 * Math.sin(Math.PI * g) };
+  }
+  const q = (c % beat) / beat, D = 0.42;
+  const pos = q < D ? Math.cos(Math.PI * q / D) : -Math.cos(Math.PI * (q - D) / (1 - D));
+  return { pos, lift: q < D ? 2.2 * Math.sin(Math.PI * q / D) : -0.8 * Math.sin(Math.PI * (q - D) / (1 - D)) };
+}
 
 /* falling-water streaks, one tile that repeats downwards: long thin light streaks with a few
    darker ones between, each column on its own rhythm */
@@ -83,7 +121,7 @@ function dropTile(w, h) {
 export function createScenery(canvas) {
   const ctx = canvas.getContext('2d');
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const flyer = { purple: load(flySrc), blue: load(flyBlueSrc) };
+  const flyer = { purple: load(flySrc), blue: load(flyBlueSrc) }, cut = {};
   const mask = load(waterSrc);
   let W = 0, H = 0, dpr = 1, tile = null, drops = null, water = null, lastI = -1;
   const t0 = performance.now();
@@ -93,23 +131,36 @@ export function createScenery(canvas) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); lastI = -1;
   }
 
-  /* a bird in flight at picture point (x, y): the flying sprite, wings beating by a squash,
-     turned the way it is going and tipped a little with its climb */
-  function flying(look, x, y, width, dir, beat, tilt, alpha) {
+  /* a bird in flight at picture point (x, y), `width` wide. face: 1 = flying right, -1 = left,
+     anything between while it turns round. The far wing beats behind the body, the near wing
+     in front: each swings down round its shoulder and shortens a little as it goes, and the
+     far wing tucks in behind the head instead of reaching past the beak */
+  function flying(look, x, y, width, face, wings, tilt, alpha) {
     const img = flyer[look]; if (!ready(img) || alpha <= 0) return;
-    const w = width, h = w * img.naturalHeight / img.naturalWidth, f = 0.62 + 0.38 * (0.5 + 0.5 * Math.cos(beat));
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(tilt);
-    ctx.scale(dir > 0 ? -1 : 1, f); ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+    const p = cut[look] || (cut[look] = cutBird(img)), k = width / BIRD, pos = wings.pos;
+    const flap = (c, w, sx, sy, turn) => {
+      const [ax, ay] = w.at;
+      ctx.save(); ctx.translate(ax, ay); ctx.rotate(turn); ctx.scale(sx, sy); ctx.translate(-ax, -ay);
+      ctx.drawImage(c, 0, 0); ctx.restore();
+    };
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.translate(x, y - wings.lift); ctx.rotate(tilt + 0.04 * (1 - pos) * (face < 0 ? 1 : -1));
+    ctx.scale(-face * k, k); ctx.translate(-BIRD / 2, -BIRD / 2);
+    const down = (1 - pos) / 2;   /* 0 with the wings up, 1 at the bottom of the stroke */
+    flap(p.far, FAR, 1 - 0.3 * down, 1 - 0.72 * down, -0.25 * down);
+    ctx.drawImage(p.body, 0, 0);
+    flap(p.near, NEAR, 1, 1 - 0.4 * down, 1.55 * down);
+    ctx.restore();
   }
 
   /* side to side: steady across the middle, easing round at each end, where it turns about */
   function drawGlider(b, t) {
     const th = 2 * Math.PI * t / b.period + b.phase, K = 3;
     const x = b.cx + b.span * Math.atan(K * Math.sin(th)) / Math.atan(K);
-    const going = Math.cos(th) >= 0 ? 1 : -1;
-    const y = b.y + 12 * Math.sin(3 * th + b.phase) - 14 * (1 - Math.abs(Math.cos(th)));
-    const tilt = -going * 0.05 * Math.cos(3 * th + b.phase);
-    flying(b.fly, x, y, b.w, going, still ? 0 : t * 2 * Math.PI * 5.5 + b.phase, tilt, 1);
+    const c = Math.cos(th), face = (c < 0 ? -1 : 1) * Math.max(0.45, Math.min(1, 5 * Math.abs(c)));   /* narrows as it turns round, never to a sliver */
+    const y = b.y + 10 * Math.sin(2 * th + b.phase) - 12 * (1 - Math.abs(Math.cos(th)));
+    const wings = still ? { pos: 0.6, lift: 0 } : wingsAt(t, b.beat, b.flaps, b.glide, b.phase);
+    flying(b.fly, x, y, b.w, face, wings, 0, 1);
   }
 
   function drawCrossers(t) {
@@ -117,7 +168,7 @@ export function createScenery(canvas) {
       const q = (((t - c.at) % c.every) + c.every) % c.every; if (q > c.dur) return;
       const u = q / c.dur, x = c.from + (c.to - c.from) * u, y = c.y + 28 * Math.sin(2 * Math.PI * u * 1.5 + j) - 30 * Math.sin(Math.PI * u);
       const dir = Math.sign(c.to - c.from), tilt = 0.06 * Math.cos(2 * Math.PI * u * 1.5 + j) * -dir;
-      flying(c.fly, x, y, 77 * c.size, dir, t * 2 * Math.PI * (4.5 + j * 0.4), tilt, 1);
+      flying(c.fly, x, y, 77 * c.size, dir, wingsAt(t, 0.24 + j * 0.02, 5, 0.7, j), tilt, 1);
     });
     /* the far flock: five small dark "v" shapes beating their wings */
     const q = (((t - FLOCK.at) % FLOCK.every) + FLOCK.every) % FLOCK.every;
