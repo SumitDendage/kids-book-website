@@ -12,13 +12,14 @@ import pinkSrc from '../assets/scene/butterfly-pink.webp';
 import aquaSrc from '../assets/scene/butterfly-aqua.webp';
 
 const FRAMES = 960;                    /* the walk follows the same playhead as the 960 frames */
-/* where each friend stands in the picture: centre x and feet y (the deer is the lowest) */
+/* where each friend stands in the picture: centre x and feet y. They walk in a line, one
+   behind the other on the same path (Sumit, Oct 7): the fox, then the deer, the rabbit in front */
 const FRIENDS = [
-  { name: 'fox', src: foxSrc, x: 357, feet: 809, gait: { period: 26, amp: 7, split: 0.64 } },
-  { name: 'rabbit', src: rabbitSrc, x: 682, feet: 854, hop: true },
+  { name: 'fox', src: foxSrc, x: 357, feet: 875, gait: { period: 26, amp: 7, split: 0.64 } },
+  { name: 'rabbit', src: rabbitSrc, x: 682, feet: 875, hop: true },
   { name: 'deer', src: deerSrc, x: 537, feet: 875, gait: { period: 30, amp: 8, split: 0.57 } },
 ];
-const GROUP_LEFT = 263, GROUP_W = 466, GROUP_H = 249, GROUND = 875;
+const GROUP_LEFT = 263, GROUP_W = 466, GROUP_H = 218, GROUND = 875;
 /* the butterflies: who they follow, and where they flutter from that friend's feet */
 const BUTTERFLIES = [
   { src: pinkSrc, who: 'rabbit', dx: 30, dy: -170 },
