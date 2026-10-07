@@ -3,7 +3,7 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { CLASSES, SUBJECTS, PLANS, classById, subjectById } from '../../data/content.js';
 import { money, isIndia } from '../../services/currency.js';
 import { dateOf } from '../../utils/format.js';
-import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets } from '../../data/catalogue.js';
+import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
@@ -18,6 +18,13 @@ const CARD_PICS = '/shop/cards/';
 
 /* only Kindergarten has sheets so far: Class 1, 2 and 3 say "Coming soon" */
 const SOON = { c1: true, c2: true, c3: true };
+/* Vocabulary is not a class: it is Kindergarten's Vocabulary group, listed as a row of its own
+   under Classes, right after Kindergarten, so the shop matches the Sheets list (Sumit, Oct 7:
+   "vocab also add here also behind in classes"). Its sheets are Kindergarten sheets, so the
+   Kindergarten plan opens them and the Kindergarten row still counts them. */
+const VOCAB = 'vocab';
+const clsLabel = id => (id === VOCAB ? 'Vocabulary' : classById(id).label);
+const planCls = id => (id === 'all' || id === VOCAB ? 'kg' : id);
 
 /* Subscribe to a class (1, 3, 6 months; 12 outside India). With a plan running it says until
    when, and the same buttons renew it — the new plan starts the day the current one ends. */
@@ -39,10 +46,11 @@ export default function Store({ bagCount }) {
   const shopRef = useRef(null);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
 
+  const vocabIds = groupSheets(VOCAB).map(it => it.id);
   /* the sheets a view, class and subject show */
   const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && !SOON[it.cls] &&
     (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
-    (c === 'all' || it.cls === c) && subjectMatches(it, sj));
+    (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : it.cls === c)) && subjectMatches(it, sj));
   /* every sidebar number is the number of sheets that button lists */
   const countOf = (vw, c, sj) => pick(vw, c, sj).length;
   const list = pick(view, cls, subject).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
@@ -52,11 +60,11 @@ export default function Store({ bagCount }) {
     shown = skillSheets(skill);
     title = SKILL_NAME[skill];
   } else {
-    title = v.label + (cls !== 'all' ? ' · ' + classById(cls).label : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
+    title = v.label + (cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
   const soon = !skill && SOON[cls];
-  if (soon) sub = 'New worksheets for ' + classById(cls).label + ' are on their way.';
+  if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
   else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
@@ -72,7 +80,11 @@ export default function Store({ bagCount }) {
           <p className="side-title">Browse</p>
           <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => setShopFilter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
-          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => <SideButton key={c.id} on={c.id === cls} n={SOON[c.id] ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>)}</div>
+          <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => setShopFilter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => {
+            const row = <SideButton key={c.id} on={c.id === cls} n={SOON[c.id] ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => setShopFilter({ cls: c.id, skill: null })}>{c.label}</SideButton>;
+            if (c.id !== 'kg') return row;
+            return [row, <SideButton key={VOCAB} on={cls === VOCAB} n={countOf(view, VOCAB, subject)} onClick={() => setShopFilter({ cls: VOCAB, skill: null })}>Vocabulary</SideButton>];
+          })}</div>
           <p className="side-title">Subjects</p>
           <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => setShopFilter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => setShopFilter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
@@ -80,8 +92,8 @@ export default function Store({ bagCount }) {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className={'shop-grid' + (showSkills ? ' skills' : '')} id="shopGrid">
-            {view === 'paid' && !skill && !soon && <SubscribeBox cls={cls === 'all' ? 'kg' : cls} sub={access.activeSub(cls === 'all' ? 'kg' : cls)} openCheckout={openCheckout} />}
-            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {classById(cls).label} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
+            {view === 'paid' && !skill && !soon && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} />}
+            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {clsLabel(cls)} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => setShopFilter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className={'skill-card skill-' + c.id} style={{ '--n': n }}>
                 {/* each skill has its own corner of the Learn With Why picture (public/shop/cards/) */}
                 <img className="skill-pic" src={CARD_PICS + c.id + '.webp'} alt="" loading="lazy" decoding="async" />
