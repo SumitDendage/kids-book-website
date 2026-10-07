@@ -45,16 +45,12 @@ button.vocab-card:hover .vocab-go span { transform: translateX(4px); }
 }
 @media (prefers-reduced-motion: reduce) { .vocab-card, .vocab-pic img, .vocab-go span { animation: none; transition: none; } }
 
-/* the menu: Alphabet and Vocabulary just under Kindergarten */
-.side-sub { display: flex; flex-direction: column; gap: 2px; margin: 0 0 4px 30px; padding-left: 10px; border-left: 2px solid rgba(255, 255, 255, 0.28); }
-.side-sub-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 12px; border: 1px solid transparent; background: none; color: var(--fg-muted); font: inherit; font-size: 0.82rem; font-weight: 600; text-align: left; cursor: pointer; transition: background var(--d-base), color var(--d-base), transform var(--d-fast) var(--ease); }
-.side-sub-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; transform: translateX(2px); }
-.side-sub-item.on { background: rgba(255, 217, 107, 0.12); color: #ffd96b; border-color: rgba(255, 217, 107, 0.45); }
-.side-sub-item .n { font-size: 0.64rem; font-weight: 700; padding: 2px 7px; border-radius: 100px; background: rgba(255, 255, 255, 0.1); }
-.side-sub-item.on .n { background: rgba(255, 217, 107, 0.22); color: #ffe9a8; }
+/* the menu: Alphabet and Vocabulary, each a row of its own just under Kindergarten, joined to it by a line */
+.side-child { position: relative; margin-left: 24px; }
+.side-child::before { content: ''; position: absolute; left: -14px; top: -6px; height: calc(50% + 6px); width: 10px; border-left: 2px solid rgba(255, 255, 255, 0.3); border-bottom: 2px solid rgba(255, 255, 255, 0.3); border-bottom-left-radius: 8px; pointer-events: none; }
+.side-child .ic img { width: 28px; height: 28px; object-fit: contain; }
+.side-child:not(.on) { color: #fff; }
 @media (max-width: 860px) {
-  .ws-side .side-item:has(+ .side-sub) { grid-column: 1 / -1; }   /* Kindergarten gets its own row, its two parts the row below */
-  .side-sub { grid-column: 1 / -1; flex-direction: row; margin: 0 0 4px; padding-left: 0; border-left: 0; gap: 4px; }
-  .side-sub-item { flex: 1; justify-content: center; border-color: rgba(255, 255, 255, 0.2); }
-  .side-sub-item .n { display: none; }
+  .ws-side .kg-parent, .ws-side .side-child { grid-column: 1 / -1; }   /* Kindergarten and its two parts get full rows */
+  .side-child .n { display: inline-block; }
 }
