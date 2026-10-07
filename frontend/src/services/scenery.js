@@ -1,18 +1,14 @@
 /* THE LIVE SCENERY — the birds and the waterfalls of the landscape picture, moving on their
    own (Sumit, Oct 7: "this bird also move and the waterfall is also flow"). The frames follow
    the scroll and stand still when the page does; this canvas runs on the clock instead.
-   - The four birds sitting on the rocks and branches stay where they are in the picture, and
-     now and then one flies off with flapping wings, out over the middle of the picture (so
-     phones see it too), makes a loop and lands back on its spot.
+   - The four birds of the picture never sit: they fly side to side all the time, each on its
+     own height and rhythm, turning round at each end ("the bird is side moving not sitting").
+     Their paths cross the middle of the picture, so phones see them too.
    - Birds cross the sky one after another, and a far flock passes now and then.
-   - The water in the waterfalls keeps flowing down.
+   - The water in the waterfalls keeps running from the top to the bottom.
    Everything is drawn in the picture's own pixels (1600 × 900) through the same camera move
    as the frames and the same cover fit, so it stays on the picture on every screen.
-   With reduced motion the birds simply sit and the water is still. */
-import blue1Src from '../assets/scene/perch-blue-1.webp';
-import blue2Src from '../assets/scene/perch-blue-2.webp';
-import purple1Src from '../assets/scene/perch-purple-1.webp';
-import purple2Src from '../assets/scene/perch-purple-2.webp';
+   With reduced motion the birds hold still in the air and the water is still. */
 import flySrc from '../assets/scene/bird-fly.webp';
 import flyBlueSrc from '../assets/scene/bird-fly-blue.webp';
 import waterSrc from '../assets/scene/water-mask.webp';
@@ -24,15 +20,14 @@ function camera(i) {
   return { x0: (PW - w) * (0.5 - 0.5 * Math.cos(Math.PI * p)), y0: (PH - h) * 0.6, k: FW / w };
 }
 
-/* the sitting birds: where each one is in the picture (top-left, size), which way it faces
-   (1 = right), its flying look, where its flight goes and when in the 24-second round it flies */
-const SITTERS = [
-  { src: blue1Src, x: 52, y: 616, w: 81, h: 55, face: 1, fly: 'blue', reach: 560, up: 260, loop: 80, at: 2, dur: 8.5 },
-  { src: purple1Src, x: 1462, y: 605, w: 86, h: 54, face: -1, fly: 'purple', reach: -600, up: 280, loop: 90, at: 8, dur: 9 },
-  { src: blue2Src, x: 119, y: 644, w: 46, h: 54, face: 1, fly: 'blue', reach: 480, up: 200, loop: 70, at: 14, dur: 8 },
-  { src: purple2Src, x: 1386, y: 664, w: 95, h: 55, face: -1, fly: 'purple', reach: -520, up: 300, loop: 80, at: 19, dur: 8.5 },
+/* the picture's four birds (two bluebirds, two purple birds): the middle and half-width of
+   each one's side-to-side flight, its height, width, seconds for there and back, and phase */
+const GLIDERS = [
+  { fly: 'blue', cx: 430, span: 330, y: 560, w: 77, period: 17, phase: 0 },
+  { fly: 'purple', cx: 1180, span: 330, y: 500, w: 82, period: 19, phase: 1.7 },
+  { fly: 'blue', cx: 760, span: 420, y: 655, w: 52, period: 21, phase: 3.1 },
+  { fly: 'purple', cx: 930, span: 480, y: 390, w: 88, period: 23, phase: 4.4 },
 ];
-const ROUND = 24;
 /* birds crossing the sky: which look, from x to x, height, how long the crossing takes, how
    often it comes round and when it starts; the flying sprite faces left */
 const CROSSERS = [
@@ -42,11 +37,10 @@ const CROSSERS = [
 ];
 const FLOCK = { every: 28, dur: 16, at: 6, y: 165 };
 /* the water mask covers this part of the picture */
-const WATER = { x: 600, y: 255, w: 770, h: 550, speed: 115, tile: 256 };
+const WATER = { x: 600, y: 255, w: 770, h: 550, speed: 150, drops: 290, tile: 256 };
 
 const load = src => { const img = new Image(); img.decoding = 'async'; img.src = src; return img; };
 const ready = img => img.complete && img.naturalWidth > 0;
-const ease = t => t - Math.sin(2 * Math.PI * t) / (2 * Math.PI);   /* leaves and arrives gently */
 
 /* falling-water streaks, one tile that repeats downwards: long thin light streaks with a few
    darker ones between, each column on its own rhythm */
@@ -62,22 +56,36 @@ function streakTile(w, h) {
     const p0 = ph[0][x], p1 = ph[1][Math.max(0, x - 1)], p2 = ph[2][Math.min(w - 1, x + 1)];
     for (let y = 0; y < h; y++) {
       const n = 0.5 + 0.22 * Math.sin(2 * Math.PI * (R[0] * y / h + p0)) + 0.17 * Math.sin(2 * Math.PI * (R[1] * y / h + p1)) + 0.11 * Math.sin(2 * Math.PI * (R[2] * y / h + p2));
-      const i = (y * w + x) * 4, hi = Math.min(1, Math.max(0, (n - 0.62) * 3.2)), lo = Math.min(1, Math.max(0, (0.36 - n) * 3));
-      if (hi > 0) { d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = 200 * hi; }
-      else if (lo > 0) { d[i] = 120; d[i + 1] = 150; d[i + 2] = 185; d[i + 3] = 80 * lo; }
+      const i = (y * w + x) * 4, hi = Math.min(1, Math.max(0, (n - 0.56) * 3.5)), lo = Math.min(1, Math.max(0, (0.4 - n) * 3));
+      if (hi > 0) { d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = 235 * hi; }
+      else if (lo > 0) { d[i] = 90; d[i + 1] = 125; d[i + 2] = 165; d[i + 3] = 120 * lo; }
     }
   }
   g.putImageData(img, 0, 0);
+  return c;
+}
+/* falling drops: short bright dashes with a fading tail above them, slid down faster than the
+   streaks, so the eye reads the water running from the top to the bottom */
+function dropTile(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for (let k = 0; k < w * 0.6; k++) {
+    const x = Math.random() * w, y = Math.random() * h, len = 16 + Math.random() * 36, lw = 1.2 + Math.random() * 1.8;
+    [y, y - h].forEach(y0 => {
+      const gr = g.createLinearGradient(0, y0 - len, 0, y0);
+      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0.9)');
+      g.fillStyle = gr; g.fillRect(x, y0 - len, lw, len);
+    });
+  }
   return c;
 }
 
 export function createScenery(canvas) {
   const ctx = canvas.getContext('2d');
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const sitters = SITTERS.map(s => Object.assign({ img: load(s.src) }, s));
   const flyer = { purple: load(flySrc), blue: load(flyBlueSrc) };
   const mask = load(waterSrc);
-  let W = 0, H = 0, dpr = 1, tile = null, water = null, lastI = -1;
+  let W = 0, H = 0, dpr = 1, tile = null, drops = null, water = null, lastI = -1;
   const t0 = performance.now();
 
   function resize() {
@@ -94,25 +102,14 @@ export function createScenery(canvas) {
     ctx.scale(dir > 0 ? -1 : 1, f); ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
   }
 
-  function drawSitter(s, t) {
-    const hx = s.x + s.w / 2, hy = s.y + s.h;                 /* its feet */
-    const q = (((t - s.at) % ROUND) + ROUND) % ROUND;
-    const away = !still && q < s.dur ? q / s.dur : -1;
-    if (away < 0) { if (ready(s.img)) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); return; }
-    /* the loop: out and up, round, and back onto the same spot from behind */
-    const u = ease(away), dir = Math.sign(s.reach);
-    const x = hx + s.reach * (1 - Math.cos(2 * Math.PI * u)) / 2 - dir * s.loop * Math.sin(2 * Math.PI * u);
-    const y = hy - s.h * 0.55 - s.up * Math.sin(Math.PI * u) - 25 * Math.sin(2 * Math.PI * u);
-    const vx = s.reach * Math.PI * Math.sin(2 * Math.PI * u) - dir * s.loop * 2 * Math.PI * Math.cos(2 * Math.PI * u);
-    const going = Math.abs(vx) > 1 ? Math.sign(vx) : s.face;
-    const vy = -s.up * Math.PI * Math.cos(Math.PI * u);
-    const tilt = Math.max(-0.35, Math.min(0.35, Math.atan2(vy, Math.abs(vx) + 60) * 0.5)) * -going;
-    /* sitting look and flying look cross over for a moment as it lifts off and settles */
-    const edge = Math.min(away, 1 - away) / 0.07, sw = Math.min(1, edge);
-    if (sw < 1 && ready(s.img)) {
-      ctx.save(); ctx.globalAlpha = 1 - sw; ctx.drawImage(s.img, s.x, s.y - sw * 6, s.w, s.h); ctx.restore();
-    }
-    flying(s.fly, x, y, s.w * 0.95, going, t * 2 * Math.PI * 5.5, tilt, sw);
+  /* side to side: steady across the middle, easing round at each end, where it turns about */
+  function drawGlider(b, t) {
+    const th = 2 * Math.PI * t / b.period + b.phase, K = 3;
+    const x = b.cx + b.span * Math.atan(K * Math.sin(th)) / Math.atan(K);
+    const going = Math.cos(th) >= 0 ? 1 : -1;
+    const y = b.y + 12 * Math.sin(3 * th + b.phase) - 14 * (1 - Math.abs(Math.cos(th)));
+    const tilt = -going * 0.05 * Math.cos(3 * th + b.phase);
+    flying(b.fly, x, y, b.w, going, still ? 0 : t * 2 * Math.PI * 5.5 + b.phase, tilt, 1);
   }
 
   function drawCrossers(t) {
@@ -143,11 +140,12 @@ export function createScenery(canvas) {
   /* the water: streaks slide down through the waterfall mask */
   function drawWater(t) {
     if (!ready(mask)) return;
-    if (!tile) { tile = streakTile(WATER.w, WATER.tile); water = document.createElement('canvas'); water.width = WATER.w; water.height = WATER.h; }
+    if (!tile) { tile = streakTile(WATER.w, WATER.tile); drops = dropTile(WATER.w, WATER.tile); water = document.createElement('canvas'); water.width = WATER.w; water.height = WATER.h; }
     const g = water.getContext('2d');
     g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, WATER.w, WATER.h);
-    const off = (t * WATER.speed) % WATER.tile;
+    const off = (t * WATER.speed) % WATER.tile, off2 = (t * WATER.drops) % WATER.tile;
     for (let y = off - WATER.tile; y < WATER.h; y += WATER.tile) g.drawImage(tile, 0, y);
+    for (let y = off2 - WATER.tile; y < WATER.h; y += WATER.tile) g.drawImage(drops, 0, y);
     g.globalCompositeOperation = 'destination-in'; g.drawImage(mask, 0, 0, WATER.w, WATER.h);
     g.globalCompositeOperation = 'source-over';
     ctx.drawImage(water, WATER.x, WATER.y);
@@ -164,7 +162,7 @@ export function createScenery(canvas) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * (ox - cam.x0 * sc), dpr * (oy - cam.y0 * sc));
     if (!still) { drawWater(t); drawCrossers(t); }
-    sitters.forEach(s => drawSitter(s, t));
+    GLIDERS.forEach(b => drawGlider(b, still ? 0 : t));
   }
   return { paint, resize, destroy() {} };
 }
