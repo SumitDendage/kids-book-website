@@ -1,6 +1,5 @@
 /* THE WALKING FRIENDS — the fox, the deer and the rabbit from the landscape picture,
-   with the two butterflies that keep them company, and the bear and the elephant (with its
-   little hedgehog) from Sumit's Explore Vocabulary picture (Oct 7). They are drawn on a canvas of their
+   with the two butterflies that keep them company. They are drawn on a canvas of their
    own over the frames, so every screen gets them whole: sized from the screen (as big
    as they look in the picture, smaller when the screen is narrow or short), standing
    above the bottom labels and walking from the left edge towards the Ask AI button as
@@ -11,30 +10,15 @@ import deerSrc from '../assets/scene/deer.webp';
 import rabbitSrc from '../assets/scene/rabbit.webp';
 import pinkSrc from '../assets/scene/butterfly-pink.webp';
 import aquaSrc from '../assets/scene/butterfly-aqua.webp';
-import bearSrc from '../assets/scene/bear.webp';
-import elephantSrc from '../assets/scene/elephant.webp';
 
 const FRAMES = 960;                    /* the walk follows the same playhead as the 960 frames */
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-/* where each friend stands in the picture: centre x, feet y (the deer is the lowest) and size,
-   in the order they are drawn. The bear and the elephant walk behind the fox and rock from
-   side to side as they go; their sprites are finer, so they are drawn smaller than cut. */
+/* where each friend stands in the picture: centre x and feet y (the deer is the lowest) */
 const FRIENDS = [
-  { name: 'elephant', src: elephantSrc, x: -56, feet: 868, w: 258, h: 250, waddle: { period: 34, tilt: 2.5, bob: 3 } },
-  { name: 'bear', src: bearSrc, x: 181, feet: 862, w: 195, h: 230, waddle: { period: 28, tilt: 3.5, bob: 4 } },
-  { name: 'fox', src: foxSrc, x: 357, feet: 809, w: 189, h: 183, gait: { period: 26, amp: 7, split: 0.64 } },
-  { name: 'rabbit', src: rabbitSrc, x: 682, feet: 854, w: 94, h: 136, hop: true },
-  { name: 'deer', src: deerSrc, x: 537, feet: 875, w: 146, h: 218, gait: { period: 30, amp: 8, split: 0.57 } },
+  { name: 'fox', src: foxSrc, x: 357, feet: 809, gait: { period: 26, amp: 7, split: 0.64 } },
+  { name: 'rabbit', src: rabbitSrc, x: 682, feet: 854, hop: true },
+  { name: 'deer', src: deerSrc, x: 537, feet: 875, gait: { period: 30, amp: 8, split: 0.57 } },
 ];
-/* who walks: all five over the animal-free frames in public/frames-webp. Frames that already
-   have the fox, the deer and the rabbit painted in need only ['elephant', 'bear'] here,
-   or those three show twice. */
-const WALKING = ['elephant', 'bear', 'fox', 'deer', 'rabbit'];
-const GROUP = FRIENDS.filter(f => WALKING.includes(f.name));
-const GROUP_LEFT = Math.min(...GROUP.map(f => f.x - f.w / 2)), GROUND = Math.max(...GROUP.map(f => f.feet));
-const GROUP_W = Math.max(...GROUP.map(f => f.x + f.w / 2)) - GROUP_LEFT, GROUP_H = GROUND - Math.min(...GROUP.map(f => f.feet - f.h));
-/* the share of the path the group may take: two thirds for three friends, more for a longer line */
-const SHARE = clamp(0.22 * GROUP.length, 0.44, 0.9);
+const GROUP_LEFT = 263, GROUP_W = 466, GROUP_H = 249, GROUND = 875;
 /* the butterflies: who they follow, and where they flutter from that friend's feet */
 const BUTTERFLIES = [
   { src: pinkSrc, who: 'rabbit', dx: 30, dy: -170 },
@@ -43,11 +27,12 @@ const BUTTERFLIES = [
 
 const load = src => { const img = new Image(); img.decoding = 'async'; img.src = src; return img; };
 const ready = img => img.complete && img.naturalWidth > 0;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 export function createWalkers(canvas) {
   const ctx = canvas.getContext('2d');
-  const sprites = GROUP.map(f => Object.assign({ img: load(f.src) }, f));
-  const flies = BUTTERFLIES.filter(b => WALKING.includes(b.who)).map(b => Object.assign({ img: load(b.src) }, b));
+  const sprites = FRIENDS.map(f => Object.assign({ img: load(f.src) }, f));
+  const flies = BUTTERFLIES.map(b => Object.assign({ img: load(b.src) }, b));
   let W = 0, H = 0, lay = null, lastT = -1, whole = false;
 
   /* the home-indicator strip on phones, read from the browser once per resize */
@@ -64,10 +49,10 @@ export function createWalkers(canvas) {
     const left = Math.max(12, W * 0.03);
     /* stop before the round Ask AI button in the bottom-right corner (same size and place as its CSS) */
     const right = W - clamp(W * 0.05, 20, 72) - 70;
-    /* as big as they are in the picture on this screen, but never wider than their share of the
+    /* as big as they are in the picture on this screen, but never wider than two thirds of the
        path, never taller than 30% of the screen, and never blown up past the sprites' own detail */
     const inPicture = Math.max(W / 1920, H / 1080) * 1.2;
-    const u = Math.min(inPicture, (right - left) * SHARE / GROUP_W, H * 0.3 / GROUP_H, 1.3);
+    const u = Math.min(inPicture, (right - left) * 0.66 / GROUP_W, H * 0.3 / GROUP_H, 1.3);
     /* the deer's feet stand above the chapter counter, the scroll hint and the phone's home bar */
     const ground = H - Math.max(64, H * 0.07) - safe;
     lay = { u, left, span: Math.max(0, right - left - GROUP_W * u), ground };
@@ -88,14 +73,6 @@ export function createWalkers(canvas) {
       ctx.drawImage(img, iw * from, ih * split, iw / 2, ih - ih * split, 0, 0, w / 2, low);
       ctx.restore();
     });
-    ctx.restore();
-  }
-  /* the bear and the elephant waddle: they rock on their feet and rise a little with each step */
-  function waddle(s, X, Y, w, h, t, moving) {
-    const { period, tilt, bob } = s.waddle, wave = Math.sin(2 * Math.PI * t / period);
-    ctx.save();
-    ctx.translate(X, Y - bob * Math.abs(wave) * lay.u * moving); ctx.rotate(tilt * wave * moving * Math.PI / 180);
-    ctx.drawImage(s.img, -w / 2, -h, w, h);
     ctx.restore();
   }
   /* the rabbit hops: up in an arc, a little squash when it lands */
@@ -134,9 +111,8 @@ export function createWalkers(canvas) {
       const X = gx + (s.x - GROUP_LEFT) * u, Y = ground - (GROUND - s.feet) * u;
       at[s.name] = { X, Y };
       if (!ready(s.img)) return;
-      const w = s.w * u, h = s.h * u;
+      const w = s.img.naturalWidth * u, h = s.img.naturalHeight * u;
       if (s.hop) { const lift = hop(s, X, Y, w, h, t, moving); shadow(X, Y, w * 0.75, 1 - 0.5 * lift / (26 * u)); }
-      else if (s.waddle) { shadow(X, Y, w * 0.8, 1); waddle(s, X, Y, w, h, t, moving); }
       else { shadow(X, Y, w * 0.7, 1); walk(s, X, Y, w, h, t, moving); }
     });
     flies.forEach((b, j) => {
