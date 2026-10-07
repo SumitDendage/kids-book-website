@@ -7,6 +7,9 @@ export const INBOX = 'learnwithwhy6@gmail.com';
 /* WhatsApp chat link: wa.me needs the full number with the country code (91 for India), no + or spaces */
 export const WHATSAPP = 'https://wa.me/919822287983';
 export const INSTAGRAM = 'https://www.instagram.com/learnwithwhy_01';
+/* Web3Forms sends each "Leave a little note" to the email this key was made with (Sumit, Oct 7). The key
+   is meant to sit in the page: it can only send notes to that one inbox. */
+export const WEB3FORMS_KEY = '7544f0a6-b290-4d49-ae62-e05b10c2f5bd';
 
 export const NAV = ['Home', 'About us', 'What we do', 'Sheets', 'Contact us', 'Testimonials'];
 /* the chapter anchors: /#home, /#about, … /#testimonials */

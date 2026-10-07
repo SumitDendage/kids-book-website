@@ -3,11 +3,10 @@ import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
 import { sendContact } from '../../services/api.js';
 import { isEmail } from '../../utils/format.js';
-import { INBOX, WHATSAPP, INSTAGRAM } from '../../data/content.js';
-import { WhatsAppIcon, InstagramIcon } from '../common/SocialIcons.jsx';
 
-/* 05 · Contact us — the note is posted to /api/contact, which writes it to the
-   database and emails a copy to the shop inbox, so nothing is lost even if mail is down. */
+/* 05 · Contact us — the note goes through Web3Forms (services/api.js) to the shop's inbox.
+   The email, WhatsApp and Instagram line is gone from here (Sumit, Oct 7); those buttons
+   live in the footer. */
 export default function ContactChapter() {
   const [f, setF] = useState({ name: '', email: '', msg: '' });
   const [errs, setErrs] = useState({});
@@ -25,9 +24,9 @@ export default function ContactChapter() {
     try {
       await sendContact({ name, email, message: msg });
       setF({ name: '', email: '', msg: '' });
-      setAlert({ type: 'ok', body: <>Thank you, {name.split(' ')[0]} — your note is with us at <b>{INBOX}</b>. We reply within one working day.</> });
+      setAlert({ type: 'ok', body: <>Thank you, {name.split(' ')[0]} — your note is with us. We reply within one working day.</> });
     } catch (err) {
-      setAlert({ type: 'err', body: <>{err.message} You can also write straight to <a href={'mailto:' + INBOX}>{INBOX}</a>.</> });
+      setAlert({ type: 'err', body: err.message });
     } finally { setBusy(false); }
   }
   const field = (id, label, input) => (
@@ -41,7 +40,6 @@ export default function ContactChapter() {
           <Rise as="h2" i={1} className="h2">A little question?<br />A big <em>idea</em>?</Rise>
           <Rise as="p" i={2} className="lede">Tell us what your learners need. We&apos;d love to make their next discovery a little more wonderful.</Rise>
           <Rise as="p" i={2} className="whisper">Even the rabbit wrote in once. We answered before teatime.</Rise>
-          <Rise i={3} className="contact-lines"><span className="contact-reach">✉ <a href={'mailto:' + INBOX}>{INBOX}</a><a className="wa-link" href={WHATSAPP} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" title="Chat with us on WhatsApp"><WhatsAppIcon /></a><a className="ig-link" href={INSTAGRAM} target="_blank" rel="noopener noreferrer" aria-label="Follow us on Instagram" title="Follow us on Instagram"><InstagramIcon /></a></span><span>Mon – Sat, 10:00 – 18:00 IST · Pune, India</span></Rise>
         </div>
         <Rise as="form" i={2} className="panel contact-card" id="contactForm" noValidate onSubmit={onSubmit}>
           <h2 className="card-title">Leave a little note.</h2>
@@ -50,7 +48,6 @@ export default function ContactChapter() {
           {field('ctEmail', 'Email address', <input id="ctEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} />)}
           {field('ctMsg', 'Your message', <textarea id="ctMsg" placeholder="What's on your mind?" value={f.msg} onChange={set('msg')} />)}
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Sending…' : 'Send a little note →'}</button>
-          <p className="switch">Your note goes straight to <a href={'mailto:' + INBOX}>{INBOX}</a>.</p>
         </Rise>
       </div>
     </Chapter>

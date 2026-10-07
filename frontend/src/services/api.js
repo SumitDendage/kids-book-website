@@ -4,6 +4,8 @@
    hosted elsewhere. No secret is ever sent from or stored in the browser: the
    session is an httpOnly cookie set by the server, prices are signed by the
    server, and payments are verified by the server. */
+import { BRAND, WEB3FORMS_KEY } from '../data/content.js';
+
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 export const apiUrl = path => API_BASE + path;
 /* the cookie only travels to another domain when the API is explicitly configured there */
@@ -55,11 +57,18 @@ export const payApi = {
   paypalCapture: body => api('POST', '/api/pay/paypal/capture', body),
 };
 
-/* ---------- contact form ---------- */
-export async function sendContact(body) {
-  const r = await fetch(apiUrl('/api/contact'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: CREDENTIALS });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'We could not send that just now.');
+/* ---------- contact form: the note goes through Web3Forms to the shop's inbox ---------- */
+export async function sendContact({ name, email, message }) {
+  const form = new FormData();
+  form.append('access_key', WEB3FORMS_KEY);
+  form.append('subject', 'A little note from ' + name + ' · ' + BRAND);
+  form.append('from_name', BRAND);
+  form.append('name', name);
+  form.append('email', email);
+  form.append('message', message);
+  const r = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: form }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !j.success) throw new Error('We could not send that just now. Please try again in a moment.');
   return j;
 }
 

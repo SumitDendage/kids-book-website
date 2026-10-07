@@ -45,12 +45,13 @@ button.vocab-card:hover .vocab-go span { transform: translateX(4px); }
 }
 @media (prefers-reduced-motion: reduce) { .vocab-card, .vocab-pic img, .vocab-go span { animation: none; transition: none; } }
 
-/* the menu: Alphabet and Vocabulary, each a row of its own just under Kindergarten, joined to it by a line */
+/* the menu: Alphabet, a row of its own just under Kindergarten, joined to it by a line; Vocabulary
+   is a row of its own after it, not under Kindergarten (Sumit, Oct 7) */
 .side-child { position: relative; margin-left: 24px; }
 .side-child::before { content: ''; position: absolute; left: -14px; top: -6px; height: calc(50% + 6px); width: 10px; border-left: 2px solid rgba(255, 255, 255, 0.3); border-bottom: 2px solid rgba(255, 255, 255, 0.3); border-bottom-left-radius: 8px; pointer-events: none; }
-.side-child .ic img { width: 28px; height: 28px; object-fit: contain; }
+.side-child .ic img, .side-vocab .ic img { width: 28px; height: 28px; object-fit: contain; }
 .side-child:not(.on) { color: #fff; }
 @media (max-width: 860px) {
-  .ws-side .kg-parent, .ws-side .side-child { grid-column: 1 / -1; }   /* Kindergarten and its two parts get full rows */
-  .side-child .n { display: inline-block; }
+  .ws-side .kg-parent, .ws-side .side-child, .ws-side .side-vocab { grid-column: 1 / -1; }   /* Kindergarten, Alphabet and Vocabulary get full rows */
+  .side-child .n, .side-vocab .n { display: inline-block; }
 }
