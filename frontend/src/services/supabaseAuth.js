@@ -68,6 +68,14 @@ export async function login({ email, password }) {
   session = data.session;
   return { user: userView(data.user), session: snapshot() };
 }
+/* tokens from our server's sign-in become the Supabase client's session */
+export async function adoptSession(s) {
+  if (!s || !s.accessToken || !s.refreshToken) throw Object.assign(new Error('Sign-in is briefly unavailable. Please try again in a minute.'), { status: 503, code: 'auth_unavailable', body: {} });
+  const { data, error } = await supabase.auth.setSession({ access_token: s.accessToken, refresh_token: s.refreshToken });
+  authError(error);
+  session = data.session;
+  return snapshot();
+}
 export async function logout() {
   const { error } = await supabase.auth.signOut({ scope: 'local' });
   authError(error);

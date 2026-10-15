@@ -52,7 +52,28 @@ export const staffTokens = customerTokens;
 export const onCustomerTokensChange = sdkAuth.subscribe;
 export const sessionEndOf = () => null;
 const usable = t => !!t?.accessToken;
-export const refreshTokens = async () => { await sdkAuth.authReady; return sdkAuth.currentUser(); };
+/* the account as the server sees it (role, prints, warnings). Signed out → 401 'signin'. */
+const signedOut = () => Object.assign(new Error('Sign in to continue.'), { status: 401, code: 'signin', body: {} });
+export const refreshTokens = async () => {
+  await sdkAuth.authReady;
+  if (!usable(sdkAuth.snapshot())) throw signedOut();
+  return api('GET', '/api/auth/me');
+};
+/* Sign-in goes through our server: it checks the password lock, a blocked account, a confirmed
+   email and the agreement, and opens the server's own record of this sign-in. Without that record
+   every signed-in call answers 401. The tokens it returns are then handed to the Supabase client,
+   which keeps them fresh (a refresh keeps the same sign-in, so the record stays valid). */
+async function serverLogin(body) {
+  const r = await api('POST', '/api/auth/login', body);
+  await sdkAuth.adoptSession(r.session);
+  return r;
+}
+async function serverLogout() {
+  try { if (usable(sdkAuth.snapshot())) await api('POST', '/api/auth/logout'); }
+  catch (_) { /* already ended or offline: this browser still forgets it below */ }
+  await sdkAuth.logout().catch(() => {});
+  return { ok: true };
+}
 
 /* a random id per browser, so the server can tell this device from another one (never personal) */
 function randomId() { const b = new Uint8Array(18); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -98,19 +119,19 @@ export async function api(method, path, body, store = customerTokens) {
   throw err;
 }
 
-/* Auth uses the SDK. Signup still requires the server email workflow. */
+/* Sign-up, sign-in, sign-out and the account go through our server; the Supabase client keeps the tokens fresh and runs the password-reset link. */
 export const authApi = {
   /* { name, email, agreement: true, agreementVersion?, timeZone?, role? }: the password arrives by email */
   signup: body => api('POST', '/api/auth/signup', body),
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
-  login: sdkAuth.login,
-  logout: sdkAuth.logout,
-  me: sdkAuth.currentUser,                                             /* { user, staff, security } */
+  login: serverLogin,
+  logout: serverLogout,
+  me: refreshTokens,                                             /* { user, staff, security } */
   /* a fresh pair from the refresh token → { session, user, staff, expiresAt } (401 when signed out) */
   refresh: () => refreshTokens(customerTokens),
-  updateMe: sdkAuth.updateProfile,                             /* { role?, name?, timeZone? } */
+  updateMe: body => api('PATCH', '/api/auth/me', body),                             /* { role?, name?, timeZone? } */
   verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
-  resendVerification: sdkAuth.resendVerification,   /* Confirmation only; never regenerate passwords. */
+  resendVerification: body => api('POST', '/api/auth/resend-verification', body),   /* { email }: unconfirmed accounts only; a fresh password comes with the link */
   forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
   resetPassword: sdkAuth.resetPassword,             /* { token, password } */
   hasTokens: () => usable(customerTokens.get()),
@@ -221,10 +242,10 @@ export const eventsApi = {
   },
 };
 
-/* Staff share the SDK session. Administrative authorization is server-side. */
+/* Staff sign in through the server like customers (staff: true refuses a customer account). */
 export const staffAuth = {
-  login: async body => { await sdkAuth.login(body); return api('GET', '/api/admin/me'); },
-  logout: sdkAuth.logout,
+  login: async body => { await serverLogin({ ...body, staff: true }); return api('GET', '/api/admin/me'); },
+  logout: serverLogout,
   me: () => api('GET', '/api/admin/me', undefined, staffTokens),
   signedIn: () => usable(staffTokens.get()),
 };
