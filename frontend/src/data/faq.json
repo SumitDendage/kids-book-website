@@ -1124,14 +1124,14 @@
 },
 {
 "q": "How many times can I print a worksheet?",
-"a": "Print only within the licence attached to your purchase or plan. The uploaded copy mentions printing within your licence, but it does not establish reliable per-role copy limits. Check the current entitlement or ask support for the allowed number.",
+"a": "Each sheet you can open comes with its own prints, set by the account type you choose after signing up: Parent 2 prints, Teacher 4 prints, Organization 300 prints. The viewer shows how many prints are left on each sheet.",
 "alt": [
-"Do parents get three prints and teachers thirty?"
+"Do parents get two prints and teachers four?"
 ],
 "kw": [
 "print limit",
-"3 prints",
-"30 prints"
+"2 prints",
+"4 prints"
 ]
 },
 {

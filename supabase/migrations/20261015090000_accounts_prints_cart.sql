@@ -8,7 +8,7 @@
 --     as 'school' and 'tutor' counts as Teacher, so the existing check needs no change. The API
 --     lets a customer choose once; staff can change it later (Admin -> Customers).
 --  2. Prints per sheet, by account type: the new settings row 'prints'
---     ({"parent": 3, "teacher": 30, "organization": 300}). Staff change the numbers in
+--     ({"parent": 2, "teacher": 4, "organization": 300}). Staff change the numbers in
 --     Admin -> Settings; the API checks each is a whole number from 0 to 1000.
 --  3. products.print_rule: 'account' (the default, every existing sheet) means the account
 --     type's number from 'prints'; 'sheet' means the sheet's own print_limit (0 = no printing).
@@ -20,7 +20,7 @@
 -- ── 2. prints per sheet ─────────────────────────────────────────────────────────────────────
 
 insert into public.settings (key, value, description) values
-  ('prints', '{"parent":3,"teacher":30,"organization":300}'::jsonb,
+  ('prints', '{"parent":2,"teacher":4,"organization":300}'::jsonb,
    'How many times each sheet can be printed, by account type: Parent, Teacher, Organization (a school, tuition centre or other group). Used by every sheet whose print rule is "account".')
 on conflict (key) do nothing;
 

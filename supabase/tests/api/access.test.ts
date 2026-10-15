@@ -76,8 +76,8 @@ test('a free sheet opens without a purchase and creates exactly one free pass', 
   assertEquals(r.body.expiresAt, null);
   assertEquals(r.body.worksheet.id, 'az-A');
   assertEquals(r.body.worksheet.price, 0);
-  // a free pass prints like any other record: the account type's number (Parent: 3)
-  assertEquals([r.body.printRule, r.body.printLimit, r.body.printsLeft], ['account', 3, 3]);
+  // a free pass prints like any other record: the account type's number (Parent: 2)
+  assertEquals([r.body.printRule, r.body.printLimit, r.body.printsLeft], ['account', 2, 2]);
   assertEquals(r.body.downloadsLeft, 0);
   assert(r.body.tokenExpiresAt > Date.now() + 3_600_000, 'token lasts hours');
   assertEquals(r.body.recheckSeconds, 60);
@@ -160,7 +160,7 @@ test('a paid sheet with live access opens; meta has the old shape plus the new f
   assertEquals(m.body.watermark.name, 'Asha Rao');
   assertEquals(m.body.watermark.orderId, null);
   assertEquals(m.body.recheckSeconds, 60);
-  assertEquals([m.body.printRule, m.body.printLimit, m.body.printsLeft], ['account', 3, 3]);
+  assertEquals([m.body.printRule, m.body.printLimit, m.body.printsLeft], ['account', 2, 2]);
   assertEquals(m.body.downloadsLeft, 0);
   assertEquals(typeof m.body.expiresAt, 'string');
 

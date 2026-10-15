@@ -33,7 +33,7 @@ export const cartable = (it, st) => !!(it && it.price > 0 && st.ready && !st.ope
    site: { session, accountType, printsPerSheet, printsTable } from the site store. */
 export function printsLine(it, site) {
   if (it && it.printRule === 'sheet') { const n = Number(it.printLimit) || 0; return n > 0 ? printsText(n) + ' with this sheet' : 'View only, no printing'; }
-  const t = (site && site.printsTable) || { parent: 3, teacher: 30, organization: 300 };
+  const t = (site && site.printsTable) || { parent: 2, teacher: 4, organization: 300 };
   if (site && site.session) return printsText(site.printsPerSheet != null ? site.printsPerSheet : t.parent) + ' with your account';
   return 'Parent ' + t.parent + ' · Teacher ' + t.teacher + ' · Organization ' + t.organization;
 }

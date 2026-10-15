@@ -27,7 +27,7 @@ export const ACCOUNT_TYPES = [
 /* the type a stored role belongs to, or null while the customer has not chosen yet */
 export const accountTypeOf = role => (role === 'school' ? ACCOUNT_TYPES[2] : role === 'teacher' || role === 'tutor' ? ACCOUNT_TYPES[1] : role === 'parent' ? ACCOUNT_TYPES[0] : null);
 /* prints per sheet for each type until GET /api/config answers (the server's numbers win) */
-export const DEFAULT_PRINTS = { parent: 3, teacher: 30, organization: 300 };
+export const DEFAULT_PRINTS = { parent: 2, teacher: 4, organization: 300 };
 export function printsTableOf(config) {
   const p = config && config.prints && typeof config.prints === 'object' ? config.prints : {};
   const n = (v, d) => (Number.isInteger(v) && v >= 0 ? v : d);

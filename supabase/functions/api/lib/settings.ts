@@ -39,7 +39,7 @@ export const DEFAULTS: Settings = {
   email: { fromName: 'Learn With Why', adminAlerts: ['learnwithwhy6@gmail.com'] },
   quote: { ttlMinutes: 15 },
   viewer: { tokenHours: 12, recheckSeconds: 60 },
-  prints: { parent: 3, teacher: 30, organization: 300 },
+  prints: { parent: 2, teacher: 4, organization: 300 },
   countries: [],
 };
 
