@@ -1,0 +1,34 @@
+# Builds the website (frontend/dist) on GitHub, so no Command Prompt is needed.
+# Runs by itself when frontend/ changes on main, or by hand: Actions -> "Build the website" -> Run workflow.
+# The result is a zip named "website-for-hostinger" on the run's page: download it, then in
+# Hostinger -> File Manager -> public_html upload the zip and Extract it there.
+name: Build the website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, claude/crystal-lake-shop-background-s69715]
+    paths: ['frontend/**', '.github/workflows/build-website.yml']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: website-for-hostinger
+          path: frontend/dist/
+          include-hidden-files: true
+          retention-days: 30
