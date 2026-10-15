@@ -1,5 +1,9 @@
 # Learn With Why — React (Vite) version
 
+> Supabase migration in progress: see [integration status](../INTEGRATION-STATUS.md)
+> for current configuration, tested behavior and backend blockers. That document
+> supersedes the legacy backend/environment instructions below.
+
 The same website as the original plain-HTML site, rebuilt with React and Vite. The
 design, words, animations and features are unchanged; only the way the code is
 organised is new. This folder used to be called `react-app`; it is `frontend` now.

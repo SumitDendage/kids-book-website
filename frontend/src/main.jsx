@@ -1,3 +1,4 @@
+import { authReady } from './services/supabaseAuth.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -10,10 +11,10 @@ import './styles/34-account-security.css';
 
 installTelemetry();
 
-createRoot(document.getElementById('root')).render(
+authReady.then(() => createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <App />
     </BrowserRouter>
   </StrictMode>,
-);
+));

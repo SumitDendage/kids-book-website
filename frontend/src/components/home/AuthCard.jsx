@@ -57,7 +57,7 @@ export default function AuthCard() {
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
   const [f, setF] = useState(EMPTY);
-  const [remember, setRemember] = useState(true);
+  const remember = true;
   const [agreed, setAgreed] = useState(false);
   const [rules, setRules] = useState({ agreement: DEFAULT_AGREEMENT });
   const [errs, setErrs] = useState({});
@@ -166,8 +166,8 @@ export default function AuthCard() {
     } finally { busyOn(false); }
   }
 
-  const pickRole = id => {
-    setRole(id); setChangingRole(false);
+  const pickRole = async id => {
+    try { await setRole(id); } catch (err) { toast(err.message); return; } setChangingRole(false);
     toast(roleOf(id).label + ' account. Now pick a class.');
     setTimeout(() => openShop('all'), 450);
   };
@@ -205,7 +205,7 @@ export default function AuthCard() {
           <Field id="auConfirm" label="Confirm password" show={shows('reset')} error={errs.auConfirm}><input id="auConfirm" type="password" autoComplete="new-password" placeholder="Once more" maxLength={128} value={f.confirm} onChange={set('confirm')} /></Field>
           {shows('signup agree') ? <AcceptRules id="auAccept" text={agreement.text} checked={agreed} onChange={v => { setAgreed(v); if (v) setErrs(x => ({ ...x, auAccept: undefined })); }} error={errs.auAccept} /> : null}
           {view === 'signup' ? <p className="auth-note">No password to choose: we email you one. Keep it to yourself, and change it any time with Forgot password.</p> : null}
-          <div className="between" style={shows('signin agree') ? undefined : { display: 'none' }}><label className="check"><input type="checkbox" id="auRemember" checked={remember} onChange={e => setRemember(e.target.checked)} /> Keep me signed in</label>{view === 'signin' ? <button type="button" className="link" onClick={() => setAuthView('forgot', null, { email: f.email.trim() })}>Forgot password?</button> : null}</div>
+          <div className="between" style={shows('signin agree') ? undefined : { display: 'none' }}><span className="auth-note">You stay signed in until you sign out.</span>{view === 'signin' ? <button type="button" className="link" onClick={() => setAuthView('forgot', null, { email: f.email.trim() })}>Forgot password?</button> : null}</div>
           <button type="submit" className="btn btn-primary btn-block" id="authSubmit" disabled={busy}>{busy ? 'One moment…' : copy.submit}</button>
           <p className="switch" id="authSwitch">{switchLine}</p>
         </form>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { apiUrl, API_BASE } from '../../services/api.js';
+import { authFetch, API_BASE } from '../../services/api.js';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
 import { StaffStyles, CardTable, KV, Tag, Loading, LoadError, Note, PanelHead, Where, useServer, useStaffAccess, when, ago, count, ms } from './common.jsx';
 import { usePublicHealth } from './Health.jsx';
@@ -27,7 +27,7 @@ export default function ApiMonitor() {
     const out = [];
     for (let i = 0; i < 5; i++) {
       const t0 = performance.now();
-      try { const r = await fetch(apiUrl('/api/health'), { cache: 'no-store' }); await r.text(); out.push({ at: Date.now(), ms: performance.now() - t0, status: r.status }); }
+      try { const r = await authFetch('/api/health'); await r.text(); out.push({ at: Date.now(), ms: performance.now() - t0, status: r.status }); }
       catch (_) { out.push({ at: Date.now(), ms: null, status: 0 }); }
     }
     setRuns(out); setMeasuring(false);

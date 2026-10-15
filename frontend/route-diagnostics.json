@@ -1,0 +1,974 @@
+{
+  "checkedAt": "2026-10-15T11:28:46.800Z",
+  "routes": [
+    {
+      "file": "src/pages/Admin/Analytics.jsx",
+      "line": 21,
+      "pathOrPrefix": "/api/admin/analytics"
+    },
+    {
+      "file": "src/pages/Admin/AuditLogs.jsx",
+      "line": 63,
+      "pathOrPrefix": "/api/admin/audit"
+    },
+    {
+      "file": "src/pages/Admin/AuditLogs.jsx",
+      "line": 67,
+      "pathOrPrefix": "/api/admin/staff"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 37,
+      "pathOrPrefix": "/api/admin/content"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 51,
+      "pathOrPrefix": "/api/admin/content"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 60,
+      "pathOrPrefix": "/api/admin/content"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 94,
+      "pathOrPrefix": "/api/admin/faq"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 126,
+      "pathOrPrefix": "/api/admin/faq/"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 126,
+      "pathOrPrefix": "/api/admin/faq"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 146,
+      "pathOrPrefix": "/api/admin/faq/"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 155,
+      "pathOrPrefix": "/api/admin/reviews"
+    },
+    {
+      "file": "src/pages/Admin/Content.jsx",
+      "line": 161,
+      "pathOrPrefix": "/api/admin/reviews/"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 28,
+      "pathOrPrefix": "/api/admin/coupons"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 29,
+      "pathOrPrefix": "/api/admin/classes"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 38,
+      "pathOrPrefix": "/api/admin/coupons/"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 88,
+      "pathOrPrefix": "/api/admin/coupons/"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 88,
+      "pathOrPrefix": "/api/admin/coupons"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 123,
+      "pathOrPrefix": "/api/admin/coupons/"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 147,
+      "pathOrPrefix": "/api/admin/classes"
+    },
+    {
+      "file": "src/pages/Admin/Coupons.jsx",
+      "line": 148,
+      "pathOrPrefix": "/api/admin/coupons"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 44,
+      "pathOrPrefix": "/api/admin/users"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 82,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 179,
+      "pathOrPrefix": "/api/admin/worksheets"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 180,
+      "pathOrPrefix": "/api/admin/settings"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 199,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 203,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 207,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 211,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 216,
+      "pathOrPrefix": "/api/admin/entitlements/revoke"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 262,
+      "pathOrPrefix": "/api/admin/entitlements/grant"
+    },
+    {
+      "file": "src/pages/Admin/Customers.jsx",
+      "line": 264,
+      "pathOrPrefix": "/api/admin/entitlements/"
+    },
+    {
+      "file": "src/pages/Admin/Messages.jsx",
+      "line": 28,
+      "pathOrPrefix": "/api/admin/messages"
+    },
+    {
+      "file": "src/pages/Admin/Messages.jsx",
+      "line": 35,
+      "pathOrPrefix": "/api/admin/messages/"
+    },
+    {
+      "file": "src/pages/Admin/Messages.jsx",
+      "line": 38,
+      "pathOrPrefix": "/api/admin/messages/"
+    },
+    {
+      "file": "src/pages/Admin/Messages.jsx",
+      "line": 93,
+      "pathOrPrefix": "/api/admin/messages/"
+    },
+    {
+      "file": "src/pages/Admin/Orders.jsx",
+      "line": 37,
+      "pathOrPrefix": "/api/admin/orders"
+    },
+    {
+      "file": "src/pages/Admin/Orders.jsx",
+      "line": 84,
+      "pathOrPrefix": "/api/admin/orders/"
+    },
+    {
+      "file": "src/pages/Admin/Orders.jsx",
+      "line": 95,
+      "pathOrPrefix": "/api/admin/orders"
+    },
+    {
+      "file": "src/pages/Admin/Orders.jsx",
+      "line": 179,
+      "pathOrPrefix": "/api/admin/orders"
+    },
+    {
+      "file": "src/pages/Admin/Orders.jsx",
+      "line": 200,
+      "pathOrPrefix": "/api/admin/orders/"
+    },
+    {
+      "file": "src/pages/Admin/Overview.jsx",
+      "line": 15,
+      "pathOrPrefix": "/api/admin/stats"
+    },
+    {
+      "file": "src/pages/Admin/Overview.jsx",
+      "line": 16,
+      "pathOrPrefix": "/api/admin/orders?limit=8"
+    },
+    {
+      "file": "src/pages/Admin/Products.jsx",
+      "line": 54,
+      "pathOrPrefix": "/api/admin/worksheets"
+    },
+    {
+      "file": "src/pages/Admin/Products.jsx",
+      "line": 55,
+      "pathOrPrefix": "/api/admin/classes"
+    },
+    {
+      "file": "src/pages/Admin/Products.jsx",
+      "line": 56,
+      "pathOrPrefix": "/api/admin/files"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 136,
+      "pathOrPrefix": "/api/admin/worksheets"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 136,
+      "pathOrPrefix": "/api/admin/worksheets/"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 138,
+      "pathOrPrefix": "/api/admin/worksheets/"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 265,
+      "pathOrPrefix": "/api/admin/worksheets/"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 281,
+      "pathOrPrefix": "/api/admin/worksheets/"
+    },
+    {
+      "file": "src/pages/Admin/ProductStudio.jsx",
+      "line": 281,
+      "pathOrPrefix": "/api/admin/worksheets/"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 35,
+      "pathOrPrefix": "/api/admin/staff"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 36,
+      "pathOrPrefix": "/api/admin/staff/roles"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 50,
+      "pathOrPrefix": "/api/admin/staff/"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 105,
+      "pathOrPrefix": "/api/admin/staff/"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 108,
+      "pathOrPrefix": "/api/admin/staff"
+    },
+    {
+      "file": "src/pages/Admin/Roles.jsx",
+      "line": 148,
+      "pathOrPrefix": "/api/admin/staff/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 36,
+      "pathOrPrefix": "/api/admin/security/customers?limit=1000"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 37,
+      "pathOrPrefix": "/api/admin/security/incidents?status=open&limit=1000"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 38,
+      "pathOrPrefix": "/api/admin/security/appeals?status=open&limit=1000"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 98,
+      "pathOrPrefix": "/api/admin/security/customers"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 143,
+      "pathOrPrefix": "/api/admin/security/customers"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 173,
+      "pathOrPrefix": "/api/admin/security/customers/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 176,
+      "pathOrPrefix": "/api/admin/security/customers/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 179,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 182,
+      "pathOrPrefix": "/api/admin/users/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 185,
+      "pathOrPrefix": "/api/admin/security/customers/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 305,
+      "pathOrPrefix": "/api/admin/security/incidents"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 320,
+      "pathOrPrefix": "/api/admin/security/incidents/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 395,
+      "pathOrPrefix": "/api/admin/security/warnings"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 410,
+      "pathOrPrefix": "/api/admin/security/warnings/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 457,
+      "pathOrPrefix": "/api/admin/security/appeals"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 472,
+      "pathOrPrefix": "/api/admin/security/appeals/"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 563,
+      "pathOrPrefix": "/api/admin/security/rules"
+    },
+    {
+      "file": "src/pages/Admin/Security.jsx",
+      "line": 598,
+      "pathOrPrefix": "/api/admin/security/rules/"
+    },
+    {
+      "file": "src/pages/Admin/Settings.jsx",
+      "line": 12,
+      "pathOrPrefix": "/api/admin/settings"
+    },
+    {
+      "file": "src/pages/Admin/Settings.jsx",
+      "line": 82,
+      "pathOrPrefix": "/api/admin/settings/"
+    },
+    {
+      "file": "src/pages/Admin/Settings.jsx",
+      "line": 131,
+      "pathOrPrefix": "/api/admin/plans"
+    },
+    {
+      "file": "src/pages/Admin/Settings.jsx",
+      "line": 168,
+      "pathOrPrefix": "/api/admin/settings/currency_rates"
+    },
+    {
+      "file": "src/pages/Admin/Settings.jsx",
+      "line": 204,
+      "pathOrPrefix": "/api/admin/settings/countries"
+    },
+    {
+      "file": "src/pages/Developer/ApiMonitor.jsx",
+      "line": 19,
+      "pathOrPrefix": "/api/admin/developer/health"
+    },
+    {
+      "file": "src/pages/Developer/ApiMonitor.jsx",
+      "line": 20,
+      "pathOrPrefix": "/api/admin/login-activity?limit=2000"
+    },
+    {
+      "file": "src/pages/Developer/ApiMonitor.jsx",
+      "line": 21,
+      "pathOrPrefix": "/api/admin/access-log?limit=2000"
+    },
+    {
+      "file": "src/pages/Developer/ApiMonitor.jsx",
+      "line": 30,
+      "pathOrPrefix": "/api/health"
+    },
+    {
+      "file": "src/pages/Developer/Backups.jsx",
+      "line": 50,
+      "pathOrPrefix": "/api/admin/backup"
+    },
+    {
+      "file": "src/pages/Developer/Backups.jsx",
+      "line": 73,
+      "pathOrPrefix": "/api/admin/export/"
+    },
+    {
+      "file": "src/pages/Developer/Database.jsx",
+      "line": 26,
+      "pathOrPrefix": "/api/admin/developer/health"
+    },
+    {
+      "file": "src/pages/Developer/Deployments.jsx",
+      "line": 17,
+      "pathOrPrefix": "/api/admin/developer/health"
+    },
+    {
+      "file": "src/pages/Developer/Emails.jsx",
+      "line": 29,
+      "pathOrPrefix": "/api/admin/emails/"
+    },
+    {
+      "file": "src/pages/Developer/Emails.jsx",
+      "line": 39,
+      "pathOrPrefix": "/api/admin/emails/"
+    },
+    {
+      "file": "src/pages/Developer/Emails.jsx",
+      "line": 85,
+      "pathOrPrefix": "/api/admin/emails"
+    },
+    {
+      "file": "src/pages/Developer/Emails.jsx",
+      "line": 95,
+      "pathOrPrefix": "/api/admin/emails/process"
+    },
+    {
+      "file": "src/pages/Developer/Errors.jsx",
+      "line": 20,
+      "pathOrPrefix": "/api/admin/developer/health"
+    },
+    {
+      "file": "src/pages/Developer/Errors.jsx",
+      "line": 21,
+      "pathOrPrefix": "/api/admin/emails?status=failed&limit=50"
+    },
+    {
+      "file": "src/pages/Developer/Errors.jsx",
+      "line": 22,
+      "pathOrPrefix": "/api/admin/payment-events?ok=false&limit=50"
+    },
+    {
+      "file": "src/pages/Developer/Health.jsx",
+      "line": 46,
+      "pathOrPrefix": "/api/health"
+    },
+    {
+      "file": "src/pages/Developer/Health.jsx",
+      "line": 59,
+      "pathOrPrefix": "/api/admin/developer/health"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 66,
+      "pathOrPrefix": "/api/admin/payments"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 67,
+      "pathOrPrefix": "/api/admin/orders?limit=500"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 112,
+      "pathOrPrefix": "/api/admin/payment-events"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 159,
+      "pathOrPrefix": "/api/admin/login-activity"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 214,
+      "pathOrPrefix": "/api/admin/security-events"
+    },
+    {
+      "file": "src/pages/Developer/Logs.jsx",
+      "line": 215,
+      "pathOrPrefix": "/api/admin/access-log?limit=300"
+    },
+    {
+      "file": "src/pages/Developer/SessionControls.jsx",
+      "line": 17,
+      "pathOrPrefix": "/api/admin/security/customers/"
+    },
+    {
+      "file": "src/pages/Developer/SessionControls.jsx",
+      "line": 29,
+      "pathOrPrefix": "/api/admin/security/sessions/"
+    },
+    {
+      "file": "src/pages/Developer/SessionControls.jsx",
+      "line": 106,
+      "pathOrPrefix": "/api/admin/security/customers"
+    },
+    {
+      "file": "src/pages/Portal/dashboard.js",
+      "line": 86,
+      "pathOrPrefix": "/api/admin/orders?limit=20"
+    },
+    {
+      "file": "src/pages/Portal/dashboard.js",
+      "line": 204,
+      "pathOrPrefix": "/api/admin/export/"
+    },
+    {
+      "file": "src/pages/Portal/dashboard.js",
+      "line": 207,
+      "pathOrPrefix": "/api/admin/backup"
+    },
+    {
+      "file": "src/pages/Portal/Dashboard.jsx",
+      "line": 88,
+      "pathOrPrefix": "/api/admin/stats"
+    },
+    {
+      "file": "src/pages/Portal/Dashboard.jsx",
+      "line": 89,
+      "pathOrPrefix": "/api/admin/notifications?limit=8"
+    },
+    {
+      "file": "src/pages/Portal/Dashboard.jsx",
+      "line": 157,
+      "pathOrPrefix": "/api/admin/notifications/read"
+    },
+    {
+      "file": "src/pages/Portal/Dashboard.jsx",
+      "line": 165,
+      "pathOrPrefix": "/api/admin/notifications/read"
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 135,
+      "pathOrPrefix": "/api/view/meta"
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 150,
+      "pathOrPrefix": "/api/view/meta"
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 171,
+      "pathOrPrefix": "/api/view/page?n="
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 174,
+      "pathOrPrefix": "/api/view/file"
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 243,
+      "pathOrPrefix": "/api/view/print"
+    },
+    {
+      "file": "src/pages/Viewer/Viewer.jsx",
+      "line": 261,
+      "pathOrPrefix": "/api/view/download"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 38,
+      "pathOrPrefix": "/api/worksheets"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 38,
+      "pathOrPrefix": "/api/me/orders"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 38,
+      "pathOrPrefix": "/api/me/entitlements"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 43,
+      "pathOrPrefix": "/api/worksheets"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 93,
+      "pathOrPrefix": "/api/auth/"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 104,
+      "pathOrPrefix": "/api/auth/signup"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 112,
+      "pathOrPrefix": "/api/auth/verify-email"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 122,
+      "pathOrPrefix": "/api/me/entitlements"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 123,
+      "pathOrPrefix": "/api/me/orders"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 124,
+      "pathOrPrefix": "/api/me/security"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 126,
+      "pathOrPrefix": "/api/me/security/acknowledge"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 127,
+      "pathOrPrefix": "/api/me/appeals"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 128,
+      "pathOrPrefix": "/api/me/appeals"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 129,
+      "pathOrPrefix": "/api/me/notifications"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 130,
+      "pathOrPrefix": "/api/me/notifications/read"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 131,
+      "pathOrPrefix": "/api/me/sessions"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 132,
+      "pathOrPrefix": "/api/me/sessions/"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 133,
+      "pathOrPrefix": "/api/me/reviews"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 138,
+      "pathOrPrefix": "/api/worksheets"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 140,
+      "pathOrPrefix": "/api/access/"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 141,
+      "pathOrPrefix": "/api/worksheets/"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 157,
+      "pathOrPrefix": "/api/config"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 162,
+      "pathOrPrefix": "/api/geo"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 163,
+      "pathOrPrefix": "/api/content"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 164,
+      "pathOrPrefix": "/api/faq"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 168,
+      "pathOrPrefix": "/api/quote"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 169,
+      "pathOrPrefix": "/api/pay/order"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 170,
+      "pathOrPrefix": "/api/pay/verify"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 171,
+      "pathOrPrefix": "/api/pay/cancel"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 172,
+      "pathOrPrefix": "/api/pay/stripe/confirm"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 173,
+      "pathOrPrefix": "/api/pay/paypal/capture"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 178,
+      "pathOrPrefix": "/api/contact"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 200,
+      "pathOrPrefix": "/api/ai/chat"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 219,
+      "pathOrPrefix": "/api/events"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 226,
+      "pathOrPrefix": "/api/admin/me"
+    },
+    {
+      "file": "src/services/api.js",
+      "line": 228,
+      "pathOrPrefix": "/api/admin/me"
+    }
+  ],
+  "results": [
+    {
+      "name": "auth",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/auth/v1/settings",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "hint",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "data-api",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/rest/v1/",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "health",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/health",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "health gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/health",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "worksheets",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/worksheets",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "worksheets gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/worksheets",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "config",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/config",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "config gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/config",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "content",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/content",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "content gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/content",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "faq",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/faq",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "faq gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/faq",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "me/orders",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/me/orders",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "me/orders gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/me/orders",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "me/entitlements",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/me/entitlements",
+      "status": 401,
+      "code": null,
+      "message": "Invalid API key",
+      "responseKeys": [
+        "message",
+        "hint"
+      ],
+      "worksheetCount": null
+    },
+    {
+      "name": "me/entitlements gateway diagnosis (no key)",
+      "url": "https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/me/entitlements",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found",
+      "responseKeys": [
+        "code",
+        "message"
+      ],
+      "worksheetCount": null
+    }
+  ]
+}
