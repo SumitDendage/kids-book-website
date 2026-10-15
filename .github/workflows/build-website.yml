@@ -45,6 +45,8 @@ jobs:
           path: frontend/dist/
           include-hidden-files: true
           retention-days: 30
+      # Upload only: never wipes public_html. The action only removes files it uploaded itself
+      # on an earlier run (listed in its .ftp-deploy-sync-state.json), never Sumit's or Hostinger's own.
       - name: Put the website on Hostinger
         if: github.ref == 'refs/heads/main' && env.FTP_SERVER != ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -54,3 +56,9 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: frontend/dist/
           server-dir: public_html/
+          dangerous-clean-slate: false
+          # the default list without dotfiles, so the hidden .htaccess is uploaded too
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
