@@ -1,17 +1,24 @@
 import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
 import { NEW_IDS, BEST_IDS } from '../../data/catalogue.js';
+import { sheetState, openForText } from './sheetAccess.js';
 
-/* mine: 'plan' when it opens through a class plan (which runs out), true when it is bought */
-export const priceLine = (free, mine) => (mine ? (free ? 'Free · open any time' : mine === 'plan' ? 'In your plan ✓' : 'Yours to keep ✓') : free ? 'Free access sheet' : 'Yours to keep once bought');
+/* the line beside a card's button: free, bought, in a plan, ended, or how long a purchase stays open */
+export const priceLine = (st, it) => (st.kind === 'free' ? (st.open ? 'Free · ready to open' : 'Free access sheet')
+  : !st.ready && !st.open ? 'Coming soon'
+  : st.kind === 'bought' ? 'Bought ✓'
+  : st.kind === 'plan' ? 'In your plan ✓'
+  : st.kind === 'ended' ? 'Access ended'
+  : openForText(it));
 
-/* the Open / Open free / Buy PDF button of a card — it wins over the card's own click */
-export function CardAction({ it, mine, openLabel = 'Open ↗', openClass = 'btn btn-ghost', freeLabel = 'Open free', buyLabel = 'Buy PDF' }) {
-  const { openViewer, unlock, buy } = useSite();
-  const free = it.price === 0;
+/* the Open / Open free / Buy PDF / Buy again button of a card — it wins over the card's own click */
+export function CardAction({ it, st, openLabel = 'Open ↗', openClass = 'btn btn-ghost', freeLabel = 'Open free', buyLabel = 'Buy PDF' }) {
+  const { openViewer, unlock, buy, buyAgain } = useSite();
   const stop = fn => e => { e.stopPropagation(); fn(it.id); };
-  if (mine) return <button type="button" className={openClass} onClick={stop(openViewer)}>{openLabel}</button>;
-  if (free) return <button type="button" className="btn btn-primary" onClick={stop(unlock)}>{freeLabel}</button>;
+  if (!st.ready) return <button type="button" className="btn btn-ghost" disabled onClick={e => e.stopPropagation()}>Coming soon</button>;
+  if (st.open) return <button type="button" className={openClass} onClick={stop(openViewer)}>{openLabel}</button>;
+  if (st.kind === 'free') return <button type="button" className="btn btn-primary" onClick={stop(unlock)}>{freeLabel}</button>;
+  if (st.kind === 'ended') return <button type="button" className="btn btn-primary" onClick={stop(buyAgain || buy)}>Buy again</button>;
   return <button type="button" className="btn btn-primary" onClick={stop(buy)}>{buyLabel}</button>;
 }
 
@@ -22,7 +29,7 @@ export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.ke
    printed page when there is a thumbnail and the New / Bestseller tags. */
 export default function SheetCard({ it, n, store = false }) {
   const { access, openSheet } = useSite();
-  const free = it.price === 0, mine = access.canOpen(it) && (free || access.itemEnt(it.id) ? true : 'plan');
+  const free = it.price === 0, st = sheetState(access, it), mine = st.open;
   const tag = mine ? <b className="tag">{free ? 'Free' : 'Unlocked'}</b>
     : store && NEW_IDS.includes(it.id) ? <b className="tag" style={{ background: '#3b5bdb' }}>New</b>
     : store && BEST_IDS.includes(it.id) ? <b className="tag" style={{ background: '#b8862b' }}>Bestseller</b>
@@ -41,8 +48,8 @@ export default function SheetCard({ it, n, store = false }) {
       <p className="meta">{meta}</p>
       <h3 className="card-title">{it.title}</h3>
       <p>{it.blurb}</p>
-      <div className="row"><span className={'price' + (free ? ' free' : '')}>{priceLine(free, mine)}</span>
-        <CardAction it={it} mine={mine} /></div>
+      <div className="row"><span className={'price' + (free ? ' free' : '')}>{priceLine(st, it)}</span>
+        <CardAction it={it} st={st} /></div>
     </article>
   );
 }

@@ -2,21 +2,30 @@ import MetricCard from '../../components/dashboard/MetricCard.jsx';
 import DataTable from '../../components/dashboard/DataTable.jsx';
 import { Fps } from '../../components/dashboard/LiveStats.jsx';
 import { engineStats } from '../../services/frameEngine.js';
+import { StaffStyles, Note } from './common.jsx';
 
-/* load, paint and frame timings */
+/* Developer → Performance: load, paint and frame timings of this page load, measured in this
+   browser only. They say nothing about how fast the site is for visitors. */
 export default function Performance() {
   const nav = performance.getEntriesByType('navigation')[0] || {}, fcp = performance.getEntriesByType('paint').find(p => p.name === 'first-contentful-paint');
-  const rows = [['Frames loaded', engineStats.readyCount + ' of ' + engineStats.total], ['Frames in flight', engineStats.inflight], ['Device pixel ratio', devicePixelRatio], ['Viewport', innerWidth + ' × ' + innerHeight], ['Connection', (navigator.connection || {}).effectiveType || 'n/a'], ['Reduced motion', matchMedia('(prefers-reduced-motion: reduce)').matches ? 'yes' : 'no']];
+  const msOf = v => (v ? Math.round(v) + ' ms' : 'Not measured');
+  const rows = [
+    ['Animation frames loaded', engineStats.readyCount + ' of ' + engineStats.total], ['Animation frames still loading', engineStats.inflight],
+    ['Screen pixel ratio', devicePixelRatio], ['Window size', innerWidth + ' × ' + innerHeight],
+    ['Connection type (as the browser reports it)', (navigator.connection || {}).effectiveType || 'Not reported'], ['Reduced motion asked for', matchMedia('(prefers-reduced-motion: reduce)').matches ? 'Yes' : 'No'],
+  ];
   return (
     <>
+      <StaffStyles />
+      <Note tone="info">Measured in this browser, for this visit only. These numbers are not collected from visitors and do not show how fast the site is for them.</Note>
       <div className="kpi-row five">
-        <MetricCard label="DOM ready" value={Math.round(nav.domContentLoadedEventEnd || 0) + ' ms'} sub="DOMContentLoaded" icon="perf" />
-        <MetricCard label="Load" value={Math.round(nav.loadEventEnd || 0) + ' ms'} sub="window load" icon="activity" />
-        <MetricCard label="First paint" value={(fcp ? Math.round(fcp.startTime) : '—') + ' ms'} sub="first contentful paint" icon="image" />
-        <MetricCard label="FPS" value={<Fps />} sub="measured live" icon="health" />
-        <MetricCard label="HTML transfer" value={(Math.round(nav.transferSize / 1024) || '—') + ' KB'} sub="over the wire" icon="file" />
+        <MetricCard label="Page ready" value={msOf(nav.domContentLoadedEventEnd)} sub="measured in this browser" icon="perf" />
+        <MetricCard label="Fully loaded" value={msOf(nav.loadEventEnd)} sub="measured in this browser" icon="activity" />
+        <MetricCard label="First paint" value={fcp ? Math.round(fcp.startTime) + ' ms' : 'Not measured'} sub="first content on screen" icon="image" />
+        <MetricCard label="Frames per second" value={<Fps />} sub="live, in this browser" icon="health" />
+        <MetricCard label="Page size" value={nav.transferSize ? Math.round(nav.transferSize / 1024) + ' KB' : 'Not measured'} sub="HTML downloaded for this visit" icon="backups" />
       </div>
-      <section className="panel"><p className="eyebrow">Performance monitoring</p><DataTable plain head={['Metric', 'Value']} empty="" rows={rows.map(([k, v]) => ({ key: k, cells: [k, v] }))} /></section>
+      <section className="panel"><p className="eyebrow">Measured in this browser</p><DataTable plain head={['Measure', 'Value']} empty="" rows={rows.map(([k, v]) => ({ key: k, cells: [k, v] }))} /></section>
     </>
   );
 }

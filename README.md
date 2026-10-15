@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Moving to the new folders](#moving-to-the-new-folders-october-2026) · [Put it on Hostinger](#put-it-on-hostinger) · [Features](#features) · [Structure](#repository-structure) · [Staff panels](#staff-panels) · [Go live](#going-live) · [Roadmap](#roadmap)
 
-![Site version](https://img.shields.io/badge/version-2026.09.17-f0b455) ![Front end](https://img.shields.io/badge/front%20end-React%2019%20%2B%20Vite%208-61dafb) ![Backend](https://img.shields.io/badge/backend-Node%2022%20%2B%20PostgreSQL%20%2B%20SQLite-1f6b47) ![Payments](https://img.shields.io/badge/payments-Razorpay-3395ff) ![License](https://img.shields.io/badge/license-proprietary-555)
+![Site version](https://img.shields.io/badge/version-2026.09.17-f0b455) ![Front end](https://img.shields.io/badge/front%20end-React%2019%20%2B%20Vite%208-61dafb) ![Backend](https://img.shields.io/badge/backend-Supabase%20Edge%20Functions%20%2B%20Postgres-1f6b47) ![Payments](https://img.shields.io/badge/payments-Razorpay-3395ff) ![License](https://img.shields.io/badge/license-proprietary-555)
 
 </div>
 
@@ -14,38 +14,41 @@
 
 ## Overview
 
-Learn With Why is a storefront for a small studio in Pune that draws calm, ink-light learning sheets for Kindergarten to Class 3. A customer scrolls through six chapters of a floating-island landscape (960 frames scrubbed by the scroll), meets the fox and the rabbit in the Sheets chapter, tries the **free sheets**, and **buys the rest one PDF at a time** to open and print them.
+Learn With Why is a storefront for a small studio in Pune that draws calm, ink-light learning sheets for Kindergarten to Class 3. A customer scrolls through six chapters of a floating-island landscape (960 frames scrubbed by the scroll), meets the fox and the rabbit in the Sheets chapter, tries the **free sheets**, and **buys the rest one PDF at a time** (or a whole class with a plan) to open them in the protected viewer.
 
-The website talks to a Node backend (`backend/server.cjs`): a JSON API, a **PostgreSQL database for customer accounts** (sign-up with an emailed password, email confirmation, sign-in, sessions, password reset), a **SQLite store for the shop** (catalogue, orders, entitlements), **Razorpay** payments, email through **SMTP**, and a **private PDF store** that only streams a sheet to a signed-in customer who owns it. **The backend and the databases are kept off GitHub on purpose**: they live only on your computer and on the server, in the `backend` and `database` folders next to `frontend` (see [What is where](#what-is-where)). How the backend works, how to set it up and how to put it online is in `backend\README.md` inside that folder; every endpoint is in `backend\API.md`.
+The website talks straight from the visitor's browser to a server on **Supabase**, in the project "SumitDendage's Project". One Edge Function called `api` answers every `/api/*` call at `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1`. **Supabase Auth** keeps the passwords, a **Postgres database with row-level security** holds the accounts, sheets, orders and access, and a **private storage area called "worksheets"** holds the PDFs. Payments go through **Razorpay**, and email through Brevo (or Resend). The browser sends the customer's sign-in token with each call, so the website needs no server of its own: a plain Hostinger upload is enough. **The server code is kept off GitHub on purpose**: it lives in the `supabase` folder next to `frontend` on your computer and reaches you as `supabase-backend.zip` (see [What is where](#what-is-where)). How it works is in `supabase/README.md`; how to set it up, once, is in `supabase/docs/SETUP.md`.
 
 ### What is where
 
 | Folder | On GitHub? | What it is |
 |---|---|---|
-| **`frontend/`** | yes | **The website, built with React and Vite** (was `react-app/`): the customer site, the staff panels (`/admin`, `/developer`) and the protected viewer (`viewer.html`). This is the part you build and upload. |
+| **`frontend/`** | yes | **The website, built with React and Vite** (was `react-app/`): the customer site, the staff panels (`/admin`, `/developer`) and the protected viewer (`viewer.html`). This is the part you build and upload. It talks to the Supabase server by itself. |
+| **`supabase/`** | **no**: your computer only | **The server.** The Edge Function `api` (`functions/api/`), the database steps (`migrations/`), the PDF upload script, the tests, `deploy-server.bat` and your guides in `docs/` (start with `docs/SETUP.md`). It reaches you as `supabase-backend.zip`. |
 | `legacy/old-static-site/` | yes | The original plain-HTML website (was `site/dist/`), kept for reference only. |
-| `backend/` | **no** — your computer and the server only | The Node server (was `site/`): `server.cjs` (`npm start`), the API, accounts, payments, email and the 79 private PDFs in `backend/protected/`. Your own settings go in `backend/.env`. |
-| `database/` | **no** — your computer and the server only | The databases themselves, no JavaScript: the PostgreSQL schema in `database/postgresql/migrations/` and the shop database in `database/data/` (made on the first start). |
+| `backend/` | **no**: your computer only | **Old, no longer used. Kept as a backup only.** The old Node server (was `site/`). Its `backend\protected` folder still holds the worksheet PDFs, which SETUP step 5 uploads to Supabase. |
+| `database/` | **no**: your computer only | **Old, no longer used. Kept as a backup only.** The old server's databases: the SQLite shop database in `database\data` (your old orders) and the PostgreSQL schema. |
 
-`backend/` and `database/` are listed in `.gitignore`, so git never uploads them and `git pull` never changes them. A fresh copy of both comes from **`backend-and-database.zip`** (kept in the Claude project's files): in the `kids-book-website` folder run `tar -xf "%USERPROFILE%\Downloads\backend-and-database.zip"` (or put the zip's own path between the quotes). They are gone only from the current files on GitHub: older commits in the repository's history (and older branches) still hold the old copies, so GitHub is neither a backup of them nor a place they have been erased from. Keep that zip safe and back up your settings, orders and uploads yourself (`database\README.md` → Backups).
+`supabase/`, `backend/` and `database/` are listed in `.gitignore`, so git never uploads them and `git pull` never changes them. A fresh copy of `supabase/` comes from **`supabase-backend.zip`** (kept in the Claude project's files): unzip it into the `kids-book-website` folder so that the `supabase` folder sits next to `frontend` (see supabase/docs/SETUP.md step 1). The old `backend` and `database` folders came from **`backend-and-database.zip`**. Older commits in the repository's history (and older branches) still hold old copies of `backend` and `database`, so GitHub is neither a backup of them nor a place they have been erased from. Keep both zips safe. Your shop's accounts, orders and access now live in your Supabase project.
 
-The old plain-HTML copy is no longer served: the server only serves the React website built in `frontend/dist`. If that is not built yet, every page says "Not found: the website is not built yet" and the server window says how to build it. More about the old copy: [`legacy/README.md`](legacy/README.md).
+The old plain-HTML copy is no longer used: the live site is the React website built in `frontend/dist`. More about the old copy: [`legacy/README.md`](legacy/README.md).
 
 ## How a sheet is opened
 
 ```
-Learn With Why website → public worksheet catalogue → customer selects a PDF → login
-        FREE ─────────────────────────── PAID → Razorpay Checkout → backend verifies the signature → entitlement
-          └──────────────── server access check (POST /api/access/:id) ────────────────┘
-                     → private PDF storage (backend/protected/) → the PDF viewer (viewer.html)
-                     → watermark (name · email · time) — a bought sheet stays on the account; a class plan runs for its months
+Learn With Why website (Hostinger) → worksheet catalogue from the server → customer picks a sheet → sign in
+        FREE ─────────────────────────── PAID → Razorpay Checkout → the server verifies the payment → access with an end date
+          └──────────────── server access check on every request (the Edge Function api) ────────────────┘
+                     → private Supabase storage ("worksheets") → PDF stamped with name · email → the viewer (viewer.html)
+                     → the viewer asks again every minute; when the access ends, the sheet closes
 ```
 
-Access is enforced on the server: the entitlement row in the database decides, and the viewer only shows what `/api/view/*` streams. The watermark is drawn by the viewer in the browser, so an entitled customer is sent the unstamped PDF (server-side stamping is on the roadmap). A sheet bought on its own (or a free sheet) never expires. A class plan runs for its 1, 3, 6 or 12 months; a renewal bought while it runs starts the day it ends. When a plan ends, or an admin revokes an entitlement, the open viewer closes within a minute.
+Access is decided on the server, never in the browser. A paid sheet opens only after the server has checked the payment with Razorpay (the signature, the order, the amount and the currency). Then it saves the access with an end date. A bought sheet stays open for its access days: 365 by default, counted from the verified payment. Staff can change the number for one sheet (Admin → Products) or for the whole shop (Admin → Settings). A class plan runs for its 1, 3, 6 or 12 months; a renewal bought while it runs starts the day it ends. The 8 free sheets open for anyone who is signed in. When access ends, the sheet moves to **Expired** in My Account → My Worksheets, with a **Buy Access Again** button.
+
+The PDFs live in a private storage area on Supabase. Nobody can download from it directly: the server checks the customer's sign-in, account and access on every request, then stamps the customer's name and email into the PDF before it sends it. The open viewer asks the server again every minute and closes the sheet when the access has ended, staff have taken it away, or paid access is paused. Three confirmed account-sharing warnings pause a customer's paid sheets (free sheets and My Account keep working).
 
 ## Quick start
 
-You need **Git** (https://git-scm.com/download/win), **Node.js 22.13 or newer** (https://nodejs.org) and, for the backend, a **PostgreSQL** database (how to get one: `backend\README.md` → Set up PostgreSQL). The website alone builds on Node 20.19+ or 22.12+, but the backend needs 22.13+ for its built-in SQLite. The `backend` and `database` folders must already be in the `kids-book-website` folder (from `backend-and-database.zip`, see [Moving to the new folders](#moving-to-the-new-folders-october-2026)). If your `kids-book-website` folder still has `site` and `react-app` folders in it, do not run `git pull` there: do [Moving to the new folders](#moving-to-the-new-folders-october-2026) first. On Windows, open the `kids-book-website` folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder. Use this Command Prompt (cmd), not PowerShell or VS Code's terminal: the commands here do not work there.
+You need **Git** (https://git-scm.com/download/win) and **Node.js 22.12 or newer** (https://nodejs.org; 20.19 also works). If your `kids-book-website` folder still has `site` and `react-app` folders in it, do not run `git pull` there: do [Moving to the new folders](#moving-to-the-new-folders-october-2026) first. On Windows, open the `kids-book-website` folder in File Explorer, click the address bar, type `cmd` and press Enter; a command window opens in that folder. Use this Command Prompt (cmd), not PowerShell or VS Code's terminal: the commands here do not work there.
 
 **1. Build the website**
 
@@ -56,61 +59,38 @@ npm install
 npm run build
 ```
 
-This makes the `frontend\dist` folder, which the backend serves. Run `npm run build` again after every change to the website.
+This makes the `frontend\dist` folder, which you upload to Hostinger ([Put it on Hostinger](#put-it-on-hostinger)). Run `npm run build` again after every change to the website.
 
-**2. Your settings (first time only)**
+**2. Try it on your computer (optional)**
 
-In the same window, make your own settings file by copying the example (skip this step if `backend\.env` already exists, for example after [moving to the new folders](#moving-to-the-new-folders-october-2026)):
-
-```bat
-cd ..\backend
-if not exist .env copy .env.example .env
-```
-
-In the same window type `notepad .env` and press Enter, change two lines, then save with Ctrl+S. Every other setting is explained in the file and has a working default:
-
-- `DATABASE_URL` — replace `CHANGE-ME` with your PostgreSQL password (or paste the connection string your provider gives you).
-- `ADMIN_KEY` — replace `change-me` with a key of your own.
-
-`backend\.env` never goes to GitHub (the whole `backend` folder is kept off it), so your passwords stay on your computer. After changing it, stop the server (Ctrl+C) and start it again.
-
-**3. Start the backend** (in the same window)
+In the same window (you are already in `frontend`), type:
 
 ```bat
-cd ..\backend
-npm install
-npm start
-```
-
-Open http://127.0.0.1:4173, click on the page and press Ctrl+F5 (on some laptops Fn+Ctrl+F5, or Ctrl+Shift+R). Free sheets open after sign-in; paid ones need the Razorpay keys (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) in `backend\.env`.
-
-When it starts, the server prints a few lines about the site, the accounts, the shop, mail, payments and the admin key. A line starting with `!!` tells you what to do, for example when the website is not built yet. If `backend\protected` is missing, the server stops with "nothing was started or changed" and says what to do. If you type `npm start` before `npm install`, it says the packages are not installed yet.
-
-Without an SMTP mail service in `backend\.env`, the account emails (the generated password, the Accept & Continue link, reset links) are printed in this window instead of being sent.
-
-**Working on the website (optional)**
-
-To see your changes straight away without building, open a second window in the `kids-book-website` folder and run:
-
-```bat
-cd frontend
 npm run dev
 ```
 
-Then open http://localhost:5173 (set `SITE_URL=http://localhost:5173` in `backend\.env` while you use `npm run dev`, so the links in emails open it). While `npm run dev` is running, every `/api/...` call from the website is forwarded to the backend on port 4173. Without the backend the pages still open, but anything that needs the server fails: sign-in shows "Request failed (502)", checkout shows "Pricing service unavailable" and the viewer shows "Could not open the sheet".
+Then open http://localhost:5173. Your changes to the website show up straight away, without building. To stop it, press Ctrl+C in the window.
 
-Addresses of the website (http://127.0.0.1:4173 with `npm start`, http://localhost:5173 while `npm run dev` runs, or your domain after uploading):
+While you try it this way, the website talks to the **live** Supabase API, so it uses your real shop: real accounts, real orders and real emails. For that to work, the server must accept calls from http://localhost:5173. In Supabase → Edge Functions → Secrets, change `ALLOWED_ORIGINS` so it also lists that address, for example `https://learnwithwhy.in,https://www.learnwithwhy.in,http://localhost:5173` (see supabase/docs/SETUP.md step 3). Without it the pages still open, but sign-in, the shop and the viewer cannot reach the server. Links in emails still open the live site (`SITE_URL`). When you are done trying, you can take `,http://localhost:5173` out again.
+
+**3. The server (once)**
+
+There is nothing to start on your computer any more: the server runs on Supabase all the time. You set it up once with `supabase/docs/SETUP.md`, which comes in `supabase-backend.zip` (unzip it so the `supabase` folder sits next to `frontend`). It has 9 short steps: put the server program online, turn off public sign-ups, add the website address, create your owner account, upload the PDFs, set up email, set up Razorpay, put the website online, and try everything once.
+
+Addresses of the website (http://localhost:5173 while `npm run dev` runs, or your domain after uploading):
 
 | Address | What it is |
 |---|---|
 | `/` | The customer site (Home · About us · What we do · Sheets · Contact us · Testimonials) |
 | `/#sheets` | Jumps to the Sheets chapter (every chapter has an anchor) |
-| `/admin` | Admin account — sign up / sign in, then the admin dashboard (old `/#admin` links still work) |
-| `/developer` | Developer panel — sign up / sign in, then the developer dashboard (old `/#developer` links still work) |
+| `/admin` | Staff sign-in, then the admin dashboard (old `/#admin` links still work). There is no sign-up here: the owner adds staff in Admin → Roles. |
+| `/developer` | Staff sign-in, then the developer dashboard, for staff with the developer permission (old `/#developer` links still work) |
 | `/viewer.html` | The protected PDF viewer, reached from the site with a view token (`/viewer` works too) |
-| `/api/*` | The JSON API, answered by the backend |
+| `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/...` | The JSON API: the Supabase Edge Function `api`. Open `.../api/health` to see whether it is running (it never shows a key). |
 
 ## Moving to the new folders (October 2026)
+
+**Note:** after the move to Supabase, the `backend` folder is only a backup, so you do not need to start it (`npm start` in step 7 and in the daily routine at the end). These steps are kept for moving an old `site` / `react-app` folder.
 
 Do this once, after this change is on GitHub's main branch. It leaves your current folder untouched as a backup, makes a fresh copy of the website from GitHub, and puts the backend and database (which are no longer on GitHub) next to it from the zip. **Do not run `git pull` in your current folder before this.**
 
@@ -154,7 +134,7 @@ Use a Command Prompt (cmd) window, not PowerShell: if the line where you type st
    if exist ..\kids-book-website-old\react-app\.env.local copy ..\kids-book-website-old\react-app\.env.local frontend\.env.local
    ```
 
-   Your settings are now in `backend\.env`. The notes at the top of that file may still talk about `site\.env` and GitHub; you can ignore them. If you never filled in your settings in the old folder, type `notepad backend\.env` and change `DATABASE_URL` and `ADMIN_KEY` as in [Quick start](#quick-start) step 2.
+   Your settings are now in `backend\.env`. The notes at the top of that file may still talk about `site\.env` and GitHub; you can ignore them. If you never filled in your settings in the old folder, leave them as they are: the backend is only a backup now.
 
 6. **Build the website:**
 
@@ -192,55 +172,78 @@ From then on, every day, in the `kids-book-website` folder: `git pull` (it updat
 2. Upload **everything inside `frontend\dist`** into `public_html` in Hostinger's File Manager, including the hidden `.htaccess` file (turn on "Show hidden files" if you can't see it).
 3. `.htaccess` makes `/admin`, `/developer` and every other page address open the site, keeps images and fonts working, and sends `/viewer` to the sheet viewer.
 
-Hostinger's normal web hosting only serves files; it cannot run the Node backend (the `backend` folder, which is not on GitHub). The backend must run on hosting that runs Node (Hostinger's Node.js hosting, a VPS, or similar) on the **same domain** as the website. Until it does, the uploaded site looks and scrolls exactly right, but sign-in, checkout and the sheet viewer will not work.
+That is all. Hostinger's normal web hosting is enough: the website talks to the Supabase server by itself, straight from the visitor's browser, so you do not need Node hosting or a VPS. The old `backend` folder is no longer used; keep it as a backup.
 
-**The website and `/api` must be on the same domain.** The backend refuses sign-in, checkout and other changes that come from another domain, and it sends no CORS headers. So leave `VITE_API_BASE_URL` empty and serve both from one domain, for example a Node host or reverse proxy that sends `/api/*` to the backend and everything else to the files in `frontend/dist`. `VITE_API_BASE_URL` for a backend on a different domain only works after the backend is changed to allow that domain (CORS with credentials and a cross-site session cookie).
+Two things make the uploaded site work:
+
+- **The server knows your address.** `SITE_URL` and `ALLOWED_ORIGINS` in Supabase → Edge Functions → Secrets must name your website (see supabase/docs/SETUP.md step 3). The server refuses calls from any website that is not in `ALLOWED_ORIGINS`. If your site is not at `learnwithwhy.in`, put its real address in both.
+- **`VITE_API_BASE_URL` stays empty.** Leave it empty in `frontend\.env.local` (or do not make that file at all). The website then uses the live API, `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1`. Set it only to try another Supabase project; `frontend/.env.example` explains how.
 
 ## Secrets
 
-Only **public** values may go in `frontend/.env.local`: everything starting with `VITE_` is copied into the JavaScript that visitors download. The Razorpay key secret, the webhook secret, `ADMIN_KEY`, database details and any other secret belong only in the backend's own `backend/.env` (made by copying `backend/.env.example`; like the whole backend, it never goes to GitHub). Payment verification stays on the backend; the website only receives the public Razorpay key id from the server at checkout.
+**Every key goes in Supabase → Edge Functions → Secrets, never in the website**, an email or a chat. The website holds no secrets. Only **public** values may go in `frontend/.env.local`, because everything starting with `VITE_` is copied into the JavaScript that visitors download. The website only needs the API address (`VITE_API_BASE_URL`, empty for the live API); it gets the public Razorpay key id from the server at checkout.
 
-One exception to watch: staff paste `ADMIN_KEY` into Admin → Settings → Server connection. It is kept as plain text in that browser's storage (`lww_admin_key`) and is included in every Export / Download backup JSON file. Only save it on a trusted computer, never share backup files, and change `ADMIN_KEY` in `backend/.env` if one leaks.
+The server's secrets by name, from `supabase/.env.example` (that file has no values). How to get each one is in supabase/docs/SETUP.md steps 3, 6 and 7:
 
-The private PDFs in `backend/protected/` are **not** copied into `frontend/public/` on purpose: they are only ever streamed by the backend to a signed-in customer who owns the sheet. The site only ships the small thumbnails in `frontend/public/sheets/`.
+| What | Names |
+|---|---|
+| Your website's address | `SITE_URL`, `ALLOWED_ORIGINS`, `AUTH_FORWARD_IP` |
+| Email | `MAIL_PROVIDER`, `BREVO_API_KEY` (or `RESEND_API_KEY`), `MAIL_FROM` |
+| Razorpay | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` |
+| Stripe (optional, outside India) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| PayPal (optional, outside India) | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_MODE`, `PAYPAL_WEBHOOK_ID` |
+| Rarely needed (optional) | `LWW_JWT_SECRET` |
+
+Supabase adds its own (`SUPABASE_URL`, `SUPABASE_DB_URL` and the project keys) by itself. The Developer panel shows whether each secret is set, never its value.
+
+Your Supabase **`sb_secret_` key** (Project Settings → API Keys) opens everything in your project. Use it only in a Command Prompt window to upload the PDFs (SETUP step 5), then close that window.
+
+Staff sign in with their own accounts, so the shared `ADMIN_KEY` is gone. A browser keeps only its own person's sign-in, which ends when the server says so.
+
+The worksheet PDFs are **not** copied into `frontend/public/` on purpose: they live in the private "worksheets" storage on Supabase and are only sent, stamped, to a signed-in customer with access. The site ships only the small thumbnails in `frontend/public/sheets/`.
 
 ## Features
 
 ### Customer site
-- **Cinematic scroll** — the six chapters glide as one stack while the 960 landscape frames scrub underneath; frames are decoded on demand with a memory cap, so the page stays smooth.
-- **Fox & rabbit preview** — a 50-frame animation plays inside the Sheets chapter and behind the store page.
-- **Glass UI** — transparent header pill with hover-jump links, logo tile with wordmark, frosted panels that let the landscape through.
-- **Sign up / Sign in** on the first screen — sign-up asks only for name and email; the server generates a password and emails it with an **Accept & Continue** link that confirms the address and leads back to sign-in. Accounts live in PostgreSQL with Argon2id-hashed passwords, httpOnly session cookies, a lock after 5 wrong passwords, and *Forgot password* by a single-use emailed link. "Keep me signed in". The role — Parent, Teacher, Tutor or School — is asked **after** sign-up.
-- **Kindergarten skill board** — eight topic groups (pre-reading, alphabet, phonics, vocabulary, sight words, grammar & writing, reading, maths & the world); every skill opens its own shelf of sheets.
-- **68 printable PDF sheets in 5 skill types** — letter tracing A–Z, picture-reading charts, colour the letter, match the letters and spot the letters. The first few of each set are free; the rest are bought one by one.
-- **The store** — a page of its own with **New · Bestselling · Free · Subscription** views, classes, subjects and the five skill cards. (Subscription lists the paid sheets; class plans are no longer sold, so every PDF is bought on its own.)
-- **Buy one PDF** — every purchase grants **a permanent entitlement**: the sheet stays on the account. Free sheets open for anyone signed in. Coupons apply at checkout.
-- **Razorpay** — the checkout creates a Razorpay order for the signed total, opens Razorpay Checkout straight on the chosen method (card, UPI QR code, UPI ID, wallet), and the backend verifies the payment signature — and the signed webhook — before it grants access. Until keys are configured its ways to pay are shown as coming soon and nothing can be bought (there is no demo gateway); the same goes for PayPal and Stripe.
-- **Checkout with server-side pricing** — country, address, city, state and PIN; India is detected automatically (INR, GST, 6-digit PIN, Indian states) and other countries get their own currency and tax. The server computes **base price + tax + fee = total**, returns a signed quote, and only accepts a valid signed quote as an order — prices cannot be changed from the browser.
-- **Protected PDF viewer** — PDFs live outside the web root and are streamed only to the signed-in buyer, rendered with pdf.js, stamped with the customer's name, email and time. Context menu, drag, copy, print and save shortcuts are blocked; the page blurs when the window loses focus.
-- **My Account → My Worksheets** lists every sheet on the customer's account (the PDFs they bought and the free sheets they have opened), straight from the database.
-- **Contact form** — notes go to learnwithwhy6@gmail.com through the backend.
-- **Creative copy for children** — a rotating *"Today's why"* question and playful lines in every chapter.
-- **SEO** — descriptive title/description, Open Graph & Twitter cards, JSON-LD (Organization, WebSite, ItemList of products), sitemap, robots, favicon, crawlable anchors.
+- **Cinematic scroll**: the six chapters glide as one stack while the 960 landscape frames scrub underneath; frames are decoded on demand with a memory cap, so the page stays smooth.
+- **Walking friends**: the fox, deer and rabbit from the landscape picture walk along the bottom of the screen as the page scrolls, on a canvas of their own (`services/walkers.js`, sprites in `src/assets/scene/`), sized for each screen so they are always whole.
+- **Fox & rabbit preview**: a 50-frame animation plays inside the Sheets chapter and behind the store page.
+- **Glass UI**: transparent header pill with hover-jump links, logo tile with wordmark, frosted panels that let the landscape through.
+- **Sign up / Sign in** on the first screen: sign-up asks for a name and an email, and the customer ticks the account-sharing agreement (the server records which version they accepted). The server makes a password and emails it with an **Accept & Continue** link that confirms the address. Passwords live only in Supabase Auth. Five wrong passwords lock the account for 15 minutes, and *Forgot password* sends a link. "Keep me signed in" keeps a sign-in for 30 days (otherwise 12 hours). The role (Parent, Teacher, Tutor or School) is asked **after** sign-up. Until email is set up (SETUP step 6), sign-up is closed.
+- **Kindergarten skill board**: eight topic groups (pre-reading, alphabet, phonics, vocabulary, sight words, grammar & writing, reading, maths & the world); every skill opens its own shelf of sheets.
+- **105 printable PDF sheets**, all for Kindergarten so far (Class 1 to 3 say "Coming soon"): letter tracing A to Z, picture-reading charts, colour the letter, match the letters, letters before and after, beginning and ending sounds, missing letters, and the Vocabulary Colours and Shapes sheets. Eight are free (Alphabet A and B, Colours 1 to 3, Shapes 1 to 3); the rest cost ₹19 each by default. Prices are set on the server (Admin → Products).
+- **The store**: a page of its own with **All sheets · New · Bestselling · Free · Subscription** views, classes, subjects and the seven Alphabet skill cards. Under Subscription a customer can buy a **class plan** that opens every sheet in the class while it runs (1, 3, 6 or 12 months; which lengths are offered depends on the country, and the prices come from the server).
+- **Buying a sheet**: a bought sheet opens for its access days, 365 by default, counted from the moment the payment is verified. Staff can change the number per sheet or in Admin → Settings. The end date is shown on the sheet, in My Account and in the receipt email. Free sheets open for anyone signed in. Coupons apply at checkout.
+- **Razorpay**: the checkout creates a Razorpay order for the server's price and opens Razorpay Checkout straight on the chosen method (card, UPI QR code, UPI ID, wallet). The server checks the payment with Razorpay (signature, order, amount and currency) and also accepts the signed webhook, before it opens the sheet; a repeated message never gives access twice. Until the keys are set (SETUP step 7), the ways to pay are shown as coming soon. Stripe and PayPal for other countries are built in but stay hidden until their keys are added.
+- **Checkout with server-side pricing**: country, address, city, state and PIN; India is detected automatically (INR, GST, 6-digit PIN, Indian states) and other countries get their own currency and tax. The server works out **base price + tax + fee = total** and keeps that quote for 15 minutes; the order is made from the stored quote, so prices cannot be changed from the browser.
+- **Protected PDF viewer**: the PDFs live in the private "worksheets" storage on Supabase. The server checks access on every request and stamps the customer's name and email into the PDF before sending it; pdf.js draws it. The viewer checks access again every minute and closes the sheet when access ends. Sheets are view only by default: Print and Download appear only when staff allow a number of copies for that sheet. The context menu, drag, copy and the print and save shortcuts are blocked, and the page blurs when the window loses focus. (No website can stop a screenshot or a phone photo; see supabase/docs/SECURITY.md.)
+- **My Account**: **My Worksheets** lists what opens now (with its end date), class plans, and an **Expired** list with **Buy Access Again**. **Orders**, **Devices** (where the account is signed in) and **Security** (sharing warnings and appeals) are tabs of their own.
+- **Account sharing**: the server watches for one account being used on many devices, networks or countries at once. A suspicion becomes a warning only when staff confirm it; warnings 1/3, 2/3 and 3/3 are emailed, and three confirmed warnings pause paid sheets. Sign-in, My Account, orders and free sheets keep working, and the customer can send an appeal.
+- **Contact form**: "Leave a little note" sends each note to the server, where it lands in Admin → Messages and is emailed to the shop once email is set up. Until then (or when the server cannot be reached) a copy also goes through [Web3Forms](https://web3forms.com); its key is `WEB3FORMS_KEY` in `frontend/src/data/content.js`.
+- **Ask AI**: a round logo button at the bottom right of the landing page (and only there) opens a chat panel over the page. The assistant answers from the questions and answers that staff keep in Admin → Content (it is not a real AI yet). Only when the server cannot be reached does it fall back to the short answers in `frontend/src/data/aiAssistant.js`.
+- **Creative copy for children**: a rotating *"Today's why"* question and playful lines in every chapter.
+- **SEO**: descriptive title/description, Open Graph & Twitter cards, JSON-LD (Organization, WebSite, ItemList of products), sitemap, robots, favicon, crawlable anchors.
 
 ### Staff panels
+
+Staff sign in at `/admin` or `/developer` with their own accounts. The roles are Owner, Administrator, Support, Content editor and Developer; each person sees only the sections their permissions allow, and the server checks every call. Only an owner can add owners or admins.
+
 | Admin (`/admin`) | Developer (`/developer`) |
 |---|---|
-| Overview with sales chart | System health, uptime, heap, FPS |
-| **Products** — book studio with drag-and-drop cover & PDF, rating, category, price, stock, audience, print/download limits; card gallery with search & filters | Errors & stack traces (captured automatically) |
-| **Orders** — live from the database once the admin key is saved (Settings → Server connection); status changes are written back | API monitoring (every `fetch`, status, latency) |
-| **Customers** — every account in the database: orders, total spending, downloads | Browser storage (this browser's `lww_*` keys, sizes, quota — not the SQLite database) |
-| **Messages** — the Contact us inbox, live from the database once the admin key is saved; mark as read / replied | |
-| **Settings → Server connection** — the admin key that connects the dashboards to the database | |
-| **Analytics** — sales, visitors, conversion funnel, top products, sources | Payment and authentication logs from this browser (the webhook page stays empty; webhook events are recorded in the database) |
-| Coupons & discounts | Performance (DOM ready, load, first paint) |
-| Content management (home page copy) | Security events (failed logins) |
-| Roles & permissions (admin / editor / support / developer) | Deployments (site version and host; the latest-commits list only loads if the GitHub repository is public) |
-| Audit logs | Backups (export / restore this browser's data as JSON — back up `database/data/` on the server separately), audit logs |
+| **Dashboard**: revenue, sales, open access and visitors today, the sales chart, the latest paid orders | **Dashboard**: how the live system is doing; each setting shows as set or not set up, never its value |
+| **Products**: every sheet, with drafts and archived ones; upload the cover, the PDF and page pictures; price, access days, print and download limits. A new sheet starts as a draft. | **Errors**: what went wrong on the server (failed emails, payment notifications, security events) |
+| **Orders**: every order with its payments and the access it gave. An order is paid only through a verified payment, so there is no "mark as paid". | **Emails**: every email the site sends, with Retry and Skip |
+| **Customers**: every account, with its orders, access, sign-ins, warnings and account tools | **API monitoring**: is the API answering, and how fast |
+| **Security**: sign-ins, sharing incidents, warnings, appeals and the sharing rules; block one sign-in, pause paid access, or block the whole account | **Database**: the tables and about how many rows each holds |
+| **Messages**: the Contact us inbox; reply by email, mark as replied, archive | **Payments**, **Webhooks**, **Authentication** (sign-ins, with Block per sign-in) and **Security** (security events and the viewer log) |
+| **Analytics**: sales, visitors, conversion, best sellers, sources | **Performance**: load and paint timings, measured in this browser only |
+| **Coupons**: coupon codes and class discounts | **Deployments**: which versions of the API and the website are running now |
+| **Content**: the home page text, the questions and answers (Ask AI uses them) and reviews | **Backups**: the settings backup file and CSV exports |
+| **Roles**: staff members and what each one may do; a new staff member gets a password by email | **Audit logs** |
+| **Settings**: how long a bought sheet stays open, class plan prices, fees, tax, currency rates, sign-in rules, the viewer's access check, the shop inbox, the sharing agreement and warnings | |
+| **Audit logs**: everything staff changed, newest first (it cannot be edited) | |
 
-Only **Orders**, **Customers** and **Messages** read and write the database (through `/api/admin/*`, once the admin key is saved). The Products book studio (cover, PDF, price), Coupons & discounts, Content, Roles and the visitor side of Analytics are saved only in the admin's own browser: they do not upload PDFs, do not change what the server charges or which coupons it accepts, and do not change what customers see. For real changes use the admin API: `PUT /api/admin/worksheets/:id`, `POST /api/admin/worksheets/:id/file` and `PUT /api/admin/coupons` (see `backend\README.md`).
-
-The admin and developer sign-in is still a browser demo; the database and the admin API are protected by `ADMIN_KEY` on the backend.
+Everything in both panels is read from and saved to the server. The browser only remembers the panel's theme and sidebar.
 
 ## Repository structure
 
@@ -249,10 +252,10 @@ kids-book-website/
 ├── frontend/                  ← THE WEBSITE (React + Vite) — work here, upload its build (was react-app/)
 │   ├── index.html             the site's page (loads src/main.jsx)
 │   ├── viewer.html            the sheet viewer's page (loads src/viewer-main.jsx)
-│   ├── vite.config.js         two pages, output to dist/, /api forwarded to the backend in dev
+│   ├── vite.config.js         two pages, output to dist/ (the dev /api forwarding is used only when VITE_API_BASE_URL is /)
 │   ├── package.json           npm run dev · npm run build · npm run preview
 │   ├── .env.example           public settings only (VITE_API_BASE_URL, VITE_DEV_API_PROXY)
-│   ├── README.md              step-by-step for this folder
+│   ├── README.md              step-by-step for this folder (parts still describe the old Node backend)
 │   ├── src/
 │   │   ├── components/        the pieces of the page: navbar, chapters, sheet cards, store, checkout, modals, dashboard parts
 │   │   ├── pages/             Admin/, Developer/, Portal/ (staff pages) and Viewer/ (the sheet viewer)
@@ -272,30 +275,22 @@ kids-book-website/
 │   │   ├── shop/              the store page's wallpaper
 │   │   └── favicon.svg · og.jpg · robots.txt · sitemap.xml
 │   └── dist/                  made by npm run build — upload everything inside it (never on GitHub)
-├── backend/                   ← THE SERVER (Node) — npm start (was site/) · NOT ON GITHUB: your computer and the server only
-│   ├── server.cjs             the entry point: the API, the private PDFs and the built website on one process
-│   ├── package.json           npm start · npm run migrate · npm test (argon2, nodemailer, pg; Node 22.13+)
-│   ├── .env.example           every setting, explained — copy it to .env
-│   ├── .env                   YOUR settings (you make it)
-│   ├── README.md              the backend: flow, databases, setup, email, tests, deployment
-│   ├── API.md                 every endpoint
-│   ├── scripts/migrate.cjs    npm run migrate (the server also migrates at every start)
-│   ├── src/
-│   │   ├── config/            config.cjs (settings from the environment) · paths.cjs (every folder)
-│   │   ├── http/              http.cjs (helpers) · middleware.cjs (security headers, CORS, sign-in check)
-│   │   ├── routes/            auth.cjs (accounts) · access.cjs (entitlements + viewer) · payments.cjs (Razorpay, Stripe, PayPal) · admin.cjs · contact.cjs
-│   │   ├── services/          pricing.cjs (quotes) · mail.cjs (SMTP) · emails.cjs (templates) · passwords.cjs (Argon2id)
-│   │   └── database/          pg.cjs (PostgreSQL) · db.cjs (the SQLite shop and its tables) · migrate.cjs · legacy.cjs · seed.cjs
-│   ├── test/                  backend, database and end-to-end tests (npm test; needs TEST_DATABASE_URL)
-│   └── protected/             PRIVATE PDF STORAGE — never served as static files
-│       ├── a-to-z/ · colour/ · matching/ · reading/ · sound/ · sound-exercise/ · spot/   the 79 PDFs + preview JPGs
-│       └── uploads/           PDFs uploaded in the admin panel
-├── database/                  the databases themselves, no JavaScript · NOT ON GITHUB: your computer and the server only
-│   ├── postgresql/migrations/ 001_auth_schema.sql — the accounts tables, applied automatically at every start
-│   └── data/                  lww.sqlite, the shop database (made on the first start)
+├── supabase/                  ← THE SERVER (Supabase) · NOT ON GITHUB: your computer only, from supabase-backend.zip
+│   ├── README.md              how the pieces fit, working on it locally, deploying
+│   ├── docs/                  SETUP.md (your 9 setup steps) · MISSING-CONFIG.md (what is still missing) · SECURITY.md · DESIGN.md
+│   ├── functions/api/         the server program (Deno, TypeScript): routes/, services/, gateways/ (Razorpay, Stripe, PayPal), lib/
+│   ├── migrations/            the database, one file per step (already applied to the live project)
+│   ├── scripts/               upload-files.mjs: uploads the PDFs to the private worksheets store
+│   ├── tests/                 API and database tests
+│   ├── deploy-server.bat      puts the server program online (double-click; SETUP step 1)
+│   ├── config.toml            the project id and the api function's deploy setting
+│   └── .env.example           the name of every server secret, no values
+├── backend/                   OLD Node server, no longer used · kept as a backup only · NOT ON GITHUB
+│   └── protected/             the worksheet PDFs and page pictures (SETUP step 5 uploads them to Supabase)
+├── database/                  OLD databases (SQLite shop, PostgreSQL schema), no longer used · kept as a backup only · NOT ON GITHUB
 ├── legacy/
 │   └── old-static-site/       the original plain-HTML site (was site/dist/) — not served any more
-├── .gitignore                 keeps backend/, database/, builds and settings off GitHub
+├── .gitignore                 keeps supabase/, backend/, database/, builds and settings off GitHub
 ├── LICENSE
 └── README.md
 ```
@@ -308,41 +303,44 @@ Everything the customer reads lives in `frontend/src/data/`:
 |---|---|---|
 | `content.js` | `NAV` | chapter names in the header |
 | `content.js` | `CLASSES`, `SUBJECTS` | the categories |
-| `content.js` | `HERO` | the first screen's small badge line and intro paragraph (the headline itself is `DEFAULT_TITLE` in `components/home/HomeChapter.jsx`) |
-| `content.js` | `PLANS`, `ROLES` | old class-plan lengths and prices (plans are no longer sold) · Parent / Teacher / Tutor / School |
+| `content.js` | `HERO` | the first screen's small badge line and intro paragraph (the headline itself is `DEFAULT_TITLE` in `components/home/HomeChapter.jsx`); the text saved in Admin → Content wins |
+| `content.js` | `PLANS`, `ROLES` | class-plan lengths and prices used until the server answers (the server's plans in Admin → Settings win) · Parent / Teacher / Tutor / School |
 | `content.js` | `QUOTES`, `THANKS` | the testimonials and the scrolling thank-you notes |
 | `content.js` | `WHYS` | the rotating "Today's why" questions |
 | `catalogue.js` | `CATALOGUE`, `SHEETS`, `WORKSHEETS`, `ABOUT` | the shelf (`price: 0` = free) and what is inside each sheet |
-| `catalogue.js` | `AZ_FREE`, `RC_FREE`, `SHEET_PRICE` | which tracing, colour and picture-reading PDFs are free (Match and Spot: the first three ranges), and the fallback price |
+| `catalogue.js` | `FREE_PDFS`, `SHEET_PRICE` | which printable PDFs are free (`az-A`, `az-B`, `vc-1` to `vc-3`, `vs-1` to `vs-3`) and the fallback price, used only until the server answers; the server's catalogue (Admin → Products) wins |
 | `catalogue.js` | `KG_TOPICS` | the Kindergarten skill board |
 | `checkout.js` | `PAY_VIA` | the ways to pay offered at checkout |
+| `aiAssistant.js` | `AI_NAME`, `AI_WELCOME`, `AI_ANSWERS` | the Ask AI helper's name, first message and the short answers it gives only when the server cannot be reached |
 
-Chapter text is in the components under `frontend/src/components/home/` and `frontend/src/components/sheets/`. Prices, page counts and which sheets have a real PDF come from the database at load time (`GET /api/worksheets`) and override the constants; change them with the admin API (`PUT /api/admin/worksheets/:id`, `POST …/:id/file` to upload the PDF) — see `backend\README.md`.
+Chapter text is in the components under `frontend/src/components/home/` and `frontend/src/components/sheets/`. Prices, page counts and which sheets have a real PDF come from the server at load time (`GET /api/worksheets`) and override the constants. Change them in Admin → Products, where you also upload a sheet's PDF.
 
 After any change, run `npm run build` again in `frontend` and upload everything inside the new `frontend/dist` folder (including `.htaccess`) into `public_html`, replacing the old files.
 
 ## Going live
 
-1. **Website** — build `frontend` and upload everything inside `frontend/dist` to Hostinger ([see above](#put-it-on-hostinger)).
-2. **Backend** — a PostgreSQL database plus `npm start` in `backend/` (unpacked from `backend-and-database.zip`, since it is not on GitHub) on hosting that runs Node, on the **same domain** as the website (`/api/*` must reach it), behind HTTPS (set `SITE_URL=https://…` so the session cookie is `Secure` and email links are right; behind a proxy pass `X-Forwarded-Proto`, `X-Forwarded-For` and the country header). Its settings go in `backend/.env` (copy `backend/.env.example`). Keep `database/data/` and `backend/protected/` on persistent storage and back them up with the database. Step by step: `backend\README.md` → Deploy.
-3. **Razorpay** — put `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `backend/.env` (test keys first), add a webhook for `payment.captured`, `order.paid` and `payment.failed` at `https://<host>/api/pay/webhook` and put its secret in `RAZORPAY_WEBHOOK_SECRET`. Until keys are present the checkout shows payment as coming soon.
-4. **Admin key** — set `ADMIN_KEY` in `backend/.env`, then save the same key in Admin → Settings → Server connection so the dashboards read the database.
-5. **PDFs** — upload each worksheet's PDF with `POST /api/admin/worksheets/:id/file` (or drop `<id>.pdf` into `backend/protected/` and restart the backend; it is attached at the next start), and set its price with `PUT /api/admin/worksheets/:id`.
-6. **Email** — sign-up and forgot password send email: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `MAIL_FROM` in `backend/.env` (and `NODE_ENV=production`), then sign up with your own address to check the email arrives.
-7. **Domain** — the SEO tags, sitemap and robots assume `https://learnwithwhy.in`; change them before deploying and submit the sitemap in Google Search Console.
+The full steps are in `supabase/docs/SETUP.md` (in `supabase-backend.zip`). In short:
+
+1. **Server**: SETUP steps 1 to 7. Put the server program online with `deploy-server.bat` and check `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/health`, turn off public sign-ups, add the website address, create your owner account, upload the PDFs, set up email (Brevo) and set up Razorpay (test mode first).
+2. **Website**: SETUP step 8. Build `frontend` and upload everything inside `frontend/dist` to Hostinger ([see above](#put-it-on-hostinger)).
+3. **Try everything once**: SETUP step 9. Make one test sign-up and one Razorpay test-mode purchase before you tell customers.
+4. **What is still missing**: `supabase/docs/MISSING-CONFIG.md` lists each thing only you can do, what happens until it is done, and the safe defaults you may want to change (365 days of access, 18% GST, view-only sheets).
+5. **Domain**: the SEO tags, sitemap and robots assume `https://learnwithwhy.in`. If your site lives somewhere else, change them, and `SITE_URL` and `ALLOWED_ORIGINS` too. Submit the sitemap in Google Search Console.
 
 ## Roadmap
-- [x] Backend + SQLite database (orders, entitlements, access log)
-- [x] Accounts in PostgreSQL: emailed generated password, email confirmation, lockout, sessions, reset by link
-- [x] Razorpay (orders, signature verification, webhook)
-- [x] Protected PDF storage, watermarked viewer, entitlements (a bought sheet for good, a class plan for its months; admin revoke)
+- [x] Server on Supabase: one Edge Function (`api`), Postgres with row-level security, private PDF storage (replaces the old Node backend)
+- [x] Accounts in Supabase Auth: emailed generated password, email confirmation, account-sharing agreement, lockout, sessions, reset by link
+- [x] Razorpay (orders, payment checked on the server, webhook)
+- [x] Protected PDF storage, watermarked viewer, access with an end date (a bought sheet for its access days, 365 by default; a class plan for its months; staff can take access away)
 - [x] React + Vite version of the website (`frontend/`), same design
-- [ ] PayPal / Stripe for international customers
-- [x] Email for sign-up and password reset (SMTP)
-- [ ] Email for order receipts
-- [ ] Shop data (orders, entitlements) in PostgreSQL too
-- [ ] Staff accounts and roles in the database
-- [ ] Server-side PDF stamping (the watermark is applied in the viewer today)
+- [x] Shop data (orders, access) in the same Postgres database as the accounts
+- [x] Staff accounts and roles in the database, with real staff sign-in
+- [x] Server-side PDF stamping (the customer's name and email are stamped into the PDF on the server)
+- [x] Email for sign-up and password reset (Brevo or Resend; SETUP step 6)
+- [x] Email for order receipts ("Purchase Successful", with the end date)
+- [x] Account-sharing checks: warnings 1/3 to 3/3, paid sheets paused at three, appeals
+- [ ] PayPal / Stripe for international customers (built into the server, but hidden until their keys are added and not yet tried with real payments)
+- [ ] A real AI behind Ask AI (today the assistant answers from the FAQ that staff keep in Admin → Content)
 
 ## License
 

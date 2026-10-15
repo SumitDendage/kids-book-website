@@ -45,6 +45,12 @@
 /* checkout header on phones: keep the close button on screen, steps tight, lock text hidden */
 #checkout .shop-bar { align-items: center; }
 #checkout .shop-actions { flex: none; }
+/* one column (phones, small tablets): the order summary scrolls under the header, so the header is solid
+   to keep the steps readable over it, with a short fade below it */
+@media (max-width: 860px) {
+  #checkout .shop-bar { background: #071018; }   /* the page's own colour, like the shop's header */
+  #checkout .shop-bar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 18px; background: linear-gradient(180deg, #071018, rgba(7,16,24,0)); pointer-events: none; }
+}
 @media (max-width: 640px) { #checkout .shop-bar { gap: 8px; } .co-lock { display: none; } .stepper { gap: 12px; } .stepper li { font-size: 0.74rem; gap: 6px; } #checkout .shop-bar .eyebrow { margin-bottom: 4px; } }
 .co-card { position: relative; transition: border-color 0.3s; }
 .co-card.done { border-color: rgba(143,232,180,0.3); }
@@ -128,3 +134,6 @@
 .co-note.ok { color: #8fe8b4; }
 @media (prefers-reduced-motion: reduce) { .btn-pay::after, .sk-line, .sum-total.bump strong { animation: none; } }
 .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+
+/* the coupon line under the code box: red when the code did not work, green once it is applied */
+#coCouponMsg.ok { color: #8fe8b4; }

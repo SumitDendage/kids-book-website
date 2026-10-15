@@ -25,3 +25,6 @@ __pycache__/
 /react-app/
 /site/
 
+
+# Supabase backend (server code, migrations, scripts) stays OFF GitHub like backend/ (October 2026)
+/supabase/
