@@ -6,10 +6,10 @@ echo Signing in to Supabase...
 call npx --yes supabase@latest login
 if errorlevel 1 goto failed
 echo Uploading the server program "api"...
-call npx --yes supabase@latest functions deploy api --project-ref wjqmrcglzqemrvafjeel --no-verify-jwt --use-api
+call npx --yes supabase@latest functions deploy api --project-ref liaqgyskuhnxmlvmrnrl --no-verify-jwt --use-api
 if errorlevel 1 goto failed
 echo.
-echo Done. Open https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1/api/health to check it.
+echo Done. Open https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/health to check it.
 pause
 exit /b 0
 :failed

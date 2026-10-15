@@ -9,7 +9,7 @@ on:
     inputs:
       project:
         description: 'Supabase project ref (leave as is for the live site)'
-        default: wjqmrcglzqemrvafjeel
+        default: liaqgyskuhnxmlvmrnrl
   push:
     branches: [main]
     paths: ['supabase/functions/**', 'supabase/config.toml']
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      PROJECT_REF: ${{ inputs.project || 'wjqmrcglzqemrvafjeel' }}
+      PROJECT_REF: ${{ inputs.project || 'liaqgyskuhnxmlvmrnrl' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check the Supabase key is saved

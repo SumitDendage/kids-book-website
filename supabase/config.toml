@@ -1,5 +1,5 @@
 # Supabase CLI settings for this folder (only what the deploy needs).
-project_id = "wjqmrcglzqemrvafjeel"
+project_id = "liaqgyskuhnxmlvmrnrl"
 
 [functions.api]
 # The API checks every token itself (and serves public routes such as the catalogue),
