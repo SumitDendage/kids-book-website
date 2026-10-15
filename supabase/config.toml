@@ -1,0 +1,7 @@
+# Supabase CLI settings for this folder (only what the deploy needs).
+project_id = "wjqmrcglzqemrvafjeel"
+
+[functions.api]
+# The API checks every token itself (and serves public routes such as the catalogue),
+# so the platform's own JWT gate stays off for this one function.
+verify_jwt = false
