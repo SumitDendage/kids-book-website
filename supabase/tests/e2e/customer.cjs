@@ -496,7 +496,8 @@ async function sessionIdOf(page) {
       const last = await page.locator('#ai-chat .ai-msg.from-ai .ai-bubble').last().innerText();
       await page.locator('#ai-chat').screenshot({ path: SHOTS + '/desktop-assistant.png' });
       if (resp.status() !== 200 || !body.reply) throw new Error('POST /api/ai/chat ' + resp.status());
-      if (oneLine(last) !== oneLine(body.reply)) throw new Error('shown "' + oneLine(last).slice(0, 80) + '" is not the server answer "' + oneLine(body.reply).slice(0, 80) + '"');
+      /* when the server is not sure, the site adds the questions it suggests under its answer */
+      if (!oneLine(last).startsWith(oneLine(body.reply))) throw new Error('shown "' + oneLine(last).slice(0, 80) + '" is not the server answer "' + oneLine(body.reply).slice(0, 80) + '"');
       if (FOREVER.test(last)) throw new Error('permanence wording in the answer');
       await page.click('#ai-chat button[aria-label*="Close"], #ai-chat .ai-close', { timeout: 3000 }).catch(() => page.keyboard.press('Escape'));
       await page.waitForTimeout(400);
