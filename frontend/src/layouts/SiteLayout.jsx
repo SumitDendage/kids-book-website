@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { ToastProvider } from '../context/ToastContext.jsx';
 import { SiteProvider, useSite } from '../context/SiteContext.jsx';
+import { SecurityProvider } from '../context/SecurityContext.jsx';
 import useChapterInput from '../hooks/useChapterInput.js';
 import useMyWorksheets from '../hooks/useMyWorksheets.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
@@ -96,7 +97,9 @@ export default function SiteLayout() {
   return (
     <ToastProvider>
       <SiteProvider>
-        <Site />
+        <SecurityProvider>
+          <Site />
+        </SecurityProvider>
       </SiteProvider>
     </ToastProvider>
   );

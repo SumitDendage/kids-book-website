@@ -3,8 +3,7 @@
    objects that the server (GET /api/worksheets) and the admin's book studio
    update in place; components re-render through the catalogue version in the
    site store (see src/context/SiteContext.jsx). */
-import { CLASSES, SUBJECTS, subjectById } from './content.js';
-import { read } from '../services/storage.js';
+import { CLASSES, SUBJECTS, subjectById, accessSpan } from './content.js';
 
 export const CATALOGUE = [
   { id: 'nur-eng-abc', cls: 'kg', subject: 'english', title: 'Alphabet tracing A–Z', glyph: 'Aa', pages: 26, price: 0, was: 99, blurb: 'Uppercase and lowercase with dotted guides and a picture cue for every letter.', skills: ['Pencil grip', 'Letter shapes', 'Phonics sounds'] },
@@ -85,6 +84,9 @@ export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'eleph
 export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2', 'vs-3'], SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
+/* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
+   (the sheet's accessDays from the server, 365 days until it answers) */
+export const accessLine = (price, days) => (price === 0 ? 'Free sample. Just sign in to open it.' : 'Once bought, it stays open for ' + accessSpan(days) + ' from the day you pay.');
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */
 /* Each real PDF is built once and kept, so the store, the topic board and the sheet
    page all hold the same object — a price from the server reaches every one of them. */
@@ -92,8 +94,9 @@ const PDF_CACHE = {};
 const keepSheet = (id, build) => PDF_CACHE[id] || (PDF_CACHE[id] = build());
 export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice('az-' + L); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: '/sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
-  about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
-/* Kindergarten demo section: the 26 A to Z sheets are real PDFs in sheets/a-to-z/, free for everyone — no sign-in, no plan. */
+  about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
+/* Kindergarten's A to Z section: 26 tracing sheets, real PDFs in sheets/a-to-z/. A and B are free (sign-in needed, like every
+   sheet); the others are bought one at a time or open with the Kindergarten plan. The server's prices decide. */
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
@@ -149,29 +152,29 @@ export const RC_LETTERS = 'AINPST'.split('');
 export const RC_WORDS = { A: 'aeroplane, ant, apple, jam and hat', I: 'igloo, ink, insects, tin and spin', N: 'net, nest, nap, nine and pan', P: 'pup, pen, pit, panda and map', S: 'sun, star, snake, sand and bus', T: 'tent, train, tiger, tree and sit' };
 export const rcItem = L => keepSheet('rc-' + L, () => { const price = sheetPrice('rc-' + L); return ({ id: 'rc-' + L, rc: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — picture reading chart', pages: 1, price, free: price === 0, real: true, landscape: true, img: '/sheets/reading/thumb/' + L + '.jpg', topic: 'picture-reading',
   blurb: 'Look at the pictures, say the words, hear the ' + L.toLowerCase() + ' sound: ' + RC_WORDS[L] + '.',
-  about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+  about: ['A big, friendly letter ' + L + ' in the middle of the page.', 'Five pictures around it — ' + RC_WORDS[L] + ' — with the letter marked in red in each word.', 'Point, name the picture, then find the letter at the start, middle or end of the word.', 'One landscape A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
 /* Colour the letter (26) and Match the letters (5 ranges) */
 export const CL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 export const clItem = L => keepSheet('cl-' + L, () => { const price = sheetPrice('cl-' + L); return ({ id: 'cl-' + L, letter: L, tileLabel: 'Colour ' + L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Colour the letter ' + L, pages: 1, price, free: price === 0, real: true, img: '/sheets/colour/thumb/' + L + '.jpg', topic: 'letter-recognition',
   blurb: 'Find every ' + L + ' and ' + L.toLowerCase() + ' hiding among the other letters, and colour them in.',
-  about: ['A grid of twenty letters — some are ' + L + ' or ' + L.toLowerCase() + ', most are not.', 'Colour in only the ones that match, and leave the rest.', 'Trains letter recognition: spotting a letter by its shape, in both cases.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+  about: ['A grid of twenty letters — some are ' + L + ' or ' + L.toLowerCase() + ', most are not.', 'Colour in only the ones that match, and leave the rest.', 'Trains letter recognition: spotting a letter by its shape, in both cases.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
 export const MT_RANGES = [['AE', 'A B C D E'], ['FJ', 'F G H I J'], ['KO', 'K L M N O'], ['PT', 'P Q R S T'], ['UZ', 'U V W X Y Z']];
 export const mtItem = code => keepSheet('mt-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('mt-' + code);
   return ({ id: 'mt-' + code, chart: true, tileName: 'Match ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Match the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/matching/thumb/' + code + '.jpg', topic: 'match-upper-lower',
   blurb: 'Trace the dots to join each capital letter to its small letter: ' + letters + '.',
-  about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+  about: ['Capital letters down the left, small letters down the right — in a different order.', 'Trace the dotted line from each capital to the small letter that matches.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
 /* Spot the letters — circle every lowercase letter that matches the capital, five ranges */
 export const spItem = code => keepSheet('sp-' + code, () => { const i = MT_RANGES.findIndex(r => r[0] === code), letters = (MT_RANGES[i] || ['', ''])[1], price = sheetPrice('sp-' + code);
   return ({ id: 'sp-' + code, chart: true, tileName: 'Spot ' + code[0] + '–' + code[1], tileSub: letters.split(' ').join(' · '), cls: 'kg', subject: 'English', subjectId: 'english', title: 'Spot the letters ' + code[0] + '–' + code[1], pages: 1, price, free: price === 0, real: true, img: '/sheets/spot/thumb/' + code + '.jpg', topic: 'before-after-letters',
   blurb: 'Read the capital letter, then circle every small letter in the row that matches it: ' + letters + '.',
-  about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+  about: ['A capital letter at the start of each row, then six small letters beside it.', 'Circle only the ones that match the capital — the rest are near-misses like b and d.', 'Covers ' + letters + ' on one page.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
 /* Beginning and ending sounds (Sep 30): the "Read aloud" charts A to E and three
    exercises each for beginning and ending sounds. The exercises come first in their
    sub-category.
    Files keep the folders of the zips they came in: sound/ and sound-exercise/. */
 export const SD_LETTERS = 'ABCDE'.split('');
 const SD_WORDS = { A: 'apple, arm, ant, panda, sofa and pizza', B: 'bat, bee, bag, tub, web and crab', C: 'cat, cup, car, sock, duck and magic', D: 'dog, doll, door, road, bed and bird', E: 'eagle, elephant, elbow, tree, knee and three' };
-const soundAbout = (price, lines) => lines.concat(['One A4 page, opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.']);
+const soundAbout = (price, lines) => lines.concat(['One A4 page, opens full screen in the protected viewer.', accessLine(price)]);
 export const sdItem = L => keepSheet('sd-' + L, () => { const price = sheetPrice('sd-' + L);
   return ({ id: 'sd-' + L, chart: true, tileName: 'Sound ' + L, tileSub: 'Read aloud · beginning & ending', cls: 'kg', subject: 'English', subjectId: 'english', title: 'Letter ' + L + ' — beginning and ending sounds', pages: 1, price, free: price === 0, real: true, img: '/sheets/sound/thumb/' + L + '.jpg', topic: 'beginning-sounds',
   blurb: 'Read the pictures aloud and hear ' + L + ' at the start or the end of each word: ' + SD_WORDS[L] + '.',
@@ -225,7 +228,7 @@ const VOCAB = {
 const lowerFirst = t => /^(I |2D)/.test(t) ? t : t[0].toLowerCase() + t.slice(1);   /* "I spy" and "2D" keep their capitals */
 export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = VOCAB[set], s = v.sheets[n], id = set + '-' + n, price = sheetPrice(id);
   return ({ id, chart: true, tileName: v.name + ' ' + n, tileSub: s[0], cls: 'kg', subject: 'English', subjectId: 'english', title: v.name + ' ' + n + ' — ' + lowerFirst(s[0]), pages: s[2], price, free: price === 0, real: true, img: '/sheets/' + v.folder + '/thumb/' + v.file + '-' + n + '.jpg', topic: v.topic,
-  blurb: s[1], about: [s[1], s[2] === 2 ? 'Two A4 pages: the sheet, then the same sheet with the answers filled in.' : 'One A4 page.', 'Opens full screen in the protected viewer.', price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'] }); });
+  blurb: s[1], about: [s[1], s[2] === 2 ? 'Two A4 pages: the sheet, then the same sheet with the answers filled in.' : 'One A4 page.', 'Opens full screen in the protected viewer.', accessLine(price)] }); });
 /* Every printable PDF joins the catalogue, so "All sheets" and the store's filters
    show the whole shelf — the letter, colour, matching and reading pages as well as the books. */
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
@@ -244,7 +247,7 @@ export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return
 export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
 export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
 /* the four sheets in the Sheets chapter's preview carousel */
-export const PLAYER_IDS = ['az-A', 'rc-B', 'cl-C', 'bx-1'];
+export const PLAYER_IDS = ['az-A', 'rc-A', 'cl-C', 'bx-1'];   /* the reading charts are A, I, N, P, S and T */
 export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
@@ -258,23 +261,28 @@ export const SKILL_NAME = Object.fromEntries(SKILL_CATEGORIES.map(c => [c.id, c.
 export const skillSheets = skill => topicSheets(skill).filter(it => it.pdf);
 SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(c.id).length; });
 
-/* prices the admin changed in this browser */
-export function applyLocalPrices(PLANS) { const o = read('lww_prices', {}); ITEMS.forEach(it => { if (o[it.id] != null) it.price = o[it.id]; }); const q = read('lww_plan_prices', {}); PLANS.forEach(x => { if (q[x.id] != null) x.price = q[x.id]; }); }
-/* products the admin added, edited or removed (the book studio in the admin panel) */
-export function applyAdminProducts() {
-  const o = read('lww_products', { added: [], edited: {}, deleted: [] });
-  o.added.forEach(x => { if (!ITEMS.some(i => i.id === x.id)) { CATALOGUE.push(x); ITEMS.push(x); } });
-  Object.keys(o.edited).forEach(id => { const it = itemById(id); if (it) Object.assign(it, o.edited[id]); });
-  o.deleted.forEach(id => [CATALOGUE, SHEETS, WORKSHEETS, ITEMS].forEach(a => { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); }));
-}
+/* Prices are the server's alone (GET /api/worksheets and GET /api/config). Older builds let prices a staff
+   member typed in their own browser (lww_prices, lww_plan_prices) change what that browser showed; they are
+   ignored now. Kept so older callers still work. */
+export function applyLocalPrices() {}
+/* Older builds let the admin's book studio add, edit or hide products in that staff member's own browser
+   (lww_products). The catalogue is the server's now (GET /api/worksheets), so that copy is ignored.
+   Kept so older callers still work. */
+export function applyAdminProducts() {}
 /* THE SERVER IS THE SOURCE OF TRUTH — prices, page counts and which sheets have a real PDF
    come from GET /api/worksheets and override the built-in values. */
 export function applyServerCatalogue(worksheets) {
-  const byId = {}; worksheets.forEach(w => { byId[w.id] = w; });
+  const byId = {}; (worksheets || []).forEach(w => { byId[w.id] = w; });
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
+    /* how long a purchase stays open, whether its PDF is ready, and how many copies come with it */
+    if (w.accessDays) it.accessDays = w.accessDays;
+    it.available = w.available !== false && w.real !== false;
+    it.onSale = w.onSale !== false;
+    it.comingSoon = !!w.comingSoon;
+    it.printLimit = Number(w.printLimit) || 0; it.downloadLimit = Number(w.downloadLimit) || 0;
     /* the printable pages carry the free/paid line in their own words, so keep it in step */
-    if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = it.price === 0 ? 'Free sample — just sign in to open it.' : 'Yours to keep once bought — it never expires.'; } });
-  worksheets.forEach(w => { if (!itemById(w.id)) SERVER_PRICE[w.id] = w.price; });   /* letter tracing + picture reading */
+    if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it.accessDays); } });
+  (worksheets || []).forEach(w => { if (!itemById(w.id)) SERVER_PRICE[w.id] = w.price; });   /* letter tracing + picture reading */
 }
 /* products edited in the admin's book studio */
 export function removeItem(id) { [CATALOGUE, SHEETS, WORKSHEETS, ITEMS].forEach(a => { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); }); }

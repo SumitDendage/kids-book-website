@@ -17,6 +17,21 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 /* licence pill in the header: this sheet is on the customer's account */
 .lic { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 100px; background: rgba(31,107,71,0.28); border: 1px solid rgba(31,107,71,0.6); font-size: 0.8rem; white-space: nowrap; }
 .lic i { width: 8px; height: 8px; border-radius: 50%; background: #58c98f; box-shadow: 0 0 10px #58c98f; }
+.lic .s { display: none; }
+/* the access has ended (or the sign-in is gone): the pill says Closed */
+.lic.closed { background: rgba(255,110,110,0.16); border-color: rgba(255,110,110,0.45); }
+.lic.closed i { background: #ff8a8a; box-shadow: 0 0 10px #ff8a8a; }
+/* Print / Download, only on sheets that come with copies: how many are left */
+.btn .cnt { font-weight: 500; opacity: 0.75; }
+.copies { display: inline-flex; gap: 10px; }
+/* the buttons keep their size; the licence pill and the title give way (the pill's full text is in its tooltip) */
+.bar > * { flex: none; }
+.bar > .title { flex: 1 1 0; }
+.bar > .lic { flex: 0 1 auto; min-width: 0; }
+.lic i { flex: none; }
+.lic #licText { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#pageNo:empty { display: none; }
+.btn:disabled { opacity: 0.55; cursor: progress; }
 .stage { position: fixed; inset: 0; overflow: auto; padding: 64px 16px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .page { position: relative; flex: none; width: min(100%, var(--w)); aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; }
 .page canvas { display: block; width: 100%; height: 100%; }
@@ -39,5 +54,24 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 .toast.show { opacity: 1; }
 .spin { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #fff; border-radius: 50%; margin: 0 auto 18px; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media print { html, body, * { display: none !important; visibility: hidden !important; } }
-@media (max-width: 640px) { .bar { padding: 8px 10px; gap: 6px; } .btn span.l { display: none; } .stage { padding: 56px 8px 48px; } .brand span { display: none; } }
+/* Printing shows nothing, except after the Print button (a counted print): then only the pages, with their watermark */
+@media print {
+  body:not(.printing), body:not(.printing) * { display: none !important; visibility: hidden !important; }
+  html, body.printing { height: auto !important; overflow: visible !important; background: #fff !important; }
+  body.printing .bar, body.printing .foot, body.printing .veil, body.printing .toast, body.printing .stage::after { display: none !important; }
+  body.printing .stage { position: static !important; inset: auto !important; overflow: visible !important; padding: 0 !important; display: block !important; }
+  body.printing .page { width: 100% !important; margin: 0 auto !important; border-radius: 0 !important; box-shadow: none !important; filter: none !important; break-inside: avoid; break-after: page; }
+  body.printing .page:last-child { break-after: auto; }
+  body.printing .pn { display: none !important; }
+}
+@page { margin: 10mm; }
+@media (max-width: 640px) { .bar { padding: 8px 10px; gap: 5px; } .btn span.l { display: none; } .bar > .btn.ic, #fs { width: 32px; padding: 0; justify-content: center; } #close { padding: 0 12px; }
+  .stage { padding: 56px 8px 48px; } .brand span { display: none; } .lic { padding: 0 9px; gap: 6px; } .lic .l { display: none; } .lic .s { display: inline; } .toast { white-space: normal; width: max-content; max-width: calc(100vw - 32px); text-align: center; border-radius: 18px; } }
+/* tablets with Print / Download in the bar: the logo, the pill and Full screen go short so everything fits */
+@media (max-width: 1100px) { .bar.has-copies .brand span, .bar.has-copies .lic .l, .bar.has-copies #fs .l { display: none; } .bar.has-copies .lic .s { display: inline; } }
+/* phones and small tablets: Print / Download get a row of their own under the bar */
+@media (max-width: 720px) { .bar .copies { position: absolute; top: 100%; left: 0; right: 0; justify-content: center; padding: 0 10px 6px; } .bar .copies .btn span.l { display: inline; } .bar.has-copies ~ .stage { padding-top: 112px; } }
+/* phones: the sheet's name is in the opening screen and the tab title, so the bar keeps its room for the pill
+   (a few letters of the name would only look broken); very narrow phones also drop the logo */
+@media (max-width: 480px) { .bar > .title { display: none; } .bar > .lic { margin-right: auto; } }
+@media (max-width: 359px) { .bar .brand { display: none; } }

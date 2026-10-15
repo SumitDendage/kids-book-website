@@ -1,8 +1,12 @@
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
+import { accessSpan } from '../../data/content.js';
+import { getCoConfig } from '../../services/checkout.js';
 
 /* 03 · What we do */
 export default function WhatWeDoChapter() {
+  /* how long a bought sheet stays open: the server's setting (GET /api/config), 365 days until it answers */
+  const days = (getCoConfig() || {}).accessDays;
   return (
     <Chapter index={2}>
       <Rise as="p" i={0} className="eyebrow">03 / What we do</Rise>
@@ -11,9 +15,9 @@ export default function WhatWeDoChapter() {
       <Rise i={3} className="trio">
         <div className="panel"><span className="mark" aria-hidden="true">✎</span><h3>We design</h3><p>Every sheet is drawn by hand around a single idea: one letter, one number, one shape. Generous white space, thick guide lines and letterforms small hands can copy.</p></div>
         <div className="panel"><span className="mark" aria-hidden="true">✓</span><h3>We test</h3><p>Early-years teachers try each page in real classrooms before it reaches the shelf. If a four-year-old gets stuck, we redraw it.</p></div>
-        <div className="panel"><span className="mark" aria-hidden="true">⇩</span><h3>We deliver</h3><p>Unlock a sheet and print it at home in A4 or US Letter, as many times as your licence allows, for as long as you like.</p></div>
+        <div className="panel"><span className="mark" aria-hidden="true">⇩</span><h3>We deliver</h3><p>Unlock a sheet and it opens full screen in our protected viewer, with your name on every page. A bought sheet stays open for {accessSpan(days)} from the day you pay.</p></div>
       </Rise>
-      <Rise as="ul" i={4} className="ticks"><li>Sheets for daily five-minute practice, worksheets for week-by-week progress.</li><li>Ink-friendly, black-and-white friendly, tablet friendly.</li><li>A free access sheet in every subject to try first.</li></Rise>
+      <Rise as="ul" i={4} className="ticks"><li>Sheets for daily five-minute practice, worksheets for week-by-week progress.</li><li>Ink-friendly, black-and-white friendly, tablet friendly.</li><li>Free sheets to try first: just sign in to open them.</li></Rise>
       <Rise as="p" i={5} className="whisper">One idea per page. One giggle per sheet. No clip art was harmed.</Rise>
     </Chapter>
   );

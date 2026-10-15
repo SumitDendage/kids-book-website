@@ -23,17 +23,35 @@ export const ROLES = [
   { id: 'school', label: 'School', licence: 'school' },
 ];
 export const roleOf = id => ROLES.find(r => r.id === id) || ROLES[0];
-/* Subscriptions: pay for one class for a period, open every sheet in it
-   while it runs. Prices are per class; the admin can change them. */
+/* Subscriptions: pay for one class for a period, open every sheet in it while it runs.
+   THE SERVER SETS THE PLANS: GET /api/config answers with each plan's name, months, price,
+   discount and the countries it is sold in, and applyServerPlans() copies that in here.
+   The list below only names the plans until that answer arrives; prices shown to customers
+   come from the server's answer (services/checkout.js serverPlans). */
 export const PLANS = [
-  { id: 'm1', label: '1 month', months: 1, price: 199 },
-  { id: 'm3', label: '3 months', months: 3, price: 499, note: 'save 16%' },
-  { id: 'm6', label: '6 months', months: 6, price: 899, note: 'save 25%' },
-  { id: 'y1', label: '12 months', months: 12, price: 1499, note: 'best value' },
+  { id: 'm1', label: '1 month', months: 1, price: 199, regions: ['IN', 'INTL'] },
+  { id: 'm3', label: '3 months', months: 3, price: 499, note: 'save 16%', regions: ['IN', 'INTL'] },
+  { id: 'm6', label: '6 months', months: 6, price: 899, note: 'save 25%', regions: ['IN', 'INTL'] },
+  { id: 'y1', label: '12 months', months: 12, price: 1499, note: 'best value', regions: ['INTL'] },
 ];
 export const planOf = id => PLANS.find(x => x.id === id) || PLANS[0];
-/* India buys 1, 3 or 6 months; every other country also 12 months (the server checks the same rule) */
-export const plansFor = country => PLANS.filter(x => country !== 'IN' || x.id !== 'y1');
+/* How long a bought sheet stays open (the server's accessDays, 365 unless staff change it): 365 days is "1 year" */
+export const accessSpan = days => { const d = Math.round(Number(days)) || 365; return d === 365 ? '1 year' : d + (d === 1 ? ' day' : ' days'); };
+/* India buys 1, 3 or 6 months; every other country also 12 months (the server decides where each plan is sold) */
+export const plansFor = country => PLANS.filter(x => (Array.isArray(x.regions) ? x.regions.includes(country === 'IN' ? 'IN' : 'INTL') : (country !== 'IN' || x.id !== 'y1')));
+/* the plans from GET /api/config, in the server's order (the objects are updated in place) */
+export function applyServerPlans(config) {
+  const src = config && config.plans;
+  if (!src || typeof src !== 'object') return false;
+  const ids = Object.keys(src);
+  if (!ids.length) return false;
+  const next = ids.map(id => {
+    const p = src[id] || {}, x = PLANS.find(y => y.id === id) || { id };
+    return Object.assign(x, { label: p.label || x.label || id, months: Number(p.months) || x.months || 1, price: Number(p.price) || 0, note: p.note || undefined, regions: Array.isArray(p.regions) ? p.regions : x.regions, discountPct: Number(p.discountPct) || 0 });
+  });
+  PLANS.splice(0, PLANS.length, ...next);
+  return true;
+}
 /* ---------- the shelf: classes × subjects (price 0 = free access sheet) ---------- */
 export const CLASSES = [
   { id: 'kg', label: 'Kindergarten' },

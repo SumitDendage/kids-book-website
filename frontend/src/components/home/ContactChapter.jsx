@@ -1,12 +1,29 @@
 import { useState } from 'react';
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
-import { sendContact } from '../../services/api.js';
+import { contactApi, sendContact } from '../../services/api.js';
+import { getCoConfig, loadCoConfig } from '../../services/checkout.js';
 import { isEmail } from '../../utils/format.js';
 
-/* 05 · Contact us — the note goes through Web3Forms (services/api.js) to the shop's inbox.
+/* 05 · Contact us. The note goes to our own server first (POST /api/contact): it lands in the staff
+   inbox and is emailed to the shop once email is set up there. While the server cannot send email yet
+   (GET /api/config features.email is false), the old Web3Forms copy goes too, so the owner still gets
+   an email. If our server cannot be reached at all, Web3Forms alone carries the note.
    The email, WhatsApp and Instagram line is gone from here (Sumit, Oct 7); those buttons
    live in the footer. */
+const FIELD = { name: 'ctName', email: 'ctEmail', message: 'ctMsg' };
+async function deliver(note) {
+  try {
+    await contactApi.send(note);
+  } catch (err) {
+    if (err.status === 0 || err.status >= 500) return sendContact(note);   /* our server is out of reach: Web3Forms alone */
+    throw err;   /* the server said what is wrong (a field, too many notes) */
+  }
+  let emailOn = false;
+  try { const cfg = getCoConfig() || await loadCoConfig(); emailOn = !!(cfg && cfg.features && cfg.features.email); } catch (_) { emailOn = false; }
+  if (!emailOn) { try { await sendContact(note); } catch (_) { /* the note is safe in our inbox already */ } }
+  return null;
+}
 export default function ContactChapter() {
   const [f, setF] = useState({ name: '', email: '', msg: '' });
   const [errs, setErrs] = useState({});
@@ -22,11 +39,13 @@ export default function ContactChapter() {
     if (errors.ctName || errors.ctEmail || errors.ctMsg) return;
     setBusy(true); setAlert(null);
     try {
-      await sendContact({ name, email, message: msg });
+      await deliver({ name, email, message: msg });
       setF({ name: '', email: '', msg: '' });
-      setAlert({ type: 'ok', body: <>Thank you, {name.split(' ')[0]} — your note is with us. We reply within one working day.</> });
+      setAlert({ type: 'ok', body: <>Thank you, {name.split(' ')[0]}. Your note is with us, and we reply within one working day.</> });
     } catch (err) {
-      setAlert({ type: 'err', body: err.message });
+      const fe = err.body && err.body.errors;
+      if (fe && typeof fe === 'object') setErrs(Object.fromEntries(Object.keys(fe).filter(k => FIELD[k]).map(k => [FIELD[k], fe[k]])));
+      setAlert({ type: 'err', body: err.status === 429 ? 'You have sent a few notes already. Please wait a few minutes and try again.' : err.message });
     } finally { setBusy(false); }
   }
   const field = (id, label, input) => (

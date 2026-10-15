@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext.jsx';
 import { sendChatMessage } from '../../services/aiChat.js';
+import { eventsApi } from '../../services/api.js';
 import { AI_WELCOME, AI_ERROR } from '../../data/aiAssistant.js';
 import AIChatButton from './AIChatButton.jsx';
 import AIChatPanel from './AIChatPanel.jsx';
@@ -23,6 +24,15 @@ export default function AIAssistant() {
   const [unread, setUnread] = useState(false);
   const pending = useRef(null), openRef = useRef(false), buttonRef = useRef(null), clearTimer = useRef(0);
   openRef.current = open;
+
+  /* visit statistics: a page_view each time the address changes inside the site (the first one,
+     on load, is sent by SiteContext). Staff pages are not counted. */
+  const lastPath = useRef(pathname);
+  useEffect(() => {
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    if (!/^\/(admin|developer)(\/|$)/.test(pathname)) eventsApi.track('page_view', { path: pathname });
+  }, [pathname]);
 
   /* back to the round button, so the keyboard does not lose its place */
   const focusButton = () => requestAnimationFrame(() => buttonRef.current?.focus({ preventScroll: true }));
