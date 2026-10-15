@@ -1,15 +1,16 @@
 /* THE LIVE SCENERY — the birds and the waterfalls of the landscape picture, moving on their
    own (Sumit, Oct 7: "this bird also move and the waterfall is also flow"). The frames follow
    the scroll and stand still when the page does; this canvas runs on the clock instead.
-   - The four birds of the picture never sit: they fly side to side all the time, each on its
-     own height and rhythm, turning round at each end ("the bird is side moving not sitting").
-     Their paths cross the middle of the picture, so phones see them too.
+   - The birds of the picture fly the way real birds do (Sumit, Oct 15: "moving of birds
+     naturally"): each one crosses the whole sky in a long, gentle curve and comes back later
+     from the other side, so they never pace to and fro or spin round in mid-air. The body
+     follows the path, nose up when climbing and down when it sinks; climbing birds flap,
+     sinking birds glide with their wings held out, and the speed changes a little along the
+     way. Their paths are staggered so a few are always in the sky, phones included.
    - Each bird really flaps (Sumit, Oct 7: "it fly animation is not good"): the sprite is cut
      into its body and its two wings, and the wings beat up and down from the shoulder, a
      quick downstroke and a slower upstroke, with the body lifting a little on each beat.
-     After a few beats the bird glides with its wings held out, then flaps again, and at the
-     end of its path it turns round instead of flipping.
-   - Birds cross the sky one after another, and a far flock passes now and then.
+   - A far flock passes now and then.
    - The water in the waterfalls keeps running from the top to the bottom.
    Everything is drawn in the picture's own pixels (1600 × 900) through the same camera move
    as the frames and the same cover fit, so it stays on the picture on every screen.
@@ -25,21 +26,17 @@ function camera(i) {
   return { x0: (PW - w) * (0.5 - 0.5 * Math.cos(Math.PI * p)), y0: (PH - h) * 0.6, k: FW / w };
 }
 
-/* the picture's four birds (two bluebirds, two purple birds): the middle and half-width of
-   each one's side-to-side flight, its height, width, seconds for there and back, phase,
-   seconds per wing beat, beats before a glide and how long the glide lasts */
-const GLIDERS = [
-  { fly: 'blue', cx: 430, span: 330, y: 560, w: 77, period: 17, phase: 0, beat: 0.26, flaps: 6, glide: 0.8 },
-  { fly: 'purple', cx: 1180, span: 330, y: 500, w: 82, period: 19, phase: 1.7, beat: 0.28, flaps: 5, glide: 0.9 },
-  { fly: 'blue', cx: 760, span: 420, y: 655, w: 52, period: 21, phase: 3.1, beat: 0.22, flaps: 7, glide: 0.6 },
-  { fly: 'purple', cx: 930, span: 480, y: 390, w: 88, period: 23, phase: 4.4, beat: 0.3, flaps: 4, glide: 1.0 },
-];
-/* birds crossing the sky: which look, from x to x, height, how long the crossing takes, how
-   often it comes round and when it starts; the flying sprite faces left */
-const CROSSERS = [
-  { fly: 'purple', from: 1700, to: -120, y: 330, size: 0.95, dur: 13, every: 22, at: 4 },
-  { fly: 'blue', from: -120, to: 1720, y: 215, size: 0.7, dur: 15, every: 26, at: 11 },
-  { fly: 'purple', from: 1720, to: -120, y: 430, size: 0.85, dur: 14, every: 31, at: 20 },
+/* the birds of the picture (bluebirds and purple birds). Each crosses the sky from `from` to
+   `to` (picture x) in `dur` seconds, comes round every `every` seconds starting at `at`, at
+   height y with long slow rises and dips (`amp` pixels, `waves` half-waves per crossing), `w`
+   wide, and `beat` seconds per wing beat. The flying sprite faces left */
+const BIRDS = [
+  { fly: 'blue', from: -110, to: 1710, y: 560, amp: 34, waves: 1.6, ph: 0.4, w: 74, dur: 24, every: 30, at: 0, beat: 0.26 },
+  { fly: 'purple', from: 1710, to: -110, y: 470, amp: 42, waves: 1.2, ph: 2.1, w: 82, dur: 27, every: 34, at: 9, beat: 0.29 },
+  { fly: 'blue', from: 1710, to: -110, y: 650, amp: 26, waves: 2.0, ph: 1.0, w: 54, dur: 22, every: 29, at: 15, beat: 0.22 },
+  { fly: 'purple', from: -110, to: 1710, y: 380, amp: 46, waves: 1.4, ph: 3.3, w: 86, dur: 29, every: 37, at: 21, beat: 0.3 },
+  { fly: 'purple', from: 1710, to: -110, y: 300, amp: 30, waves: 1.0, ph: 0.9, w: 64, dur: 25, every: 41, at: 30, beat: 0.27 },
+  { fly: 'blue', from: -110, to: 1710, y: 230, amp: 24, waves: 1.8, ph: 2.6, w: 50, dur: 23, every: 45, at: 38, beat: 0.23 },
 ];
 const FLOCK = { every: 28, dur: 16, at: 6, y: 165 };
 /* the water mask covers this part of the picture */
@@ -153,23 +150,30 @@ export function createScenery(canvas) {
     ctx.restore();
   }
 
-  /* side to side: steady across the middle, easing round at each end, where it turns about */
-  function drawGlider(b, t) {
-    const th = 2 * Math.PI * t / b.period + b.phase, K = 3;
-    const x = b.cx + b.span * Math.atan(K * Math.sin(th)) / Math.atan(K);
-    const c = Math.cos(th), face = (c < 0 ? -1 : 1) * Math.max(0.45, Math.min(1, 5 * Math.abs(c)));   /* narrows as it turns round, never to a sliver */
-    const y = b.y + 10 * Math.sin(2 * th + b.phase) - 12 * (1 - Math.abs(Math.cos(th)));
-    const wings = still ? { pos: 0.6, lift: 0 } : wingsAt(t, b.beat, b.flaps, b.glide, b.phase);
-    flying(b.fly, x, y, b.w, face, wings, 0, 1);
+  /* where a crossing bird is u (0…1) of the way along: picture x, y and the path's slope */
+  function along(b, u) {
+    const dir = Math.sign(b.to - b.from), v = u + 0.025 * Math.sin(2 * Math.PI * u + b.ph);   /* a little faster, then slower */
+    const x = b.from + (b.to - b.from) * v, a = Math.PI * b.waves * v + b.ph;
+    const y = b.y + b.amp * Math.sin(a) + 0.35 * b.amp * Math.sin(2.3 * a + 1);
+    return { x, y, dir };
+  }
+
+  /* one bird crossing the sky: the body follows its path, it flaps while it climbs and glides
+     with its wings out while it sinks, easing between the two */
+  function drawBird(b, t, j) {
+    const q = (((t - b.at) % b.every) + b.every) % b.every; if (q > b.dur) return;
+    const u = q / b.dur, p = along(b, u), n = along(b, Math.min(1, u + 0.004));
+    const dx = n.x - p.x || p.dir, dy = n.y - p.y;
+    const slope = Math.max(-0.3, Math.min(0.3, Math.atan(dy / dx)));
+    const climb = -dy / Math.abs(dx);                   /* > 0 rising, < 0 sinking */
+    const flapping = Math.max(0, Math.min(1, 0.5 + climb * 6));
+    const f = wingsAt(t, b.beat, 4 + (j % 3), 0.5, j * 0.7);
+    const wings = { pos: 0.45 + (f.pos - 0.45) * flapping, lift: f.lift * flapping };
+    const fade = Math.min(1, u * 12, (1 - u) * 12);     /* no pop at the picture's edges */
+    flying(b.fly, p.x, p.y, b.w, p.dir, wings, 0.75 * slope, fade);
   }
 
   function drawCrossers(t) {
-    CROSSERS.forEach((c, j) => {
-      const q = (((t - c.at) % c.every) + c.every) % c.every; if (q > c.dur) return;
-      const u = q / c.dur, x = c.from + (c.to - c.from) * u, y = c.y + 28 * Math.sin(2 * Math.PI * u * 1.5 + j) - 30 * Math.sin(Math.PI * u);
-      const dir = Math.sign(c.to - c.from), tilt = 0.06 * Math.cos(2 * Math.PI * u * 1.5 + j) * -dir;
-      flying(c.fly, x, y, 77 * c.size, dir, wingsAt(t, 0.24 + j * 0.02, 5, 0.7, j), tilt, 1);
-    });
     /* the far flock: five small dark "v" shapes beating their wings */
     const q = (((t - FLOCK.at) % FLOCK.every) + FLOCK.every) % FLOCK.every;
     if (q > FLOCK.dur) return;
@@ -213,7 +217,8 @@ export function createScenery(canvas) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * (ox - cam.x0 * sc), dpr * (oy - cam.y0 * sc));
     if (!still) { drawWater(t); drawCrossers(t); }
-    GLIDERS.forEach(b => drawGlider(b, still ? 0 : t));
+    if (still) BIRDS.slice(0, 4).forEach((b, j) => { const p = along(b, 0.25 + 0.15 * j); flying(b.fly, p.x, p.y, b.w, p.dir, { pos: 0.6, lift: 0 }, 0, 1); });
+    else BIRDS.forEach((b, j) => drawBird(b, t, j));
   }
   return { paint, resize, destroy() {} };
 }
