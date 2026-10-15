@@ -9,7 +9,7 @@ import { optionalUser, requireUser } from '../lib/auth.ts';
 import { rateLimit } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
 import { accessDaysFor, buildQuote } from '../services/pricing.ts';
-import { entStatus, pubEntitlement, type EntRow } from '../services/entitlements.ts';
+import { entStatus, type PrintRule, pubEntitlement, sheetPrints, type EntRow } from '../services/entitlements.ts';
 
 const ms = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).getTime());
 const iso = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).toISOString());
@@ -22,6 +22,7 @@ type ListRow = {
   thumb_url: string | null; audience: string | null; rating: number | null; rating_count: number;
   review_avg: number | null; review_count: number; print_limit: number; download_limit: number; stock: number | null;
   access_days: number | null; landscape: boolean; tags: string[]; has_pdf: boolean; class_status: string;
+  print_rule: PrintRule;
 };
 
 async function catalogue(_ctx: Ctx) {
@@ -31,7 +32,7 @@ async function catalogue(_ctx: Ctx) {
     const rows = await q<ListRow[]>`
       select p.id, p.title, p.description, p.class_id, p.subject, p.group_id, p.section, p.section_label, p.pages,
              p.price_inr, p.was_price_inr, p.thumb_url, p.audience, p.rating::float8 as rating, p.rating_count,
-             p.review_avg::float8 as review_avg, p.review_count, p.print_limit, p.download_limit, p.stock,
+             p.review_avg::float8 as review_avg, p.review_count, p.print_limit, p.print_rule, p.download_limit, p.stock,
              p.access_days, p.landscape, p.tags, coalesce(f.has_pdf, false) as has_pdf, c.status as class_status
       from products p
       join classes c on c.id = p.class_id
@@ -63,6 +64,9 @@ async function catalogue(_ctx: Ctx) {
       onSale: w.has_pdf && w.class_status === 'available' && !soldOut,
       accessDays: accessDaysFor(s, w.access_days),
       printLimit: w.print_limit,
+      // prints of this sheet per account type ('account' rule: settings.prints; 'sheet': printLimit)
+      printRule: w.print_rule,
+      prints: sheetPrints(w, s.prints),
       downloadLimit: w.download_limit,
       rating: w.rating,
       ratingCount: w.rating_count,

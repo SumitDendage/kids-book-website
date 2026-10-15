@@ -25,12 +25,31 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:
 const bad = (field: string, message: string) => new HttpError(400, message, { code: 'bad_range', errors: { [field]: message } });
 const UNKNOWN_ZONE = 'This time zone is not known to the database — use another name for it.';
 
-/** The time zone from a query value: a valid IANA name, or the default when missing. */
+/** Old zone names that browsers still report (Chrome says "Asia/Calcutta" for Indian time), with
+ *  today's name. A database whose zone list leaves out the old links refuses them, so they are
+ *  swapped before any SQL sees them. */
+const OLD_ZONES: Record<string, string> = {
+  'Asia/Calcutta': 'Asia/Kolkata', 'Asia/Katmandu': 'Asia/Kathmandu', 'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Asia/Rangoon': 'Asia/Yangon', 'Asia/Dacca': 'Asia/Dhaka', 'Asia/Thimbu': 'Asia/Thimphu',
+  'Asia/Ulan_Bator': 'Asia/Ulaanbaatar', 'Asia/Ujung_Pandang': 'Asia/Makassar', 'Asia/Macao': 'Asia/Macau',
+  'Asia/Chongqing': 'Asia/Shanghai', 'Asia/Chungking': 'Asia/Shanghai', 'Asia/Harbin': 'Asia/Shanghai',
+  'Asia/Kashgar': 'Asia/Urumqi', 'Asia/Tel_Aviv': 'Asia/Jerusalem', 'Asia/Istanbul': 'Europe/Istanbul',
+  'Europe/Kiev': 'Europe/Kyiv', 'Europe/Uzhgorod': 'Europe/Kyiv', 'Europe/Zaporozhye': 'Europe/Kyiv',
+  'Atlantic/Faeroe': 'Atlantic/Faroe', 'Africa/Asmera': 'Africa/Asmara', 'America/Godthab': 'America/Nuuk',
+  'America/Buenos_Aires': 'America/Argentina/Buenos_Aires', 'America/Catamarca': 'America/Argentina/Catamarca',
+  'America/Cordoba': 'America/Argentina/Cordoba', 'America/Jujuy': 'America/Argentina/Jujuy',
+  'America/Mendoza': 'America/Argentina/Mendoza', 'America/Indianapolis': 'America/Indiana/Indianapolis',
+  'America/Louisville': 'America/Kentucky/Louisville', 'America/Coral_Harbour': 'America/Atikokan',
+  'Pacific/Truk': 'Pacific/Chuuk', 'Pacific/Ponape': 'Pacific/Pohnpei', 'Pacific/Enderbury': 'Pacific/Kanton',
+  'Australia/Canberra': 'Australia/Sydney', 'Australia/ACT': 'Australia/Sydney', 'Australia/NSW': 'Australia/Sydney',
+};
+
+/** The time zone from a query value: a valid IANA name (an old name becomes today's), or the default when missing. */
 export function tzOf(v: string | null | undefined): string {
   const t = (v ?? '').trim();
   if (!t) return DEFAULT_TZ;
   if (!isTimeZone(t)) throw bad('tz', 'Use an IANA time zone such as Asia/Kolkata or UTC.');
-  return t;
+  return OLD_ZONES[t] ?? t;
 }
 
 /** Postgres refuses a zone name the browser's list knows but its own does not (SQLSTATE 22023). */

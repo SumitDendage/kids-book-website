@@ -13,7 +13,8 @@ import { getSettings } from '../lib/settings.ts';
 import { download, downloadBytes, WORKSHEETS } from '../lib/storage.ts';
 import { fmtDateTime } from '../lib/util.ts';
 import {
-  coveringEntitlements, entStatus, type EntRow, hasPdf, isLive, loadProduct, pickBest, type ProductRow, pubEntitlement,
+  coveringEntitlements, effectivePrintLimit, entStatus, type EntRow, hasPdf, isLive, loadProduct, pickBest, type ProductRow,
+  pubEntitlement,
 } from '../services/entitlements.ts';
 import { makeViewToken, readViewToken, type ViewClaims, viewTokenFrom } from '../services/viewtoken.ts';
 import { StampError, stampPdf } from '../services/watermark.ts';
@@ -73,16 +74,21 @@ function visibleTo(p: ProductRow | null, user: AuthedUser): p is ProductRow {
 const priceFor = (e: EntRow, p: ProductRow) => (e.scope === 'worksheet' ? p.price_inr : null);
 
 /** Copies of this sheet left on this access record (0 when the sheet offers none). Counted per
- *  record and sheet, so every sheet of a class plan has its own allowance. */
-async function quotaLeft(q: Tx, ent: EntRow, p: ProductRow) {
+ *  record and sheet, so every sheet of a class plan has its own allowance. Prints follow the
+ *  sheet's print rule: the account type's number (settings.prints) or the sheet's own limit
+ *  (services/entitlements.ts effectivePrintLimit, the one place it is worked out). */
+async function quotaLeft(q: Tx, ent: EntRow, p: ProductRow, role: string | null) {
+  const s = await getSettings(q);
+  const printLimit = effectivePrintLimit(p, role, s.prints);
   const rows = await q<{ kind: string; used: number }[]>`
     select kind, used from delivery_counts where entitlement_id = ${ent.id} and product_id = ${p.id}`;
   const used = (k: string) => rows.find((r) => r.kind === k)?.used ?? 0;
   return {
-    printsLeft: Math.max(0, p.print_limit - used('print')),
+    printsLeft: Math.max(0, printLimit - used('print')),
     downloadsLeft: Math.max(0, p.download_limit - used('download')),
-    printLimit: p.print_limit,
+    printLimit,
     downloadLimit: p.download_limit,
+    printRule: p.print_rule,
   };
 }
 
@@ -137,7 +143,7 @@ async function openSheet(ctx: Ctx) {
     const end = ms(ent.expires_at);
     const exp = Math.min(Date.now() + vs.tokenHours * 3_600_000, end ?? Number.MAX_SAFE_INTEGER);
     const token = await makeViewToken(q, { userId: user.id, productId: p.id, entitlementId: ent.id, sessionId: user.sessionId, exp });
-    const quota = await quotaLeft(q, ent, p);
+    const quota = await quotaLeft(q, ent, p, user.profile.role);
     await observeAccess(ctx, user, { action: 'access', productId: p.id, entitlementId: ent.id, ok: true, detail: `${ent.kind} · ${ent.scope}` }, q);
     await analytics(q, ctx, { kind: 'viewer_open', userId: user.id, productId: p.id });
     return { p, ent, token, exp, vs, quota };
@@ -184,18 +190,26 @@ async function viewContext(ctx: Ctx, action: AccessAction, o: { images?: boolean
     const claims = await readViewToken(q, raw);
     if (!claims || claims.userId !== user.id || claims.sessionId !== user.sessionId) {
       const why = !claims ? 'bad token' : claims.userId !== user.id ? 'token of another account' : 'token of another sign-in';
-      return await deny(q, ctx, user, 'view', new HttpError(403, BAD_LINK, { code: 'invalid' }), { productId: claims?.productId, detail: why });
+      // a token of another account names nothing of this customer's
+      const worksheet = claims && claims.userId === user.id ? claims.productId : null;
+      return await deny(q, ctx, user, 'view', new HttpError(403, BAD_LINK, { code: 'invalid', worksheet, scope: null, cls: null }),
+        { productId: claims?.productId, detail: why });
     }
+    // every refusal names the sheet, the kind of access record and the class, so the site can
+    // offer the right way back (open again, buy again, renew the plan)
+    const ref: { worksheet: string; scope: string | null; cls: string | null } = { worksheet: claims.productId, scope: null, cls: null };
     const fail = (status: number, msg: string, extra: Record<string, unknown>, detail: string) =>
-      deny(q, ctx, user, 'view', new HttpError(status, msg, extra), { productId: claims.productId, entitlementId: claims.entitlementId, detail });
+      deny(q, ctx, user, 'view', new HttpError(status, msg, { ...ref, ...extra }), { productId: claims.productId, entitlementId: claims.entitlementId, detail });
 
     const p = await loadProduct(q, claims.productId);
+    if (p) ref.cls = p.class_id;
     if (!visibleTo(p, user)) return await fail(404, NO_SHEET, {}, 'no such sheet');
 
     const er = await q<EntRow[]>`
       select e.*, pr.title, pr.price_inr from entitlements e left join products pr on pr.id = e.product_id
       where e.id = ${claims.entitlementId} and e.user_id = ${user.id}`;
     const tokenEnt = er[0];
+    if (tokenEnt) ref.scope = tokenEnt.scope;
     if (!tokenEnt || tokenEnt.revoked_at) return await fail(403, REVOKED, { code: 'revoked' }, tokenEnt ? 'entitlement revoked' : 'no entitlement');
     const covers = tokenEnt.scope === 'worksheet' ? tokenEnt.product_id === p.id : tokenEnt.class_id === p.class_id;
     if (!covers) return await fail(403, NOT_IN_PLAN, { code: 'invalid' }, 'entitlement does not cover sheet');
@@ -232,7 +246,7 @@ async function viewContext(ctx: Ctx, action: AccessAction, o: { images?: boolean
       ? await q<{ name: string; page: number }[]>`select name, page from private.worksheet_page_images(${p.pdf_path.replace(/\.pdf$/i, '')})`
       : [];
     const vs = await viewerSettings(q);
-    const quota = await quotaLeft(q, ent, p);
+    const quota = await quotaLeft(q, ent, p, user.profile.role);
     if (o.log) {
       await observeAccess(ctx, user, { action, productId: p.id, entitlementId: ent.id, ok: true, detail: o.detail ?? null }, q);
     }
@@ -261,7 +275,7 @@ async function meta(ctx: Ctx) {
     hasPdf: true,
     hasImages: v.images.length > 0,
     now,
-    user: { name: user.profile.name, email: user.profile.email },
+    user: { name: user.profile.name, email: user.profile.email, timeZone: user.profile.time_zone },
     // new
     worksheet: p.id,
     grant: ent.kind === 'grant',
@@ -287,8 +301,8 @@ async function stampedPdf(ctx: Ctx, v: ViewOk, bytes: Uint8Array): Promise<{ byt
   }
 }
 
-/** The stamped PDF the viewer draws the pages from. A view-only sheet (print and download limits
- *  0) still needs it — most sheets have no page picture for every page (DESIGN.md §5) — so it is
+/** The stamped PDF the viewer draws the pages from. A sheet with no prints or downloads left (or
+ *  none offered) still needs it — most sheets have no page picture for every page (DESIGN.md §5) — so it is
  *  never refused for that; every delivery is authenticated, stamped with the customer's name and
  *  email, logged and held to its own rate limit. */
 async function file(ctx: Ctx) {
@@ -330,19 +344,26 @@ const COPY = { print: 'printable', download: 'downloadable' } as const;
 async function takeCopy(ctx: Ctx, kind: 'print' | 'download') {
   const v = await viewContext(ctx, kind, { log: false });
   await rateLimit(ctx, 'delivery', v.user.id, 30, 600);
-  const limit = kind === 'print' ? v.p.print_limit : v.p.download_limit;
+  // prints: the effective allowance worked out in viewContext (print rule + account type)
+  const limit = kind === 'print' ? v.quota.printLimit : v.p.download_limit;
   const out = await tx(async (q) => {
     const meta = { productId: v.p.id, entitlementId: v.ent.id };
     if (limit <= 0) {
       const msg = kind === 'print'
-        ? 'Printing is not offered for this sheet — it opens in the viewer only.'
-        : 'Downloading is not offered for this sheet — it opens in the viewer only.';
+        ? 'Printing is not offered for this sheet. It opens in the viewer only.'
+        : 'Downloading is not offered for this sheet. It opens in the viewer only.';
       return await deny(q, ctx, v.user, kind, new HttpError(403, msg, { code: 'not_allowed', limit: 0 }), { ...meta, detail: 'not allowed' });
     }
     const r = await q<{ left: number }[]>`select private.consume_sheet_delivery(${v.ent.id}, ${v.p.id}, ${kind}, ${limit}) as left`;
     const left = r[0]?.left ?? -1;
     if (left < 0) {
-      const msg = `You have used all ${limit} ${COPY[kind]} ${limit === 1 ? 'copy' : 'copies'} of this sheet that come with your access.`;
+      // "all 3 prints … that come with your account"; "the 1 print … that comes with …"; a sheet with
+      // its own number (print rule 'sheet') names the sheet, not the account type
+      const whose = v.p.print_rule === 'sheet' ? 'that come with this sheet' : 'of this sheet that come with your account';
+      const used = limit === 1 ? `the 1 print ${whose.replace('come with', 'comes with')}` : `all ${limit} prints ${whose}`;
+      const msg = kind === 'print'
+        ? `You have used ${used}. You can still open it in the viewer.`
+        : `You have used all ${limit} ${COPY[kind]} ${limit === 1 ? 'copy' : 'copies'} of this sheet that come with your access.`;
       return await deny(q, ctx, v.user, kind, new HttpError(429, msg, { code: 'quota_exhausted', limit, used: limit }), { ...meta, detail: 'used up' });
     }
     await observeAccess(ctx, v.user, { action: kind, ...meta, ok: true, detail: `${limit - left}/${limit}` }, q);

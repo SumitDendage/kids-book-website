@@ -250,7 +250,7 @@ export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANG
 export const PLAYER_IDS = ['az-A', 'rc-A', 'cl-C', 'bx-1'];   /* the reading charts are A, I, N, P, S and T */
 export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
-  { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Subscription', note: 'per class' },
+  { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Paid', note: 'buy or subscribe' },
 ];
 /* the store's cards are the same seven Alphabet sections as the Kindergarten tiles (Sumit, Oct 5),
    each with the same sheets: a card's id is its section id */
@@ -280,6 +280,13 @@ export function applyServerCatalogue(worksheets) {
     it.onSale = w.onSale !== false;
     it.comingSoon = !!w.comingSoon;
     it.printLimit = Number(w.printLimit) || 0; it.downloadLimit = Number(w.downloadLimit) || 0;
+    /* prints: 'account' = as many as the customer's account type gets (Parent 3, Teacher 30, Organization 300
+       unless staff change them); 'sheet' = this sheet's own printLimit (0 = view only) */
+    it.printRule = w.printRule === 'sheet' ? 'sheet' : 'account';
+    /* the words the shop's search looks through */
+    if (typeof w.description === 'string' && w.description.trim()) it.description = w.description;
+    if (typeof w.sectionLabel === 'string' && w.sectionLabel.trim()) it.sectionLabel = w.sectionLabel;
+    if (Array.isArray(w.tags)) it.tags = w.tags.filter(t => typeof t === 'string');
     /* the printable pages carry the free/paid line in their own words, so keep it in step */
     if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it.accessDays); } });
   (worksheets || []).forEach(w => { if (!itemById(w.id)) SERVER_PRICE[w.id] = w.price; });   /* letter tracing + picture reading */

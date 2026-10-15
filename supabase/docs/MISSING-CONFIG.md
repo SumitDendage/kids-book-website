@@ -6,8 +6,8 @@ because each item is one of your accounts, keys or decisions.
 
 ## Already done in your Supabase project
 
-- The database: every table, rule, index and safety policy (16 migrations, listed under
-  **Database → Migrations**), the price plans, countries, settings, staff roles and the 105 Kindergarten
+- The database: every table, rule, index and safety policy (18 migrations, listed under
+  **Database → Migrations**; the newest adds account types, prints per account type and the cart), the price plans, countries, settings, staff roles and the 105 Kindergarten
   sheets (8 free, the rest ₹19). Class 1 to 3 show "Coming soon".
 - Two storage areas: **worksheets** (private, for PDFs and page pictures) and **covers** (public, for
   cover pictures uploaded from Admin → Products).
@@ -36,7 +36,11 @@ No key is needed for the Ask AI assistant: it answers from the FAQ stored in the
 - **GST 18%** for India, and the other countries' taxes (VAT 20% for the UK and so on) were copied from
   the old server. Please check with an accountant; change them in Admin → Settings.
 - Currency prices abroad use fixed exchange rates stored in Settings, not live rates.
-- Every sheet is **view only** (0 prints, 0 downloads per purchase) until you allow some in Products.
+- **Prints per sheet come from the account type:** Parent 3, Teacher 30, Organization 300 (a school,
+  tuition centre or other group). Each customer chooses their type once; you can change it in
+  Admin → Customers. Change the numbers in Admin → Settings, or give one sheet its own number in
+  Products (its print rule; 0 there means no printing). Downloads stay off (0 per purchase) until you
+  allow some in Products.
 - Customers from the old local server are **not** copied over (their passwords could not be moved
   safely); they sign up again.
 - The 28 old sample products (Hindi, Art & craft and the old demo sheets) were **not** imported.
@@ -62,5 +66,9 @@ customers about the new site.
 - Nobody can fully stop screenshots, phone photos or copies printed or downloaded when you allow them.
   The viewer shows the customer's name and email across every page and checks access again every
   minute (Admin → Settings).
-- A refund of part of an order does not take the sheet away; a full refund does.
+- A refund of part of an order does not take the sheet away; a full refund does. A full refund of an
+  order with several sheets ends every sheet in it.
+- Prints are counted when the server hands out a print copy. The server cannot see a printer, so it
+  cannot count copies made from one print dialog.
+- One order holds up to 50 sheets, and a cart holds up to 50.
 - Sharing checks run when someone signs in and when they open a paid sheet.

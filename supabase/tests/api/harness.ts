@@ -72,6 +72,8 @@ export type Harness = {
   fake: {
     route(method: string, pathPrefix: string, fn: FakeHandler): () => void;
     url: string;
+    /** the key the website sends as apikey (the dev server forwards /auth/v1 with it) */
+    publishableKey: string;
     calls: FakeSupabase['calls'];
     requests: FakeSupabase['requests'];
     auth: FakeSupabase['auth'];
@@ -356,6 +358,7 @@ export async function startHarness(): Promise<Harness> {
     fake: {
       route: (m, p, fn) => fake.route(m, p, fn),
       url: fake.url,
+      publishableKey,
       calls: fake.calls,
       requests: fake.requests,
       auth: fake.auth,

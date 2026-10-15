@@ -21,7 +21,14 @@ const REFRESHED = 'We refreshed your price because the old one had run out. Plea
 
 /* "Opens as soon as your payment is verified and stays open for 1 year, until 8 Oct 2027, 1:16 pm IST if you pay now." */
 function accessNoteOf(q, tz) {
-  const it = q && Array.isArray(q.items) ? q.items[0] : null;
+  const its = q && Array.isArray(q.items) ? q.items : [];
+  const it = its[0] || null;
+  if (its.length > 1) {
+    /* a cart: one sentence when every sheet stays open as long, else each line says its own time */
+    const days = Array.from(new Set(its.map(x => x.accessDays || q.accessDays || 0)));
+    if (days.length === 1 && days[0] && it.endsAt) return 'Every sheet opens as soon as your payment is verified and stays open for ' + spanOfDays(days[0]) + ', until ' + dateTimeTz(it.endsAt, tz) + ' if you pay now.';
+    return 'Every sheet opens as soon as your payment is verified. How long each one stays open is shown beside it.';
+  }
   if (!it || !it.endsAt) return q && q.accessText ? q.accessText : '';
   const until = dateTimeTz(it.endsAt, tz);
   if (it.kind === 'worksheet') return 'Opens as soon as your payment is verified and stays open for ' + spanOfDays(it.accessDays || q.accessDays) + ', until ' + until + ' if you pay now.';
@@ -51,6 +58,12 @@ export default function Checkout() {
   const lastTotal = useRef(null), timer = useRef(0), seq = useRef(0), shopRef = useRef(null);
   const item = checkout.item ? sheetOf(checkout.item) : null;
   const itemId = checkout.item;
+  /* the cart: several sheets in one order (openCheckout({ worksheets })). A sheet the server says cannot be
+     bought (already on the account, free now, not for sale) can be taken out here and the price asked again. */
+  const [removed, setRemoved] = useState([]);
+  const [problem, setProblem] = useState(null);   /* { id, msg } */
+  const multi = !itemId && !checkout.cls && Array.isArray(checkout.items) && checkout.items.length ? checkout.items.filter(id => !removed.includes(id)) : null;
+  const listRef = useRef(multi); listRef.current = multi;
   /* a class plan instead of one PDF: the plan is picked on this page */
   const subCls = !itemId && checkout.cls ? checkout.cls : null;
   const running = subCls ? access.activeSub(subCls) : null;   /* a renewal starts when this plan ends */
@@ -72,21 +85,50 @@ export default function Checkout() {
       setBusy(true); setError('');
       try {
         const address = addressForQuote(a);
-        const q = await payApi.quote(subCls ? { cls: subCls, plan: p, coupon: c, address } : { worksheet: itemId, coupon: c, address });
+        const list = listRef.current;
+        const q = await payApi.quote(subCls ? { cls: subCls, plan: p, coupon: c, address } : list ? { worksheets: list, coupon: c, address } : { worksheet: itemId, coupon: c, address });
         if (mine !== seq.current) return;
+        setProblem(null);
         if (lastTotal.current !== null && lastTotal.current !== q.total) setBump(b => b + 1);
         lastTotal.current = q.total;
         setQuote(q);
-      } catch (err) { if (mine === seq.current) { setQuote(null); setError(payErrorText(err, 'quote')); } }
+      } catch (err) {
+        if (mine === seq.current) {
+          const sp = sheetProblem(err);
+          setQuote(null); setProblem(sp); setError(sp ? '' : payErrorText(err, 'quote'));
+        }
+      }
       if (mine === seq.current) setBusy(false);
     };
     if (now) run(); else timer.current = setTimeout(run, 350);
   }, [addr, code, itemId, subCls]);
 
+  /* a cart line the server refused: which sheet, and why, in plain words */
+  function sheetProblem(err) {
+    const id = err && err.body && typeof err.body.worksheet === 'string' ? err.body.worksheet : null;
+    if (!listRef.current || !id || !listRef.current.includes(id)) return null;
+    const t = (sheetOf(id) || {}).title || 'One of the sheets';
+    const why = err.code === 'already_owned' ? t + ' is already on your account.'
+      : err.code === 'free' || err.code === 'is_free' ? t + ' is free now, so there is nothing to pay for it.'
+        : err.code === 'unknown_item' ? t + ' is not in the shop any more.'
+          : t + ' cannot be bought right now.';
+    return { id, msg: why + ' Take it out of this order to carry on.' };
+  }
+  /* take one sheet out of this order (and out of the cart) and ask for the price again */
+  const dropSheet = id => {
+    const next = (listRef.current || []).filter(x => x !== id);
+    setProblem(null); setRemoved(r => r.concat(id)); listRef.current = next;
+    site.removeFromCart(id);
+    if (!next.length) { closeCheckout(); site.openCart(); return; }
+    requestQuote(true);
+  };
+
   /* opening the page counts as a checkout start (visit statistics on the server) */
   useEffect(() => {
     if (!checkout.open) return;
-    eventsApi.track('checkout_start', itemId ? { productId: itemId, meta: { kind: 'worksheet', again: !!checkout.again } } : { meta: { kind: 'class', cls: checkout.cls || null, plan: checkout.plan || null, again: !!checkout.again } });
+    eventsApi.track('checkout_start', itemId ? { productId: itemId, meta: { kind: 'worksheet', again: !!checkout.again } }
+      : multi ? { meta: { kind: 'cart', count: multi.length } }
+        : { meta: { kind: 'class', cls: checkout.cls || null, plan: checkout.plan || null, again: !!checkout.again } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkout.nonce]);
 
@@ -95,7 +137,8 @@ export default function Checkout() {
     if (!checkout.open) return;
     if (shopRef.current) shopRef.current.scrollTop = 0;
     if (checkout.plan) setPlanPick(checkout.plan);
-    setQuote(null); setError(''); setNotice(''); lastTotal.current = null; setStatus('loading');
+    setQuote(null); setError(''); setNotice(''); setProblem(null); lastTotal.current = null; setStatus('loading');
+    setRemoved([]); listRef.current = !checkout.item && !checkout.cls && Array.isArray(checkout.items) && checkout.items.length ? checkout.items.slice() : null;
     let alive = true;
     loadCoConfig().then(cfg => {
       if (!alive) return;
@@ -162,7 +205,7 @@ export default function Checkout() {
       write('lww_address', addr);
       if (g.provider === 'stripe' || g.provider === 'paypal') {
         /* hosted pages: remember the order, hand over to the gateway; the site finishes it on the way back */
-        try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: orderId, provider: g.provider, total: q.total, currency: q.currency, worksheet: itemId, cls: subCls, plan: subCls ? plan : null, via })); } catch (_) {}
+        try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: orderId, provider: g.provider, total: q.total, currency: q.currency, worksheet: itemId, worksheets: multi || undefined, cls: subCls, plan: subCls ? plan : null, via })); } catch (_) {}
         location.href = g.url; return;
       }
       if (g.provider !== 'razorpay') throw Object.assign(new Error('Online payment is not available right now.'), { code: 'payments_unavailable' });
@@ -196,6 +239,12 @@ export default function Checkout() {
         requestQuote(true);
         return;
       }
+      /* one sheet of the cart is already on the account, or cannot be sold any more: say which, offer to take it out */
+      if (multi && sheetProblem(err)) {
+        if (err.code === 'already_owned') await syncEntitlements();
+        setProblem(sheetProblem(err)); setQuote(null);
+        return;
+      }
       /* already on the account (bought in another tab or device): no second payment, show the sheet instead */
       if (err.status === 409 && err.code === 'already_owned') {
         await syncEntitlements(); closeCheckout();
@@ -225,11 +274,17 @@ export default function Checkout() {
   const summary = (
     <aside className="co-summary" id="coSummary" aria-live="polite">
       <div className="sum-head"><p className="eyebrow">Order summary</p>{q && <span className={'region-chip' + (q.region === 'IN' ? ' in' : '')}>{q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + q.countryName + ' · ' + q.currency}</span>}</div>
-      {item
+      {multi
+        ? <div className="sum-items" id="coItems"><p className="sum-count">{multi.length} sheets in one order</p>{multi.map(id => {
+          const s = sheetOf(id) || { title: id }, c = s.cls ? classById(s.cls) : null, qi = q && Array.isArray(q.items) ? q.items.find(x => x.productId === id) : null;
+          return <div key={id} className="sum-item" data-sheet={id}><div className="sum-thumb">{s.glyph || s.az || 'PDF'}</div><div><b>{s.title}</b><small>{c ? c.label + ' · ' : ''}open for {spanOfDays((qi && qi.accessDays) || s.accessDays || days)}{qi && qi.unitPriceInr ? ' · ₹' + qi.unitPriceInr : ''}</small></div></div>;
+        })}</div>
+        : item
         ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · open for {spanOfDays(days)}{checkout.again ? ' · buying access again' : ''}</small></div></div>
         : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planNow ? planNow.label : ''} · every sheet in the class{running && running.end ? ' · starts ' + dateTimeTz(running.end, tz) + ', when your current plan ends' : ''}</small></div></div>}
       <div className={'co-lines' + (busy ? ' busy' : '')}>
         {q ? q.lines.map((l, i) => <div key={i} className="co-line"><span>{l.label}<small>{l.note || ''}</small></span><b>{fmtCur(l.amount, q.currency)}</b></div>)
+          : problem ? <div className="alert err" id="coProblem" role="alert">{problem.msg} <button type="button" className="link" onClick={() => dropSheet(problem.id)}>Take it out</button></div>
           : error ? <p className="alert err">{error}</p> : <><div className="sk-line" /><div className="sk-line" /><div className="sk-line short" /></>}
       </div>
       {q && <div className={'sum-total' + (bump ? ' bump' : '')}><span>Total<small>incl. tax &amp; fees</small></span><strong key={bump}>{fmtCur(q.total, q.currency)}</strong></div>}
@@ -300,7 +355,7 @@ export default function Checkout() {
         <div><p className="eyebrow">Secure checkout</p><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
         <div className="shop-actions"><span className="co-lock">🔒 256-bit encrypted</span><button type="button" className="icon-btn" id="checkoutBack" aria-label="Back" onClick={closeCheckout}>✕</button></div>
       </header>
-      <div className="checkout-body" id="checkoutBody">{checkout.item || subCls || status !== 'ready' ? body : null}</div>
+      <div className="checkout-body" id="checkoutBody">{checkout.item || subCls || multi || status !== 'ready' ? body : null}</div>
     </div>
   );
 }

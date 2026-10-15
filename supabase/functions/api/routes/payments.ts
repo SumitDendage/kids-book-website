@@ -125,8 +125,15 @@ function checkQuoteMatches(quote: StoredQuote, b: Record<string, unknown>, sent:
   const line = quote.lines[0];
   const kind = val('kind');
   if (kind && kind !== quote.kind) throw mismatch();
+  // one sheet: { worksheet }; several sheets (the cart): { worksheets: [...] } in any order
   const ws = val('worksheet');
-  if (ws && ws !== line.productId) throw mismatch();
+  if (ws && (quote.lines.length !== 1 || ws !== line.productId)) throw mismatch();
+  const list = Array.isArray(b.worksheets) ? b.worksheets : Array.isArray(sent.worksheets) ? sent.worksheets : null;
+  if (list) {
+    const want = new Set(quote.lines.map((l) => l.productId ?? ''));
+    const got = new Set(list.map((v) => (typeof v === 'string' ? v.trim() : '\u0000')));
+    if (quote.kind !== 'worksheet' || got.size !== want.size || [...got].some((v) => !want.has(v))) throw mismatch();
+  }
   const cls = val('cls');
   if (cls && quote.kind === 'class' && cls !== line.classId) throw mismatch();
   const plan = val('plan');
@@ -198,6 +205,7 @@ async function createOrder(ctx: Ctx) {
 
   // 2. the gateway's order / hosted page (outside any transaction)
   const line = quote.lines[0];
+  const several = quote.lines.length > 1;
   const description = (quote.title || line.title || 'Learn With Why').slice(0, 200);
   const site = env().siteUrl;
   const enc = encodeURIComponent(id);
@@ -208,7 +216,11 @@ async function createOrder(ctx: Ctx) {
     if (method === 'razorpay') {
       const rz = await rzpCreateOrder({
         amountMinor: quote.amountMinor, currency: quote.currency, receipt: id,
-        notes: { order: id, kind: quote.kind, cls: line.classId ?? '', worksheet: line.productId ?? '' },
+        notes: {
+          order: id, kind: quote.kind, cls: line.classId ?? '', worksheet: several ? '' : line.productId ?? '',
+          items: String(quote.lines.length),
+          ...(several ? { worksheets: quote.lines.map((l) => l.productId ?? '').join(',').slice(0, 250) } : {}),
+        },
       });
       gatewayOrderId = rz.id;
       gateway = {
@@ -218,7 +230,7 @@ async function createOrder(ctx: Ctx) {
     } else if (method === 'stripe') {
       const st = await stripeCreateSession({
         orderId: id, amountMinor: quote.amountMinor, currency: quote.currency, description, email: u.profile.email,
-        successUrl: `${site}/?pay=stripe&order=${enc}&session={CHECKOUT_SESSION_ID}`, cancelUrl, kind: quote.kind, worksheet: line.productId,
+        successUrl: `${site}/?pay=stripe&order=${enc}&session={CHECKOUT_SESSION_ID}`, cancelUrl, kind: quote.kind, worksheet: several ? null : line.productId,
       });
       gatewayOrderId = st.id;
       gateway = { provider: 'stripe', mode, url: st.url, session: st.id, description };

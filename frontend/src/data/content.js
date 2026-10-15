@@ -15,14 +15,29 @@ export const NAV = ['Home', 'About us', 'What we do', 'Sheets', 'Contact us', 'T
 /* the chapter anchors: /#home, /#about, … /#testimonials */
 export const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'testimonials'];
 
-/* who is signing up — sets the default licence */
-export const ROLES = [
-  { id: 'parent', label: 'Parent', licence: 'individual' },
-  { id: 'teacher', label: 'Teacher', licence: 'teacher' },
-  { id: 'tutor', label: 'Tutor', licence: 'tutor' },
-  { id: 'school', label: 'School', licence: 'school' },
+/* The account type, asked once after the first sign-in (Sumit, 15 Oct): Parent, Teacher or
+   Organization. id is what the server keeps (profiles.role): Organization is stored as 'school',
+   and an older 'tutor' account counts as a Teacher. key names its prints in GET /api/config
+   (prints: { parent, teacher, organization }), which staff change in Admin → Settings. */
+export const ACCOUNT_TYPES = [
+  { id: 'parent', key: 'parent', label: 'Parent', plural: 'Parents', hint: 'At home, for my own children', licence: 'individual' },
+  { id: 'teacher', key: 'teacher', label: 'Teacher', plural: 'Teachers', hint: 'For my class or my students', licence: 'teacher' },
+  { id: 'school', key: 'organization', label: 'Organization', plural: 'Organizations', hint: 'A school, tuition centre or other group', licence: 'school' },
 ];
-export const roleOf = id => ROLES.find(r => r.id === id) || ROLES[0];
+/* the type a stored role belongs to, or null while the customer has not chosen yet */
+export const accountTypeOf = role => (role === 'school' ? ACCOUNT_TYPES[2] : role === 'teacher' || role === 'tutor' ? ACCOUNT_TYPES[1] : role === 'parent' ? ACCOUNT_TYPES[0] : null);
+/* prints per sheet for each type until GET /api/config answers (the server's numbers win) */
+export const DEFAULT_PRINTS = { parent: 3, teacher: 30, organization: 300 };
+export function printsTableOf(config) {
+  const p = config && config.prints && typeof config.prints === 'object' ? config.prints : {};
+  const n = (v, d) => (Number.isInteger(v) && v >= 0 ? v : d);
+  return { parent: n(p.parent, DEFAULT_PRINTS.parent), teacher: n(p.teacher, DEFAULT_PRINTS.teacher), organization: n(p.organization, DEFAULT_PRINTS.organization) };
+}
+/* "3 prints", "1 print", "No prints" */
+export const printsText = n => (n === 0 ? 'No prints' : n + (n === 1 ? ' print' : ' prints'));
+/* kept for older callers: the account types under their old name */
+export const ROLES = ACCOUNT_TYPES;
+export const roleOf = id => accountTypeOf(id) || ACCOUNT_TYPES[0];
 /* Subscriptions: pay for one class for a period, open every sheet in it while it runs.
    THE SERVER SETS THE PLANS: GET /api/config answers with each plan's name, months, price,
    discount and the countries it is sold in, and applyServerPlans() copies that in here.

@@ -55,6 +55,10 @@ export type StoredQuote = {
 
 export const PAYMENT_METHODS = ['razorpay', 'stripe', 'paypal'] as const;
 export const STALE_QUOTE = 'This quote is not valid any more — refresh the price and try again.';
+/** The most sheets one order (and the cart) can hold. */
+export const MAX_SHEETS_PER_ORDER = 50;
+export const OWNED_MESSAGE = 'This sheet is already on your account. Open it from My Worksheets.';
+export const FREE_MESSAGE = 'This sheet is free. Just open it, there is nothing to pay.';
 
 const PRODUCT_RE = /^[A-Za-z0-9][A-Za-z0-9-]{1,63}$/;
 const CLASS_RE = /^[a-z0-9]{1,12}$/;
@@ -444,6 +448,40 @@ function expiryText(item: Item, startsAt: Date, tz: string | null): { expiry: st
 
 const bad = (message: string, code: string, extra: Record<string, unknown> = {}) => new HttpError(400, message, { code, ...extra });
 
+/** The sheets of a several-sheet quote ({ worksheets: [id, ...] }): 1 to 50 paid sheets on sale,
+ *  repeats counted once. A free, unknown or unavailable sheet, or (for a signed-in customer) one
+ *  already open on the account, refuses the whole quote with its code and the sheet's id. */
+async function worksheetItems(q: Tx, s: Settings, raw: unknown, userId: string | null): Promise<Item[]> {
+  if (!Array.isArray(raw)) throw bad('Send the sheets as a list.', 'bad_items');
+  const ids: string[] = [];
+  for (const v of raw) {
+    const id = typeof v === 'string' ? v.trim() : '';
+    if (!id) throw bad('Unknown worksheet.', 'unknown_item', { worksheet: typeof v === 'string' ? v : null });
+    if (!ids.includes(id)) ids.push(id);
+    if (ids.length > MAX_SHEETS_PER_ORDER) break;
+  }
+  if (!ids.length) throw bad('Choose at least one sheet.', 'no_items');
+  if (ids.length > MAX_SHEETS_PER_ORDER) {
+    throw bad(`One order can hold up to ${MAX_SHEETS_PER_ORDER} sheets.`, 'too_many', { max: MAX_SHEETS_PER_ORDER });
+  }
+  const items: Item[] = [];
+  for (const id of ids) {
+    const item = await worksheetItem(q, s, id);
+    if (!item) throw bad('Unknown worksheet.', 'unknown_item', { worksheet: id });
+    if (item.priceInr === 0) throw bad(FREE_MESSAGE, 'free', { worksheet: item.productId });
+    if (item.problem) throw bad(item.problem.message, item.problem.code, { worksheet: item.productId });
+    if (userId && await ownsSheet(q, userId, id)) throw new HttpError(409, OWNED_MESSAGE, { code: 'already_owned', worksheet: id });
+    items.push(item);
+  }
+  return items;
+}
+
+/** One value when every item has it, else null (class, access days of a several-sheet order). */
+function common<T>(items: Item[], pick: (it: Item) => T): T | null {
+  const first = pick(items[0]);
+  return items.every((it) => pick(it) === first) ? first : null;
+}
+
 function ttlMinutes(s: Settings): number {
   const t = Math.round(Number(s.quote.ttlMinutes));
   return t >= 1 && t <= 1440 ? t : DEFAULTS.quote.ttlMinutes;
@@ -458,49 +496,63 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   const country = countryFor(s, typeof addrIn.country === 'string' ? addrIn.country : (typeof body.country === 'string' ? body.country : null));
   const region = regionOf(country);
 
-  // what is being bought
-  let item: Item | null;
-  if (body.worksheet !== undefined && body.worksheet !== null && body.worksheet !== '') {
-    item = typeof body.worksheet === 'string' ? await worksheetItem(q, s, body.worksheet.trim()) : null;
+  // what is being bought: several sheets (the cart), one sheet, or one class plan
+  const userId = ctx.user?.id ?? null;
+  let items: Item[];
+  if (body.worksheets !== undefined && body.worksheets !== null) {
+    items = await worksheetItems(q, s, body.worksheets, userId);
+  } else if (body.worksheet !== undefined && body.worksheet !== null && body.worksheet !== '') {
+    const item = typeof body.worksheet === 'string' ? await worksheetItem(q, s, body.worksheet.trim()) : null;
     if (!item) throw bad('Unknown worksheet.', 'unknown_item');
     if (item.priceInr === 0) throw bad('That sheet is free — just open it.', 'free', { worksheet: item.productId });
     if (item.problem) throw bad(item.problem.message, item.problem.code, { worksheet: item.productId });
+    items = [item];
   } else {
     const cls = typeof body.cls === 'string' ? body.cls.trim() : '';
     const plan = typeof body.plan === 'string' ? body.plan.trim() : '';
-    item = cls && plan ? await planItem(q, cls, plan) : null;
+    const item = cls && plan ? await planItem(q, cls, plan) : null;
     if (!item) throw bad('Unknown plan or class.', 'unknown_item');
     if (!item.planRegions.includes(region)) throw bad(await regionMessage(q, item, region, country.name), 'plan_region');
     if (item.problem) throw bad(item.problem.message, item.problem.code, { cls: item.classId });
+    items = [item];
   }
+  const item = items[0];
+  const several = items.length > 1;
 
   const rate = rateFor(s, country.currency);
   if (!rate) {
     throw new HttpError(503, `Prices in ${country.currency} are not available right now — please try again later or choose another country.`, { code: 'pricing_unavailable' });
   }
 
-  // coupon: checked for active, dates, kind and class; uses are counted again when the order is made
-  const userId = ctx.user?.id ?? null;
+  // coupon: checked for active, dates, kind and class (every line must qualify); uses are counted
+  // again when the order is made
   const code = cleanText(body.coupon, 40).toUpperCase();
   let coupon: CouponRow | null = null;
   let couponError: string | null = null;
   if (code) {
     const c = await loadCoupon(q, code, false);
-    couponError = !c ? 'That code is not valid.' : couponRuleProblem(c, [item]) ?? await couponUsageProblem(q, c, userId);
+    couponError = !c ? 'That code is not valid.' : couponRuleProblem(c, items) ?? await couponUsageProblem(q, c, userId);
     if (c && !couponError) coupon = c;
   }
 
-  const discount = rawDiscount(item.priceInr, item.classPct, item.planPct, coupon?.pct ?? 0);
-  const priced = priceIn(s, country, rate, item.priceInr, discount);
+  // one order: each line's discount on its own price, then one total with one tax and one fee
+  // (revalidateQuote works the total out again the same way)
+  let listInr = 0, discount = 0;
+  const lines: QuoteLine[] = items.map((it) => {
+    const d = rawDiscount(it.priceInr, it.classPct, it.planPct, coupon?.pct ?? 0);
+    listInr += it.priceInr;
+    discount += d;
+    return {
+      kind: it.kind, productId: it.productId, classId: it.kind === 'class' ? it.classId : null, planId: it.planId,
+      title: it.title, months: it.months, accessDays: it.accessDays, unitPriceInr: it.priceInr, discountInr: roundMoney(d, 'INR'),
+    };
+  });
+  const line = lines[0];
+  const priced = priceIn(s, country, rate, listInr, discount);
   const { address, errors } = cleanAddress(addrIn, country);
   if (priced.amountMinor <= 0) errors.total = 'There is nothing to pay for this.';
   const valid = Object.keys(errors).length === 0;
   const methods = methodsFor(country);
-
-  const line: QuoteLine = {
-    kind: item.kind, productId: item.productId, classId: item.kind === 'class' ? item.classId : null, planId: item.planId,
-    title: item.title, months: item.months, accessDays: item.accessDays, unitPriceInr: item.priceInr, discountInr: priced.discountInr,
-  };
 
   // a new plan starts when the customer's running plans for the class end
   let startsAt = new Date();
@@ -511,7 +563,15 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
         and revoked_at is null and expires_at > now()`;
     if (r[0]?.until && new Date(r[0].until).getTime() > startsAt.getTime()) startsAt = new Date(r[0].until);
   }
-  const when = expiryText(item, startsAt, ctx.user?.profile.time_zone ?? null);
+  const tz = ctx.user?.profile.time_zone ?? null;
+  const whens = items.map((it) => expiryText(it, startsAt, tz));
+  const when = whens[0];
+  const days = common(items, (it) => it.accessDays);
+  const title = several ? `${items.length} worksheets` : item.title;
+  const accessText = !several ? when.expiry
+    : days !== null ? `Each sheet is open for ${days} days from payment, until ${fmtDateTime(new Date(when.endsAt), tz)} if you pay now.`
+    : 'Each sheet is open for the days shown next to it, counted from payment.';
+  const cls = common(items, (it) => it.classId);
 
   // only payable quotes are stored; the rest are price previews while the address is typed
   const ttl = ttlMinutes(s);
@@ -519,14 +579,14 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   let exp = Date.now() + ttl * 60_000;
   if (valid) {
     const payload = {
-      rate, discountInr: priced.discountInr, methods, lines: [line],
-      priceLines: priced.priceLines, address, title: item.title, countryName: country.name, region,
+      rate, discountInr: priced.discountInr, methods, lines,
+      priceLines: priced.priceLines, address, title, countryName: country.name, region,
       couponPct: coupon?.pct ?? 0,
     };
     const rows = await q<{ id: string; expires_at: Date }[]>`
       insert into quotes (expires_at, kind, product_id, class_id, plan_id, coupon_code, country, currency,
                           total, total_inr, amount_minor, valid, payload)
-      values (now() + make_interval(mins => ${ttl}), ${item.kind}, ${item.productId}, ${line.classId}, ${item.planId},
+      values (now() + make_interval(mins => ${ttl}), ${item.kind}, ${several ? null : item.productId}, ${line.classId}, ${item.planId},
               ${coupon?.code ?? null}, ${country.code}, ${country.currency}, ${priced.total}, ${priced.totalInr},
               ${priced.amountMinor}, true, ${q.json(payload as never)})
       returning id, expires_at`;
@@ -535,15 +595,15 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   }
 
   return {
-    // the old response
+    // the old response (a several-sheet quote names its one class, or none, and no single sheet)
     kind: item.kind,
-    cls: item.classId,
-    className: item.className,
+    cls,
+    className: cls === null ? null : item.className,
     plan: item.planId,
     planLabel: item.planLabel,
     months: item.months,
-    worksheet: item.productId,
-    title: item.kind === 'worksheet' ? item.title : null,
+    worksheet: several ? null : item.productId,
+    title: item.kind === 'worksheet' ? title : null,
     country: country.code,
     countryName: country.name,
     region,
@@ -563,11 +623,15 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
     // new
     quoteId,
     expiresAt: exp,
-    accessDays: item.accessDays,
+    accessDays: days,
     totalInr: priced.totalInr,
     couponError: code ? couponError : null,
-    accessText: when.expiry,
-    items: [{ ...line, expiry: when.expiry, startsAt: when.startsAt, endsAt: when.endsAt }],
+    accessText,
+    // every sheet (or the plan) with its own price, discount and end date
+    items: lines.map((l, i) => ({ ...l, expiry: whens[i].expiry, startsAt: whens[i].startsAt, endsAt: whens[i].endsAt })),
+    worksheets: item.kind === 'worksheet' ? lines.map((l) => l.productId) : [],
+    count: lines.length,
+    listInr,
   };
 }
 

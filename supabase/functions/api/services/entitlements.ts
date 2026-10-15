@@ -2,12 +2,71 @@
 // A record is live when it is not revoked, has started, has not expired, and — for a free pass —
 // the sheet is still free. All times are UTC in the database and epoch ms in the API.
 import type { Tx } from '../lib/db.ts';
+import { DEFAULTS, type Settings } from '../lib/settings.ts';
 
 export type ProductRow = {
   id: string; title: string; description: string; class_id: string; subject: string; pages: number;
   price_inr: number; status: 'draft' | 'active' | 'archived'; pdf_path: string | null; thumb_url: string | null;
   print_limit: number; download_limit: number; access_days: number | null; landscape: boolean; stock: number | null;
+  print_rule: PrintRule;
 };
+
+/** 'account': prints per sheet come from the account type (settings.prints); 'sheet': the
+ *  sheet's own print_limit (0 = no printing). */
+export type PrintRule = 'account' | 'sheet';
+export const PRINT_RULES: readonly PrintRule[] = ['account', 'sheet'];
+
+/** The three account types the website offers. profiles.role stores Organization as 'school'
+ *  and 'tutor' counts as Teacher; an account that has not chosen yet counts as Parent. */
+export type AccountType = 'parent' | 'teacher' | 'organization';
+
+export function accountTypeOf(role: string | null | undefined): AccountType | null {
+  if (role === 'parent') return 'parent';
+  if (role === 'teacher' || role === 'tutor') return 'teacher';
+  if (role === 'school') return 'organization';
+  return null;
+}
+
+/** What profiles.role may hold (the check constraint in the accounts migration). */
+export const CUSTOMER_ROLES: readonly string[] = ['parent', 'teacher', 'tutor', 'school'];
+
+/** The stored role for a value a form or staff sent: 'organization' is stored as 'school'.
+ *  null/'' = none; undefined = not a known account type. */
+export function roleFromInput(v: unknown): string | null | undefined {
+  if (v === null || v === '') return null;
+  if (typeof v !== 'string') return undefined;
+  const r = v.trim().toLowerCase();
+  if (r === 'organization' || r === 'organisation') return 'school';
+  return CUSTOMER_ROLES.includes(r) ? r : undefined;
+}
+
+export const ROLE_LOCKED = 'Your account type is already set. Write to us if it needs changing.';
+
+const printCount = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 1000 ? v : fallback);
+
+/** Prints of each sheet an account of this role gets (settings.prints; Parent when no type is
+ *  chosen yet). A broken settings value falls back to the built-in number. */
+export function printsPerSheet(prints: Settings['prints'] | null | undefined, role: string | null | undefined): number {
+  const t = accountTypeOf(role) ?? 'parent';
+  return printCount(prints?.[t], DEFAULTS.prints[t]);
+}
+
+/** The one place the print allowance of a sheet is worked out: per access record and sheet,
+ *  the account type's number for print rule 'account', the sheet's own print_limit for 'sheet'. */
+export function effectivePrintLimit(p: Pick<ProductRow, 'print_rule' | 'print_limit'>, role: string | null | undefined,
+  prints: Settings['prints'] | null | undefined): number {
+  if (p.print_rule === 'sheet') return Math.max(0, p.print_limit | 0);
+  return printsPerSheet(prints, role);
+}
+
+/** The prints of one sheet for each account type, as the shop and the staff panel show them. */
+export function sheetPrints(p: Pick<ProductRow, 'print_rule' | 'print_limit'>, prints: Settings['prints'] | null | undefined) {
+  return {
+    parent: effectivePrintLimit(p, 'parent', prints),
+    teacher: effectivePrintLimit(p, 'teacher', prints),
+    organization: effectivePrintLimit(p, 'school', prints),
+  };
+}
 
 export type EntRow = {
   id: number; user_id: string; scope: 'worksheet' | 'class'; product_id: string | null; class_id: string | null;
@@ -86,11 +145,22 @@ export async function ownsSheet(q: Tx, userId: string, productId: string): Promi
   return rows[0] ?? null;
 }
 
+/** ownsSheet for several sheets at once: the ids among them the customer already holds. */
+export async function ownedSheets(q: Tx, userId: string, productIds: string[]): Promise<Set<string>> {
+  if (!productIds.length) return new Set();
+  const rows = await q<{ product_id: string }[]>`
+    select distinct e.product_id from entitlements e
+    where e.user_id = ${userId} and e.scope = 'worksheet' and e.product_id = any(${productIds}::text[])
+      and e.kind <> 'free' and e.revoked_at is null and e.starts_at <= now()
+      and (e.expires_at is null or e.expires_at > now())`;
+  return new Set(rows.map((r) => r.product_id));
+}
+
 export async function loadProduct(q: Tx, id: string): Promise<ProductRow | null> {
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{1,63}$/.test(id)) return null;
   const r = await q<ProductRow[]>`
     select id, title, description, class_id, subject, pages, price_inr, status, pdf_path, thumb_url,
-           print_limit, download_limit, access_days, landscape, stock
+           print_limit, download_limit, access_days, landscape, stock, print_rule
     from products where id = ${id}`;
   return r[0] ?? null;
 }

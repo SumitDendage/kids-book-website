@@ -6,7 +6,7 @@ import { write } from '../../services/storage.js';
 import { getSiteRules, markAccountBlocked, DEFAULT_AGREEMENT } from '../../services/security.js';
 import AcceptRules from '../security/AcceptRules.jsx';
 import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
-import { ROLES, roleOf, classById } from '../../data/content.js';
+import { classById, printsText } from '../../data/content.js';
 
 /* Two ways in: Sign up (name, email and the account rules; the server emails a password and an
    Accept & Continue link that confirms the address) and Sign in. Forgot password emails a reset
@@ -52,7 +52,7 @@ function Field({ id, label, show, error, children }) {
 
 export default function AuthCard() {
   const site = useSite();
-  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, setRole, openShop, openAccount, resendWelcome, toast } = site;
+  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet } = site;
   const navigate = useNavigate();
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
@@ -63,7 +63,6 @@ export default function AuthCard() {
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [changingRole, setChangingRole] = useState(false);
   const busyRef = useRef(false);
 
   /* the account rules as the server words them (GET /api/config) */
@@ -166,12 +165,8 @@ export default function AuthCard() {
     } finally { busyOn(false); }
   }
 
-  const pickRole = async id => {
-    try { await setRole(id); } catch (err) { toast(err.message); return; } setChangingRole(false);
-    toast(roleOf(id).label + ' account. Now pick a class.');
-    setTimeout(() => openShop('all'), 450);
-  };
-  const hasRole = !!(session && session.role) && !changingRole;
+  /* the account type is asked once in its own popup (AccountTypePopup) and only staff change it later */
+  const hasRole = !!accountType;
   const subs = access.subsOf();
   const paused = !!session && session.accessStatus === 'suspended';
   const tz = (session && session.timeZone) || undefined;
@@ -212,17 +207,7 @@ export default function AuthCard() {
       </div>
       <div className="signed">
         <h2 className="card-title">You&apos;re in, <span id="signedName">{session ? session.name : ''}</span>.</h2>
-        <div id="rolePick" hidden={hasRole}>
-          <p className="auth-sub">One more thing: who are the sheets for?</p>
-          <div className="roles" id="auRoles">
-            {ROLES.map(r => (
-              <button key={r.id} type="button" className={'role' + (session && session.role === r.id ? ' on' : '')} aria-pressed={!!session && session.role === r.id} onClick={() => pickRole(r.id)}>
-                <span>{r.label}</span><small>{{ parent: 'at home', teacher: 'classroom', tutor: 'small groups', school: 'whole school' }[r.id]}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="auth-sub" id="roleLine" hidden={!hasRole}><span id="signedRole">{hasRole ? roleOf(session.role).label : ''}</span> account. Your plans and sheets are kept with it. <button type="button" className="link" id="roleChange" onClick={() => setChangingRole(true)}>Change</button></p>
+        <p className="auth-sub" id="roleLine" hidden={!hasRole}><b id="signedRole">{hasRole ? accountType.label : ''}</b> account · {hasRole ? printsText(printsPerSheet).toLowerCase() : ''} per sheet. Your plans and sheets are kept with it.</p>
         {paused ? <p className="auth-sub" id="pausedLine">Paid sheets are paused on this account. Free sheets still open. <button type="button" className="link" onClick={() => openAccount('security')}>See why</button></p> : null}
         <p className="auth-sub" id="subLine" hidden={!hasRole}>
           {subs.length

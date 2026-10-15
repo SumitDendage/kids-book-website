@@ -263,13 +263,15 @@ async function listOrders(ctx: Ctx) {
 
 type PaymentRow = {
   id: number; order_id: string; provider: string; provider_payment_id: string; amount_minor: number; currency: string;
-  status: string; source: string; created_at: Date; email?: string | null;
+  status: string; source: string; created_at: Date; email?: string | null; order_total_inr?: number | null;
 };
 
 const paymentView = (p: PaymentRow) => ({
   id: p.id, orderId: p.order_id, provider: p.provider, paymentId: p.provider_payment_id, amountMinor: p.amount_minor,
   amount: fromMinor(p.amount_minor, p.currency), currency: p.currency, status: p.status,
   source: p.source, at: ms(p.created_at), email: p.email ?? null,
+  // the order's total in rupees (the payment itself is in the customer's currency)
+  ...(p.order_total_inr !== undefined ? { orderTotalInr: p.order_total_inr === null ? null : Number(p.order_total_inr) } : {}),
 });
 
 type EventRow = {
@@ -483,7 +485,7 @@ async function listPayments(ctx: Ctx) {
   const limit = intParam(ctx.query.get('limit'), 300, 1, 2000);
   const rows = await tx((q) => q<PaymentRow[]>`
     select pa.id, pa.order_id, pa.provider, pa.provider_payment_id, pa.amount_minor, pa.currency, pa.status, pa.source,
-           pa.created_at, p.email::text as email
+           pa.created_at, p.email::text as email, o.total_inr::float8 as order_total_inr
     from payments pa join orders o on o.id = pa.order_id join profiles p on p.id = o.user_id
     where (${order}::text is null or pa.order_id = ${order})
       and (${provider}::text is null or pa.provider = ${provider})
@@ -1232,6 +1234,11 @@ const RULES: Record<string, Rule> = {
   },
   currency_rates: { perm: 'pricing.write', read: PRICING_READ, check: checkRates },
   quote: { perm: 'pricing.write', read: PRICING_READ, check: (v, s) => fields(v, s.quote, { ttlMinutes: int(5, 1440) }) },
+  // prints of each sheet per access record, by account type (sheets whose print rule is 'account')
+  prints: {
+    perm: 'pricing.write', read: [...PRICING_READ, 'customers.read'],
+    check: (v, s) => fields(v, s.prints, { parent: int(0, 1000), teacher: int(0, 1000), organization: int(0, 1000) }),
+  },
   countries: { perm: 'pricing.write', read: PRICING_READ, check: checkCountries },
   sessions: {
     perm: 'settings.write', read: SITE_READ,

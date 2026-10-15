@@ -197,6 +197,10 @@ test('stats: the old fields from real rows, plus today and the last 14 days in t
 
   const utc = await h.call('GET', '/api/admin/stats?tz=UTC', { token: support.token });
   assertEquals([utc.body.tz, utc.body.revenueByDay.at(-1).day], ['UTC', dayIn('UTC')]);
+  /* Chrome reports Indian time by its old name; the database may not know that name, so it becomes Asia/Kolkata */
+  const old = await h.call('GET', '/api/admin/stats?tz=Asia/Calcutta', { token: support.token });
+  assertStatus(old, 200);
+  assertEquals(old.body.tz, 'Asia/Kolkata');
   const bad = await h.call('GET', '/api/admin/stats?tz=Mars/Olympus', { token: support.token });
   assertStatus(bad, 400);
   assertEquals(bad.body.code, 'bad_range');
@@ -295,6 +299,9 @@ test('analytics: bad ranges and zones are refused; an empty period says so; defa
   const def = await h.call('GET', '/api/admin/analytics', { token: content.token });
   assertEquals([def.body.range.tz, def.body.range.days, def.body.range.lastDay], ['Asia/Kolkata', 30, dayIn('Asia/Kolkata')]);
   const week = await h.call('GET', '/api/admin/analytics?days=7&tz=UTC', { token: content.token });
+  const oldName = await h.call('GET', '/api/admin/analytics?days=7&tz=Asia/Calcutta', { token: content.token });
+  assertStatus(oldName, 200);
+  assertEquals(oldName.body.range.tz, 'Asia/Kolkata');
   assertEquals([week.body.range.days, week.body.byDay.length, week.body.range.lastDay], [7, 7, dayIn('UTC')]);
   const leapYear = await h.call('GET', '/api/admin/analytics?from=2024-01-01&to=2024-12-31&tz=UTC', { token: content.token });
   assertStatus(leapYear, 200, '366 days is the longest range');
