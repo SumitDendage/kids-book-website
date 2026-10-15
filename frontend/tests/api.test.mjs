@@ -36,6 +36,24 @@ test('missing functions surface 404 rather than returning fake catalogue data', 
   t.mock.method(globalThis, 'fetch', async () => Response.json({ message: 'Requested function was not found', code: 'NOT_FOUND' }, { status: 404 }));
   await assert.rejects(api.catalogueApi.worksheets(), { status: 404, code: 'NOT_FOUND' });
 });
+test('HTML fallback with HTTP 200 is rejected, not treated as a working API', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('<html>Vite fallback</html>'));
+  await assert.rejects(api.meApi.orders(), { status: 502, code: 'invalid_response' });
+});
+test('catalogue rejects a wrong envelope and nonnumeric prices', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ products: [] }));
+  await assert.rejects(api.catalogueApi.worksheets(), { code: 'invalid_response' });
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ worksheets: [{ id: 'one', price: '49' }] }));
+  await assert.rejects(api.catalogueApi.worksheets(), { code: 'invalid_response' });
+});
+test('account lists distinguish empty data from missing response fields', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({}));
+  await assert.rejects(api.meApi.orders(), { code: 'invalid_response' });
+  await assert.rejects(api.meApi.entitlements(), { code: 'invalid_response' });
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ orders: [], entitlements: [] }));
+  assert.deepEqual((await api.meApi.orders()).orders, []);
+  assert.deepEqual((await api.meApi.entitlements()).entitlements, []);
+});
 test('checkout verification forwards proof to the server and never grants a local purchase', async t => {
   const proof = { order_id: 'local-order', razorpay_order_id: 'provider-order', razorpay_payment_id: 'payment', razorpay_signature: 'invalid-signature' };
   t.mock.method(globalThis, 'fetch', async (url, options) => {

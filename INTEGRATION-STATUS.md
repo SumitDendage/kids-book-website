@@ -114,3 +114,49 @@ schema inspection. Remote main matched this checkout before the integration bran
 was created. The local `.env` exists and is ignored; only public example/production
 configuration is tracked. Late entitlement responses are now ignored after account
 switches or logout, and prior customer entitlements clear when identity changes.
+
+## HTTP 404 follow-up
+
+A read-only diagnostic scan found 155 API path references across the current React
+source (dynamic values are recorded as prefixes). Exact URLs, source locations and
+live HTTP responses are saved in `frontend/route-diagnostics.json`. Run
+`node scripts/diagnose-routes.mjs` from `frontend/` to repeat without creating users,
+orders, emails or payments.
+
+With the configured publishable key, Auth, Data API and the probed Edge Function
+routes all return 401 Invalid API key. Without that rejected key, these GET routes
+return 404 Requested function was not found:
+
+- `/functions/v1/api/health`
+- `/functions/v1/api/worksheets`
+- `/functions/v1/api/config`
+- `/functions/v1/api/content`
+- `/functions/v1/api/faq`
+- `/functions/v1/api/me/orders`
+- `/functions/v1/api/me/entitlements`
+
+The frontend `/api` prefix names the missing `api` function; it is not evidence
+that `/rest/v1/products` exists or has a compatible response. Table names, columns,
+RLS and the reported 105 products cannot be verified while the Data API rejects
+the key and official Supabase MCP tools are unavailable. No table or function was
+created, no authentication was disabled, and these remote 404s remain unresolved.
+
+Local fixes: developer health checks now use the authenticated API transport rather
+than omitting the publishable key; JSON APIs reject HTML/invalid JSON with HTTP 200;
+catalogue/order/entitlement reads validate their expected response envelopes;
+catalogue data rejects missing IDs or invalid prices instead of silently displaying
+an empty or corrupt result. Styling and layouts were not changed.
+
+Individual flow status:
+
+- Products: blocked before database query; reported 105 rows not verified.
+- Signup: existing server email workflow requires an undeployed function; no account created.
+- Login: uses SDK Auth, not an Edge Function; rejected key prevents a live login test.
+- Carts: no persistent cart implementation exists in the inspected UI; schema required.
+- Checkout: server quote/order/verification routes are undeployed; no payment attempted.
+- Accounts: orders/entitlements routes are missing; response validation tested with mocks.
+
+User-staged deletion of environment templates, VS Code settings, and package edits
+were preserved and excluded from the follow-up commit. Deployment must supply the
+public Vite variables because the tracked production environment file is staged for
+deletion. This is not a claim that the remote deployment has those values.
