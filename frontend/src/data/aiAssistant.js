@@ -1,6 +1,6 @@
 /* The AI assistant on the landing page: its name, its first message, and the short
-   practice answers it gives only when our server cannot be reached (see services/aiChat.js;
-   normally every answer comes from the FAQ list the team keeps in the admin).
+   practice answers it gives when neither the FAQ list (data/faq.json) nor our server has an
+   answer (see services/aiChat.js).
    Each answer lists the words that bring it up (a plural counts too); the first match wins.
    {access} becomes how long a bought sheet stays open ("1 year" for 365 days). */
 export const AI_NAME = 'Learn With Why AI';
@@ -27,6 +27,8 @@ export const AI_FILE_REPLY = 'Thanks for the file! I can’t read attachments ye
 export const AI_FALLBACK = 'I’m still learning, so my answers are simple for now. Try asking about free sheets, plans, how long a sheet stays open, or how to contact us.';
 /* added under a practice answer, so nobody mistakes it for the full answer */
 export const AI_OFFLINE_NOTE = 'I could not reach our server just now, so this is a shorter answer than usual. Please check your connection and ask again in a moment.';
+/* when no FAQ answer fits well, before the closest questions */
+export const AI_NOT_SURE = 'I’m not sure I understood. Did you mean one of these? Or write to us at learnwithwhy6@gmail.com.';
 /* before the questions the server suggests when it was not sure */
 export const AI_SUGGEST = 'You could ask me:';
 export const AI_BUSY = 'You have asked a lot of questions very quickly. Please wait a minute, then ask again.';
