@@ -1,3 +1,4 @@
+import { isRecovery } from '../services/supabaseAuth.js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext.jsx';
@@ -245,8 +246,11 @@ export function SiteProvider({ children }) {
     /* every access record the server holds for this customer (active, scheduled, expired, revoked) */
     a.syncEntitlements = async () => {
       if (!sessionRef.current) { setEnt([]); return []; }
+      const requestedUser = sessionRef.current.id;
       try {
         const r = await catalogueApi.entitlements();
+        // Ignore requests that finish after logout or switching accounts.
+        if (sessionRef.current?.id !== requestedUser) return [];
         const list = Array.isArray(r.entitlements) ? r.entitlements : [];
         if (typeof r.now === 'number') { skewRef.current = r.now - Date.now(); setSkew(skewRef.current); }
         setEnt(list);
@@ -259,6 +263,7 @@ export function SiteProvider({ children }) {
     /* the customer the server named (sign-in, refresh, another tab) becomes the session */
     a.adoptUser = u => {
       const next = sessionOf(u); if (!next) return null;
+      if (sessionRef.current?.id !== next.id) { setEnt([]); setSecuritySeed(null); }
       setSession(next); storeSession(next, true); clearAccountBlocked();
       const t = customerTokens.get(); signInAt.current = t ? t.sessionExpiresAt || null : null;
       return next;
@@ -284,15 +289,15 @@ export function SiteProvider({ children }) {
       else if (n.do === 'account') a.openAccount(n.tab || 'sheets');
     };
     /* ends this sign-in on the server too (works even after the access token ran out) */
-    a.signOut = () => {
-      authApi.logout().catch(() => {});
+    a.signOut = async () => {
+      try { await authApi.logout(); } catch (err) { toast(err.message); return; }
       saveNext(null); a.closeDrawers(); a.closeNotice(); a.forgetSession();
       toast('Signed out. See you soon.');
     };
-    a.setRole = role => {
-      const s = sessionRef.current; if (!s) return;
-      const next = { ...s, role }; setSession(next); rememberSession(next);
-      if (role) authApi.updateMe({ role }).catch(err => toast(err.message));
+    a.setRole = async role => {
+      if (!sessionRef.current) return;
+      const result = await authApi.updateMe({ role });
+      a.adoptUser(result.user);
     };
     /* something that needs an account: remember what comes next, go to chapter 01, say why */
     a.requireSignIn = (next, why, view) => {
@@ -395,6 +400,7 @@ export function SiteProvider({ children }) {
     a.handleAuthLink = async () => {
       a.handleAccountLink();
       const u = new URL(window.location.href), verify = u.searchParams.get('verify'), reset = u.searchParams.get('reset');
+      if (isRecovery()) { a.forgetSession(); stage.goTo(0); a.setAuthView('reset', 'supabase'); return; }
       if (!verify && !reset) return;
       u.searchParams.delete('verify'); u.searchParams.delete('reset');
       history.replaceState(history.state, '', u.pathname + u.search + u.hash);   /* the token leaves the address bar */
@@ -433,9 +439,9 @@ export function SiteProvider({ children }) {
         if (++n > 40 || !authApi.hasTokens()) { clearInterval(t); a.requireSignIn({ do: 'account', tab }, 'Sign in to see My Account.', 'signin'); }
       }, 250);
     };
-    /* a fresh welcome email (new password and confirmation link) for an unconfirmed account */
+    /* Confirmation resend never changes the password. */
     a.resendWelcome = email => authApi.resendVerification({ email })
-      .then(r => a.setAuthAlert({ type: 'ok', msg: (r.message || 'A new email is on its way.') + ' The password in it replaces the one sent before.' }),
+      .then(r => a.setAuthAlert({ type: 'ok', msg: (r.message || 'A confirmation link is on its way. Your password has not changed.') }),
         err => a.setAuthAlert({ type: 'err', msg: err.message }));
 
     /* Back from Stripe or PayPal: ?pay=stripe&order=…&session=…  ·  ?pay=paypal&order=…&token=…  ·  ?pay=cancel&order=… */
@@ -566,12 +572,13 @@ export function SiteProvider({ children }) {
 
   /* another tab signed in, out, or refreshed the sign-in */
   useEffect(() => onCustomerTokensChange(t => {
+    if (isRecovery()) { actions.forgetSession(); actions.setAuthView('reset', 'supabase'); return; }
     if (!t || t.blocked || (!t.accessToken && !t.refreshToken)) {
       if (sessionRef.current) { actions.forgetSession(); toast('You signed out in another tab.'); }
       return;
     }
     /* a new sign-in (not just a refresh): ask the server who it is */
-    if (!sessionRef.current || (t.sessionExpiresAt && t.sessionExpiresAt !== signInAt.current)) {
+    if (!sessionRef.current || t.userId !== sessionRef.current.id) {
       authApi.me().then(r => { if (actions.adoptUser(r.user)) actions.syncEntitlements(); }).catch(() => {});
     }
   }), [actions, toast]);
@@ -606,6 +613,7 @@ export function SiteProvider({ children }) {
       catch (err) { console.warn('catalogue: ' + err.message + ' (showing the built-in prices)'); }
     })();
     (async () => {
+      if (isRecovery()) return;
       const had = !!sessionRef.current, t = customerTokens.get();
       if (!t || !t.refreshToken) { if (had) actions.forgetSession({ keepView: true }); return; }
       try {
