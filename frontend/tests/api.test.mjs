@@ -5,8 +5,12 @@ import { readFile } from 'node:fs/promises';
 const code = (await readFile(new URL('../src/services/api.js', import.meta.url), 'utf8'))
   .replace("import * as sdkAuth from './supabaseAuth.js';", `const sdkAuth = {
     snapshot: () => ({ accessToken: 'session-token' }),
-    getHeaders: async () => ({ apikey: 'public-key', Authorization: 'Bearer session-token' })
-  };`)
+    getHeaders: async () => ({ apikey: 'public-key', Authorization: 'Bearer session-token' }),
+    adopted: [], loggedOut: 0,
+    adoptSession: async s => { sdkAuth.adopted.push(s); },
+    logout: async () => { sdkAuth.loggedOut++; },
+    authReady: Promise.resolve()
+  }; globalThis.__sdk = sdkAuth;`)
   .replace("import { BRAND, WEB3FORMS_KEY } from '../data/content.js';", "const BRAND = 'Test', WEB3FORMS_KEY = '';")
   .replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://wjqmrcglzqemrvafjeel.supabase.co'")
   .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'public-key'");
@@ -62,4 +66,46 @@ test('checkout verification forwards proof to the server and never grants a loca
     return Response.json({ error: 'Invalid signature' }, { status: 400 });
   });
   await assert.rejects(api.payApi.verify(proof), { status: 400, message: 'Invalid signature' });
+});
+
+test('sign-in goes through the server, which opens its sign-in record, then the SDK keeps the tokens', async t => {
+  const calls = [];
+  const session = { accessToken: 'a.b.c', refreshToken: 'refresh-1', sessionExpiresAt: 1 };
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, options });
+    return Response.json({ user: { id: 'u1', email: 'p@example.com' }, session, staff: null, security: null });
+  });
+  const r = await api.authApi.login({ email: 'p@example.com', password: 'pw', remember: true });
+  assert.equal(calls[0].url, 'https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1/api/auth/login');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { email: 'p@example.com', password: 'pw', remember: true });
+  assert.deepEqual(globalThis.__sdk.adopted.at(-1), session);
+  assert.equal(r.user.id, 'u1');
+});
+test('server sign-in errors (agreement, lock, unconfirmed) reach the form and adopt nothing', async t => {
+  const before = globalThis.__sdk.adopted.length;
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'Please accept', code: 'agreement_required', agreement: { version: 'v2' } }, { status: 403 }));
+  await assert.rejects(api.authApi.login({ email: 'p@example.com', password: 'pw' }), { status: 403, code: 'agreement_required' });
+  assert.equal(globalThis.__sdk.adopted.length, before);
+});
+test('the account and role come from the server, and sign-out ends the server record then the SDK one', async t => {
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, method: options.method });
+    return Response.json({ user: { id: 'u1', role: 'teacher' }, ok: true });
+  });
+  assert.equal((await api.authApi.me()).user.role, 'teacher');
+  await api.authApi.updateMe({ role: 'teacher' });
+  const out = globalThis.__sdk.loggedOut;
+  await api.authApi.logout();
+  assert.deepEqual(calls.map(c => [c.method || 'GET', c.url.split('/functions/v1')[1]]), [
+    ['GET', '/api/auth/me'], ['PATCH', '/api/auth/me'], ['POST', '/api/auth/logout'],
+  ]);
+  assert.equal(globalThis.__sdk.loggedOut, out + 1);
+});
+test('sign-out still forgets this browser when the server cannot be reached', async t => {
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline'); });
+  const out = globalThis.__sdk.loggedOut;
+  assert.deepEqual(await api.authApi.logout(), { ok: true });
+  assert.equal(globalThis.__sdk.loggedOut, out + 1);
 });
