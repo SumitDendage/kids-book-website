@@ -52,7 +52,7 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
     if (Object.keys(bad).length) return;
     setBusy(true);
     try {
-      const out = await staffAuth.login({ email: em, password: pw, remember: f.get('remember') === 'on' });
+      const out = await staffAuth.login({ email: em, password: pw, remember: true });
       setBusy(false);
       const name = out && out.user ? (out.user.name || out.user.email) : em;
       onSignedIn('Signed in as ' + name);
@@ -100,7 +100,7 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
       <div role="alert">{alert ? <div className="alert err">{alert}</div> : note ? <div className="alert info">{note}</div> : null}</div>
       <div className="field"><label htmlFor="stEmail">Email</label><input id="stEmail" name="email" type="email" autoComplete="username" placeholder="you@learnwithwhy.in" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={errs.email ? 'true' : undefined} aria-describedby="stEmailErr" /><div className="err" id="stEmailErr">{errs.email || ''}</div></div>
       <div className="field"><label htmlFor="stPass">Password</label><input id="stPass" name="password" type="password" autoComplete="current-password" placeholder="Your password" aria-invalid={errs.password ? 'true' : undefined} aria-describedby="stPassErr" /><div className="err" id="stPassErr">{errs.password || ''}</div></div>
-      <label className="portal-remember"><input type="checkbox" name="remember" id="stRemember" /> <span>Keep me signed in</span></label>
+      <p className="portal-remember">You stay signed in until you sign out.</p>
       <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in →'}</button>
       <p className="switch"><button type="button" className="link" onClick={() => switchTo('forgot')}>Forgot password?</button></p>
     </form>
