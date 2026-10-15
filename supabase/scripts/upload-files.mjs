@@ -4,7 +4,7 @@
 // (a-to-z/A.pdf, vocab-colours/colours-1-1.jpg, …), which is what the products table expects.
 //
 // Usage (Node 18 or newer, no packages needed):
-//   set SUPABASE_URL=https://wjqmrcglzqemrvafjeel.supabase.co
+//   set SUPABASE_URL=https://liaqgyskuhnxmlvmrnrl.supabase.co
 //   set SUPABASE_SECRET_KEY=sb_secret_...        (Dashboard → Project Settings → API Keys)
 //   node supabase/scripts/upload-files.mjs ..\backend\protected
 //   node supabase/scripts/upload-files.mjs ..\backend\protected --dry-run

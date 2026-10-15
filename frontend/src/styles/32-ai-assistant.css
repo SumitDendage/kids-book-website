@@ -60,7 +60,6 @@
 .ai-input textarea:focus { border-color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.11); }
 .ai-tool { flex-shrink: 0; width: 36px; height: 42px; display: grid; place-items: center; padding: 0; border: none; border-radius: var(--r-pill); background: none; color: var(--fg-muted); cursor: pointer; transition: color var(--d-fast), background var(--d-fast); }
 .ai-tool:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.ai-tool.on { color: #14181c; background: var(--ai-mint); animation: aiGlow 1.4s ease-in-out infinite; }
 .ai-tool svg { width: 19px; height: 19px; }
 .ai-send { flex-shrink: 0; width: 42px; height: 42px; margin-left: 4px; display: grid; place-items: center; padding: 0; border: none; border-radius: 50%; background: #fff; color: #14181c; box-shadow: 0 8px 24px rgba(0,0,0,0.3); cursor: pointer; transition: transform var(--d-fast) var(--ease), box-shadow var(--d-fast), opacity var(--d-fast); }
 .ai-send:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
@@ -83,7 +82,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-fab, .ai-fab::before, .ai-status i, .ai-msg, .ai-tool.on { animation: none; }
+  .ai-fab, .ai-fab::before, .ai-status i, .ai-msg { animation: none; }
   .ai-fab:hover, .ai-panel { transform: none; }
   .ai-panel { transition: opacity var(--d-fast), visibility var(--d-fast); }
   .ai-panel.open { transition: opacity var(--d-fast), visibility 0s; }

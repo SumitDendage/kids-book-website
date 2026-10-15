@@ -6,6 +6,10 @@ name: Upload the server to Supabase
 
 on:
   workflow_dispatch:
+    inputs:
+      project:
+        description: 'Supabase project ref (leave as is for the live site)'
+        default: liaqgyskuhnxmlvmrnrl
   push:
     branches: [main]
     paths: ['supabase/functions/**', 'supabase/config.toml']
@@ -17,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      PROJECT_REF: wjqmrcglzqemrvafjeel
+      PROJECT_REF: ${{ inputs.project || 'liaqgyskuhnxmlvmrnrl' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check the Supabase key is saved
@@ -29,6 +33,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Show which projects this key can reach (names only)
+        run: supabase projects list || true
       - name: Upload the api function
         run: supabase functions deploy api --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
       - name: Check it answers
