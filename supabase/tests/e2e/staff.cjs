@@ -27,6 +27,15 @@
    The site's scroll landscape (960 large frames drawn every animation frame) keeps running behind
    the staff page, which starves a busy test machine, so the test browsers skip those frames and ask
    for reduced motion. The staff panels themselves run unchanged. */
+/* the sign-in this browser keeps: the Supabase client's own slot (sb-…-auth-token), as { accessToken, refreshToken }.
+   Staff and customers share it: one sign-in per browser. */
+const READ_TOKENS = () => {
+  const k = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+  const v = k ? JSON.parse(localStorage.getItem(k) || 'null') : null;
+  const s = v && (v.currentSession || v);
+  return s && s.access_token ? { accessToken: s.access_token, refreshToken: s.refresh_token } : null;
+};
+
 const { chromium } = require(require('child_process').execSync('npm root -g').toString().trim() + '/playwright');
 const fs = require('fs');
 const path = require('path');
@@ -180,7 +189,6 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     if (await p.locator('.dash').count()) return;
     await p.fill('#stEmail', email);
     await p.fill('#stPass', password);
-    if (remember) await p.check('#stRemember');
     await p.locator('.portal-login button[type=submit]').click();
     await p.locator('.dash').waitFor({ timeout: 30000 });
   }
@@ -193,7 +201,9 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
       const b = await r.json();
       if (r.status !== 200) return { status: r.status, body: b };
       const s = b.session, now = Date.now(), inMs = Number(s.expiresIn) > 0 ? Number(s.expiresIn) * 1000 : 3600e3;
-      localStorage.setItem('lww_tokens', JSON.stringify(Object.assign({}, s, { skew: Number(s.expiresAt) > 0 ? Number(s.expiresAt) - inMs - now : 0, localExp: now + inMs })));
+      /* the slot the site's Supabase client reads (sb-<host>-auth-token) */
+      const key = 'sb-' + new URL(api).hostname.split('.')[0] + '-auth-token';
+      localStorage.setItem(key, JSON.stringify({ access_token: s.accessToken, refresh_token: s.refreshToken, token_type: 'bearer', expires_in: inMs / 1000, expires_at: Math.floor((now + inMs) / 1000), user: { id: b.user && b.user.id, email } }));
       return { status: 200, token: s.accessToken };
     }, { api: A, email, password });
     must(out.status === 200, 'customer sign-in in the browser answered ' + out.status + ' ' + JSON.stringify(out.body || {}).slice(0, 160));
@@ -209,7 +219,7 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     allow('owner', /^POST \/api\/auth\/login$/, 401);
     await page.goto(SITE + '/admin');
     await page.locator('#stEmail').waitFor({ timeout: 60000 });
-    must(await page.locator('#stRemember').count() === 1, 'no "Keep me signed in" box');
+    must(await page.locator('#stRemember, .portal-remember').count() >= 1, 'the sign-in page does not say how long staff stay signed in');
     must(!(await page.locator('#portal').getByText(/create an account|sign up|register/i).count()), 'staff self sign-up is offered');
     must(!(await page.locator('#portal').getByText(/ADMIN_KEY|admin key|demo/i).count()), 'the sign-in page talks about an admin key or a demo');
     await veilGone(page);
@@ -221,12 +231,10 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     const bad = (await page.locator('.portal-login .alert.err').textContent()).trim();
     must(/password/i.test(bad), 'wrong password said: ' + bad);
     await page.fill('#stPass', OWNER.password);
-    await page.check('#stRemember');
     await page.locator('.portal-login button[type=submit]').click();
     await page.locator('.dash').waitFor({ timeout: 30000 });
-    const toks = await page.evaluate(() => JSON.parse(localStorage.getItem('lww_staff_tokens') || 'null'));
-    must(toks && toks.accessToken, 'no staff sign-in kept in lww_staff_tokens');
-    must(!(await page.evaluate(() => localStorage.getItem('lww_tokens'))), 'the staff sign-in went into the customer slot');
+    const toks = await page.evaluate(READ_TOKENS);
+    must(toks && toks.accessToken, 'no staff sign-in kept by the Supabase client');
     const demo = await page.evaluate(() => Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter(k => /^lww_(staff_users|roles|admin_key|products|coupons|discounts|content_admin|audit|orders|users|subs|owned|messages|inbox|events|security|api|errors|payments|webhooks|prints|staff)$/.test(k)));
     must(!demo.length, 'demo keys in browser storage: ' + demo.join(', '));
     const who = await page.locator('.sb').innerText();
@@ -358,7 +366,8 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     await shot(sup, 'support-security');
     allow('support', /^PUT \/api\/admin\/settings\//, 403);
     const res = await sup.evaluate(async api => {
-      const t = JSON.parse(localStorage.getItem('lww_staff_tokens'));
+      const k = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+      const v = JSON.parse(localStorage.getItem(k)); const t = { accessToken: (v.currentSession || v).access_token };
       const r = await fetch(api + '/api/admin/settings/worksheet_access', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t.accessToken }, body: JSON.stringify({ value: { days: 5 } }) });
       return { status: r.status, body: await r.json() };
     }, A);
@@ -546,7 +555,7 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     await customerSignInPage(cp, CUST.email, CUST.password);
     await cp.reload();
     await cp.waitForFunction(() => document.body.dataset.stage === 'site' || !!document.querySelector('#bagBtn'), null, { timeout: 60000 }).catch(() => {});
-    await cp.waitForFunction(() => { try { return !!JSON.parse(localStorage.getItem('lww_tokens')).accessToken; } catch (_) { return false; } }, null, { timeout: 30000 });
+    await cp.waitForFunction(READ_TOKENS, null, { timeout: 30000 });
     await sleep(1500);
     /* staff block the account in Admin → Customers */
     await toAdmin(page);
@@ -567,7 +576,7 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     await shot(cp, 'customer-next-request-after-block');
     const at = cp.url().replace(SITE, '');
     const notice = await cp.locator('.modal.notice').innerText().catch(() => '');
-    const tokens = await cp.evaluate(() => localStorage.getItem('lww_tokens'));
+    const tokens = await cp.evaluate(READ_TOKENS);
     must(!tokens, 'the blocked customer still has a sign-in kept');
     must(landed, 'the page stayed at ' + at + (notice ? ' and said "' + notice.replace(/\s+/g, ' ').slice(0, 80) + '"' : '') + ', not /account-blocked');
     const t = await cp.locator('.sec-blocked').innerText().catch(() => '');
@@ -750,24 +759,19 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
   });
 
   /* ======================= 13. sign-out ======================= */
-  await step('staff sign-out ends the staff sign-in only (a customer sign-in in the same browser stays)', async () => {
+  await step('staff sign-out ends the staff sign-in', async () => {
     await resetLimits();
-    const custInStaffBrowser = await customerSignInPage(page, CUST.email, CUST.password);
-    const staffTok = await page.evaluate(() => JSON.parse(localStorage.getItem('lww_staff_tokens')).accessToken);
+    const staffTok = (await page.evaluate(READ_TOKENS)).accessToken;
     await page.locator('.hd .av-btn').click();
     await page.locator('#profileMenu.open').waitFor({ timeout: 5000 });
     await page.locator('#profileMenu').getByRole('menuitem', { name: 'Sign out' }).click();
     await page.locator('#stEmail').waitFor({ timeout: 20000 });
     await toast(page, /Signed out/);
-    must(!(await page.evaluate(() => localStorage.getItem('lww_staff_tokens'))), 'the staff sign-in is still kept');
-    must(await page.evaluate(() => !!localStorage.getItem('lww_tokens')), 'signing out of staff also signed the customer out');
+    must(!(await page.evaluate(READ_TOKENS)), 'the staff sign-in is still kept');
     const old = await call('GET', '/api/admin/me', staffTok);
     must(old.status === 401, 'the old staff token still answers ' + old.status);
-    const c = await call('GET', '/api/auth/me', custInStaffBrowser);
-    must(c.status === 200, 'the customer sign-in in the same browser answered ' + c.status);
-    await page.evaluate(() => localStorage.removeItem('lww_tokens'));
     await shot(page, 'signed-out');
-    return 'old staff token → 401, customer token → 200';
+    return 'old staff token → 401, nothing kept in the browser';
   });
 
   /* ======================= tidy up and the overall checks ======================= */
