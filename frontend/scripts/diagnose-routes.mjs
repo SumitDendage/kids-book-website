@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 const env = { ...loadEnv('production', process.cwd(), 'VITE_'), ...process.env };
 const url = env.VITE_SUPABASE_URL;
 const key = env.VITE_SUPABASE_PUBLISHABLE_KEY;
-if (url !== 'https://liaqgyskuhnxmlvmrnrl.supabase.co') throw new Error('Unexpected project URL; inspect configuration before probing.');
+if (url !== 'https://wjqmrcglzqemrvafjeel.supabase.co') throw new Error('Unexpected project URL; inspect configuration before probing.');
 if (!key?.startsWith('sb_publishable_')) throw new Error('A publishable key is required.');
 const routes = [];
 async function scan(dir) {

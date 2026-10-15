@@ -1,5 +1,16 @@
 # Supabase integration status — 15 October 2026
 
+> Current project update: the user selected `wjqmrcglzqemrvafjeel` on 15 October 2026.
+> Development, production and example Vite environment files and the project-scoped
+> MCP configuration now use that project. The supplied publishable key was accepted
+> by `/auth/v1/settings` (HTTP 200). `/functions/v1/api/health` still returns HTTP 404
+> Requested function was not found. Earlier results below describe the previous
+> `liaqgyskuhnxmlvmrnrl` project and remain historical evidence, not current key status.
+> No database data was moved, no Edge Function was deployed, and MCP OAuth still
+> needs authentication. Hosting-provider environment overrides must also be updated
+> to this project and the site rebuilt before the deployed website uses it.
+
+
 This is a partial integration, not a deployed or end-to-end verified backend.
 Changes are in `frontend/` on branch `codex/supabase-integration`. This branch is
 not a production deployment. No remote tables, accounts, policies, files or secrets were changed.
