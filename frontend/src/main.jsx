@@ -10,6 +10,7 @@ import './styles/admin.css';
 import './styles/34-account-security.css';
 /* account types and prints, the cart, the shop's search (Oct 15) */
 import './styles/35-cart-prints.css';
+import './styles/36-readable-auth.css';
 
 installTelemetry();
 

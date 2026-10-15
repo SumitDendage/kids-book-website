@@ -1,0 +1,23 @@
+/* Sign up / Sign in card: dark words on a lighter lilac glass, so every line reads clearly over
+   the bright picture (Sumit, 15 Oct: "signup, signin page is text black so we can see"). */
+#content .auth-card { --ink-auth: #1c1530; --ink-soft: #3d3554; background: rgba(var(--card), 0.62); border-color: rgba(255, 255, 255, 0.75); }
+#content .auth-card, #content .auth-card p, #content .auth-card .auth-sub, #content .auth-card .auth-note,
+#content .auth-card .for-email, #content .auth-card .between, #content .auth-card .switch, #content .auth-card .check { color: var(--ink-soft); text-shadow: none; }
+#content .auth-card .eyebrow, #content .auth-card .card-title, #content .auth-card h2, #content .auth-card h3,
+#content .auth-card b, #content .auth-card strong, #content .auth-card .link {
+  color: var(--ink-auth); -webkit-text-fill-color: var(--ink-auth); background: none; text-shadow: none; }
+#content .auth-card .eyebrow { color: #5b2f99; -webkit-text-fill-color: #5b2f99; }
+#content .auth-card .link { border-bottom-color: rgba(28, 21, 48, 0.4); }
+#content .auth-card .field label, #content .auth-card .step { color: var(--ink-soft); }
+#content .auth-card .field input, #content .auth-card .field textarea { background: rgba(255, 255, 255, 0.82); border-color: rgba(28, 21, 48, 0.22); color: var(--ink-auth); }
+#content .auth-card .field input::placeholder, #content .auth-card .field textarea::placeholder { color: rgba(28, 21, 48, 0.45); }
+#content .auth-card .field input:focus, #content .auth-card .field textarea:focus { background: #fff; border-color: rgba(91, 47, 153, 0.6); }
+#content .auth-card .pw-toggle { color: var(--ink-soft); }
+#content .auth-card .tabs, #content .auth-card .tab { border-color: rgba(28, 21, 48, 0.18); }
+#content .auth-card .tab { color: var(--ink-soft); }
+#content .auth-card .tab.on { color: var(--ink-auth); }
+#content .auth-card .tab.on::after { background: var(--ink-auth); }
+#content .auth-card .check input, #content .auth-card input[type=checkbox] { accent-color: #5b2f99; }
+#content .auth-card .alert.err { color: #8a1c1c; background: rgba(255, 235, 235, 0.9); }
+#content .auth-card .alert.ok { color: #0f5a32; background: rgba(230, 255, 240, 0.9); }
+#content .auth-card .err { color: #a3201f; }
