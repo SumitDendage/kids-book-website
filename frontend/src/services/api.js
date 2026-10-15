@@ -1,5 +1,6 @@
 /* SDK-managed Auth; existing Edge Function contracts await target-project inspection. */
 import * as sdkAuth from './supabaseAuth.js';
+import { fetchProducts } from './products.js';
 import { BRAND, WEB3FORMS_KEY } from '../data/content.js';
 
 export const API_BASE = import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, '') + '/functions/v1';
@@ -135,7 +136,7 @@ export const meApi = {
 
 /* ---------- catalogue, entitlements, access ---------- */
 export const catalogueApi = {
-  worksheets: () => api('GET', '/api/worksheets'),
+  worksheets: () => fetchProducts(),
   entitlements: () => meApi.entitlements(),
   access: id => api('POST', '/api/access/' + enc(id)),
   reviews: id => api('GET', '/api/worksheets/' + enc(id) + '/reviews'),

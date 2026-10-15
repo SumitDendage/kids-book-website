@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const code = (await readFile(new URL('../src/services/api.js', import.meta.url), 'utf8'))
+  .replace("import { fetchProducts } from './products.js';", "const fetchProducts = () => api('GET', '/api/worksheets');")
   .replace("import * as sdkAuth from './supabaseAuth.js';", `const sdkAuth = {
     snapshot: () => ({ accessToken: 'session-token' }),
     getHeaders: async () => ({ apikey: 'public-key', Authorization: 'Bearer session-token' })
@@ -12,7 +13,7 @@ const code = (await readFile(new URL('../src/services/api.js', import.meta.url),
   .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'public-key'");
 const api = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 
-test('catalogue and account requests use the configured project and SDK bearer token', async t => {
+test('legacy API transport and account requests use the configured project and SDK bearer token', async t => {
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push({ url, options });

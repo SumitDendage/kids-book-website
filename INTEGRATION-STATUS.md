@@ -1,5 +1,20 @@
 # Supabase integration status — 15 October 2026
 
+> Latest fix: catalogue loading now queries the existing public `products` table
+> directly through the shared Supabase SDK client, using verified columns
+> `id,title,price_inr,class_id,description,status,pages`. The real frontend loader
+> successfully returned all 105 products with unique IDs and valid numeric INR prices.
+> It no longer calls the missing `/api/worksheets` Edge Function. Generated worksheet
+> cards now receive database titles/prices while keeping their existing presentation.
+> Validation: 19 isolated tests passed and production build passed. Run
+> `node scripts/check-products.mjs` from `frontend/` for the live read-only check.
+> Other server routes remain blocked: signup credential emails, checkout/payments,
+> orders, private downloads and administrative functions have not been deployed.
+> The official Supabase MCP server is now registered in the local Codex configuration;
+> `codex mcp login supabase` failed with an OAuth metadata discovery/response decoding
+> error. No authenticated MCP tools are available yet. No tables or grants changed.
+
+
 > Current project update: the user selected `wjqmrcglzqemrvafjeel` on 15 October 2026.
 > Development, production and example Vite environment files and the project-scoped
 > MCP configuration now use that project. The supplied publishable key was accepted

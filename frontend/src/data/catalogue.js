@@ -240,7 +240,12 @@ PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); 
 const vocabOf = id => { const m = /^(vc|vs)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
 const sheetOfRaw = id => /^v[cs]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
-export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return undefined; } };
+let serverProducts = {};
+export const sheetOf = id => { try {
+  const item = sheetOfRaw(id);
+  const product = serverProducts[id];
+  return item && product ? { ...item, ...product, free: product.price === 0 } : item;
+} catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
 /* only sheets with a real PDF are listed: the Colours and Shapes sheets are the newest, then the missing-letter and sound sheets; the A to Z set the favourites */
@@ -273,7 +278,8 @@ export function applyAdminProducts() {}
    come from GET /api/worksheets and override the built-in values. */
 export function applyServerCatalogue(worksheets) {
   const byId = {}; (worksheets || []).forEach(w => { byId[w.id] = w; });
-  ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
+  serverProducts = byId;
+  ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; if (w.title) it.title = w.title; if (w.blurb) it.blurb = w.blurb; if (w.cls) it.cls = w.cls; if (w.real !== undefined) it.real = w.real; if (w.pages) it.pages = w.pages;
     /* how long a purchase stays open, whether its PDF is ready, and how many copies come with it */
     if (w.accessDays) it.accessDays = w.accessDays;
     it.available = w.available !== false && w.real !== false;
