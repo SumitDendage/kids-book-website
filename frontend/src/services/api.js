@@ -1,21 +1,25 @@
 /* Every call the front end makes to the backend lives here.
    The backend is one Supabase Edge Function ("api") that answers /api/*. By default the site
-   talks to the live one (LIVE_API below). VITE_API_BASE_URL (see .env.example) points it
-   somewhere else: another https://<project>.supabase.co/functions/v1, a local dev API, or
-   "/" (also "same-origin") when the API is served from the site's own domain.
+   talks to the live one (LIVE_API below). VITE_SUPABASE_URL (frontend/.env.production) names
+   the Supabase project whose "api" it calls. VITE_API_BASE_URL (see .env.example) wins over it
+   and points the site anywhere else: another https://<project>.supabase.co/functions/v1, a
+   local dev API, or "/" (also "same-origin") when the API is served from the site's own domain.
    No secret is ever stored in the browser. The browser keeps the customer's own sign-in tokens
    (they open only this customer's account, end when the server says so, and are refreshed
    here); prices come from the server's stored quote and payments are verified by the server. */
 import { BRAND, WEB3FORMS_KEY } from '../data/content.js';
 
-const LIVE_API = 'https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1';
-function baseOf(v) {
+const LIVE_API = 'https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1';
+function baseOf(v, project) {
   const s = String(v == null ? '' : v).trim();
-  if (!s) return LIVE_API;
+  if (!s) {
+    const p = String(project == null ? '' : project).trim().replace(/\/+$/, '');
+    return /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(p) ? p + '/functions/v1' : LIVE_API;
+  }
   if (s === '/' || s.toLowerCase() === 'same-origin') return '';
   return s.replace(/\/+$/, '');
 }
-export const API_BASE = baseOf(import.meta.env.VITE_API_BASE_URL);
+export const API_BASE = baseOf(import.meta.env.VITE_API_BASE_URL, import.meta.env.VITE_SUPABASE_URL);
 export const apiUrl = path => API_BASE + path;
 /* Sign-in travels as a bearer token, never as a cookie, so nothing needs cookies across sites
    (the API does not allow them). 'same-origin' only matters when the API is on this domain. */

@@ -5,4 +5,6 @@ dist/
 .env.*.local
 .env.*
 !.env.example
+# public values only (the Supabase project the build uses); never put a secret in it
+!.env.production
 *.log
