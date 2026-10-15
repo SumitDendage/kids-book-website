@@ -1,0 +1,6 @@
+# local secrets and scratch
+.env
+.env.*
+!.env.example
+*.local
+.temp/
