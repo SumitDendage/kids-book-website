@@ -30,3 +30,9 @@
 .nav-link, .nav-brand, .nav-brand * { text-shadow: 0 1px 2px rgba(10,30,50,0.55), 0 2px 10px rgba(10,30,50,0.45); }
 .nav-links { background: rgba(30,70,100,0.22); }
 .counter, .brandline { text-shadow: 0 1px 2px rgba(10,30,50,0.7), 0 2px 10px rgba(10,30,50,0.5); }
+/* no shadow on any word in the card, and nothing moving behind the name and email boxes
+   (Sumit, 15 Oct: "your name and email address there is animation ... there is no shadow"):
+   solid white boxes and a more solid card, so the flying birds don't show through */
+#content .auth-card, #content .auth-card *, #content .auth-card *::placeholder { text-shadow: none !important; }
+#content .auth-card { background: rgba(var(--card), 0.86); }
+#content .auth-card .field input, #content .auth-card .field textarea { background: #fff; }
