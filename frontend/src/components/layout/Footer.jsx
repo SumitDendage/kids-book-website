@@ -10,7 +10,6 @@ export default function Footer() {
   const { goTo } = useSite();
   return (
     <Rise as="footer" i={5} className="site-foot">
-      <div><b>Learn With Why</b> · printable worksheets for Kindergarten to Class 3 · Pune, India</div>
       <nav aria-label="Footer">{NAV.map((l, i) => <a key={IDS[i]} href={'#' + IDS[i]} onClick={e => { e.preventDefault(); goTo(i); }}>{l}</a>)}</nav>
       <div>© <span id="year">{new Date().getFullYear()}</span> Learn With Why · All rights reserved · <a href={'mailto:' + INBOX}>{INBOX}</a><span className="foot-social"><a className="wa-link" href={WHATSAPP} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" title="Chat with us on WhatsApp"><WhatsAppIcon /></a><a className="ig-link" href={INSTAGRAM} target="_blank" rel="noopener noreferrer" aria-label="Follow us on Instagram" title="Follow us on Instagram"><InstagramIcon /></a></span></div>
       <div className="staff-links"><Link to="/admin">Admin account</Link><Link to="/developer">Developer</Link></div>
