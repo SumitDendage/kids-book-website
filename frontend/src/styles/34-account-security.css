@@ -1,0 +1,161 @@
+/* ---------- account security and My Account ----------
+   The sign-up agreement box, the Security Warning popup, the short notices (access ended, sign-in
+   stopped, paid sheets paused), My Account's tabs (My Worksheets, Orders, Devices, Security) and the
+   /account-blocked page. Same tokens as the rest of the site: glass panels, cream and gold words,
+   Cormorant headings, Inter text. */
+
+@keyframes secFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes secRise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes secSpin { to { transform: rotate(360deg); } }
+.sec-spin { display: inline-block; flex: none; width: 14px; height: 14px; margin-right: 8px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; vertical-align: -2px; animation: secSpin 0.8s linear infinite; }
+
+/* ----- sign-up: the required "my account is personal" box ----- */
+.accept-rules { margin: 2px 0 14px; padding: 11px 13px; border-radius: var(--r-md); border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.07); transition: border-color var(--d-fast), background var(--d-fast); }
+.accept-rules.on { border-color: rgba(168, 240, 198, 0.85); background: rgba(168, 240, 198, 0.16); }
+.accept-rules.bad { border-color: rgba(255, 140, 140, 0.8); }
+.accept-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.82rem; line-height: 1.45; color: var(--fg); }
+.accept-check input { flex: none; width: 18px; height: 18px; margin-top: 1px; accent-color: #1f6b47; cursor: pointer; }
+.accept-rules .err { margin-top: 6px; }
+/* on the see-through sign-up card a darker glass keeps the sentence readable over the bright forest */
+#content .accept-rules { background: rgba(10, 22, 30, 0.42); border-color: rgba(255, 255, 255, 0.5); }
+#content .accept-rules.on { background: rgba(14, 58, 38, 0.55); border-color: rgba(168, 240, 198, 0.95); }
+#content .accept-rules.bad { border-color: rgba(255, 140, 140, 0.9); }
+#authSubmit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+.alert.info { color: #fff1cc; background: rgba(255, 217, 119, 0.18); border-color: rgba(255, 217, 119, 0.55); }
+#content .alert.info { color: #ffeab3; background: rgba(46, 32, 6, 0.62); border-color: rgba(255, 217, 119, 0.75); }
+.alert .link { color: inherit; border-bottom-color: currentColor; }
+.auth-note { margin: -4px 0 14px; font-size: 0.78rem; line-height: 1.5; color: var(--fg-muted); }
+.auth-note b { color: #fff; font-weight: 600; }
+.auth-card .signed .auth-sub b { color: #fff; font-weight: 600; }
+
+/* ----- the Security Warning popup (paper card, like the sheet modal) ----- */
+.sec-scrim { position: fixed; inset: 0; z-index: 450; display: grid; place-items: center; padding: 16px; overflow-y: auto; background: rgba(2, 8, 14, 0.7); backdrop-filter: blur(8px); animation: secFade 0.3s ease both; }
+.sec-modal { --lv: #b07800; position: relative; width: min(100%, 470px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 30px 28px 20px; border-radius: 20px; background: var(--paper); color: var(--ink); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6); animation: secRise 0.45s var(--ease) both; }
+.sec-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: var(--lv); }
+.sec-modal[data-level="2"] { --lv: #c45a12; }
+.sec-modal[data-level="3"] { --lv: #b3261e; }
+.sec-modal-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.sec-shield { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; color: var(--lv); background: color-mix(in srgb, var(--lv) 14%, #fff); box-shadow: 0 0 0 6px color-mix(in srgb, var(--lv) 7%, transparent); }
+.sec-steps { list-style: none; display: flex; gap: 6px; margin: 0; padding: 0; }
+.sec-steps li { flex: none; width: 28px; height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.18); }
+.sec-steps li.on { background: #ffd977; }
+.sec-modal .sec-steps li { background: rgba(0, 0, 0, 0.1); }
+.sec-modal .sec-steps li.on { background: var(--lv); }
+.sec-modal-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.6rem, 1.3rem + 1.2vw, 2rem); line-height: 1.12; color: #14253d; margin-bottom: 12px; }
+.sec-modal-title .sec-of { color: var(--lv); white-space: nowrap; }
+.sec-modal-body { display: grid; gap: 10px; margin-bottom: 20px; }
+.sec-modal-body p { font-size: 0.96rem; line-height: 1.6; color: #3b4047; margin: 0; }
+.sec-modal-body .sec-reason { padding: 10px 12px; border-radius: 12px; background: #eeeae0; font-size: 0.9rem; }
+.sec-modal-body .sec-reason b, .sec-modal-body .sec-final { color: var(--ink); }
+.sec-modal-body .sec-final { font-weight: 600; }
+.sec-modal .btn-primary { background: var(--ink); color: #fff; padding: 14px 22px; font-size: 0.92rem; }
+.sec-modal .btn-primary:focus-visible { outline: 3px solid var(--lv); outline-offset: 3px; }
+.sec-modal-help { margin-top: 12px; text-align: center; font-size: 0.8rem; color: var(--ink-muted); overflow-wrap: anywhere; }
+.sec-modal-help a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+@media (max-width: 420px) { .sec-modal { padding: 22px 20px 18px; } }
+
+/* ----- short notices (paper card over everything but the warning popup) ----- */
+.modal-scrim.notice-scrim { z-index: 420; }
+.modal.notice { position: relative; width: min(100%, 460px); display: grid; gap: 12px; padding: 30px 28px 24px; }
+.modal.notice .close-x { position: absolute; top: 14px; right: 14px; border-color: rgba(0, 0, 0, 0.12); background: rgba(0, 0, 0, 0.05); color: var(--ink); }
+.modal.notice .eyebrow { margin: 0; padding-right: 44px; }
+.modal.notice h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.75rem; line-height: 1.12; color: #14253d; margin: 0; padding-right: 30px; }
+.modal.notice > p { font-size: 0.95rem; line-height: 1.6; color: #3b4047; margin: 0; }
+.modal.notice .sheet-actions { margin-top: 6px; }
+.modal.notice[data-kind="expired"] .eyebrow, .modal.notice[data-kind="access_suspended"] .eyebrow, .modal.notice[data-kind="session_blocked"] .eyebrow { color: #a3361b; }
+
+/* ----- My Account: who, the four tabs, the rows ----- */
+.drawer.acct .acct-who { display: grid; gap: 2px; margin: -6px 0 14px; font-size: var(--fs-body); min-width: 0; }
+.drawer.acct .acct-who b { font-weight: 600; color: #fff; }
+.drawer.acct .acct-who span { font-size: 0.78rem; color: var(--fg-dim); overflow-wrap: anywhere; }
+.drawer .tabs.acct-tabs { grid-template-columns: auto auto auto auto; gap: 0; margin-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.drawer .acct-tabs .tab { padding: 10px 4px 12px; border-bottom: none; font-size: 0.74rem; }
+.drawer.acct .acct-eyebrow { margin: 18px 0 8px; }
+.drawer.acct #acctPanel > .acct-eyebrow:first-child, .drawer.acct #acctPanel > .alert + .acct-eyebrow { margin-top: 4px; }
+.drawer.acct .cart-row .nm { overflow-wrap: anywhere; }
+.drawer.acct .cart-row .pill { flex: none; }
+.drawer.acct .acct-open { cursor: pointer; }
+.drawer.acct .acct-open:hover .nm, .drawer.acct .acct-open:focus-visible .nm { color: #ffd977; }
+.drawer.acct .cart-row.is-ended .paper-mini { opacity: 0.6; }
+.drawer.acct .cart-row.is-ended .nm span { color: #ffc9a8; }
+.btn.acct-mini { flex: none; padding: 7px 12px; font-size: 0.72rem; white-space: nowrap; }
+.btn.acct-mini:disabled { opacity: 0.6; cursor: wait; }
+.drawer.acct .acct-fine { font-size: 0.78rem; padding-bottom: 6px; }
+.drawer.acct .acct-lead { padding: 0 0 4px; font-size: 0.85rem; }
+.drawer.acct .acct-signout { margin-top: 18px; }
+/* orders */
+.acct-order { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); min-width: 0; }
+.acct-order-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; font-size: var(--fs-body); }
+.acct-order-top b { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.acct-order .pill { flex: none; margin-top: 2px; }
+.acct-order.st-paid .pill { background: rgba(143, 232, 180, 0.16); color: #8fe8b4; }
+.acct-order.st-failed .pill, .acct-order.st-refunded .pill { background: rgba(255, 110, 110, 0.16); color: #ffc1c1; }
+.acct-meta { font-size: 0.78rem; color: var(--fg-muted); }
+.acct-lines { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: 0.78rem; color: #cfe9ff; }
+.acct-id { font-size: 0.7rem; color: var(--fg-dim); letter-spacing: 0.04em; }
+/* devices */
+.drawer.acct .acct-device { flex-wrap: wrap; row-gap: 8px; }
+.drawer.acct .acct-device .nm { flex: 1 1 calc(100% - 58px); }
+.drawer.acct .acct-device .nm span + span { margin-top: 0; }
+.drawer.acct .acct-device .acct-mini, .drawer.acct .acct-device .acct-stopped { margin-left: 58px; }
+.drawer.acct .acct-device .acct-stopped + .acct-mini, .drawer.acct .acct-device .acct-mini + .acct-stopped { margin-left: 0; }
+.drawer.acct .acct-device.is-current .paper-mini { background: #ffd977; }
+.drawer.acct .acct-stopped { flex-basis: auto; background: rgba(255, 110, 110, 0.18); color: #ffc1c1; }
+
+/* ----- My Account → Security ----- */
+.sec-card { margin-bottom: 14px; padding: 16px 16px 14px; border-radius: var(--r-lg); border: 1px solid rgba(185, 227, 255, 0.35); background: linear-gradient(160deg, rgba(185, 227, 255, 0.12), rgba(214, 184, 255, 0.08)); }
+.sec-card.is-suspended { border-color: rgba(255, 140, 140, 0.6); background: linear-gradient(160deg, rgba(255, 110, 110, 0.16), rgba(255, 190, 160, 0.06)); }
+.sec-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.sec-card .eyebrow { margin: 0; color: #a8f0c6; }
+.sec-count { font-family: var(--font-display); font-size: 1.6rem; font-weight: 500; line-height: 1.15; color: #ffd977; }
+.sec-count b { font-weight: 600; color: #fff; white-space: nowrap; }
+.sec-card .sec-steps { margin: 10px 0 12px; }
+.sec-card.is-suspended .sec-steps li.on { background: #ff9a9a; }
+.sec-access { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0 2px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: var(--fs-small); color: var(--fg-muted); }
+.sec-pill { flex: none; padding: 3px 10px; border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; border: 1px solid; white-space: nowrap; }
+.sec-pill.active { color: #8fe8b4; background: rgba(143, 232, 180, 0.14); border-color: rgba(143, 232, 180, 0.45); }
+.sec-pill.suspended { color: #ffc1c1; background: rgba(255, 110, 110, 0.18); border-color: rgba(255, 140, 140, 0.55); }
+.sec-pill.unknown { color: var(--fg-muted); background: rgba(255, 255, 255, 0.06); border-color: var(--glass-border); }
+.sec-card-note { display: block; font-size: 0.8rem; line-height: 1.55; color: var(--fg-muted); margin-top: 8px; }
+.sec-card-note .link { font-size: inherit; }
+.sec-warn-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.sec-warn-list li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px 12px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.06); font-size: 0.8rem; line-height: 1.45; }
+.sec-warn-list b { color: #ffd977; font-weight: 600; }
+.sec-warn-list .sec-when { justify-self: end; color: var(--fg-dim); font-size: 0.72rem; }
+.sec-warn-list .sec-what, .sec-warn-list small { grid-column: 1 / -1; }
+.sec-warn-list .sec-what { color: var(--fg); }
+.sec-warn-list small { color: var(--fg-dim); font-size: 0.72rem; }
+.sec-appeal .sec-appeal-form { margin-top: 4px; }
+.sec-appeal .sec-appeal-form .sec-card-note { margin: 0 0 12px; }
+.sec-appeal .field textarea { min-height: 88px; font-size: 0.88rem; }
+.sec-appeals { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid rgba(255, 255, 255, 0.1); display: grid; gap: 12px; }
+.sec-appeals li { display: grid; gap: 3px; font-size: 0.8rem; line-height: 1.5; min-width: 0; }
+.sec-appeal-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sec-appeals small { color: var(--fg-dim); font-size: 0.72rem; }
+.sec-appeals p { margin: 0; color: var(--fg-muted); overflow-wrap: anywhere; white-space: pre-line; }
+.sec-appeals .sec-answer { color: var(--fg); }
+
+/* ----- /account-blocked ----- */
+.sec-blocked { position: fixed; inset: 0; z-index: 250; display: grid; place-items: center; padding: max(76px, env(safe-area-inset-top)) 16px 40px; overflow-y: auto; overscroll-behavior: contain; background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(5, 12, 18, 0.3), rgba(5, 12, 18, 0.85)), rgba(5, 12, 18, 0.4); backdrop-filter: blur(6px); opacity: 0; transition: opacity 0.45s var(--ease); }
+.sec-blocked.open { opacity: 1; }
+.sec-blocked-x { position: absolute; top: max(18px, env(safe-area-inset-top)); right: 16px; }
+.sec-blocked-card { --card: 255, 190, 160; width: min(100%, 580px); display: grid; justify-items: center; gap: 14px; padding: 32px clamp(20px, 5vw, 44px) 26px; text-align: center; background: rgba(var(--card), 0.15); border-color: rgba(var(--card), 0.6); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3); animation: secRise 0.55s var(--ease) both; }
+.sec-blocked-card * { text-shadow: 0 1px 2px rgba(6, 14, 20, 0.6); }
+.sec-blocked-card .btn-primary, .sec-blocked-card .btn-primary * { text-shadow: none; }
+.sec-blocked-card .logo-tile { width: 58px; height: 58px; }
+.sec-blocked-card .eyebrow { margin: 4px 0 0; color: #a8f0c6; }
+.sec-blocked-title { font-family: var(--font-display); font-weight: 500; font-size: clamp(2rem, 1.2rem + 2.8vw, 3.1rem); line-height: 1.04; color: #ffd977; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.5); outline: none; text-wrap: balance; }
+.sec-blocked-title.sm { font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.4rem); }
+.sec-blocked-text { max-width: 44ch; font-size: var(--fs-lede); line-height: 1.62; color: rgba(255, 238, 214, 0.94); overflow-wrap: anywhere; }
+.sec-blocked-text b { color: #fff; font-weight: 600; }
+.sec-blocked-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.sec-blocked-mail { font-size: var(--fs-small); color: var(--fg-muted); overflow-wrap: anywhere; }
+.sec-blocked-foot { width: 100%; margin-top: 4px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: var(--fs-small); color: var(--fg-muted); }
+@media (max-width: 480px) { .sec-blocked-actions { width: 100%; } .sec-blocked-actions .btn { flex: 1 1 100%; } }
+
+/* The closed My Account / Menu drawer sits just off the right edge, above the staff pages, and its
+   shadow showed as a grey band down the right side of the admin panel. Keep the shadow while the
+   drawer is open or sliding out, then drop it. */
+.drawer:not(.open) { box-shadow: none; transition: transform 0.55s var(--ease), box-shadow 0s linear 0.55s; }
+
+@media (prefers-reduced-motion: reduce) { .sec-scrim, .sec-modal, .sec-blocked-card { animation: none; } .sec-blocked { transition: none; } .sec-spin { animation-duration: 2s; } }

@@ -4,11 +4,13 @@ import usePreviewPlayer from '../../hooks/usePreviewPlayer.js';
 import { PLAYER_IDS, sheetOf } from '../../data/catalogue.js';
 import { classById } from '../../data/content.js';
 import Rise from '../common/Rise.jsx';
+import { sheetState } from './sheetAccess.js';
+import { priceLine } from './SheetCard.jsx';
 
 /* The fox and rabbit preview (50 frames, 14 fps) with the sheet carousel on top.
    It plays only while the Sheets chapter is in view. */
 export default function PreviewPlayer({ active }) {
-  const { access, openViewer, unlock, buy, openShop } = useSite();
+  const { access, openViewer, unlock, buy, buyAgain, openShop } = useSite();
   const canvasRef = useRef(null);
   const [paused, setPaused] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -17,7 +19,7 @@ export default function PreviewPlayer({ active }) {
   usePreviewPlayer(canvasRef, 14, active && !paused);
 
   const SHEETS = PLAYER_IDS.map(sheetOf).filter(Boolean);
-  const s = SHEETS[slide % SHEETS.length], owned = access.canOpen(s);
+  const s = SHEETS[slide % SHEETS.length], st = sheetState(access, s);
   const go = d => setSlide(n => (n + d + SHEETS.length) % SHEETS.length);
   return (
     <Rise i={1} className="player">
@@ -32,9 +34,11 @@ export default function PreviewPlayer({ active }) {
       <div className="panel player-card" id="playerCard" aria-live="polite">
         <div className="slide-swap" key={slide}>
           <div className="glyph">{s.glyph || s.az || s.rc || s.letter || 'Aa'}</div><p className="eyebrow">Learn With Why · Preview</p><p className="meta">{classById(s.cls).label} · {s.subject}</p><h3 className="card-title">{s.title}</h3>
-          <p className={'price' + (s.price === 0 ? ' free' : '')}>{owned ? (s.price === 0 ? 'Free · open any time' : access.itemEnt(s.id) ? 'Yours to keep ✓' : 'In your plan ✓') : s.price === 0 ? 'Free access sheet' : 'Yours to keep once bought'}</p>
-          {owned ? <button type="button" className="btn btn-primary" onClick={() => openViewer(s.id)}>Open PDF ↗</button>
+          <p className={'price' + (s.price === 0 ? ' free' : '')}>{priceLine(st, s)}</p>
+          {!st.ready ? <button type="button" className="btn btn-primary" disabled>Coming soon</button>
+            : st.open ? <button type="button" className="btn btn-primary" onClick={() => openViewer(s.id)}>Open PDF ↗</button>
             : s.price === 0 ? <button type="button" className="btn btn-primary" onClick={() => unlock(s.id)}>Open it free →</button>
+            : st.kind === 'ended' ? <button type="button" className="btn btn-primary" onClick={() => (buyAgain || buy)(s.id)}>Buy Access Again →</button>
             : <button type="button" className="btn btn-primary" onClick={() => buy(s.id)}>Buy PDF →</button>}
           {' '}<button type="button" className="btn btn-ghost" onClick={() => openShop('all')}>All sheets</button>
         </div>

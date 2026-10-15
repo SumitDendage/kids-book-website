@@ -14,7 +14,7 @@ export const engineStats = { total: TOTAL, readyCount: 0, inflight: 0, painted: 
 export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = {}) {
   const ctx = canvas.getContext('2d', { alpha: false });
   const frames = new Array(total), status = new Uint8Array(total), tries = new Uint8Array(total);
-  let lastDrawn = -1, readyCount = 0, inflight = 0, painted = false, tick = 0, progress = 0, destroyed = false;
+  let lastDrawn = -1, shown = 0, readyCount = 0, inflight = 0, painted = false, tick = 0, progress = 0, destroyed = false;
   const sync = () => { engineStats.total = total; engineStats.readyCount = readyCount; engineStats.inflight = inflight; engineStats.painted = painted; };
   const frameAt = () => Math.round(Math.min(1, Math.max(0, progress)) * (total - 1));
   const decodeWidth = () => Math.max(1024, Math.min(1440, innerWidth || 1280));
@@ -60,7 +60,7 @@ export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = 
     const img = status[i] === 2 ? frames[i] : null;
     if (img && i !== lastDrawn) {
       const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, s = Math.max(innerWidth / iw, innerHeight / ih);
-      ctx.drawImage(img, (innerWidth - iw * s) / 2, (innerHeight - ih * s) / 2, iw * s, ih * s); lastDrawn = i;
+      ctx.drawImage(img, (innerWidth - iw * s) / 2, (innerHeight - ih * s) / 2, iw * s, ih * s); lastDrawn = shown = i;
       if (!painted) { painted = true; sync(); }
     } else if (!painted) { const g = ctx.createLinearGradient(0, 0, 0, innerHeight); g.addColorStop(0, '#0b1a26'); g.addColorStop(1, '#05090d'); ctx.fillStyle = g; ctx.fillRect(0, 0, innerWidth, innerHeight); }
     if ((tick++ & 7) === 0) { pump(); evict(); }
@@ -68,5 +68,6 @@ export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = 
   }
   function start() { resize(); loadFrame(0); pump(); }
   function destroy() { destroyed = true; for (let i = 0; i < total; i++) if (status[i] === 2) release(i); sync(); }
-  return { start, paint, resize, destroy, get painted() { return painted; } };
+  /* shown: the frame on the canvas now, so the live scenery (scenery.js) follows the same camera */
+  return { start, paint, resize, destroy, get painted() { return painted; }, get shown() { return shown; } };
 }

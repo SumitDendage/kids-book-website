@@ -9,7 +9,7 @@
 .btn:active { transform: translateY(0) scale(0.97); }
 .btn:disabled { opacity: 0.6; cursor: default; }
 .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: var(--r-pill); border: 1px solid var(--glass-border); background: rgba(255,255,255,0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--fg); cursor: pointer; flex-shrink: 0; font-size: 0.95rem; transition: background var(--d-fast); }
+.icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: var(--r-pill); border: 1px solid var(--glass-border); background: rgba(255,255,255,0.08); backdrop-filter: blur(12px); color: var(--fg); cursor: pointer; flex-shrink: 0; font-size: 0.95rem; transition: background var(--d-fast); }
 .icon-btn:hover { background: rgba(255,255,255,0.18); }
 .icon-btn:disabled { opacity: 0.35; cursor: default; }
 .icon-btn svg { width: 17px; height: 17px; }

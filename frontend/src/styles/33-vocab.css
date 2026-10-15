@@ -1,0 +1,57 @@
+/* Kindergarten › Vocabulary — "Explore Vocabulary" (Sumit's picture, Oct 6): a pastel picture
+   card for each topic, four across on a computer, two on a phone. The glass box itself is
+   tinted in 29-story-colours.css; the heading shimmers like the other big headings (30-…). */
+.vocab { margin-bottom: 26px; padding: 26px 22px 24px; border-radius: var(--r-lg); border: 1px solid var(--glass-border); }
+.vocab-head { text-align: center; margin-bottom: 22px; }
+.vocab-head .eyebrow { margin-bottom: 8px; }
+.vocab-head h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.2rem, 1.5rem + 2.2vw, 3.3rem); line-height: 1.05; margin: 0; }
+.vocab-sub { margin: 6px 0 0; font-family: var(--font-display); font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem); }
+#content .vocab-sub em { color: #ffd2bd; font-weight: 500; text-shadow: 0 1px 3px rgba(6, 14, 20, 0.85), 0 0 16px rgba(6, 14, 20, 0.6); }
+
+.vocab-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.vocab-card { --card: var(--c-pink); position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 16px 12px 14px; border-radius: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.85); background: linear-gradient(170deg, rgba(var(--card), 0.62), rgba(var(--card), 0.42)); backdrop-filter: blur(16px) saturate(1.15) brightness(1.06);
+  box-shadow: 0 14px 30px rgba(6, 14, 20, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.6); color: #3a2a1e; font: inherit; text-align: center;
+  animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--n, 0) * 40ms); transition: transform var(--d-base) var(--ease), box-shadow var(--d-base); }
+button.vocab-card { cursor: pointer; }
+button.vocab-card:hover { transform: translateY(-5px) rotate(-0.6deg); box-shadow: 0 20px 36px rgba(6, 14, 20, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.6); }
+button.vocab-card:focus-visible { outline: 3px solid #ffd977; outline-offset: 3px; }
+.vocab-pic { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; background: radial-gradient(ellipse at 50% 55%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.55) 70%, rgba(255, 255, 255, 0.25)); overflow: hidden; }
+.vocab-pic img { width: 88%; height: 88%; object-fit: contain; transition: transform var(--d-base) var(--ease); }
+button.vocab-card:hover .vocab-pic img { transform: scale(1.06); }
+.vocab-name { font-family: var(--font-display); font-size: clamp(1.25rem, 1.05rem + 0.6vw, 1.55rem); font-weight: 600; line-height: 1.1; color: #2b2016; }
+.vocab-go, .vocab-soon { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--r-pill); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.vocab-go { background: linear-gradient(135deg, #ffd977, #ffb39a); color: #2b2016; border: 1.5px solid rgba(255, 255, 255, 0.85); }
+.vocab-go span { display: inline-block; transition: transform var(--d-fast) var(--ease); }
+button.vocab-card:hover .vocab-go span { transform: translateX(4px); }
+.vocab-soon { background: #ffe0ec; color: #c2185b; }
+.vocab-card.soon .vocab-pic img { opacity: 0.9; }
+.vocab-n { position: absolute; top: 10px; right: 10px; z-index: 1; padding: 3px 9px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.9); color: #1f6b47; font-size: 0.66rem; font-weight: 700; }
+.vocab-foot { width: fit-content; max-width: 100%; margin: 22px auto 0; padding: 10px 24px; border-radius: var(--r-pill); border: 1.5px solid rgba(255, 255, 255, 0.8); background: rgba(255, 244, 222, 0.78); backdrop-filter: blur(10px);
+  font-family: var(--font-display); font-size: clamp(1.1rem, 1rem + 0.4vw, 1.3rem); font-weight: 600; color: #5a3d22; text-align: center; }
+/* the candy colour of each card's Explore button follows its card */
+.vocab-card:nth-child(6n+2) .vocab-go { background: linear-gradient(135deg, #ffe08a, #a8f0c6); }
+.vocab-card:nth-child(6n+3) .vocab-go { background: linear-gradient(135deg, #ffc2dd, #d6b8ff); }
+.vocab-card:nth-child(6n+4) .vocab-go { background: linear-gradient(135deg, #a8f0c6, #7fd8e6); }
+.vocab-card:nth-child(6n+6) .vocab-go { background: linear-gradient(135deg, #b9e3ff, #a8b8ff); }
+#content .vocab-card, #content .vocab-card *, #content .vocab-foot { text-shadow: none; }
+@media (max-width: 1100px) { .vocab-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .vocab { padding: 18px 12px 18px; }
+  .vocab-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .vocab-card { padding: 12px 8px 12px; border-radius: 18px; gap: 6px; }
+  .vocab-n { top: 6px; right: 6px; font-size: 0.6rem; padding: 2px 7px; }
+  .vocab-foot { padding: 9px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .vocab-card, .vocab-pic img, .vocab-go span { animation: none; transition: none; } }
+
+/* the menu: Alphabet, a row of its own just under Kindergarten, joined to it by a line; Vocabulary
+   is a row of its own after it, not under Kindergarten (Sumit, Oct 7) */
+.side-child { position: relative; margin-left: 24px; }
+.side-child::before { content: ''; position: absolute; left: -14px; top: -6px; height: calc(50% + 6px); width: 10px; border-left: 2px solid rgba(255, 255, 255, 0.3); border-bottom: 2px solid rgba(255, 255, 255, 0.3); border-bottom-left-radius: 8px; pointer-events: none; }
+.side-child .ic img, .side-vocab .ic img { width: 28px; height: 28px; object-fit: contain; }
+.side-child:not(.on) { color: #fff; }
+@media (max-width: 860px) {
+  .ws-side .kg-parent, .ws-side .side-child, .ws-side .side-vocab { grid-column: 1 / -1; }   /* Kindergarten, Alphabet and Vocabulary get full rows */
+  .side-child .n, .side-vocab .n { display: inline-block; }
+}

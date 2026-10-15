@@ -1,7 +1,8 @@
 /* Drawing the licensed pages. Canvas pixels are drawn straight into the stage
    element (not through React state): each page is a canvas, the watermark overlay
-   and the page number. Moved from legacy/old-static-site/viewer.html; the only change is that
-   PDF.js is bundled (pdfjs-dist, loaded on demand) instead of fetched from a CDN. */
+   and the page number. Moved from legacy/old-static-site/viewer.html; PDF.js is
+   bundled (pdfjs-dist, loaded on demand) instead of fetched from a CDN. The PDF itself
+   arrives already stamped by the server with the customer's details. */
 
 /* one page: canvas + 24 watermark stamps + "n / total" */
 export function pageEl(stage, n, total, stamp) {
@@ -13,6 +14,8 @@ export function pageEl(stage, n, total, stamp) {
   d.append(cv, wm, pn); stage.appendChild(d);
   return cv;
 }
+/* the page keeps the shape of what was drawn (a landscape chart stays landscape) */
+const shape = (cv, W, H) => { if (cv.parentElement && W > 0 && H > 0) cv.parentElement.style.aspectRatio = W + ' / ' + H; };
 
 /* a second, lighter stamp is baked into the pixels themselves, so a screenshot carries it */
 export function bake(ctx, W, H, stamp) {
@@ -36,17 +39,20 @@ async function loadPdfjs() {
 export async function renderPdf(stage, data, { stamp, isEnded, onPages }) {
   const lib = await loadPdfjs();
   const pdf = await lib.getDocument({ data, isEvalSupported: false }).promise;
+  if (isEnded()) return pdf;
   onPages(pdf.numPages); stage.replaceChildren();
   for (let n = 0; n < pdf.numPages; n++) {
     if (isEnded()) break;
     const page = await pdf.getPage(n + 1), vp = page.getViewport({ scale: 1 }), scale = Math.min(2, 1600 / vp.width);
-    const v = page.getViewport({ scale }), cv = pageEl(stage, n, pdf.numPages, stamp); cv.width = v.width; cv.height = v.height;
+    const v = page.getViewport({ scale }), cv = pageEl(stage, n, pdf.numPages, stamp); cv.width = v.width; cv.height = v.height; shape(cv, v.width, v.height);
     const ctx = cv.getContext('2d'); await page.render({ canvasContext: ctx, viewport: v }).promise; bake(ctx, v.width, v.height, stamp);
   }
+  if (isEnded()) stage.replaceChildren();   /* access ended while the pages were drawing */
   return pdf;
 }
 
-/* page images from the server (when there is no PDF, or PDF.js could not draw it) */
+/* page images from the server (when PDF.js could not draw the PDF). onDenied(status, body) when the
+   server says no (signed out, access ended, blocked); any other failure is thrown, never a blank page */
 export async function renderImages(stage, { pages, stamp, isEnded, fetchPage, onDenied }) {
   stage.replaceChildren();
   for (let n = 0; n < pages; n++) {
@@ -54,22 +60,10 @@ export async function renderImages(stage, { pages, stamp, isEnded, fetchPage, on
     const r = await fetchPage(n);
     if (!r.ok) {
       const e = await r.json().catch(() => ({}));
-      if (r.status === 401 || r.status === 403) { onDenied(e.error); return; }
-      throw new Error(e.error || 'Page ' + (n + 1) + ' could not be loaded');   /* never a blank page shown as if it had loaded */
+      if (r.status === 401 || r.status === 403 || r.status === 410) { onDenied(r.status, e); return; }
+      throw new Error(e.error || 'Page ' + (n + 1) + ' could not be loaded');
     }
-    const bmp = await createImageBitmap(await r.blob()), cv = pageEl(stage, n, pages, stamp); cv.width = bmp.width; cv.height = bmp.height;
+    const bmp = await createImageBitmap(await r.blob()), cv = pageEl(stage, n, pages, stamp); cv.width = bmp.width; cv.height = bmp.height; shape(cv, bmp.width, bmp.height);
     const ctx = cv.getContext('2d'); ctx.drawImage(bmp, 0, 0); bake(ctx, bmp.width, bmp.height, stamp); bmp.close();
   }
-}
-
-/* a worksheet whose PDF has not been uploaded yet: a placeholder page, so the flow can be tried end to end */
-export function renderDemo(stage, meta, stamp) {
-  stage.replaceChildren();
-  const W = 1240, H = 1754, cv = pageEl(stage, 0, 1, stamp); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#1d2126'; ctx.font = '500 64px "Cormorant Garamond", serif'; ctx.fillText(meta.title, 110, 180);
-  ctx.font = '26px Inter, sans-serif'; ctx.fillStyle = '#5d636b'; ctx.fillText(meta.cls.toUpperCase() + ' · ' + meta.subject, 110, 240);
-  ctx.setLineDash([12, 12]); ctx.strokeStyle = '#c7c2b6'; ctx.lineWidth = 2; for (let y = 420; y < 1600; y += 120) { ctx.beginPath(); ctx.moveTo(110, y); ctx.lineTo(W - 110, y); ctx.stroke(); } ctx.setLineDash([]);
-  ctx.fillStyle = '#8a8f96'; ctx.font = '20px Inter, sans-serif'; ctx.fillText('Learn With Why · ' + meta.subject, 110, H - 80); ctx.textAlign = 'right'; ctx.fillText('Placeholder page — the PDF for this sheet has not been uploaded yet', W - 110, H - 80); ctx.textAlign = 'left';
-  bake(ctx, W, H, stamp);
 }

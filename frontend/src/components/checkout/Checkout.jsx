@@ -1,26 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import { payApi } from '../../services/api.js';
-import { write, pushLog, logEvent } from '../../services/storage.js';
-import { fmtCur, setCurrencyFromCountry } from '../../services/currency.js';
-import { initialAddress, loadCoConfig, loadRazorpay } from '../../services/checkout.js';
+import { eventsApi, payApi } from '../../services/api.js';
+import { write } from '../../services/storage.js';
+import { fmtCur, money, setCurrencyFromCountry } from '../../services/currency.js';
+import { addressForQuote, initialAddress, loadCoConfig, loadRazorpay, monthsText, payErrorText, serverPlans, spanOfDays, tidyAddress } from '../../services/checkout.js';
 import { PAY_VIA, RZP_DISPLAY, PAY } from '../../data/checkout.js';
-import { classById, planOf, plansFor } from '../../data/content.js';
+import { classById } from '../../data/content.js';
 import { sheetOf } from '../../data/catalogue.js';
-import { flagOf, shortClass, dateOf } from '../../utils/format.js';
+import { flagOf, shortClass, dateTimeTz } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
 
-/* The payment page. Nothing is priced here: the server returns a signed quote for
-   the address and coupon; /api/pay/order turns it into an order; Razorpay (or a
-   hosted Stripe / PayPal page) takes the payment; the server verifies it and grants
-   the entitlement. A gateway the server has not connected is shown as coming soon. */
+/* The payment page. Nothing is priced here: the server prices the address and coupon and keeps
+   the quote (POST /api/quote → quoteId); /api/pay/order turns that stored quote into an order;
+   Razorpay (or a hosted Stripe / PayPal page) takes the payment; the server checks it and opens
+   the purchase. A gateway the server has not connected is shown as coming soon. */
 const keep = { code: '', touched: {}, via: 'qr' };   /* like the original page: the coupon, touched fields and way to pay survive closing the page */
+/* the stored quote ran out or no longer matches: price it again and ask for one more tap on Pay */
+const REQUOTE = ['quote_expired', 'quote_invalid', 'quote_mismatch', 'price_changed'];
+const REFRESHED = 'We refreshed your price because the old one had run out. Please check the total and press Pay again.';
+
+/* "Opens as soon as your payment is verified and stays open for 1 year, until 8 Oct 2027, 1:16 pm IST if you pay now." */
+function accessNoteOf(q, tz) {
+  const it = q && Array.isArray(q.items) ? q.items[0] : null;
+  if (!it || !it.endsAt) return q && q.accessText ? q.accessText : '';
+  const until = dateTimeTz(it.endsAt, tz);
+  if (it.kind === 'worksheet') return 'Opens as soon as your payment is verified and stays open for ' + spanOfDays(it.accessDays || q.accessDays) + ', until ' + until + ' if you pay now.';
+  const span = it.months + (it.months === 1 ? ' month' : ' months');
+  if (/^Starts /.test(it.expiry || q.accessText || '') && it.startsAt) return 'Starts ' + dateTimeTz(it.startsAt, tz) + ', when your current plan ends, and runs for ' + span + ', until ' + until + '.';
+  return 'Every ' + (q.className || 'class') + ' sheet opens as soon as your payment is verified and stays open for ' + span + ', until ' + until + ' if you pay now.';
+}
 
 export default function Checkout() {
   const site = useSite();
   const { checkout, closeCheckout, access, toast, syncEntitlements, showPurchasePopup, rerenderAll } = site;
+  const tz = (access.session && access.session.timeZone) || undefined;
   const [status, setStatus] = useState('loading');     /* loading | ready | error */
   const [loadError, setLoadError] = useState('');
+  const [loadTry, setLoadTry] = useState(0);
   const [config, setConfig] = useState(null);
   const [addr, setAddr] = useState(initialAddress);
   const [touched, setTouchedState] = useState(keep.touched);
@@ -30,57 +46,70 @@ export default function Checkout() {
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [bump, setBump] = useState(0);
   const lastTotal = useRef(null), timer = useRef(0), seq = useRef(0), shopRef = useRef(null);
   const item = checkout.item ? sheetOf(checkout.item) : null;
   const itemId = checkout.item;
-  /* a class subscription instead of one PDF: the plan is picked on this page */
+  /* a class plan instead of one PDF: the plan is picked on this page */
   const subCls = !itemId && checkout.cls ? checkout.cls : null;
   const running = subCls ? access.activeSub(subCls) : null;   /* a renewal starts when this plan ends */
   const [planPick, setPlanPick] = useState(checkout.plan || 'm3');
-  const plans = plansFor(addr.country);
-  const plan = plans.some(x => x.id === planPick) ? planPick : (plans.some(x => x.id === 'm6') ? 'm6' : plans[0].id);
+  /* the plans the server sells in this country, with the server's prices */
+  const plans = serverPlans(config, addr.country, subCls);
+  const plan = plans.some(x => x.id === planPick) ? planPick : (plans.some(x => x.id === 'm6') ? 'm6' : (plans[0] ? plans[0].id : planPick));
   const planRef = useRef(plan); planRef.current = plan;
 
   const setTouched = t => { keep.touched = t; setTouchedState(t); };
   const setCode = c => { keep.code = c; setCodeState(c); };
   const setPayVia = v => { keep.via = v; setPayViaState(v); };
 
-  /* ask the server for a fresh signed quote (debounced while typing) */
+  /* ask the server for a fresh quote (debounced while typing) */
   const requestQuote = useCallback((now, a = addr, c = code, p = planRef.current) => {
     clearTimeout(timer.current);
     const run = async () => {
       const mine = ++seq.current;
       setBusy(true); setError('');
       try {
-        const q = await payApi.quote(subCls ? { cls: subCls, plan: p, coupon: c, address: a } : { worksheet: itemId, coupon: c, address: a });
+        const address = addressForQuote(a);
+        const q = await payApi.quote(subCls ? { cls: subCls, plan: p, coupon: c, address } : { worksheet: itemId, coupon: c, address });
         if (mine !== seq.current) return;
         if (lastTotal.current !== null && lastTotal.current !== q.total) setBump(b => b + 1);
         lastTotal.current = q.total;
         setQuote(q);
-      } catch (err) { if (mine === seq.current) { setQuote(null); setError(err.message); } }
+      } catch (err) { if (mine === seq.current) { setQuote(null); setError(payErrorText(err, 'quote')); } }
       if (mine === seq.current) setBusy(false);
     };
     if (now) run(); else timer.current = setTimeout(run, 350);
   }, [addr, code, itemId, subCls]);
 
-  /* opening the page: fresh quote, config loaded once */
+  /* opening the page counts as a checkout start (visit statistics on the server) */
+  useEffect(() => {
+    if (!checkout.open) return;
+    eventsApi.track('checkout_start', itemId ? { productId: itemId, meta: { kind: 'worksheet', again: !!checkout.again } } : { meta: { kind: 'class', cls: checkout.cls || null, plan: checkout.plan || null, again: !!checkout.again } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkout.nonce]);
+
+  /* opening the page: the server's countries, plans and gateways, then a fresh quote */
   useEffect(() => {
     if (!checkout.open) return;
     if (shopRef.current) shopRef.current.scrollTop = 0;
     if (checkout.plan) setPlanPick(checkout.plan);
-    setQuote(null); lastTotal.current = null; setStatus('loading');
+    setQuote(null); setError(''); setNotice(''); lastTotal.current = null; setStatus('loading');
     let alive = true;
     loadCoConfig().then(cfg => {
       if (!alive) return;
-      setConfig(cfg); const a = initialAddress(); setAddr(a);
+      let a = initialAddress();
+      if (!cfg.countries.some(c => c.code === a.country)) a = tidyAddress({ ...a, country: 'OTHER' });
+      setConfig(cfg); setAddr(a);
       if (setCurrencyFromCountry(cfg, a.country)) rerenderAll();
-      const ps = plansFor(a.country), p0 = checkout.plan || 'm3';
-      setStatus('ready'); requestQuote(false, a, keep.code, ps.some(x => x.id === p0) ? p0 : 'm6');
-    }).catch(err => { if (alive) { setLoadError(err.message); setStatus('error'); } });
+      const ps = serverPlans(cfg, a.country, subCls), p0 = checkout.plan || 'm3';
+      setStatus('ready');
+      requestQuote(false, a, keep.code, ps.some(x => x.id === p0) ? p0 : (ps.some(x => x.id === 'm6') ? 'm6' : (ps[0] ? ps[0].id : p0)));
+    }).catch(err => { if (alive) { setLoadError(err.message || 'We could not load the secure checkout just now.'); setStatus('error'); } });
     return () => { alive = false; clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkout.nonce]);
+  }, [checkout.nonce, loadTry]);
 
   const C = (config && (config.countries.find(c => c.code === addr.country) || config.countries[config.countries.length - 1])) || null;
   const india = C ? C.code === 'IN' : true;
@@ -111,57 +140,77 @@ export default function Checkout() {
   const blur = k => () => setTouched({ ...touched, [k]: true });
   const errs = (quote && quote.errors) || {};
   const errOf = k => (touched[k] && errs[k] ? errs[k] : '');
+  /* a problem with something that is not on the form (the total, say) is shown in the summary */
+  const onForm = ['country', 'line1', 'city'].concat(india ? ['state', 'postal'] : []);
+  const otherErrs = Object.keys(errs).filter(k => !onForm.includes(k)).map(k => errs[k]);
   const fl = (k, input, label, extra) => (
     <div className={'fl' + (errOf(k) ? ' bad' : '')}>{input}<label htmlFor={'co-' + k} id={k === 'postal' ? 'coPostalLabel' : undefined}>{label}</label>{extra}<div className="err" data-err={k}>{errOf(k)}</div></div>
   );
   const text = (k, props) => <input id={'co-' + k} name={k} value={addr[k] || ''} placeholder=" " onChange={e => change(k, e.target.value)} onBlur={blur(k)} {...props} />;
 
-  /* ---------- 1. /api/pay/order  2. Razorpay Checkout  3. /api/pay/verify → entitlement ---------- */
+  /* ---------- 1. /api/pay/order  2. Razorpay Checkout  3. /api/pay/verify → the purchase opens ---------- */
   async function placeOrder() {
-    if (!quote || !quote.valid || busy || !canPay) return;
-    const session = access.session; if (!session) return;
-    setBusy(true); setError('');
+    if (!quote || !quote.valid || !quote.quoteId || busy || !canPay) return;
+    if (!access.session) return;
+    setBusy(true); setError(''); setNotice('');
     const q = quote, method = 'Razorpay · ' + viaOf.label;
+    let orderId = null, step = 'order';
     try {
-      const out = await payApi.order({ quote: q, method: payMethod, via });
-      const o = out.order, g = out.gateway;
+      const out = await payApi.order({ quoteId: q.quoteId, method: payMethod });
+      const o = out.order || {}, g = out.gateway || {};
+      orderId = o.id || out.orderId || null;
       write('lww_address', addr);
-      pushLog('lww_orders', { id: o.id, at: o.at, email: session.email, name: session.name, cls: o.cls, plan: o.plan, worksheet: o.worksheet, amount: o.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'created', address: q.address }, 1000);
       if (g.provider === 'stripe' || g.provider === 'paypal') {
         /* hosted pages: remember the order, hand over to the gateway; the site finishes it on the way back */
-        try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: o.id, provider: g.provider, total: q.total, currency: q.currency, worksheet: itemId, via })); } catch (_) {}
+        try { sessionStorage.setItem('lww_pending_pay', JSON.stringify({ order: orderId, provider: g.provider, total: q.total, currency: q.currency, worksheet: itemId, cls: subCls, plan: subCls ? plan : null, via })); } catch (_) {}
         location.href = g.url; return;
       }
-      if (g.provider !== 'razorpay') throw new Error('Online payment is not available right now — nothing was charged.');
+      if (g.provider !== 'razorpay') throw Object.assign(new Error('Online payment is not available right now.'), { code: 'payments_unavailable' });
       await loadRazorpay();
+      step = 'pay';
       const done = await new Promise((res, rej) => {
+        let paid = false;
         /* only the PUBLIC key id (g.key) comes from the server; the secret never leaves it */
         const rz = new window.Razorpay({
-          key: g.key, amount: g.amount, currency: g.currency, order_id: g.razorpay_order_id, name: g.name, description: g.description, prefill: g.prefill, theme: g.theme, notes: { order: o.id, via },
+          key: g.key, amount: g.amount, currency: g.currency, order_id: g.razorpay_order_id, name: g.name, description: g.description, prefill: g.prefill, theme: g.theme, notes: { order: orderId, via },
           config: { display: RZP_DISPLAY[via] || RZP_DISPLAY.card },   /* open straight on the chosen way to pay */
-          handler: resp => payApi.verify({ order_id: o.id, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej),
-          modal: { ondismiss: () => rej(Object.assign(new Error('Payment cancelled — nothing was charged.'), { cancelled: true })) },
+          handler: resp => {
+            paid = true; step = 'verify';
+            payApi.verify({ order_id: orderId, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature }).then(res, rej);
+          },
+          modal: { ondismiss: () => { if (!paid) rej(Object.assign(new Error('Payment cancelled. Nothing was charged.'), { cancelled: true })); } },
         });
-        rz.on('payment.failed', r => { pushLog('lww_payments', { at: Date.now(), order: o.id, gateway: 'Razorpay', status: 'failed', reason: r.error && r.error.description }, 400); });
         rz.open();
       });
-      const paid = done.order;
-      pushLog('lww_orders', { id: paid.id, at: paid.at, email: session.email, name: session.name, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency, total: q.total, method, coupon: q.coupon, status: 'paid', address: q.address }, 1000);
-      pushLog('lww_payments', { at: paid.paidAt || Date.now(), order: paid.id, gateway: 'Razorpay', payment: paid.paymentId, amount: q.total, currency: q.currency, status: 'captured' }, 400);
-      logEvent(q.kind === 'worksheet' ? 'buy' : 'subscribe', { order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: paid.worksheet, amount: paid.totalInr, currency: q.currency });
       await syncEntitlements();
       setCode(''); setCouponInput(''); setQuote(null); setBusy(false);
       closeCheckout();
-      showPurchasePopup({ order: paid.id, cls: paid.cls, plan: paid.plan, worksheet: itemId, total: fmtCur(q.total, q.currency), method });
+      /* { ok, status, order, entitlement, entitlements } + what was paid; SiteContext shapes it for the popup */
+      showPurchasePopup({ ...done, total: fmtCur(q.total, q.currency) }, method);
     } catch (err) {
       setBusy(false);
-      /* already on the account (bought in another tab or device): no second payment — show the sheet instead */
-      if (err.status === 409 && err.body && err.body.code === 'already_owned') { await syncEntitlements(); closeCheckout(); toast(err.message); site.openSheet(itemId); return; }
-      setError(err.message); if (!err.cancelled) requestQuote(true); else toast(err.message);
+      /* the Razorpay window was closed before paying: the order is cancelled on the server too */
+      if (err.cancelled) {
+        if (orderId) payApi.cancel({ order_id: orderId }).catch(() => {});
+        toast('Payment cancelled. Nothing was charged.');
+        requestQuote(true);
+        return;
+      }
+      /* already on the account (bought in another tab or device): no second payment, show the sheet instead */
+      if (err.status === 409 && err.code === 'already_owned') {
+        await syncEntitlements(); closeCheckout();
+        toast('This sheet is already on your account. Open it from My Account → My Worksheets.');
+        if (itemId) site.openSheet(itemId);
+        return;
+      }
+      if (REQUOTE.includes(err.code)) { setNotice(err.code === 'price_changed' ? 'The price changed a moment ago. We refreshed it, so please check the total and press Pay again.' : REFRESHED); requestQuote(true); return; }
+      if (step === 'verify') syncEntitlements();
+      setError(payErrorText(err, step));
+      if (step !== 'verify') requestQuote(true);
     }
   }
 
-  /* changing country can drop the 12-month plan (India): ask again with the plan that is shown */
+  /* picking a plan asks again with that plan */
   const pickPlan = id => { setPlanPick(id); requestQuote(true, addr, code, id); };
   const prevPlan = useRef(plan);
   useEffect(() => { if (subCls && prevPlan.current !== plan) { prevPlan.current = plan; requestQuote(true, addr, code, plan); } });
@@ -169,55 +218,62 @@ export default function Checkout() {
   /* ---------- the order summary ---------- */
   const cls = item ? classById(item.cls) : subCls ? classById(subCls) : null;
   const q = quote, addrOk = !!(q && q.valid);
+  const planNow = plans.find(x => x.id === plan);
+  const days = (q && q.accessDays) || (item && item.accessDays) || (config && config.accessDays) || 365;
+  const off = q && q.discountInr ? (q.currency === 'INR' ? '₹' + q.discountInr : fmtCur(Math.round(q.discountInr * q.rate * 100) / 100, q.currency)) : '';
+  const accessNote = q ? accessNoteOf(q, tz) : '';
   const summary = (
     <aside className="co-summary" id="coSummary" aria-live="polite">
       <div className="sum-head"><p className="eyebrow">Order summary</p>{q && <span className={'region-chip' + (q.region === 'IN' ? ' in' : '')}>{q.region === 'IN' ? '🇮🇳 India · INR' : '🌍 ' + q.countryName + ' · ' + q.currency}</span>}</div>
       {item
-        ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · yours to keep</small></div></div>
-        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planOf(plan).label} · every sheet in the class{running && running.end ? ' · starts ' + dateOf(running.end) + ', when your current plan ends' : ''}</small></div></div>}
+        ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · open for {spanOfDays(days)}{checkout.again ? ' · buying access again' : ''}</small></div></div>
+        : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planNow ? planNow.label : ''} · every sheet in the class{running && running.end ? ' · starts ' + dateTimeTz(running.end, tz) + ', when your current plan ends' : ''}</small></div></div>}
       <div className={'co-lines' + (busy ? ' busy' : '')}>
         {q ? q.lines.map((l, i) => <div key={i} className="co-line"><span>{l.label}<small>{l.note || ''}</small></span><b>{fmtCur(l.amount, q.currency)}</b></div>)
           : error ? <p className="alert err">{error}</p> : <><div className="sk-line" /><div className="sk-line" /><div className="sk-line short" /></>}
       </div>
       {q && <div className={'sum-total' + (bump ? ' bump' : '')}><span>Total<small>incl. tax &amp; fees</small></span><strong key={bump}>{fmtCur(q.total, q.currency)}</strong></div>}
-      {q && <p className="co-note" style={{ textAlign: 'center' }}>{subCls ? <>Every sheet in {cls.label} opens the moment the payment is verified.</> : <>Access opens the moment the payment is verified and <b>does not expire</b>.</>}</p>}
-      {q && q.currency !== 'INR' && <p className="co-note">≈ ₹{Math.round(q.total / q.rate)} at 1 INR = {q.rate} {q.currency}. You are charged in {q.currency}.</p>}
-      {q && q.coupon && <p className="co-note ok">Coupon {q.coupon} applied — ₹{q.discountInr} off</p>}
+      {q && accessNote && <p className="co-note" id="coAccess" style={{ textAlign: 'center' }}>{accessNote}</p>}
+      {q && q.currency !== 'INR' && <p className="co-note">≈ ₹{Math.round(q.totalInr || q.total / q.rate)} at 1 INR = {q.rate} {q.currency}. You are charged in {q.currency}.</p>}
+      {q && q.coupon && <p className="co-note ok">Coupon {q.coupon} applied, {off} off.</p>}
+      {q && !q.valid && otherErrs.length > 0 && <p className="alert err">{otherErrs.join(' ')}</p>}
+      {notice && <p className="alert ok" id="coNotice">{notice}</p>}
       {q && error && <p className="alert err">{error}</p>}
-      <button type="button" className="btn btn-pay" id="payNow" disabled={!q || !q.valid || busy || !canPay} onClick={placeOrder}>{!canPay
+      <button type="button" className="btn btn-pay" id="payNow" disabled={!q || !q.valid || !q.quoteId || busy || !canPay} onClick={placeOrder}>{!canPay
         ? <><span>Payment coming soon</span><small>online payment is not available yet</small></>
         : <><span>{q && q.valid ? 'Pay ' + fmtCur(q.total, q.currency) : 'Complete your address'}</span><small>{q && q.valid ? 'by ' + viaOf.label + ' →' : 'to unlock payment'}</small></>}</button>
-      <ul className="trust"><li>🔒 Priced &amp; signed on the server</li><li>🛡️ No card details stored here</li><li>↺ Cancel any time</li></ul>
-      {q && <p className="co-note" style={{ textAlign: 'center' }}>Quote valid until {new Date(q.exp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>}
+      <ul className="trust"><li>🔒 Priced on our server</li><li>🛡️ No card details stored here</li></ul>
+      {q && q.quoteId && <p className="co-note" style={{ textAlign: 'center' }}>This price is held until {dateTimeTz(q.expiresAt || q.exp, tz)}.</p>}
     </aside>
   );
 
   let body;
   if (status === 'loading') body = <section className="panel"><p className="cart-empty">Loading secure checkout…</p></section>;
-  else if (status === 'error') body = <section className="panel"><p className="alert err">{loadError}. Start the server (<code>npm start</code> in the <code>backend</code> folder) so the pricing API is available.</p></section>;
+  else if (status === 'error') body = <section className="panel"><p className="alert err">{loadError}</p><button type="button" className="btn btn-ghost" onClick={() => setLoadTry(n => n + 1)}>Try again</button></section>;
   else {
     const stateField = C.states
       ? <select id="co-state" name="state" className={addr.state ? 'filled' : undefined} value={addr.state || ''} onChange={e => change('state', e.target.value)} onBlur={blur('state')}>{['', ...C.states].map(x => <option key={x} value={x}>{x}</option>)}</select>
       : text('state', { autoComplete: 'address-level1' });
+    const postal = C.postal || {};
     body = (
       <>
         <div className="co-left">
           {subCls && <section className="panel co-card co-plans" aria-labelledby="coPlanHead">
-            <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coPlanHead">Choose your plan</h3><p>{C.code === 'IN' ? 'India: 1, 3 or 6 months' : '1, 3, 6 or 12 months'} · every sheet in {cls.label}</p></div></header>
-            <div className="method-grid plan-grid" role="radiogroup" aria-label="Subscription plan">
-              {plans.map(x => <label key={x.id} className={'method' + (x.id === plan ? ' on' : '')}><input type="radio" name="plan" value={x.id} checked={x.id === plan} onChange={() => pickPlan(x.id)} /><span className="txt"><b>{x.label}</b><small>{fmtCur(Math.round(((config.plans && config.plans[x.id] && config.plans[x.id].price) || x.price) * (config.rates[C.currency] || 1) * 100) / 100, C.currency)}{x.note ? ' · ' + x.note : ''}</small></span><span className="ring" /></label>)}
+            <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coPlanHead">Choose your plan</h3><p>{(C.code === 'IN' ? 'India: ' : '') + monthsText(plans)} · every sheet in {cls.label}</p></div></header>
+            <div className="method-grid plan-grid" role="radiogroup" aria-label="Class plan">
+              {plans.map(x => <label key={x.id} className={'method' + (x.id === plan ? ' on' : '')}><input type="radio" name="plan" value={x.id} checked={x.id === plan} onChange={() => pickPlan(x.id)} /><span className="txt"><b>{x.label}</b><small>{money(x.price)}{x.note ? ' · ' + x.note : ''}</small></span><span className="ring" /></label>)}
             </div>
           </section>}
           <section className={'panel co-card' + (addrOk ? ' done' : '')} data-step="1" aria-labelledby="coStep1">
             <header className="co-card-head"><span className="co-num">1</span><div><h3 id="coStep1">Billing address</h3><p id="coRegionLine">{C.code === 'IN'
               ? <><span className="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · state and 6-digit PIN code</>
-              : <><span className="region-chip">🌍 {C.name}</span> priced in <b>{C.currency}</b>{C.tax.includes('%') ? ' with ' + C.tax : ', no tax collected'} · street and city only</>}</p></div></header>
-            {fl('country', <select id="co-country" name="country" className="filled" value={addr.country} onChange={e => change('country', e.target.value)} onBlur={blur('country')}>{config.countries.map(x => <option key={x.code} value={x.code}>{flagOf(x.code)}  {x.name}</option>)}</select>, 'Country')}
+              : <><span className="region-chip">🌍 {C.name}</span> priced in <b>{C.currency}</b>{C.taxPct ? ' with ' + C.tax + (/%/.test(C.tax) ? '' : ' ' + C.taxPct + '%') : ', no tax collected'} · street and city only</>}</p></div></header>
+            {fl('country', <select id="co-country" name="country" className="filled" value={C.code} onChange={e => change('country', e.target.value)} onBlur={blur('country')}>{config.countries.map(x => <option key={x.code} value={x.code}>{flagOf(x.code)}  {x.name}</option>)}</select>, 'Country')}
             {fl('line1', text('line1', { autoComplete: 'street-address' }), 'Address (house / flat, street, area)')}
             <div className={'fl-grid' + (C.code === 'IN' ? '' : ' intl')}>
               {fl('city', text('city', { autoComplete: 'address-level2' }), 'City')}
               {C.code === 'IN' && fl('state', stateField, C.state)}
-              {C.code === 'IN' && fl('postal', text('postal', { inputMode: 'numeric', autoComplete: 'postal-code', maxLength: 6 }), 'PIN code', <small className="fhint">6 digits, e.g. 411001</small>)}
+              {C.code === 'IN' && fl('postal', text('postal', { inputMode: 'numeric', autoComplete: 'postal-code', maxLength: 6 }), postal.label || 'PIN code', <small className="fhint">{postal.hint || '6 digits, e.g. 411001'}</small>)}
             </div>
           </section>
           <section className="panel co-card" data-step="2" aria-labelledby="coStep2">
@@ -229,7 +285,7 @@ export default function Checkout() {
               <p className="pay-secure">{PAY_MARK.razorpay}<span><b>100% secure payment</b> — powered by Razorpay, PCI-DSS certified and 256-bit encrypted. Your card and UPI details go straight to the bank; we never see or store them.</span></p>
             </div>
             <div className="coupon-row"><div className="fl"><input id="coCoupon" type="text" value={couponInput} placeholder=" " autoComplete="off" onChange={e => setCouponInput(e.target.value)} /><label htmlFor="coCoupon">Coupon code</label></div><button type="button" className="btn btn-ghost" id="coApply" onClick={() => { const c = couponInput.trim().toUpperCase(); setCode(c); requestQuote(true, addr, c); }}>Apply</button></div>
-            <div className="err" id="coCouponMsg" style={{ marginTop: '-6px' }}>{code ? (q && q.coupon ? 'Coupon ' + q.coupon + ' applied — ₹' + q.discountInr + ' off.' : (q ? 'That code is not valid.' : '')) : ''}</div>
+            <div className={'err' + (code && q && q.coupon ? ' ok' : '')} id="coCouponMsg" style={{ marginTop: '-6px' }}>{code && q ? (q.coupon ? 'Coupon ' + q.coupon + ' applied.' : (q.couponError || '')) : ''}</div>
           </section>
         </div>
         {summary}

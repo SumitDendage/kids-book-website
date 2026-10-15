@@ -3,19 +3,54 @@
    soft sky for card titles and warm cream for the reading text. White paper cards, the shop,
    checkout and staff pages keep their own dark ink. */
 #content, #nav { --gold: #ffd977; --peach: #ffb39a; --mint: #a8f0c6; --sky: #b9e3ff; --cream: rgba(255, 238, 214, 0.9); }
-#content .display, #content .h2, #content .az-head h3, #content .kg-head h3, #content .ws-soon b { color: var(--gold); }
+#content .display, #content .h2, #content .az-head h3, #content .kg-head h3, #content .vocab-head h3, #content .ws-soon b { color: var(--gold); }
 #content .display em, #content .h2 em, #content .az-head h3 em, #content .kg-head h3 em, #content .why-line em, #content .whisper { color: var(--peach); }
-#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line span { color: var(--mint); }
+#content .eyebrow, #content .side-title, #content .ws-nav span, #content .why-line > span:first-child { color: var(--mint); }
 #content .card-title:not(.paper *):not(.rc-card *):not(.az-card *), #content .kg-tile h3 { color: var(--sky); }
 #content .lede, #content .aside, #content .az-head > p, #content .kg-head p, #content .ws-soon p { color: var(--cream); }
 #content .lede em, #content .aside em, #content .az-head > p b { color: var(--peach); }
 .nav-link { color: rgba(255, 228, 190, 0.88); }
 .nav-link:hover, .nav-link.on { color: var(--gold, #ffd977); }
 .nav-link.on { color: #ffd977; }
-#content .display, #content .h2, #content .eyebrow, #content .lede, #content .aside, #content .whisper, #content .why-line, #content .kg-head h3, #content .az-head h3 { text-shadow: 0 1px 14px rgba(6, 14, 20, 0.6); }
+#content .display, #content .h2, #content .eyebrow, #content .lede, #content .aside, #content .whisper, #content .why-line, #content .kg-head h3, #content .vocab-head h3, #content .az-head h3 { text-shadow: 0 1px 14px rgba(6, 14, 20, 0.6); }
 
-/* see-through cards over the animation: white frosted glass, 75% see-through (25% white) */
-#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .kg-tile, #content .thanks-chip, #content .player-card { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15); }
+/* see-through cards over the animation: frosted glass, 75% see-through, and each card in its
+   own light colour instead of white (pink, mint, sky, lilac, peach, lemon, aqua) */
+#content { --c-pink: 255, 194, 221; --c-mint: 168, 240, 198; --c-sky: 185, 227, 255; --c-lilac: 214, 184, 255; --c-peach: 255, 190, 160; --c-lemon: 255, 226, 140; --c-aqua: 140, 222, 234; }
+#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .vocab, #content .kg-tile, #content .thanks-chip, #content .player-card { --card: var(--c-sky); background: rgba(var(--card), 0.25); border-color: rgba(var(--card), 0.7); box-shadow: 0 18px 44px rgba(6, 14, 20, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px) saturate(1.15); }
+#content .auth-card { --card: var(--c-lilac); }
+#content .trio .panel:nth-child(1) { --card: var(--c-pink); }
+#content .trio .panel:nth-child(2) { --card: var(--c-sky); }
+#content .trio .panel:nth-child(3) { --card: var(--c-lemon); }
+#content .ws-side { --card: var(--c-mint); }
+#content .az { --card: var(--c-peach); }
+#content .kg-topics { --card: var(--c-sky); }
+#content .kg-open { --card: var(--c-lilac); }
+#content .vocab { --card: var(--c-pink); }
+#content .player-card { --card: var(--c-pink); }
+#content .contact-card { --card: var(--c-aqua); }
+/* the Kindergarten tiles and the thank-you notes take turns through the colours */
+#content .kg-tile:nth-child(6n+1) { --card: var(--c-peach); }
+#content .kg-tile:nth-child(6n+2) { --card: var(--c-mint); }
+#content .kg-tile:nth-child(6n+3) { --card: var(--c-pink); }
+#content .kg-tile:nth-child(6n+4) { --card: var(--c-sky); }
+#content .kg-tile:nth-child(6n+5) { --card: var(--c-lemon); }
+#content .kg-tile:nth-child(6n+6) { --card: var(--c-lilac); }
+#content .thanks-chip:nth-child(7n+1) { --card: var(--c-pink); }
+#content .thanks-chip:nth-child(7n+2) { --card: var(--c-mint); }
+#content .thanks-chip:nth-child(7n+3) { --card: var(--c-sky); }
+#content .thanks-chip:nth-child(7n+4) { --card: var(--c-lilac); }
+#content .thanks-chip:nth-child(7n+5) { --card: var(--c-peach); }
+#content .thanks-chip:nth-child(7n+6) { --card: var(--c-lemon); }
+#content .thanks-chip:nth-child(7n+7) { --card: var(--c-aqua); }
+/* the testimonial cards were solid white paper: now light colours you can see the forest through,
+   still pale enough for their dark words */
+#content .quote-card { --card: var(--c-peach); background: rgba(var(--card), 0.72); border: 1.5px solid rgba(var(--card), 0.95); backdrop-filter: blur(14px) saturate(1.2); }
+#content .quote-card:nth-child(5n+2) { --card: var(--c-mint); }
+#content .quote-card:nth-child(5n+3) { --card: var(--c-sky); }
+#content .quote-card:nth-child(5n+4) { --card: var(--c-lilac); }
+#content .quote-card:nth-child(5n+5) { --card: var(--c-lemon); }
+#content .quote-card .who i { background: rgba(255, 255, 255, 0.6); }
 #content .panel *, #content .kg-tile *, #content .player-card *, #content .ws-side *, #content .az-head * { text-shadow: 0 1px 2px rgba(6, 14, 20, 0.7), 0 0 14px rgba(6, 14, 20, 0.5); }
 #content .panel .btn-primary, #content .panel .btn-primary * { text-shadow: none; }
 .nav-links { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }

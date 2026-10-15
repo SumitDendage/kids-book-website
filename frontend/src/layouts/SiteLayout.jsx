@@ -2,11 +2,11 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { ToastProvider } from '../context/ToastContext.jsx';
 import { SiteProvider, useSite } from '../context/SiteContext.jsx';
+import { SecurityProvider } from '../context/SecurityContext.jsx';
 import useChapterInput from '../hooks/useChapterInput.js';
 import useMyWorksheets from '../hooks/useMyWorksheets.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
 import MagicLayer from '../components/cinematic/MagicLayer.jsx';
-import Butterflies from '../components/cinematic/Butterflies.jsx';
 import Veil from '../components/layout/Veil.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import StageChrome from '../components/layout/StageChrome.jsx';
@@ -20,6 +20,7 @@ import TestimonialsChapter from '../components/home/TestimonialsChapter.jsx';
 import Store from '../components/store/Store.jsx';
 import Checkout from '../components/checkout/Checkout.jsx';
 import SheetModal from '../components/modals/SheetModal.jsx';
+import AIAssistant from '../components/ai/AIAssistant.jsx';
 import { IDS } from '../data/content.js';
 
 const STAFF = { admin: true, developer: true };
@@ -70,7 +71,6 @@ function Site() {
       <div id="scrim" />
       <MagicLayer />
       <Veil gone={veil.gone} slow={veil.slow} />
-      <Butterflies />
       <Navbar bagCount={activeCount} />
       <main id="content" ref={contentRef}>
         <div id="stack" ref={el => { stage.stack = el; }}>
@@ -83,6 +83,7 @@ function Site() {
         </div>
       </main>
       <StageChrome />
+      <AIAssistant />
       <Suspense fallback={null}><Outlet /></Suspense>
       <Store bagCount={activeCount} />
       <Checkout />
@@ -96,7 +97,9 @@ export default function SiteLayout() {
   return (
     <ToastProvider>
       <SiteProvider>
-        <Site />
+        <SecurityProvider>
+          <Site />
+        </SecurityProvider>
       </SiteProvider>
     </ToastProvider>
   );
