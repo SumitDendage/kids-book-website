@@ -21,3 +21,12 @@
 #content .auth-card .alert.err { color: #8a1c1c; background: rgba(255, 235, 235, 0.9); }
 #content .auth-card .alert.ok { color: #0f5a32; background: rgba(230, 255, 240, 0.9); }
 #content .auth-card .err { color: #a3201f; }
+/* the agreement box in the card: light with dark words, like the rest of the card */
+#content .auth-card .accept-rules { background: rgba(255,255,255,0.7); border-color: rgba(91,47,153,0.35); }
+#content .auth-card .accept-rules.on { background: rgba(214,246,226,0.85); border-color: #2f8a5c; }
+#content .auth-card .accept-rules.bad { border-color: #c0392b; }
+#content .auth-card .accept-check, #content .auth-card .accept-check * { color: var(--ink-auth); -webkit-text-fill-color: var(--ink-auth); }
+/* with the dark top band gone, the menu words and brand sit on bright sky: a soft shadow keeps them readable */
+.nav-link, .nav-brand, .nav-brand * { text-shadow: 0 1px 2px rgba(10,30,50,0.55), 0 2px 10px rgba(10,30,50,0.45); }
+.nav-links { background: rgba(30,70,100,0.22); }
+.counter, .brandline { text-shadow: 0 1px 2px rgba(10,30,50,0.7), 0 2px 10px rgba(10,30,50,0.5); }
