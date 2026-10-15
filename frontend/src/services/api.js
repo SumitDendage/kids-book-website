@@ -50,6 +50,7 @@ function validateResponse(path, out) {
 export const customerTokens = { get: sdkAuth.snapshot };
 export const staffTokens = customerTokens;
 export const onCustomerTokensChange = sdkAuth.subscribe;
+export const signedOutHere = sdkAuth.signedOutHere;
 export const sessionEndOf = () => null;
 const usable = t => !!t?.accessToken;
 /* the account as the server sees it (role, prints, warnings). Signed out → 401 'signin'. */

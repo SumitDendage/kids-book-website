@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext.jsx';
 import { createStage } from '../services/chapterStage.js';
 import {
-  authApi, cartApi, catalogueApi, customerTokens, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
+  authApi, cartApi, catalogueApi, customerTokens, signedOutHere, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
 } from '../services/api.js';
 import { loadSession, rememberSession, storeSession, read, write } from '../services/storage.js';
 import { applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
@@ -735,7 +735,7 @@ export function SiteProvider({ children }) {
   useEffect(() => onCustomerTokensChange(t => {
     if (isRecovery()) { actions.forgetSession(); actions.setAuthView('reset', 'supabase'); return; }
     if (!t || t.blocked || (!t.accessToken && !t.refreshToken)) {
-      if (sessionRef.current) { actions.forgetSession(); toast('You signed out in another tab.'); }
+      if (sessionRef.current) { actions.forgetSession(); if (!signedOutHere()) toast('You signed out in another tab.'); }
       return;
     }
     /* a new sign-in (not just a refresh): ask the server who it is */
