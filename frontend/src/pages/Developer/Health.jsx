@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../../services/api.js';
+import { authFetch } from '../../services/api.js';
 import { SITE_VERSION } from '../../data/content.js';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
 import { StaffStyles, CardTable, KV, Tag, Missing, Loading, LoadError, Note, NoAccess, PanelHead, Where, useServer, useGo, useStaffAccess, when, ago, count, plural, ms } from './common.jsx';
@@ -43,7 +43,7 @@ export function usePublicHealth(version) {
     let alive = true;
     const t0 = performance.now();
     setSt(s => Object.assign({}, s, { loading: true }));
-    fetch(apiUrl('/api/health'), { cache: 'no-store' })
+    authFetch('/api/health')
       .then(async r => { const body = await r.json().catch(() => null); if (alive) setSt({ loading: false, ok: r.ok, status: r.status, body, ms: performance.now() - t0, error: null }); })
       .catch(err => { if (alive) setSt({ loading: false, ok: false, status: 0, body: null, ms: null, error: err }); });
     return () => { alive = false; };

@@ -23,7 +23,28 @@ function httpError(status, body, fallback) {
   return Object.assign(new Error(msg), { status, code: b.code || null, body: b });
 }
 const offline = cause => Object.assign(new Error(OFFLINE), { status: 0, code: 'network', body: {}, cause });
-async function bodyOf(r) { try { return await r.json(); } catch (_) { return {}; } }
+async function bodyOf(r) {
+  if (r.status === 204) return {};
+  const out = await r.json().catch(() => null);
+  if (r.ok && (!out || typeof out !== 'object' || Array.isArray(out))) {
+    throw httpError(502, { code: 'invalid_response', error: 'The server returned an unexpected response. Please try again later.' });
+  }
+  return out || {};
+}
+
+// Validate the actual UI contract; HTTP 200 alone does not prove integration.
+function validateResponse(path, out) {
+  const route = path.split('?')[0];
+  const fields = { '/api/worksheets': 'worksheets', '/api/me/orders': 'orders', '/api/me/entitlements': 'entitlements' };
+  const field = fields[route];
+  if (field && !Array.isArray(out[field])) {
+    throw httpError(502, { code: 'invalid_response', error: 'The server response is missing ' + field + '.' });
+  }
+  if (route === '/api/worksheets' && out.worksheets.some(w => !w || typeof w.id !== 'string' || !Number.isFinite(w.price) || w.price < 0)) {
+    throw httpError(502, { code: 'invalid_response', error: 'The catalogue contains an invalid product or price.' });
+  }
+  return out;
+}
 
 // Read-only compatibility snapshots. Only the SDK stores and refreshes tokens.
 export const customerTokens = { get: sdkAuth.snapshot };
@@ -65,7 +86,7 @@ export const setUnauthorizedHandler = fn => { onUnauthorized = fn; };
 export async function api(method, path, body, store = customerTokens) {
   const { r, stuck } = await send(path, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined }, store);
   const out = await bodyOf(r);
-  if (r.ok) return out;
+  if (r.ok) return validateResponse(path, out);
   /* the refresh could not reach the server: still signed in, try again later */
   if (r.status === 401 && stuck) throw stuck;
   const err = httpError(r.status, out);
