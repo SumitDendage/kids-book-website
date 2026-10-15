@@ -9,7 +9,7 @@
    here); prices come from the server's stored quote and payments are verified by the server. */
 import { BRAND, WEB3FORMS_KEY } from '../data/content.js';
 
-const LIVE_API = 'https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1';
+const LIVE_API = 'https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1';
 function baseOf(v, project) {
   const s = String(v == null ? '' : v).trim();
   if (!s) {
