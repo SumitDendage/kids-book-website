@@ -1,0 +1,64 @@
+# Builds the website (frontend/dist) on GitHub, checks the live server answers, and, once the
+# Hostinger FTP details are saved as secrets, puts the website on Hostinger by itself.
+# Runs when frontend/ changes on main, or by hand: Actions -> "Build the website" -> Run workflow.
+# The built site is also kept as a zip named "website-for-hostinger" on the run's page.
+# Secrets for Hostinger (GitHub -> Settings -> Secrets and variables -> Actions):
+#   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (Hostinger -> hPanel -> Files -> FTP Accounts)
+name: Build the website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, claude/crystal-lake-shop-background-s69715]
+    paths: ['frontend/**', '.github/workflows/build-website.yml']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Check the live server answers the website
+        run: |
+          base="$(grep '^VITE_SUPABASE_URL=' .env.production | cut -d= -f2)/functions/v1"
+          echo "Server: $base"
+          curl -sS --max-time 30 "$base/api/health" | tee /tmp/health.json; echo
+          grep -q '"ok":true' /tmp/health.json
+          n=$(curl -sS --max-time 30 "$base/api/worksheets" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log((j.worksheets||[]).length)})')
+          echo "Worksheets the shop can list: $n"
+          test "$n" -gt 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: website-for-hostinger
+          path: frontend/dist/
+          include-hidden-files: true
+          retention-days: 30
+      # Upload only: never wipes public_html. The action only removes files it uploaded itself
+      # on an earlier run (listed in its .ftp-deploy-sync-state.json), never Sumit's or Hostinger's own.
+      - name: Put the website on Hostinger
+        if: github.ref == 'refs/heads/main' && env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: frontend/dist/
+          server-dir: public_html/
+          dangerous-clean-slate: false
+          # the default list without dotfiles, so the hidden .htaccess is uploaded too
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**

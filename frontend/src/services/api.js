@@ -50,6 +50,7 @@ function validateResponse(path, out) {
 export const customerTokens = { get: sdkAuth.snapshot };
 export const staffTokens = customerTokens;
 export const onCustomerTokensChange = sdkAuth.subscribe;
+export const signedOutHere = sdkAuth.signedOutHere;
 export const sessionEndOf = () => null;
 const usable = t => !!t?.accessToken;
 /* the account as the server sees it (role, prints, warnings). Signed out → 401 'signin'. */
@@ -89,7 +90,10 @@ let onAuthProblem = null;
 export const setAuthProblemHandler = fn => { onAuthProblem = fn; };
 const PROBLEMS = ['account_suspended', 'session_blocked', 'access_suspended', 'email_unverified'];
 function report(store, err) {
-  if (onAuthProblem && PROBLEMS.includes(err?.code)) onAuthProblem(err.code, err);
+  if (!PROBLEMS.includes(err?.code)) return;
+  /* the server ended every sign-in of the account, or stopped this one: this browser forgets it too */
+  if (err.code === 'account_suspended' || err.code === 'session_blocked') sdkAuth.logout().catch(() => {});
+  if (onAuthProblem) { try { onAuthProblem(err.code, err); } catch (_) {} }
 }
 async function send(path, opt) {
   try {
@@ -112,7 +116,9 @@ export async function api(method, path, body, store = customerTokens) {
   if (r.status === 401 && stuck) throw stuck;
   const err = httpError(r.status, out);
   if (r.status === 401 && ['signin', 'staff_signin'].includes(err.code) && store === customerTokens && !path.startsWith('/api/auth/')) {
-    // Route errors must not delete the SDK session.
+    /* the client already sent a fresh token (it refreshes before each call), so 'signin' means the
+       server ended this sign-in (signed out elsewhere, ended from Devices): forget it here too */
+    if (usable(sdkAuth.snapshot())) await sdkAuth.logout().catch(() => {});
     if (onUnauthorized) onUnauthorized(err);
   }
   if (r.status === 403) report(store, err);
@@ -129,7 +135,9 @@ export const authApi = {
   me: refreshTokens,                                             /* { user, staff, security } */
   /* a fresh pair from the refresh token → { session, user, staff, expiresAt } (401 when signed out) */
   refresh: () => refreshTokens(customerTokens),
-  updateMe: body => api('PATCH', '/api/auth/me', body),                             /* { role?, name?, timeZone? } */
+  /* { role?, name?, timeZone? }. The account type (role) is set once: a second, different one is
+     409 { code: 'role_locked' } and only staff can change it */
+  updateMe: body => api('PATCH', '/api/auth/me', body),
   verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
   resendVerification: body => api('POST', '/api/auth/resend-verification', body),   /* { email }: unconfirmed accounts only; a fresh password comes with the link */
   forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
@@ -152,6 +160,21 @@ export const meApi = {
   sessions: () => api('GET', '/api/me/sessions'),
   endSession: id => api('POST', '/api/me/sessions/' + enc(id) + '/end'),
   review: body => api('POST', '/api/me/reviews', body),                             /* { worksheet, rating, title?, body? } */
+};
+
+/* ---------- the cart (kept on the server for a signed-in customer) ----------
+   Every answer is the whole cart: { items: [{ worksheet, title, priceInr, wasPriceInr, cls, subject,
+   thumb, accessDays, problem }], count, totalInr }. problem is null, or why a line cannot be bought
+   now: 'owned' | 'free' | 'unavailable'. A visitor who is not signed in keeps a cart in this browser
+   (SiteContext), merged here once they sign in. */
+export const cartApi = {
+  get: () => api('GET', '/api/cart'),
+  /* 409 already_owned · 400 is_free · 400 cart_full (over 50 lines) · 404 unknown sheet; adding twice is fine */
+  add: worksheet => api('POST', '/api/cart', { worksheet }),
+  remove: id => api('DELETE', '/api/cart/' + enc(id)),
+  empty: () => api('DELETE', '/api/cart'),
+  /* the browser's cart after signing in: owned, free and unknown sheets are skipped quietly */
+  merge: worksheets => api('POST', '/api/cart/merge', { worksheets }),
 };
 
 /* ---------- catalogue, entitlements, access ---------- */
@@ -186,7 +209,9 @@ export const fetchFaq = () => publicGet('/api/faq');
 
 /* ---------- checkout: quote, order, verify ---------- */
 export const payApi = {
-  quote: body => api('POST', '/api/quote', body),                 /* → { quoteId, sig, expiresAt, total, lines, items, ... } */
+  /* { worksheet } · { worksheets: [ids] } (a cart: 1 to 50 paid sheets, one order) · { cls, plan };
+     plus { coupon, address } → { quoteId, sig, expiresAt, total, lines, items, ... } */
+  quote: body => api('POST', '/api/quote', body),
   order: body => api('POST', '/api/pay/order', body),             /* { quoteId, method } → { order, gateway, orderId } */
   verify: body => api('POST', '/api/pay/verify', body),           /* → { ok, status, order, entitlement, entitlements } */
   cancel: body => api('POST', '/api/pay/cancel', body),           /* { order_id } */

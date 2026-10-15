@@ -5,8 +5,30 @@ import { money, isIndia } from '../../services/currency.js';
 import { getCoConfig, loadCoConfig, monthsText, serverPlans } from '../../services/checkout.js';
 import { eventsApi } from '../../services/api.js';
 import { dateTimeTz } from '../../utils/format.js';
-import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets } from '../../data/catalogue.js';
+import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
+import { CartIcon } from '../layout/Navbar.jsx';
+
+/* ---------- search: typed words are looked for in each sheet's title, description, class, subject
+   and the names of the sections and topics it sits in (in the browser, over the catalogue the
+   site already has). Every word must be found somewhere; case and accents do not matter. ---------- */
+const fold = v => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[–—-]+/g, ' ');
+let topicWords = null;   /* sheet id → the topic and group names it is listed under (built once) */
+function topicsOf(id) {
+  if (!topicWords) {
+    topicWords = {};
+    KG_TOPICS.forEach(g => g.items.forEach(([tid, label]) => topicSheets(tid).forEach(it => { topicWords[it.id] = (topicWords[it.id] || '') + ' ' + label + ' ' + g.title; })));
+  }
+  return topicWords[id] || '';
+}
+const hayOf = it => fold([it.title, it.blurb, it.description, it.subject, it.cls ? (classById(it.cls) || {}).label : '', it.cls === 'kg' ? 'KG' : '',
+  it.sectionLabel, it.cat, it.kicker, Array.isArray(it.tags) ? it.tags.join(' ') : '', Array.isArray(it.about) ? it.about.join(' ') : '',
+  it.price === 0 ? 'free' : 'paid', topicsOf(it.id)].join(' '));
+const wordsOf = q => fold(q).split(/[^a-z0-9]+/).filter(Boolean);
+/* every typed word must start a word of the sheet ("trac" finds tracing); a single letter must be a
+   whole word, so "alphabet c" finds the letter C and not every sheet with a c in it */
+const tokensOf = it => ' ' + hayOf(it).split(/[^a-z0-9]+/).filter(Boolean).join(' ') + ' ';
+export const matchesSearch = (it, words) => !words.length || (h => words.every(w => h.includes(w.length === 1 ? ' ' + w + ' ' : ' ' + w)))(tokensOf(it));
 
 /* THE STORE — a page of its own over the story. Sidebar: New · Bestselling · Free ·
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
@@ -49,9 +71,12 @@ function SubscribeBox({ cls, sub, openCheckout, config, failed, tz }) {
   );
 }
 
-export default function Store({ bagCount }) {
-  const { shop, setShopFilter, closeShop, openDrawer, openCheckout, access } = useSite();
+export default function Store() {
+  const { shop, setShopFilter, closeShop, openDrawer, openCart, openCheckout, access, cart } = useSite();
   const { open, view, cls, subject, skill } = shop;
+  const q = shop.q || '';
+  const words = wordsOf(q);
+  const searching = words.length > 0;
   const shopRef = useRef(null);
   useEffect(() => { if (open && shopRef.current) shopRef.current.scrollTop = 0; }, [open]);
   /* the plans, prices and which classes are on sale, from the server */
@@ -70,27 +95,43 @@ export default function Store({ bagCount }) {
   /* the sheets a view, class and subject show */
   const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && !SOON_NOW(it.cls) &&
     (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
-    (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : it.cls === c)) && subjectMatches(it, sj));
+    (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : it.cls === c)) && subjectMatches(it, sj) && matchesSearch(it, words));
   /* every sidebar number is the number of sheets that button lists */
   const countOf = (vw, c, sj) => pick(vw, c, sj).length;
   /* every filter the customer picks is a shop search in the visit statistics (what they looked for, how many sheets it showed) */
   const filter = patch => {
     setShopFilter(patch);
     const n = { view, cls, subject, skill, ...patch };
-    eventsApi.track('search', { meta: { view: n.view, cls: n.cls, subject: n.subject, skill: n.skill || 'none', results: n.skill ? skillSheets(n.skill).length : countOf(n.view, n.cls, n.subject) } });
+    eventsApi.track('search', { meta: { view: n.view, cls: n.cls, subject: n.subject, skill: n.skill || 'none', q: q.trim() || undefined, results: n.skill ? skillSheets(n.skill).filter(it => matchesSearch(it, words)).length : countOf(n.view, n.cls, n.subject) } });
   };
+  /* the words typed: filtered at once; recorded as a shop search once typing stops for a moment */
+  const setQuery = v => setShopFilter({ q: v.slice(0, 80) });
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const text = q.trim();
+    if (!open || text.length < 2) return undefined;
+    const t = setTimeout(() => {
+      const results = skill ? skillSheets(skill).filter(it => matchesSearch(it, words)).length : countOf(view, cls, subject);
+      eventsApi.track('search', { meta: { q: text, view, cls, subject, skill: skill || 'none', results } });
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, open]);
+  const clearSearch = () => { setQuery(''); if (searchRef.current) searchRef.current.focus(); };
   const list = pick(view, cls, subject).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
   const v = VIEWS.find(x => x.id === view);
   let title, sub, shown = list;
   if (skill) {
-    shown = skillSheets(skill);
+    shown = skillSheets(skill).filter(it => matchesSearch(it, words));
     title = SKILL_NAME[skill];
   } else {
     title = v.label + (cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   }
-  const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill;
+  if (searching) title = 'Results for “' + q.trim() + '”' + (skill ? ' · ' + SKILL_NAME[skill] : view !== 'all' ? ' · ' + v.label : '') + (!skill && cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (!skill && subject !== 'all' ? ' · ' + subjectById(subject).label : '');
+  const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill && !searching;
   const soon = !skill && cls !== 'all' && cls !== VOCAB && SOON_NOW(cls);
   if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
+  else if (searching) sub = shown.length ? (shown.length === 1 ? '1 sheet matches' : shown.length + ' sheets match') + ' · tap one to see it' : 'Nothing matches yet.';
   else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
@@ -99,10 +140,21 @@ export default function Store({ bagCount }) {
       <div className="shop-scene" aria-hidden="true"><img src="/shop/learn-with-why-wallpaper.webp" alt="" decoding="async" /></div>
       <header className="shop-bar">
         <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2></div>
-        <div className="shop-actions"><button type="button" className="btn btn-ghost" id="shopBagBtn" onClick={() => openDrawer('bag')}>Cart · <b id="shopBagCount">{bagCount}</b></button><button type="button" className="icon-btn" id="shopClose" aria-label="Back to the story" onClick={closeShop}>✕</button></div>
+        <div className="shop-actions">
+          <button type="button" className="btn btn-ghost" id="shopBagBtn" aria-label="My Account" onClick={() => openDrawer('bag')}><span className="acct-label">My Account</span><svg className="acct-short" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg></button>
+          <button type="button" className="btn btn-ghost" id="shopCartBtn" aria-label={'Cart: ' + cart.count + (cart.count === 1 ? ' sheet' : ' sheets')} onClick={openCart}><CartIcon /> Cart <b id="shopCartCount">{cart.count}</b></button>
+          <button type="button" className="icon-btn" id="shopClose" aria-label="Back to the story" onClick={closeShop}>✕</button>
+        </div>
       </header>
       <div className="shop-body">
         <aside className="panel shop-side" aria-label="Filters">
+          <div className="shop-search" role="search">
+            <svg className="search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input ref={searchRef} id="shopSearch" type="search" value={q} placeholder="Search sheets, e.g. colours" aria-label="Search the sheets" autoComplete="off" enterKeyHint="search" maxLength={80}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Escape' && q) { e.preventDefault(); e.stopPropagation(); setQuery(''); } else if (e.key === 'Enter') e.currentTarget.blur(); }} />
+            {q ? <button type="button" className="search-x" id="shopSearchClear" aria-label="Clear the search" onClick={clearSearch}>✕</button> : null}
+          </div>
           <p className="side-title">Browse</p>
           <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => filter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
@@ -133,7 +185,9 @@ export default function Store({ bagCount }) {
                   </div>
                 </div>
               </article>
-            )) : shown.length ? shown.map((it, n) => <SheetCard key={it.id} it={it} n={n} store />) : <p className="cart-empty">Nothing here yet — try another class or subject.</p>}
+            )) : shown.length ? shown.map((it, n) => <SheetCard key={it.id} it={it} n={n} store />)
+              : searching ? <div className="shop-none" id="shopNone" role="status"><b>No sheets match “{q.trim()}”</b><p>Try another word, or look in every class and subject.</p><button type="button" className="btn" onClick={() => { setShopFilter({ q: '', view: 'all', cls: 'all', subject: 'all', skill: null }); }}>Clear the search</button></div>
+              : <p className="cart-empty">Nothing here yet. Try another class or subject.</p>}
           </div>
         </main>
       </div>

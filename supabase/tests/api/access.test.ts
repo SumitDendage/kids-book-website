@@ -76,7 +76,8 @@ test('a free sheet opens without a purchase and creates exactly one free pass', 
   assertEquals(r.body.expiresAt, null);
   assertEquals(r.body.worksheet.id, 'az-A');
   assertEquals(r.body.worksheet.price, 0);
-  assertEquals(r.body.printsLeft, 0);
+  // a free pass prints like any other record: the account type's number (Parent: 2)
+  assertEquals([r.body.printRule, r.body.printLimit, r.body.printsLeft], ['account', 2, 2]);
   assertEquals(r.body.downloadsLeft, 0);
   assert(r.body.tokenExpiresAt > Date.now() + 3_600_000, 'token lasts hours');
   assertEquals(r.body.recheckSeconds, 60);
@@ -150,7 +151,7 @@ test('a paid sheet with live access opens; meta has the old shape plus the new f
   for (const k of ['title', 'cls', 'subject', 'pages', 'kind', 'scope', 'since', 'until', 'real', 'hasPdf', 'hasImages', 'now', 'user']) {
     assert(k in m.body, `meta has ${k}`);
   }
-  assertEquals(m.body.user, { name: 'Asha Rao', email: c.email });
+  assertEquals(m.body.user, { name: 'Asha Rao', email: c.email, timeZone: null });
   assertEquals(m.body.kind, 'paid');
   assertEquals(m.body.scope, 'worksheet');
   assertEquals(m.body.hasPdf, true);
@@ -159,7 +160,7 @@ test('a paid sheet with live access opens; meta has the old shape plus the new f
   assertEquals(m.body.watermark.name, 'Asha Rao');
   assertEquals(m.body.watermark.orderId, null);
   assertEquals(m.body.recheckSeconds, 60);
-  assertEquals(m.body.printsLeft, 0);
+  assertEquals([m.body.printRule, m.body.printLimit, m.body.printsLeft], ['account', 2, 2]);
   assertEquals(m.body.downloadsLeft, 0);
   assertEquals(typeof m.body.expiresAt, 'string');
 
@@ -444,6 +445,8 @@ test('suspended paid access: paid sheets refused (403 access_suspended), free sh
 
 test('print: 0 = not allowed (403), then the limit is counted and 429 when used up', async () => {
   await ready('az-O');
+  // this sheet uses its own print limit (print rule 'sheet'), which starts at 0
+  await h.sql`update products set print_rule = 'sheet' where id = 'az-O'`;
   const c = await h.customer();
   await h.grant(c.id, { productId: 'az-O', days: 30 });
   const r = await open(c.token, 'az-O');
@@ -594,7 +597,7 @@ test('ACCESS-1 sheet "<id>-2" shows its own page pictures, never page 2 of the s
 test('ACCESS-2 every sheet of a class plan has its own print and download allowance', async () => {
   await ready('az-T');
   await ready('az-U');
-  await h.sql`update products set print_limit = 1, download_limit = 1 where id in ('az-T', 'az-U')`;
+  await h.sql`update products set print_rule = 'sheet', print_limit = 1, download_limit = 1 where id in ('az-T', 'az-U')`;
   const c = await h.customer();
   const plan = await h.grant(c.id, { classId: 'kg', days: 30 });
   const a = await open(c.token, 'az-T');
@@ -618,6 +621,8 @@ test('ACCESS-2 every sheet of a class plan has its own print and download allowa
 
 test('ACCESS-3 a view-only sheet: the viewer copy is stamped, logged and rate-limited; downloading is refused', async () => {
   await ready('az-V', 2);
+  // view only: its own print limit (print rule 'sheet') of 0 and no downloads
+  await h.sql`update products set print_rule = 'sheet', print_limit = 0 where id = 'az-V'`;
   const c = await h.customer({ name: 'Meera Iyer' });
   await h.grant(c.id, { productId: 'az-V', days: 30 });
   const r = await open(c.token, 'az-V');

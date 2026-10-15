@@ -156,7 +156,11 @@ router sees `/api/auth/login`.
 - `POST /api/auth/logout` (alias `signout`) — optional bearer; revoke that app session (`logout`) and
   `logoutSession`. Always 200 `{ ok: true }`.
 - `GET /api/auth/me` (`requireUser`) → `{ user, staff, security }`. `PATCH /api/auth/me {name?, role?,
-  timeZone?}` → updated user.
+  timeZone?}` → updated user. The account type (`role`) is chosen **once**: see §4.H. Every user
+  body (`me`, `login`, `refresh`, `PATCH me`) carries `role`, `accountType` and `printsPerSheet`.
+- `requireUser` checks `profiles.blocked_at` **first**: a blocked account answers 403
+  `account_suspended` even when its sign-in has also ended, so an open page learns why. Refresh does
+  the same (after a successful `refreshGrant`).
 - `POST /api/auth/refresh-token {refreshToken}` → no bearer needed. `refreshGrant`; then the app
   session (by the new token's `session_id`) must exist, not revoked/expired/blocked, account not
   blocked → otherwise 401 `signin` / 403 codes as above. Session end does **not** move (the cap is
@@ -176,7 +180,9 @@ router sees `/api/auth/login`.
 - `GET /api/worksheets` — old shape (check the map) from `products` with `status='active'` plus
   `classes` and `plans`. Add per item: `available` (= PDF uploaded, via one call to
   `private.product_file_status()`), `accessDays`, `free` (price 0), `printLimit`, `downloadLimit`,
-  `rating`, `ratingCount`, `reviewAvg`, `reviewCount`, `audience`, `stock`. Never `pdf_path`.
+  `printRule` (`account` | `sheet`), `prints` (`{parent, teacher, organization}`: this sheet's prints
+  per account type, §4.H), `rating`, `ratingCount`, `reviewAvg`, `reviewCount`, `audience`, `stock`.
+  Never `pdf_path`.
   Class status from `classes.status` (`coming_soon` → old "Coming soon" flags). Cache-Control as old.
 - `POST /api/quote` — same request and response shape as the old route (read
   `backend-services.md §2` and `backend/src/services/pricing.cjs`), all prices from the database,
@@ -191,7 +197,8 @@ router sees `/api/auth/login`.
   `expiresAt` (ms), `accessDays`, and per line the expiry text the checkout shows. Unavailable sheets
   (no PDF, archived, class coming soon) → old "not for sale" error with code `unavailable`.
   `methods` lists only gateways that are configured (`gatewayModes()`) **and** allowed for the
-  country. 60/min per IP.
+  country. 60/min per IP. Several sheets (the cart) go in one quote: `{ worksheets: [ids], address,
+  coupon? }`, see §4.H.
 - `services/pricing.ts`: `countryFor`, `buildQuote`, `loadQuote`, `revalidateQuote` as stubbed.
 - `GET /api/me/orders` — customer's orders, newest first, old shape plus `lines`, `paidAt`,
   `status`, and for each line its entitlement `{purchasedAt, startsAt, expiresAt, status}`.
@@ -203,7 +210,8 @@ router sees `/api/auth/login`.
 - `GET /api/config` → old shape (gateways/keys that are public such as Razorpay key id, Stripe/PayPal
   enabled flags, currency info…) plus `classStatus`, `accessDays`, `agreement {version,text}`,
   `features {email: mailReady(), payments: {...}}`, `security {maxWarnings}`,
-  `viewer {recheckSeconds}`, `supportEmail`.
+  `viewer {recheckSeconds}`, `supportEmail`, `prints {parent, teacher, organization}` (prints per
+  sheet by account type, from `settings.prints`).
 - `GET /api/geo` → old shape; country from `ctx.country` (platform header), else `IN` default as old.
 - `POST /api/contact {name, email, message, ...}` → old validation and response; rows in
   `contact_messages` (user id if signed in via `optionalUser`), queue `contactToInbox` to
@@ -312,8 +320,15 @@ router sees `/api/auth/login`.
   `private.consume_sheet_delivery(entitlement, product, kind, limit)` — counted per access record
   **and sheet** in `delivery_counts`, so every sheet of a class plan has its own allowance; 0 = not allowed
   → 403 `not_allowed`; used up → 429 `quota_exhausted`; download returns the stamped PDF with
-  `Content-Disposition: attachment`; print returns `{ ok, printsLeft }`. Be honest in copy: limits
-  only count server deliveries.
+  `Content-Disposition: attachment` (and `X-Downloads-Left`/`X-Downloads-Limit`, exposed through
+  CORS); print returns `{ ok, printsLeft, printLimit, counts: 'server_deliveries' }`. The print limit
+  is the **effective** one from §4.H (account type or the sheet's own number), the download limit is
+  `products.download_limit`. `POST /api/access/:id` and `GET /api/view/meta` report `printRule`,
+  `printLimit`, `printsLeft`, `downloadLimit`, `downloadsLeft` the same way; meta's `user` is
+  `{ name, email, timeZone }`. Every viewer refusal carries `{ worksheet, scope, cls }` (scope = the
+  kind of access record, `worksheet` or `class`; all three null for a token that is not this
+  customer's) so the site can offer the right way back. Be honest in copy: limits only count server
+  deliveries.
 - `services/sharing.ts`: implement the stub. Rules come from `security_rules` (`params`), see the
   header comment of `migrations/20261007120400_security.sql` for the policy. Distinct devices =
   distinct sign-in `device_id_hash` (a request's own X-Device-Id only without a sign-in row, then
@@ -439,6 +454,74 @@ Old endpoints keep their shapes (read `backend-api.md` §admin and `frontend-adm
 - Reviews (`reviews.moderate`): `GET /api/admin/reviews?status=`, `POST
   /api/admin/reviews/:id/status {status}`.
 
+### 4.H Account types, prints per account type, the cart and several-sheet orders (October 2026)
+
+Migration `20261015090000_accounts_prints_cart.sql` (additive only). Tests:
+`tests/api/accounts_prints_cart.test.ts`.
+
+- **Account type** = `profiles.role`. The site offers Parent (`parent`), Teacher (`teacher`; the old
+  `tutor` counts as Teacher) and Organization (stored as `school`: a school, tuition centre or other
+  group). `accountType` in every user body is `parent` | `teacher` | `organization` | null (not chosen
+  yet, counted as Parent for prints). A customer sets it while it is empty, at sign-up (`role`) or with
+  `PATCH /api/auth/me {role}` (`organization`/`organisation` are accepted and stored as `school`; an
+  unknown value is 400 `errors.role`). Once set, a different value (or clearing it) is 409
+  `{ code: 'role_locked', error: 'Your account type is already set. Write to us if it needs changing.',
+  role }`; the same value again is 200. Security event `account_type.set`.
+- **Staff change it:** `PUT|PATCH /api/admin/users/:id {accountType | role}` (`customers.write`; own
+  account allowed, other staff accounts follow the usual guard) → `{ ok, changed, user }` (user as in
+  the customers list, with `accountType` and `printsPerSheet`). Audit `account.role` with
+  `{ before: {role, accountType}, after: {role, accountType} }`, security event
+  `account_type.changed_by_staff {by, before, after}`. 400 `errors.role` for a missing or unknown type,
+  404 for an unknown customer.
+- **`settings.prints`** `{"parent":2,"teacher":4,"organization":300}`: whole numbers 0 to 1000, edited
+  with `PUT /api/admin/settings/prints {value: {parent?, teacher?, organization?}}` (`pricing.write`;
+  400 `errors.<field>` for a bad or unknown field; audited `settings.update`). Public in
+  `GET /api/config` as `prints`. FAQ answers may use `{printsParent}`, `{printsTeacher}`,
+  `{printsOrganization}` (filled in by `services/chatbot.ts fillAnswer`).
+- **`products.print_rule`** `account` (default) | `sheet`. One helper,
+  `services/entitlements.ts effectivePrintLimit(product, role, settings.prints)`: `sheet` →
+  `print_limit` (0 = no printing), `account` → `printsPerSheet(settings.prints, role)`. Used by
+  `routes/access.ts quotaLeft` and `takeCopy` for every kind of access record (free pass, purchase,
+  class plan, grant), counted per record and sheet in `delivery_counts`. Used up → 429
+  `quota_exhausted` "You have used all N prints of this sheet that come with your account. You can
+  still open it in the viewer." Admin products read and write `printRule` (400 `errors.printRule`);
+  `GET /api/admin/worksheets*` also returns `prints` per account type.
+- **The cart** (`routes/cart.ts`, table `public.cart_items (user_id, product_id, added_at)`, only
+  `lww_api` may touch it). Signed-in customers only (`requireUser`), rate-limited (reads 300, writes
+  120 per 10 minutes per account), one advisory lock per customer so two tabs cannot pass the limit.
+  Every route answers with the whole cart:
+  `{ items: [{ worksheet, title, priceInr, wasPriceInr, cls, subject, thumb, accessDays, problem,
+  note, addedAt }], count, buyable, totalInr, max: 50 }` where `problem` is null | `owned` | `free` |
+  `unavailable` (with a short `note`) and `totalInr`/`buyable` count only lines with no problem.
+  - `GET /api/cart`.
+  - `POST /api/cart {worksheet}`: 404 `unknown_item` for an unknown or draft sheet (or a hidden
+    class), 400 `is_free`, 409 `already_owned` (a live bought or granted record of that sheet; a class
+    plan does not count), 400 `cart_full {max: 50}`; adding a sheet already in the cart changes
+    nothing. A sheet that is not for sale right now is kept and shown as `unavailable`.
+  - `DELETE /api/cart/:id` (removes one line; unknown ids are fine), `DELETE /api/cart` (empties it).
+  - `POST /api/cart/merge {worksheets: [ids]}` (the browser cart after sign-in): adds what it can and
+    silently skips the rest; returns the cart plus `added: [ids]` and `skipped: [{worksheet, reason:
+    'unknown' | 'free' | 'owned' | 'full'}]`. 400 `bad_items` when `worksheets` is not a list.
+- **Several sheets in one quote:** `POST /api/quote {worksheets: [ids], address, coupon?}` → 1 to 50
+  paid sheets (repeats counted once) in one order with one line each; each line's discount on its own
+  price (class discount, coupon rules per line), then one tax/fee on the total. Refusals name the
+  sheet: 400 `free {worksheet}`, 400 `unknown_item {worksheet}`, 400 `unavailable {worksheet}`, 409
+  `already_owned {worksheet}`, 400 `no_items`, 400 `bad_items`, 400 `too_many {max: 50}`. The
+  response is the usual quote with `worksheet: null` (when more than one), `title: 'N worksheets'`,
+  `cls` and `accessDays` when every sheet shares them (else null), `items` (every line with its own
+  end date), `worksheets: [ids]`, `count`, `listInr`. The old `{worksheet}` and `{cls, plan}` bodies
+  are unchanged.
+- **Orders:** `POST /api/pay/order` makes one order with one `order_items` row per sheet. A sent
+  `worksheets` list must name exactly the quote's sheets (any order), and a sent single `worksheet`
+  only matches a one-sheet quote (else 400 `quote_mismatch`). Razorpay notes carry `items` and
+  `worksheets`; Stripe metadata `worksheet` is empty for several sheets. Verification, webhooks,
+  `private.fulfil_order` (one access record per sheet), refunds (every record of the order ends),
+  receipts (`GET /api/me/orders` `lines`, the Purchase Successful email, staff order views) all work
+  per line. When an order is fulfilled its sheets leave that customer's cart in the same transaction
+  (`services/fulfil.ts afterPaid`).
+- **Small additions:** `GET /api/admin/payments` rows carry `orderTotalInr`;
+  `GET /api/admin/security-events` rows carry `byEmail` (the email of `detail.by`).
+
 ## 5. Business rules in one place
 
 - **Worksheet access length:** `products.access_days ?? settings.worksheet_access.days` (365 by
@@ -449,8 +532,12 @@ Old endpoints keep their shapes (read `backend-api.md` §admin and `frontend-adm
   pass, also for a class-plan holder, so it keeps opening when the plan ends or paid access is paused.
 - **Expired access:** hidden from the active list, kept in history and in admin, the site offers
   "Buy Access Again" (a new order, new entitlement). Expiry is checked on every viewer request.
-- **View only means no counted copies, not no bytes:** a sheet with print and download limits of 0
-  has no Print or Download button and `/api/view/print|download` refuse it, but the viewer still needs
+- **Prints come from the account type:** Parent 3, Teacher 30, Organization 300 per sheet and access
+  record (`settings.prints`), unless the sheet's print rule is `sheet` (its own `print_limit`).
+  Downloads stay per sheet (`download_limit`, 0 by default). See §4.H.
+- **No counted copies still means bytes:** a sheet with no prints or downloads (print rule `sheet` with
+  `print_limit` 0, download limit 0) has no Print or Download button and `/api/view/print|download`
+  refuse it, but the viewer still needs
   the stamped PDF from `/api/view/file` to draw it (most sheets have no page pictures for every page).
   Never refuse `/api/view/file` to an allowed viewer because a limit is 0; keep it authenticated,
   stamped with the customer's name and email, rate-limited (60 an hour per account) and logged

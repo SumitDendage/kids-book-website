@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
 import { NEW_IDS, BEST_IDS } from '../../data/catalogue.js';
-import { sheetState, openForText } from './sheetAccess.js';
+import { sheetState, openForText, cartable } from './sheetAccess.js';
 
 /* the line beside a card's button: free, bought, in a plan, ended, or how long a purchase stays open */
 export const priceLine = (st, it) => (st.kind === 'free' ? (st.open ? 'Free · ready to open' : 'Free access sheet')
@@ -20,6 +21,22 @@ export function CardAction({ it, st, openLabel = 'Open ↗', openClass = 'btn bt
   if (st.kind === 'free') return <button type="button" className="btn btn-primary" onClick={stop(unlock)}>{freeLabel}</button>;
   if (st.kind === 'ended') return <button type="button" className="btn btn-primary" onClick={stop(buyAgain || buy)}>Buy again</button>;
   return <button type="button" className="btn btn-primary" onClick={stop(buy)}>{buyLabel}</button>;
+}
+
+/* "Add to cart" for a paid sheet the customer does not have open; "In cart" (opens the cart) once it is there.
+   The buy button beside it still buys the one sheet straight away. */
+export function CartButton({ it, st, className = 'btn btn-ghost' }) {
+  const { cart, addToCart, openCart } = useSite();
+  const [busy, setBusy] = useState(false);
+  if (!cartable(it, st)) return null;
+  const inCart = cart.has(it.id);
+  const click = async e => {
+    e.stopPropagation();
+    if (inCart) { openCart(); return; }
+    setBusy(true);
+    try { await addToCart(it.id); } finally { setBusy(false); }
+  };
+  return <button type="button" className={className + (inCart ? ' in-cart' : '')} data-cart={it.id} aria-pressed={inCart} disabled={busy} onClick={click}>{inCart ? 'In cart ✓' : busy ? 'Adding…' : 'Add to cart'}</button>;
 }
 
 /* open the card with Enter or Space as well as a click (the card is focusable) */
@@ -48,8 +65,10 @@ export default function SheetCard({ it, n, store = false }) {
       <p className="meta">{meta}</p>
       <h3 className="card-title">{it.title}</h3>
       <p>{it.blurb}</p>
-      <div className="row"><span className={'price' + (free ? ' free' : '')}>{priceLine(st, it)}</span>
-        <CardAction it={it} st={st} /></div>
+      {store && cartable(it, st)
+        ? <div className="row has-cart"><span className="price">{priceLine(st, it)}</span><span className="card-btns"><CartButton it={it} st={st} /><CardAction it={it} st={st} /></span></div>
+        : <div className="row"><span className={'price' + (free ? ' free' : '')}>{priceLine(st, it)}</span>
+          <CardAction it={it} st={st} /></div>}
     </article>
   );
 }

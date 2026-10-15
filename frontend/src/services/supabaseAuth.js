@@ -76,7 +76,11 @@ export async function adoptSession(s) {
   session = data.session;
   return snapshot();
 }
+/* this tab signed itself out (not another tab): the site says "Signed out", not "in another tab" */
+let localSignOutAt = 0;
+export const signedOutHere = () => Date.now() - localSignOutAt < 5000;
 export async function logout() {
+  localSignOutAt = Date.now();
   const { error } = await supabase.auth.signOut({ scope: 'local' });
   authError(error);
   session = null;

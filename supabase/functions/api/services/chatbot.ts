@@ -4,6 +4,7 @@
 import type { Tx } from '../lib/db.ts';
 import { DEFAULTS, type Settings } from '../lib/settings.ts';
 import { validEmail } from '../lib/util.ts';
+import { printsPerSheet } from './entitlements.ts';
 
 export type ChatAnswer = {
   reply: string;
@@ -23,10 +24,14 @@ export function supportEmail(s: Settings): string {
   return validEmail(e) ? e : DEFAULTS.contact.inbox;
 }
 
-/** Fills the placeholders staff may use in answers: {accessDays} and {supportEmail}. */
+/** Fills the placeholders staff may use in answers: {accessDays}, {supportEmail}, and the prints
+ *  of each sheet by account type {printsParent}, {printsTeacher} and {printsOrganization}. */
 export function fillAnswer(text: string, s: Settings): string {
   const days = Number.isInteger(s.worksheet_access.days) && s.worksheet_access.days > 0 ? s.worksheet_access.days : DEFAULTS.worksheet_access.days;
-  return text.replace(/\{accessDays\}/g, String(days)).replace(/\{supportEmail\}/g, supportEmail(s));
+  return text.replace(/\{accessDays\}/g, String(days)).replace(/\{supportEmail\}/g, supportEmail(s))
+    .replace(/\{printsParent\}/g, String(printsPerSheet(s.prints, 'parent')))
+    .replace(/\{printsTeacher\}/g, String(printsPerSheet(s.prints, 'teacher')))
+    .replace(/\{printsOrganization\}/g, String(printsPerSheet(s.prints, 'school')));
 }
 
 const escapeRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

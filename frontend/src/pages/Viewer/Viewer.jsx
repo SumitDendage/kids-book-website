@@ -66,13 +66,15 @@ export default function Viewer() {
   const zoom = useRef(1);
   const [veil, setVeil] = useState({ title: 'Checking your access…', text: 'We are making sure this sheet is open on your account.', spin: true, off: false });
   const [head, setHead] = useState(null);   /* { title, sub, pill, pillShort, who, line, closed } */
-  const [copies, setCopies] = useState({ printsLeft: 0, downloadsLeft: 0 });
+  /* printsLeft / printLimit come from the server: the sheet's own number, or the prints the account type
+     gets (Parent 3, Teacher 30, Organization 300 unless staff change them), counted per access record */
+  const [copies, setCopies] = useState({ printsLeft: 0, printLimit: 0, downloadsLeft: 0 });
   const [busyCopy, setBusyCopy] = useState('');
   const [pageNo, setPageNo] = useState('');
   const [chromeOn, setChromeOn] = useState(true);
   const [toastMsg, setToastMsg] = useState({ msg: '', show: false });
   const toastT = useRef(0);
-  const toast = useCallback(m => { setToastMsg({ msg: m, show: true }); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToastMsg(t => ({ ...t, show: false })), 2600); }, []);
+  const toast = useCallback((m, ms = 2600) => { setToastMsg({ msg: m, show: true }); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToastMsg(t => ({ ...t, show: false })), ms); }, []);
   /* an A4 page as big as the space between the bar (and, on a phone, the Print / Download row) and the footer */
   const fit = useCallback(() => {
     const s = stageRef.current; if (!s) return;
@@ -102,7 +104,10 @@ export default function Viewer() {
         closed: false,
       };
     };
-    const keepCounts = meta => setCopies({ printsLeft: Math.max(0, Number(meta.printsLeft) || 0), downloadsLeft: Math.max(0, Number(meta.downloadsLeft) || 0) });
+    const keepCounts = meta => {
+      const left = Math.max(0, Number(meta.printsLeft) || 0);
+      setCopies({ printsLeft: left, printLimit: Math.max(left, Number(meta.printLimit) || 0), downloadsLeft: Math.max(0, Number(meta.downloadsLeft) || 0) });
+    };
     /* check again right when the access is due to end, so the sheet does not stay open past it */
     const watchEnd = meta => {
       clearTimeout(endTimer);
@@ -117,7 +122,7 @@ export default function Viewer() {
       clearTimeout(timer); clearTimeout(endTimer);
       stage.replaceChildren(); setBlur(false); document.body.classList.remove('printing');
       if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (_) {} }
-      setCopies({ printsLeft: 0, downloadsLeft: 0 }); setPageNo('');
+      setCopies({ printsLeft: 0, printLimit: 0, downloadsLeft: 0 }); setPageNo('');
       setHead(h => (h ? { ...h, closed: true, pill: 'Closed', pillShort: 'Closed' } : h));
       const why = reasonOf(status, body || {}, r0.meta);
       screen(why.title, why.text, why.go ? { action: why.action, onAction: () => toSite(why.go), back: true } : { action: 'Back to the site', onAction: back });
@@ -199,6 +204,7 @@ export default function Viewer() {
       if ((e.ctrlKey || e.metaKey) && ['s', 'p', 'c', 'u', 'a'].includes(k)) {
         e.preventDefault();
         toast(k === 'p' && c.printsLeft > 0 ? 'Use the Print button. You have ' + c.printsLeft + ' left.'
+          : k === 'p' && c.printLimit > 0 ? 'You have used all ' + c.printLimit + ' prints of this sheet.'
           : k === 's' && c.downloadsLeft > 0 ? 'Use the Download button. You have ' + c.downloadsLeft + ' left.'
           : 'Saving, printing and copying are not allowed');
       }
@@ -229,11 +235,17 @@ export default function Viewer() {
   /* Print and Download: only for sheets that come with copies (most are view-only). The server counts
      each one (POST /api/view/print | download) before it is handed over. */
   const token = () => new URLSearchParams(location.hash.slice(1)).get('t') || '';
-  const copyFailed = (r, b) => {
+  const copyFailed = (r, b, kind) => {
     const r0 = run.current;
     if (isDenial(r.status, b)) { if (r0.deny) r0.deny(r.status, b); return; }
-    if (b && b.code === 'quota_exhausted') { toast(b.error || 'You have used all the copies that come with this sheet.'); if (r0.recheck) r0.recheck('copy'); return; }
-    if (b && b.code === 'not_allowed') { toast('This sheet opens in the viewer only.'); setCopies({ printsLeft: 0, downloadsLeft: 0 }); return; }
+    if (b && b.code === 'quota_exhausted') {
+      /* the server's own words: "You have used all 3 prints of this sheet." */
+      toast(String(b.error || 'You have used all the prints that come with this sheet.').replace(/\s+\u2014\s+/g, ', '), 6000);
+      setCopies(c => (kind === 'print' ? { ...c, printsLeft: 0 } : { ...c, downloadsLeft: 0 }));
+      if (r0.recheck) r0.recheck('copy');
+      return;
+    }
+    if (b && b.code === 'not_allowed') { toast('This sheet opens in the viewer only.'); setCopies({ printsLeft: 0, printLimit: 0, downloadsLeft: 0 }); return; }
     toast(r.status === 429 ? 'Please wait a little before trying again.' : 'That did not work. Please try again.');
   };
   const doPrint = async () => {
@@ -242,8 +254,8 @@ export default function Viewer() {
     try {
       const r = await viewerFetch(token(), '/api/view/print', { method: 'POST' });
       const b = await r.json().catch(() => ({}));
-      if (!r.ok) { copyFailed(r, b); return; }
-      setCopies(c => ({ ...c, printsLeft: Math.max(0, Number(b.printsLeft) || 0) }));
+      if (!r.ok) { copyFailed(r, b, 'print'); return; }
+      setCopies(c => ({ ...c, printsLeft: Math.max(0, Number(b.printsLeft) || 0), printLimit: Math.max(c.printLimit, Number(b.printLimit) || 0) }));
       /* the print styles show only the pages (with their watermark) while this class is on */
       const body = document.body, done = () => { body.classList.remove('printing'); removeEventListener('afterprint', done); };
       setBlur(false); body.classList.add('printing'); addEventListener('afterprint', done);
@@ -259,7 +271,7 @@ export default function Viewer() {
     setBusyCopy('download');
     try {
       const r = await viewerFetch(token(), '/api/view/download', { method: 'POST' });
-      if (!r.ok) { const b = await r.json().catch(() => ({})); copyFailed(r, b); return; }
+      if (!r.ok) { const b = await r.json().catch(() => ({})); copyFailed(r, b, 'download'); return; }
       const blob = await r.blob();
       const cd = r.headers.get('Content-Disposition') || '', m = /filename="?([^";]+)"?/i.exec(cd);
       const name = (m && m[1]) || 'learn-with-why-' + ((run.current.meta && run.current.meta.worksheet) || 'sheet') + '.pdf';
@@ -284,8 +296,10 @@ export default function Viewer() {
     setPageNo(pages.length > 1 ? (cur + 1) + ' / ' + pages.length : '');
   };
   const zoomBy = d => { zoom.current = Math.max(0.5, Math.min(2.5, zoom.current + d)); fit(); };
-  /* on a phone the Print / Download buttons get a row of their own under the bar */
-  const hasCopies = copies.printsLeft > 0 || copies.downloadsLeft > 0;
+  /* on a phone the Print / Download buttons get a row of their own under the bar. Print stays (disabled,
+     "No prints left") once they are used up, so the customer sees why */
+  const canPrint = copies.printLimit > 0 || copies.printsLeft > 0, outOfPrints = canPrint && copies.printsLeft <= 0;
+  const hasCopies = canPrint || copies.downloadsLeft > 0;
   useEffect(() => { fit(); }, [hasCopies, fit]);
 
   return (
@@ -309,7 +323,10 @@ export default function Viewer() {
         <button type="button" className="btn ic" id="zoomIn" title="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(0.25)}>+</button>
         <span id="pageNo" style={{ fontSize: '.78rem', color: 'var(--dim)' }} aria-live="polite">{pageNo}</span>
         {hasCopies && <span className="copies" id="copies">
-          {copies.printsLeft > 0 && <button type="button" className="btn" id="printBtn" disabled={!!busyCopy} onClick={doPrint} title={'Print · ' + copies.printsLeft + ' left'}><span className="s" aria-hidden="true">⎙</span><span className="l">Print</span><span className="cnt">{copies.printsLeft} left</span></button>}
+          {canPrint && <button type="button" className={'btn' + (outOfPrints ? ' out' : '')} id="printBtn" disabled={!!busyCopy || outOfPrints} onClick={doPrint}
+            title={outOfPrints ? 'You have used all ' + copies.printLimit + ' prints of this sheet' : 'Print · ' + copies.printsLeft + ' of ' + copies.printLimit + ' left'}
+            aria-label={outOfPrints ? 'No prints left. You have used all ' + copies.printLimit + ' prints of this sheet.' : 'Print. ' + copies.printsLeft + ' of ' + copies.printLimit + ' prints left.'}>
+            <span className="s" aria-hidden="true">⎙</span><span className="l">{outOfPrints ? 'No prints left' : busyCopy === 'print' ? 'Printing…' : 'Print'}</span>{outOfPrints ? null : <span className="cnt">{copies.printsLeft} of {copies.printLimit} left</span>}</button>}
           {copies.downloadsLeft > 0 && <button type="button" className="btn" id="downloadBtn" disabled={!!busyCopy} onClick={doDownload} title={'Download · ' + copies.downloadsLeft + ' left'}><span className="s" aria-hidden="true">⇩</span><span className="l">Download</span><span className="cnt">{copies.downloadsLeft} left</span></button>}
         </span>}
         <button type="button" className="btn" id="fs" aria-label="Full screen" onClick={() => { if (document.fullscreenElement) document.exitFullscreen(); else goFull(); }}><span className="l">Full screen</span><span className="s">⛶</span></button>

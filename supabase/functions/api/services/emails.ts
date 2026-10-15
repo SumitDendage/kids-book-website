@@ -26,10 +26,10 @@ const site = () => env().siteUrl;
 const when = (d: Date | string | number, tz?: string | null) => `${fmtDateTime(d, tz)} (${fmtUtc(d)})`;
 
 export function welcome(o: { name: string; email: string; password: string; verifyUrl: string; hours: number }): Email {
-  const subject = `Welcome to ${BRAND} — your password inside`;
+  const subject = `Welcome to ${BRAND}: your password inside`;
   const html = layout('Welcome!', [
     p(`Hello ${escapeHtml(o.name)},`),
-    p('Your account is ready. Here is your password — keep it private, it is only for you:'),
+    p('Your account is ready. Here is your password. Keep it private, it is only for you:'),
     `<p style="font-size:20px;font-family:Consolas,Menlo,monospace;background:#f1efe6;padding:12px 16px;border-radius:10px;letter-spacing:.06em">${escapeHtml(o.password)}</p>`,
     p('First, confirm this email address:'),
     btn(o.verifyUrl, 'Accept & Continue'),

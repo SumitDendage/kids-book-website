@@ -8,10 +8,13 @@ import { HttpError } from './http.ts';
 import { tx } from './db.ts';
 import { getUser, decodeClaims } from './gotrue.ts';
 import { sha256Hex } from './util.ts';
+import type { Settings } from './settings.ts';
 import type { AuthedUser, Ctx, Profile, SessionRow, StaffInfo } from './context.ts';
+import { accountTypeOf, printsPerSheet } from '../services/entitlements.ts';
 
 export const SIGN_IN = 'Sign in to continue.';
-export const BLOCKED_MESSAGE = 'This account is suspended — write to us if you think this is a mistake.';
+export const BLOCKED_MESSAGE = 'This account is suspended. Write to us if you think this is a mistake.';
+export const UNVERIFIED_MESSAGE = 'Confirm your email address first. Open the email we sent you and press Accept & Continue.';
 
 type Claims = { sub: string; sessionId: string; exp: number };
 
@@ -127,15 +130,17 @@ export async function requireUser(ctx: Ctx, opts: { allowUnverified?: boolean } 
   const acct = await loadAccount(claims.sub, claims.sessionId);
   if (!acct) throw new HttpError(401, SIGN_IN, { code: 'signin' });
   const { profile, session, staff } = acct;
+  // A blocked account says so first: the block also ends its sessions, and an open page must
+  // learn that the account is suspended (403), not just that it was signed out (401).
+  if (profile.blocked_at) throw new HttpError(403, BLOCKED_MESSAGE, { code: 'account_suspended' });
   if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
     throw new HttpError(401, SIGN_IN, { code: 'signin' });
   }
-  if (profile.blocked_at) throw new HttpError(403, BLOCKED_MESSAGE, { code: 'account_suspended' });
   if (session.blocked_at) {
     throw new HttpError(403, 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.', { code: 'session_blocked' });
   }
   if (!opts.allowUnverified && !profile.email_verified_at) {
-    throw new HttpError(403, 'Confirm your email address first — open the email we sent you and press Accept & Continue.', { code: 'email_unverified' });
+    throw new HttpError(403, UNVERIFIED_MESSAGE, { code: 'email_unverified' });
   }
   const user: AuthedUser = { id: profile.id, profile, session, sessionId: session.id, accessToken: token, staff };
   ctx.user = user;
@@ -187,13 +192,18 @@ export function effectivePermissions(staff: StaffInfo | null, all: string[]): st
   return staff.role === 'owner' ? all : staff.permissions.filter((p) => all.includes(p));
 }
 
-/** The user object the website already understands, plus the new fields. Times are epoch ms. */
-export function publicUser(p: Profile, staff: StaffInfo | null = null, maxWarnings?: number) {
+/** The user object the website already understands, plus the new fields. Times are epoch ms.
+ *  `role` is what is stored ('parent' | 'teacher' | 'tutor' | 'school' | null); `accountType` is
+ *  what the site shows ('parent' | 'teacher' | 'organization' | null = not chosen yet), and
+ *  `printsPerSheet` the prints of each sheet this account gets (settings.prints). */
+export function publicUser(p: Profile, staff: StaffInfo | null = null, maxWarnings?: number, prints?: Settings['prints']) {
   return {
     id: p.id,
     name: p.name,
     email: p.email,
     role: p.role,
+    accountType: accountTypeOf(p.role),
+    printsPerSheet: printsPerSheet(prints, p.role),
     emailVerified: !!p.email_verified_at,
     status: p.blocked_at ? 'suspended' : p.status,
     accessStatus: p.subscription_suspended_at ? 'suspended' : 'active',

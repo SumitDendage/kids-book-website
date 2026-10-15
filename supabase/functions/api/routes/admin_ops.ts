@@ -790,7 +790,7 @@ async function backup(ctx: Ctx) {
       products: await q`
         select id, title, description, class_id, subject, group_id, section, section_label, pages, price_inr, was_price_inr,
                status, pdf_path, thumb_url, cover_path, audience, rating::float8 as rating, rating_count, print_limit,
-               download_limit, stock, access_days, landscape, tags, sort, created_at, updated_at
+               print_rule, download_limit, stock, access_days, landscape, tags, sort, created_at, updated_at
         from products order by class_id, sort, id`,
       coupons: await q`
         select code::text as code, pct::float8 as pct, max_uses, per_user_limit, applies_to, class_id, valid_from, valid_until,

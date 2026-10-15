@@ -32,6 +32,8 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 .lic #licText { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #pageNo:empty { display: none; }
 .btn:disabled { opacity: 0.55; cursor: progress; }
+/* every print of this sheet is used: the button stays, greyed, and says so */
+.btn.out:disabled { opacity: 0.75; cursor: not-allowed; border-style: dashed; background: rgba(255,255,255,0.04); }
 .stage { position: fixed; inset: 0; overflow: auto; padding: 64px 16px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .page { position: relative; flex: none; width: min(100%, var(--w)); aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; }
 .page canvas { display: block; width: 100%; height: 100%; }

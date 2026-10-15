@@ -7,7 +7,7 @@
      ended   bought before, and that access has ended (endedAt, ms): "Buy Access Again"
      buy     not bought yet
    ready is false while the sheet's PDF is still being prepared ("Coming soon"). */
-import { accessSpan } from '../../data/content.js';
+import { accessSpan, printsText } from '../../data/content.js';
 
 export function sheetState(access, it) {
   const ready = it.available !== false;
@@ -23,3 +23,17 @@ export function sheetState(access, it) {
 
 /* "Open for 1 year once bought" (365 days), "Open for 30 days once bought" otherwise */
 export const openForText = it => 'Open for ' + accessSpan(it && it.accessDays) + ' once bought';
+
+/* Can this sheet go in the cart? Paid, ready, on sale and not open on the account now
+   (a purchase that ended can be bought again from the cart too). */
+export const cartable = (it, st) => !!(it && it.price > 0 && st.ready && !st.open && it.onSale !== false && (st.kind === 'buy' || st.kind === 'ended'));
+
+/* How many times the sheet can be printed, in a few words. Most sheets follow the account type
+   (Parent 3, Teacher 30, Organization 300 unless staff change them); some have their own number.
+   site: { session, accountType, printsPerSheet, printsTable } from the site store. */
+export function printsLine(it, site) {
+  if (it && it.printRule === 'sheet') { const n = Number(it.printLimit) || 0; return n > 0 ? printsText(n) + ' with this sheet' : 'View only, no printing'; }
+  const t = (site && site.printsTable) || { parent: 2, teacher: 4, organization: 300 };
+  if (site && site.session) return printsText(site.printsPerSheet != null ? site.printsPerSheet : t.parent) + ' with your account';
+  return 'Parent ' + t.parent + ' · Teacher ' + t.teacher + ' · Organization ' + t.organization;
+}

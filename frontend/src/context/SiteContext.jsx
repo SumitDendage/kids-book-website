@@ -4,11 +4,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext.jsx';
 import { createStage } from '../services/chapterStage.js';
 import {
-  authApi, catalogueApi, customerTokens, eventsApi, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
+  authApi, cartApi, catalogueApi, customerTokens, signedOutHere, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
 } from '../services/api.js';
 import { loadSession, rememberSession, storeSession, read, write } from '../services/storage.js';
 import { applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
-import { WHYS, classById, planOf } from '../data/content.js';
+import { WHYS, classById, planOf, accountTypeOf, DEFAULT_PRINTS, printsTableOf } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
 import { getCoConfig, loadCoConfig, initialAddress } from '../services/checkout.js';
 import { markAccountBlocked, clearAccountBlocked } from '../services/security.js';
@@ -33,11 +33,43 @@ const NEXT_KEY = 'lww_next', NEXT_TTL = 2 * 3600e3;
 const saveNext = n => { try { if (n) localStorage.setItem(NEXT_KEY, JSON.stringify({ ...n, at: Date.now() })); else localStorage.removeItem(NEXT_KEY); } catch (_) {} };
 const takeNext = () => { const n = read(NEXT_KEY, null); saveNext(null); return n && n.do && Date.now() - (n.at || 0) < NEXT_TTL ? n : null; };
 
-/* the customer as the site keeps them (never a token, never a password) */
+/* the customer as the site keeps them (never a token, never a password). role is the account type
+   (null until chosen), printsPerSheet the prints it gets per sheet (the server's number), staff
+   whether this account is also a staff account (staff are never asked for an account type). */
 export const sessionOf = u => (u && u.email ? {
   id: u.id || null, name: u.name || '', email: u.email, role: u.role || null,
+  printsPerSheet: Number.isInteger(u.printsPerSheet) && u.printsPerSheet >= 0 ? u.printsPerSheet : null,
+  staff: !!u.staff,
   accessStatus: u.accessStatus || 'active', timeZone: u.timeZone || null,
 } : null);
+
+/* The cart of a visitor who is not signed in lives in this browser (a list of sheet ids); it is
+   merged into the server's cart when they sign in (POST /api/cart/merge). */
+const LOCAL_CART = 'lww_cart', CART_MAX = 50;
+const SHEET_ID = /^[A-Za-z0-9-]{1,64}$/;
+function readLocalCart() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LOCAL_CART) || '[]');
+    return Array.isArray(v) ? Array.from(new Set(v.filter(x => typeof x === 'string' && SHEET_ID.test(x)))).slice(0, CART_MAX) : [];
+  } catch (_) { return []; }
+}
+function writeLocalCart(ids) { try { if (ids.length) localStorage.setItem(LOCAL_CART, JSON.stringify(ids)); else localStorage.removeItem(LOCAL_CART); } catch (_) {} }
+/* the browser's cart in the server's shape, from the catalogue this page already has */
+function localCartOf(ids) {
+  const items = ids.map(id => {
+    const it = sheetOf(id);
+    if (!it) return { worksheet: id, title: id, priceInr: 0, wasPriceInr: null, cls: null, subject: '', thumb: null, accessDays: null, problem: 'unavailable' };
+    const problem = it.price === 0 ? 'free' : it.available === false || it.onSale === false ? 'unavailable' : null;
+    return { worksheet: id, title: it.title, priceInr: it.price, wasPriceInr: it.was || null, cls: it.cls || null, subject: it.subject || '', thumb: it.img || null, accessDays: it.accessDays || null, problem };
+  });
+  return { items, count: items.length, totalInr: items.reduce((s, l) => s + (l.problem ? 0 : Number(l.priceInr) || 0), 0) };
+}
+/* the server's answer, made safe to draw */
+function serverCartOf(r) {
+  const items = (r && Array.isArray(r.items) ? r.items : []).filter(l => l && typeof l.worksheet === 'string');
+  const total = Number(r && r.totalInr);
+  return { items, count: Number.isInteger(r && r.count) ? r.count : items.length, totalInr: Number.isFinite(total) ? total : items.reduce((s, l) => s + (l.problem ? 0 : Number(l.priceInr) || 0), 0) };
+}
 /* the copy for the first paint counts only while this browser holds a sign-in */
 function initialSession() {
   if (!authApi.hasTokens()) { rememberSession(null); return null; }
@@ -169,6 +201,20 @@ export function SiteProvider({ children }) {
   /* security status from a sign-in answer, so the warning shows without waiting (SecurityContext reads it) */
   const [securitySeed, setSecuritySeed] = useState(null);
   const [securityNonce, setSecurityNonce] = useState(0);
+  /* true once the server has named this customer since the page opened (the copy kept for the first
+     paint can be old, so the account-type question waits for this) */
+  const [sessionFresh, setSessionFresh] = useState(false);
+  /* prints per sheet for each account type, from GET /api/config ({ parent, teacher, organization }) */
+  const [printsTable, setPrintsTable] = useState(DEFAULT_PRINTS);
+
+  /* ---------- the cart ----------
+     Signed in: the server's cart (serverCart, null until it answers or when the server has no cart yet).
+     Not signed in: the sheet ids kept in this browser (cartIds). */
+  const [cartIds, _setCartIds] = useState(readLocalCart);
+  const [serverCart, _setServerCart] = useState(null);
+  const cartIdsRef = useRef(cartIds), serverCartRef = useRef(null);
+  const setCartIds = useCallback(ids => { cartIdsRef.current = ids; writeLocalCart(ids); _setCartIds(ids); }, []);
+  const setServerCart = useCallback(c => { serverCartRef.current = c; _setServerCart(c); }, []);
 
   /* the catalogue objects are updated in place (server prices, admin edits); bumping this re-renders the shelves */
   const [version, setVersion] = useState(0);
@@ -177,6 +223,13 @@ export function SiteProvider({ children }) {
      answer, kept so the next visit paints the same words straight away. The staff Content page previews here. */
   const [content, setContentState] = useState(() => { const c = read('lww_content', {}); return c && typeof c === 'object' ? homeOf({ home: c }) : {}; });
   const whys = Array.isArray(content.whys) && content.whys.length ? content.whys : WHYS;
+  /* the cart as every component sees it: { items, count, totalInr, ids, has(id) } */
+  const cart = useMemo(() => {
+    const c = session && serverCart ? serverCart : localCartOf(cartIds);
+    const ids = c.items.map(l => l.worksheet);
+    return { ...c, ids, has: id => ids.includes(id), onServer: !!(session && serverCart) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, serverCart, cartIds, version]);
 
   /* ---------- what is on screen ---------- */
   const [siteStage, setSiteStage] = useState('boot');     /* 'boot' while the veil is up, then 'site' */
@@ -186,7 +239,7 @@ export function SiteProvider({ children }) {
   const [accountTab, setAccountTab] = useState('sheets'); /* My Account: 'sheets' | 'orders' | 'devices' | 'security' */
   const [modal, setModal] = useState({ open: false, kind: null });
   const [notice, setNotice] = useState(null);             /* { kind, title, text, actions: [{ label, run?, primary? }] } */
-  const [shop, setShop] = useState({ open: false, view: 'all', cls: 'all', subject: 'all', skill: null });
+  const [shop, setShop] = useState({ open: false, view: 'all', cls: 'all', subject: 'all', skill: null, q: '' });
   const [checkout, setCheckout] = useState({ open: false, item: null, nonce: 0 });
   /* the sign-in card: view 'signup' | 'signin' | 'forgot' | 'reset' | 'agree'; token = the reset link's;
      email = to fill in; agreement = { version, text } when the rules must be accepted again */
@@ -194,13 +247,17 @@ export function SiteProvider({ children }) {
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
   const portalCloser = useRef(null);
   const portalKind = pathname === '/admin' ? 'admin' : pathname === '/developer' ? 'developer' : null;
+  /* Who will use these sheets? Asked once, when a signed-in customer (never staff) has no account type
+     yet, and only after the server confirmed who is signed in. It cannot be skipped. */
+  const askRole = !!(session && sessionFresh && !session.role && !session.staff && !portalKind && pathname !== '/account-blocked');
+  const askRoleRef = useRef(false); askRoleRef.current = askRole;
 
   stage.onSection = setSection;
   stage.onHideHint = () => setHintHidden(true);
   /* an overlay, drawer or modal owns the wheel, touch and keys (the security popups lock it too) */
   const securityLock = useRef(false);
   const lock = useRef({});
-  lock.current = { overlay: shop.open || checkout.open || !!portalKind || pathname === '/account-blocked', drawer: !!drawer, modal: modal.open || !!notice };
+  lock.current = { overlay: shop.open || checkout.open || !!portalKind || pathname === '/account-blocked', drawer: !!drawer, modal: modal.open || !!notice || askRole };
   const isInputLocked = useCallback(() => { const l = lock.current; return l.overlay || l.drawer || l.modal || securityLock.current; }, []);
   stage.isLocked = isInputLocked;
 
@@ -225,6 +282,8 @@ export function SiteProvider({ children }) {
     a.openDrawer = id => setDrawer(id);
     /* My Account on one of its tabs */
     a.openAccount = tab => { if (tab) setAccountTab(tab); setDrawer('bag'); };
+    /* the Cart drawer (asks the server for the cart again, so a change made in another tab shows) */
+    a.openCart = () => { setDrawer('cart'); a.refreshCart(); };
     a.setAccountTab = tab => setAccountTab(tab);
     a.closeModal = () => setModal(m => (m.open ? { ...m, open: false } : m));
     a.showNotice = n => setNotice(n);
@@ -233,7 +292,7 @@ export function SiteProvider({ children }) {
     a.closeCheckout = () => setCheckout(c => (c.open ? { ...c, open: false } : c));
     a.openShop = view => {
       setDrawer(null); a.closeModal();
-      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null } : { ...s, open: true }));
+      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
     /* token: the one from a password-reset link, kept while the reset form is showing;
@@ -263,20 +322,25 @@ export function SiteProvider({ children }) {
     /* the customer the server named (sign-in, refresh, another tab) becomes the session */
     a.adoptUser = u => {
       const next = sessionOf(u); if (!next) return null;
-      if (sessionRef.current?.id !== next.id) { setEnt([]); setSecuritySeed(null); }
-      setSession(next); storeSession(next, true); clearAccountBlocked();
+      const had = sessionRef.current;
+      if (had?.id !== next.id) { setEnt([]); setSecuritySeed(null); }
+      setSession(next); storeSession(next, true); clearAccountBlocked(); setSessionFresh(true);
       const t = customerTokens.get(); signInAt.current = t ? t.sessionExpiresAt || null : null;
+      /* another account signed in: its cart is not this one's */
+      if (had && had.id && next.id && had.id !== next.id) setServerCart(null);
       return next;
     };
     /* this page stops showing the customer (the tokens are handled by services/api.js) */
     a.forgetSession = (opts = {}) => {
       setSession(null); setEnt([]); rememberSession(null); signInAt.current = null; setSecuritySeed(null);
+      setSessionFresh(false); setServerCart(null);
       if (!opts.keepView) a.setAuthView('signin');
     };
     a.signedIn = async (u, msg, remember = true, security = null) => {
       const next = a.adoptUser(u); if (!next) return;
       if (security) setSecuritySeed({ email: next.email, status: security, at: Date.now() });
       await a.syncEntitlements();
+      await a.syncCart();
       if (msg) toast(msg);
       const n = takeNext();
       if (n) setTimeout(() => a.runNext(n), 400);
@@ -287,17 +351,95 @@ export function SiteProvider({ children }) {
       else if (n.do === 'checkout' && n.what) a.openCheckout(n.what);
       else if (n.do === 'pay' && n.ret) a.finishPayment(n.ret, n.pending || null);
       else if (n.do === 'account') a.openAccount(n.tab || 'sheets');
+      else if (n.do === 'cart') a.openCart();
+    };
+
+    /* ---------- the account type (asked once; only staff can change it afterwards) ----------
+       Saves it with PATCH /api/auth/me { role } and takes the server's answer (with printsPerSheet).
+       409 role_locked means it was already set (another tab, or staff): the profile is read again.
+       Resolves true when the account has a type now; throws the error to show otherwise. */
+    a.chooseAccountType = async role => {
+      if (!sessionRef.current) return false;
+      try {
+        const r = await authApi.updateMe({ role });
+        a.adoptUser(r.user || { ...sessionRef.current, role });
+      } catch (err) {
+        if (err.code !== 'role_locked' && err.status !== 409) throw err;
+        const r = await authApi.me();
+        a.adoptUser(r.user);
+      }
+      return !!(sessionRef.current && sessionRef.current.role);
+    };
+    a.setRole = role => { a.chooseAccountType(role).catch(err => toast(err.message)); };
+
+    /* ---------- the cart ---------- */
+    const quietly = err => { if (err && err.status !== 401 && err.status !== 0) console.warn('cart', err.message); };
+    /* GET /api/cart answered 404 with no code: this server has no cart yet, so it stays in the browser */
+    const noServerCart = err => err && err.status === 404 && !err.code;
+    /* the cart as the server has it now (signed in), or this browser's list */
+    a.refreshCart = async () => {
+      if (!sessionRef.current) { setCartIds(readLocalCart()); return; }
+      try { setServerCart(serverCartOf(await cartApi.get())); }
+      catch (err) { if (noServerCart(err)) setServerCart(null); else quietly(err); }
+    };
+    /* after a sign-in: the browser's cart joins the account's (owned, free and unknown sheets are skipped) */
+    a.syncCart = async () => {
+      if (!sessionRef.current) return;
+      const ids = readLocalCart();
+      if (!ids.length) { await a.refreshCart(); return; }
+      try { setServerCart(serverCartOf(await cartApi.merge(ids))); setCartIds([]); }
+      catch (err) { if (noServerCart(err)) setServerCart(null); else { quietly(err); await a.refreshCart(); } }
+    };
+    a.addToCart = async id => {
+      const it = sheetOf(id); if (!it) return false;
+      if (it.price === 0) { toast('This sheet is free. Just open it.'); return false; }
+      if (sessionRef.current && accessNow().canOpen(it)) { toast('This sheet is already on your account.'); return false; }
+      if (!sessionRef.current || !serverCartRef.current) {
+        const ids = readLocalCart();
+        if (ids.includes(id)) { toast('It is already in your cart.'); return true; }
+        if (ids.length >= CART_MAX) { toast('Your cart is full. It holds up to ' + CART_MAX + ' sheets.'); return false; }
+        if (!sessionRef.current) { setCartIds(ids.concat(id)); toast('Added to your cart.'); return true; }
+      }
+      try {
+        setServerCart(serverCartOf(await cartApi.add(id)));
+        toast('Added to your cart.');
+        return true;
+      } catch (err) {
+        if (noServerCart(err)) { const ids = readLocalCart(); if (!ids.includes(id)) setCartIds(ids.concat(id)); toast('Added to your cart.'); return true; }
+        if (err.code === 'already_owned') { a.syncEntitlements(); toast('This sheet is already on your account.'); return false; }
+        if (err.code === 'is_free') { toast('This sheet is free. Just open it.'); return false; }
+        if (err.status === 401) return false;   /* the sign-in is gone: the handler explains */
+        toast(err.status === 0 ? 'No connection. Please try again.' : err.message);
+        return false;
+      }
+    };
+    a.removeFromCart = async id => {
+      const local = readLocalCart();
+      if (local.includes(id)) setCartIds(local.filter(x => x !== id));
+      if (!sessionRef.current || !serverCartRef.current) return;
+      try { setServerCart(serverCartOf(await cartApi.remove(id))); }
+      catch (err) { if (err.status !== 401) toast(err.status === 0 ? 'No connection. Please try again.' : err.message); }
+    };
+    a.emptyCart = async () => {
+      setCartIds([]);
+      if (!sessionRef.current || !serverCartRef.current) return;
+      try { setServerCart(serverCartOf(await cartApi.empty())); }
+      catch (err) { if (err.status !== 401) toast(err.status === 0 ? 'No connection. Please try again.' : err.message); }
+    };
+    /* Checkout: every sheet in the cart that can be bought now, in one order. Not signed in: sign in
+       first (the cart comes along and opens again). */
+    a.checkoutCart = () => {
+      const c = serverCartRef.current && sessionRef.current ? serverCartRef.current : localCartOf(readLocalCart());
+      const ids = c.items.filter(l => !l.problem).map(l => l.worksheet);
+      if (!ids.length) { toast(c.items.length ? 'Nothing in your cart can be bought right now.' : 'Your cart is empty.'); return; }
+      if (!sessionRef.current) { a.requireSignIn({ do: 'cart' }, 'Sign in to check out. Your cart comes with you.'); return; }
+      a.openCheckout({ worksheets: ids });
     };
     /* ends this sign-in on the server too (works even after the access token ran out) */
     a.signOut = async () => {
       try { await authApi.logout(); } catch (err) { toast(err.message); return; }
       saveNext(null); a.closeDrawers(); a.closeNotice(); a.forgetSession();
       toast('Signed out. See you soon.');
-    };
-    a.setRole = async role => {
-      if (!sessionRef.current) return;
-      const result = await authApi.updateMe({ role });
-      a.adoptUser(result.user);
     };
     /* something that needs an account: remember what comes next, go to chapter 01, say why */
     a.requireSignIn = (next, why, view) => {
@@ -315,21 +457,32 @@ export function SiteProvider({ children }) {
       setModal({ open: true, kind: 'sheet', id });
     };
     /* after a verified payment: the popup gets purchaseOf(...) (see above) */
-    a.showPurchasePopup = (p, method) => setModal({ open: true, kind: 'purchase', purchase: purchaseOf(p, method) });
+    /* the server takes paid sheets out of the cart when an order is paid, so the cart is read again */
+    a.showPurchasePopup = (p, method) => { setModal({ open: true, kind: 'purchase', purchase: purchaseOf(p, method) }); a.refreshCart(); };
     /* openCheckout({ worksheet: 'kg-mat-cnt' }) buys one PDF (again: true when an earlier purchase ran out);
+       openCheckout({ worksheets: [ids] }) buys every sheet of the cart in one order;
        openCheckout({ cls: 'kg', plan: 'm3' }) buys a class plan */
     a.openCheckout = what => {
       if (what && what.cls) {
         if (!sessionRef.current) { a.requireSignIn({ do: 'checkout', what }, 'Sign in to buy a plan. Every sheet in the class opens as soon as you have paid.'); return; }
         setDrawer(null); a.closeModal();
-        setCheckout(c => ({ open: true, item: null, cls: what.cls, plan: what.plan || 'm3', again: !!what.again, nonce: c.nonce + 1 }));
+        setCheckout(c => ({ open: true, item: null, items: null, cls: what.cls, plan: what.plan || 'm3', again: !!what.again, nonce: c.nonce + 1 }));
         return;
       }
-      if (!what || !what.worksheet) { toast('Pick a sheet to buy. Each PDF is bought on its own.'); return; }
+      if (what && Array.isArray(what.worksheets)) {
+        const ids = Array.from(new Set(what.worksheets.filter(id => typeof id === 'string' && sheetOf(id)))).slice(0, CART_MAX);
+        if (!ids.length) { toast('Your cart is empty.'); return; }
+        if (ids.length === 1) { a.openCheckout({ worksheet: ids[0] }); return; }
+        if (!sessionRef.current) { a.requireSignIn({ do: 'cart' }, 'Sign in to check out. Your cart comes with you.'); return; }
+        setDrawer(null); a.closeModal();
+        setCheckout(c => ({ open: true, item: null, items: ids, cls: null, plan: null, again: false, nonce: c.nonce + 1 }));
+        return;
+      }
+      if (!what || !what.worksheet) { toast('Pick a sheet to buy, or add sheets to your cart.'); return; }
       if (!sessionRef.current) { a.requireSignIn({ do: 'checkout', what }, 'Sign in to buy this PDF. It opens as soon as you have paid.'); return; }
       if (!sheetOf(what.worksheet)) return;
       setDrawer(null); a.closeModal();
-      setCheckout(c => ({ open: true, item: what.worksheet, cls: null, plan: null, again: !!what.again, nonce: c.nonce + 1 }));
+      setCheckout(c => ({ open: true, item: what.worksheet, items: null, cls: null, plan: null, again: !!what.again, nonce: c.nonce + 1 }));
     };
     /* "Buy Access Again" for a sheet whose time ran out */
     a.buyAgain = id => { a.closeNotice(); a.closeModal(); a.openCheckout({ worksheet: id, again: true }); };
@@ -470,7 +623,8 @@ export function SiteProvider({ children }) {
         if (pay === 'cancel') {
           if (orderId) await payApi.cancel({ order_id: orderId });
           toast('Payment cancelled. Nothing was charged.');
-          if (pending && pending.worksheet) a.openSheet(pending.worksheet);
+          if (pending && Array.isArray(pending.worksheets) && pending.worksheets.length) a.openCart();
+          else if (pending && pending.worksheet) a.openSheet(pending.worksheet);
           return;
         }
         let done;
@@ -570,16 +724,23 @@ export function SiteProvider({ children }) {
     return () => { removeEventListener('focus', onBack); document.removeEventListener('visibilitychange', onBack); };
   }, [actions]);
 
+  /* a visitor's cart changed in another tab */
+  useEffect(() => {
+    const onStorage = e => { if (e.key === LOCAL_CART || e.key === null) { const ids = readLocalCart(); cartIdsRef.current = ids; _setCartIds(ids); } };
+    addEventListener('storage', onStorage);
+    return () => removeEventListener('storage', onStorage);
+  }, []);
+
   /* another tab signed in, out, or refreshed the sign-in */
   useEffect(() => onCustomerTokensChange(t => {
     if (isRecovery()) { actions.forgetSession(); actions.setAuthView('reset', 'supabase'); return; }
     if (!t || t.blocked || (!t.accessToken && !t.refreshToken)) {
-      if (sessionRef.current) { actions.forgetSession(); toast('You signed out in another tab.'); }
+      if (sessionRef.current) { actions.forgetSession(); if (!signedOutHere()) toast('You signed out in another tab.'); }
       return;
     }
     /* a new sign-in (not just a refresh): ask the server who it is */
     if (!sessionRef.current || t.userId !== sessionRef.current.id) {
-      authApi.me().then(r => { if (actions.adoptUser(r.user)) actions.syncEntitlements(); }).catch(() => {});
+      authApi.me().then(r => { if (actions.adoptUser(r.user)) { actions.syncEntitlements(); actions.syncCart(); } }).catch(() => {});
     }
   }), [actions, toast]);
 
@@ -588,7 +749,7 @@ export function SiteProvider({ children }) {
   /* Escape closes the top-most thing: notice, modal, drawer, checkout, staff page, store */
   useEffect(() => {
     const onKey = e => {
-      if (e.key !== 'Escape' || securityLock.current) return;
+      if (e.key !== 'Escape' || securityLock.current || askRoleRef.current) return;
       if (noticeRef.current) actions.closeNotice();
       else if (lock.current.modal) actions.closeModal();
       else if (lock.current.drawer) actions.closeDrawers();
@@ -621,12 +782,15 @@ export function SiteProvider({ children }) {
         const u = r.user || (await authApi.me()).user; if (!alive) return;
         if (!actions.adoptUser(u)) return;
         await actions.syncEntitlements();
+        actions.syncCart();
         if (!had) actions.setAuthView('signin');
       } catch (err) {
         if (!alive) return;
         if (err.status === 401 || err.status === 403) { if (sessionRef.current) actions.forgetSession({ keepView: true }); }
       }
     })();
+    /* prints per sheet for each account type (the account-type question and the sheet window show them) */
+    fetchConfig().then(c => { if (alive) setPrintsTable(t => { const n = printsTableOf(c); return JSON.stringify(n) === JSON.stringify(t) ? t : n; }); }).catch(() => {});
     fetchContent().then(r => {
       if (!alive) return;
       const next = homeOf(r);
@@ -638,10 +802,13 @@ export function SiteProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* the prints this customer gets per sheet that follows the account type: the server's number, else the table's */
+  const type = session ? accountTypeOf(session.role) : null;
+  const printsPerSheet = session ? (session.printsPerSheet != null ? session.printsPerSheet : printsTable[(type || { key: 'parent' }).key]) : null;
   const value = {
     stage, access, session, version, content, whys, siteStage, setSiteStage, section, hintHidden,
     drawer, accountTab, modal, notice, shop, checkout, auth, portalKind, portalCloser, coConfig: getCoConfig(), isInputLocked,
-    securitySeed, securityNonce, securityLock, toast, ...actions,
+    securitySeed, securityNonce, securityLock, toast, cart, askRole, printsTable, accountType: type, printsPerSheet, ...actions,
   };
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;
 }

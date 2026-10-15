@@ -84,7 +84,7 @@ test('signup: password emailed once, verify link, agreement recorded, nothing se
   assertEquals(body.passwordEmailed, true);
   assertEquals(body.email, email);
   assertMatch(body.message, /^Account created! We have emailed your password to /);
-  assertEquals(mail.subject, 'Welcome to Learn With Why — your password inside');
+  assertEquals(mail.subject, 'Welcome to Learn With Why: your password inside');
   assert(mail.html.includes(password), 'password in the html part too');
   assertEquals(h.mail.link(email, 'verify'), `${SITE}/?verify=${token}`);
   assertMatch(token, /^[A-Za-z0-9_-]{43}$/);
@@ -334,7 +334,7 @@ test('login: wrong passwords lock the account; the lock expires', async () => {
   assertStatus(fifth, 429);
   assertEquals(fifth.body.code, 'account_locked');
   assert(fifth.body.lockedUntil > Date.now() + 14 * 60_000, 'locked about 15 minutes');
-  assertMatch(fifth.body.error, /^Too many wrong passwords — this account is locked for 15 more minute\(s\)\./);
+  assertEquals(fifth.body.error, 'Too many wrong passwords. This account is locked for 15 more minute(s). You can unlock it now with Forgot password.');
   // even the right password is refused while locked, without asking Supabase Auth
   const grants = h.fake.calls('/auth/v1/token', 'POST').length;
   const locked = await h.login(c.email, c.password, { ip });
@@ -480,7 +480,10 @@ test('login: blocked account → 403 account_suspended (block/unblock service)',
   assertStatus(r, 403);
   assertEquals(r.body.code, 'account_suspended');
   assertEquals(await authSessionCount(c.id), 0, 'the refused Supabase Auth session was ended');
-  assertStatus(await me(c.token), 401);
+  // an open page learns the account is suspended (403 first, before the 401 of an ended sign-in)
+  const gone = await me(c.token);
+  assertStatus(gone, 403);
+  assertEquals(gone.body.code, 'account_suspended');
   assertStatus(await refresh(second.refreshToken), 401);
 
   assertEquals(await tx((q) => unblockAccount(q, ctx, c.id)), true);
@@ -659,6 +662,8 @@ test('AUTH-1 a sign-in never lasts more than 90 days, whatever the settings say'
 test("cross-user: a token never returns or changes another user's account", async () => {
   const a = await h.customer({ name: 'Alice A' });
   const b = await h.customer({ name: 'Bob B' });
+  // A has not chosen an account type yet (the harness makes Parents), so A may choose one now
+  await h.sql`update profiles set role = null where id = ${a.id}`;
   const ma = await me(a.token);
   const mb = await me(b.token);
   assertEquals([ma.body.user.id, ma.body.user.email], [a.id, a.email]);
@@ -691,6 +696,13 @@ test('PATCH /api/auth/me validates role, name and time zone', async () => {
   assertEquals(r.body.error, 'Enter a name of 1 to 80 characters.');
   r = await h.call('PATCH', '/api/auth/me', { token: c.token, body: { timeZone: 'Mars/Olympus' } });
   assertStatus(r, 400);
+  // the account type is chosen once: an empty value cannot clear a type that is set
+  r = await h.call('PATCH', '/api/auth/me', { token: c.token, body: { role: '' } });
+  assertStatus(r, 409);
+  assertEquals(r.body.code, 'role_locked');
+  assertEquals((await profileOf(c.email)).role, 'parent');
+  // while no type is chosen, an empty value is accepted and leaves it empty
+  await h.sql`update profiles set role = null where id = ${c.id}`;
   r = await h.call('PATCH', '/api/auth/me', { token: c.token, body: { role: '' } });
   assertStatus(r, 200);
   assertEquals(r.body.user.role, null);

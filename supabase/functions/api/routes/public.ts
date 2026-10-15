@@ -14,6 +14,7 @@ import { cleanName, cleanText, normEmail, validEmail } from '../lib/util.ts';
 import { contactToInbox } from '../services/emails.ts';
 import { accessDaysFor, countryList } from '../services/pricing.ts';
 import { answerQuestion, fillAnswer, supportEmail } from '../services/chatbot.ts';
+import { printsPerSheet } from '../services/entitlements.ts';
 
 const PRODUCT_RE = /^[A-Za-z0-9][A-Za-z0-9-]{1,63}$/;
 const CLIENT_EVENTS = ['page_view', 'product_view', 'checkout_start', 'search'];
@@ -92,6 +93,12 @@ async function config(_ctx: Ctx) {
     viewer: { recheckSeconds: s.viewer.recheckSeconds },
     quote: { ttlMinutes: s.quote.ttlMinutes },
     supportEmail: supportEmail(s),
+    // prints of each sheet by account type (Organization = a school, tuition centre or other group)
+    prints: {
+      parent: printsPerSheet(s.prints, 'parent'),
+      teacher: printsPerSheet(s.prints, 'teacher'),
+      organization: printsPerSheet(s.prints, 'school'),
+    },
   };
 }
 

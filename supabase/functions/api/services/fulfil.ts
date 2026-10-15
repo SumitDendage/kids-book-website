@@ -98,6 +98,11 @@ async function afterPaid(q: Tx, ctx: Ctx | null, o: FulfilInput, source: string,
     from orders o join profiles p on p.id = o.user_id
     where o.id = ${o.orderId}`)[0];
   if (!ord) return;
+  // the sheets of this order leave the customer's cart (same transaction as the grant)
+  await q`
+    delete from cart_items
+    where user_id = ${ord.user_id}
+      and product_id in (select it.product_id from order_items it where it.order_id = ${ord.id} and it.product_id is not null)`;
   const lines = await q<PaidLine[]>`
     select it.title, it.kind, it.product_id, e.starts_at, e.expires_at
     from order_items it join entitlements e on e.order_item_id = it.id

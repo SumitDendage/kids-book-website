@@ -19,7 +19,7 @@ function corsHeaders(origin: string | null): Record<string, string> | null {
   if (allowed.length && !allowed.includes(origin.replace(/\/+$/, ''))) return null;
   return {
     'Access-Control-Allow-Origin': allowed.length ? origin : '*',
-    'Access-Control-Expose-Headers': 'Content-Disposition, Retry-After, X-Pages, X-Row-Count, X-Truncated',
+    'Access-Control-Expose-Headers': 'Content-Disposition, Retry-After, X-Pages, X-Row-Count, X-Truncated, X-Downloads-Left, X-Downloads-Limit',
     Vary: 'Origin',
   };
 }

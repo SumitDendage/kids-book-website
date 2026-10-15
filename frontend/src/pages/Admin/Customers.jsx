@@ -9,11 +9,15 @@ import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, fmt, dateOnly, ago, inr, cur, qs, problem, fieldErrors, plural, initialsOf, ROLE_LABEL } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 import { ORDER_STATUS_LABEL, ENT_STATUS_LABEL, ENT_TONE, USER_STATUS_LABEL, entName, dateInput, endOfDayIso } from './common.js';
+import { ACCOUNT_TYPES, accountTypeOf, printsText } from '../../data/content.js';
 
 const STATUS = [['', 'All'], ['active', 'Active'], ['pending_verification', 'Email not confirmed'], ['suspended', 'Blocked']];
 const TYPES = [['customers', 'Customers'], ['staff', 'Staff'], ['all', 'Everyone']];
 const PAGE = 20;
 const KIND_LABEL = { paid: 'Bought', free: 'Free pass' };
+/* the account type a customer chose once (Parent, Teacher or Organization); staff change it here */
+const typeLabel = u => { const t = accountTypeOf(u.role); return t ? t.label : u.staffRole ? '' : 'Not chosen'; };
+const typeLine = u => { const t = accountTypeOf(u.role); return t ? t.label + (u.printsPerSheet != null ? ' · ' + printsText(u.printsPerSheet).toLowerCase() + ' per sheet' : '') : 'No account type yet'; };
 
 /* Customers: every account from the server, with search and pages; one customer opens with
    their orders, access, sign-ins and warnings, and the account tools. */
@@ -60,12 +64,12 @@ function CustomerList({ onOpen }) {
         </div></div>
         {st.error ? <ErrorNote error={st.error} onRetry={st.reload} /> : null}
         {st.loading && !st.data ? <Loading rows={5} /> : (
-          <DataTable head={['Name', 'Email', 'Status', 'Open access', 'Paid orders', 'Spent', 'Warnings', 'Last sign-in', '']}
+          <DataTable head={['Name', 'Email', 'Type', 'Status', 'Open access', 'Paid orders', 'Spent', 'Warnings', 'Last sign-in', '']}
             empty={q || status ? 'No accounts match.' : 'No customers yet.'}
             page={{ total: data.total || 0, offset, limit, onPage: setOffset, onLimit: n => { setLimit(n); setOffset(0); } }}
             rows={users.map(u => ({ key: u.id, onClick: () => onOpen(u.id), cells: [
               <span key="n" className="who-cell"><span className="av round sm">{initialsOf(u.name || u.email)}</span><b>{u.name || u.email.split('@')[0]}</b></span>,
-              u.email, <span key="s">{statusPills(u)}</span>, u.active, u.orders, inr(u.spent_inr),
+              u.email, <span key="t" className={u.role ? undefined : 'muted'}>{typeLabel(u)}</span>, <span key="s">{statusPills(u)}</span>, u.active, u.orders, inr(u.spent_inr),
               u.warningCount ? <Pill key="w" tone={u.warningCount >= u.maxWarnings ? 'bad' : 'info'}>{u.warningCount + ' of ' + u.maxWarnings}</Pill> : '0',
               u.lastLoginAt ? ago(u.lastLoginAt) : 'Never',
               <button key="b" type="button" className="link" onClick={() => onOpen(u.id)}>Profile</button>,
@@ -80,7 +84,7 @@ function CustomerList({ onOpen }) {
 function CustomerCard({ id, onClose }) {
   const { can, go, allowed, me } = useDash();
   const st = useStaffGet('/api/admin/users/' + encodeURIComponent(id));
-  const [dialog, setDialog] = useState(null);   /* { kind: 'block'|'unblock'|'end'|'reset'|'grant'|'revoke'|'extend', ent? } */
+  const [dialog, setDialog] = useState(null);   /* { kind: 'block'|'unblock'|'end'|'reset'|'type'|'grant'|'revoke'|'extend', ent? } */
   const d = st.data, u = d && d.user;
   const done = () => { setDialog(null); st.reload(true); };
   const self = u && me && me.user && u.id === me.user.id;
@@ -97,7 +101,7 @@ function CustomerCard({ id, onClose }) {
         {u ? <section className="panel">
           <div className="row-between">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}><span className="av round" style={{ width: '40px', height: '40px', fontSize: '14px' }}>{initialsOf(u.name || u.email)}</span>
-              <div style={{ minWidth: 0 }}><h3 className="card-title">{u.name || u.email.split('@')[0]}</h3><p className="auth-sub">{u.email}{u.role ? ' · ' + (u.role === 'teacher' ? 'Teacher' : u.role === 'parent' ? 'Parent' : u.role) : ''} · joined {dateOnly(u.createdAt)}{u.country ? ' · ' + u.country : ''}</p></div></div>
+              <div style={{ minWidth: 0 }}><h3 className="card-title">{u.name || u.email.split('@')[0]}</h3><p className="auth-sub">{u.email} · joined {dateOnly(u.createdAt)}{u.country ? ' · ' + u.country : ''}</p><p className="auth-sub" id="custType">Account type: <b>{typeLine(u)}</b></p></div></div>
             <div className="btn-row">{statusPills(u)}</div>
           </div>
           {u.blocked ? <p className="st-note err"><Icon id="ban" size={16} /><span>Blocked {fmt(u.blockedAt)}{u.blockedReason ? ': ' + u.blockedReason : ''}. They cannot sign in.</span></p> : null}
@@ -114,6 +118,7 @@ function CustomerCard({ id, onClose }) {
               : <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setDialog({ kind: 'block' })}><Icon id="ban" size={14} />Block account</button>}
             <button type="button" className="btn btn-ghost btn-sm" disabled={!u.activeSessionCount} onClick={() => setDialog({ kind: 'end' })}><Icon id="logout" size={14} />Sign out everywhere</button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={u.blocked} title={u.blocked ? 'Unblock the account first' : undefined} onClick={() => setDialog({ kind: 'reset' })}><Icon id="key" size={14} />Send password reset</button>
+            <button type="button" className="btn btn-ghost btn-sm" id="custTypeBtn" onClick={() => setDialog({ kind: 'type' })}><Icon id="users" size={14} />Change account type</button>
           </div> : self ? <p className="auth-sub">This is your own account. Account tools are not shown for it.</p> : null}
         </section> : null}
 
@@ -174,6 +179,7 @@ function CustomerDialog({ dialog, user, onClose, onDone }) {
   const [sheet, setSheet] = useState('');
   const [cls, setCls] = useState('');
   const [plan, setPlan] = useState('');
+  const [pickType, setPickType] = useState(() => { const t = accountTypeOf(user.role); return t ? t.id : ''; });
   const k = dialog.kind, e = dialog.ent;
   const name = user.name || user.email;
   const sheets = useStaffGet(k === 'grant' && can('catalogue.read') ? '/api/admin/worksheets' : null);
@@ -209,6 +215,20 @@ function CustomerDialog({ dialog, user, onClose, onDone }) {
     title = 'Send a password reset link?'; label = 'Send the link'; busyLabel = 'Sending…';
     body = <p>We email <b>{user.email}</b> a link to choose a new password. The link works once. Nobody sees the new password, staff included.</p>;
     submit = () => run(() => staffApi('POST', '/api/admin/users/' + enc(user.id) + '/password-reset', {}), 'Reset link sent to ' + user.email);
+  } else if (k === 'type') {
+    title = 'Change the account type'; label = 'Save'; busyLabel = 'Saving…';
+    const now = accountTypeOf(user.role);
+    body = <><p><b>{name}</b> {now ? <>has a <b>{now.label}</b> account.</> : <>has not chosen an account type yet. They are asked when they next sign in.</>} The type sets how many times they can print each sheet. Customers choose it once themselves; after that only staff can change it. The change goes in the audit log.</p>
+      <div className="chips" role="radiogroup" aria-label="Account type">
+        {ACCOUNT_TYPES.map(t => <button key={t.id} type="button" role="radio" aria-checked={pickType === t.id} className={'chip' + (pickType === t.id ? ' on' : '')} onClick={() => setPickType(t.id)}>{t.label}</button>)}
+        <button type="button" role="radio" aria-checked={pickType === ''} className={'chip' + (pickType === '' ? ' on' : '')} onClick={() => setPickType('')}>Not chosen</button>
+      </div>
+      <small className={errs.role ? 'bad' : 'muted'}>{errs.role || (pickType ? ACCOUNT_TYPES.find(t => t.id === pickType).hint + '.' : 'They are asked to choose again when they next sign in.')}</small></>;
+    submit = () => {
+      /* the same type as now keeps the stored value (an old 'tutor' stays 'tutor') */
+      const role = !pickType ? null : now && now.id === pickType ? user.role : pickType;
+      run(() => staffApi('PUT', '/api/admin/users/' + enc(user.id), { role }), o => (o.changed === false ? 'No change: the account type was already ' + (now ? now.label : 'not chosen') : 'Account type: ' + (pickType ? ACCOUNT_TYPES.find(t => t.id === pickType).label : 'not chosen')));
+    };
   } else if (k === 'revoke') {
     title = 'End this access now?'; label = 'End access'; busyLabel = 'Ending…'; danger = true;
     body = <><p><b>{entName(e, classes)}</b> closes for <b>{name}</b> right away. This does not refund any money.</p>

@@ -13,13 +13,14 @@ import {
   adminCreateUser, adminDeleteUser, adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
   type AuthSession,
 } from '../lib/gotrue.ts';
-import { BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, verifyAccessToken } from '../lib/auth.ts';
+import {
+  BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, UNVERIFIED_MESSAGE, verifyAccessToken,
+} from '../lib/auth.ts';
 import { cleanName, generatePassword, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
 import { passwordChanged, resendVerification as resendVerificationMail, welcome } from '../services/emails.ts';
 import { endAllSessions, issueLinkToken, linkUrl, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
 import { evaluateRules, securityStatus, type SecurityStatus } from '../services/sharing.ts';
-
-const ROLES = ['parent', 'teacher', 'tutor', 'school'];
+import { ROLE_LOCKED, roleFromInput } from '../services/entitlements.ts';
 const BAD_LOGIN = 'We could not match that email and password. New here? Sign up instead.';
 const SESSION_BLOCKED = 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.';
 const AGREEMENT_NEEDED = 'Please accept the agreement: your account is personal and must not be shared.';
@@ -30,7 +31,7 @@ const ipKey = (ctx: Ctx) => ctx.ip ?? '-';
 const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(n) ? n : min)));
 const signIn = () => new HttpError(401, SIGN_IN, { code: 'signin' });
 const badLogin = () => new HttpError(401, BAD_LOGIN, { code: 'bad_credentials' });
-const emailTaken = () => new HttpError(409, 'That email already has an account. Sign in instead — or use Forgot password.', {
+const emailTaken = () => new HttpError(409, 'That email already has an account. Sign in instead, or use Forgot password.', {
   code: 'email_taken', errors: { email: 'That email already has an account.' },
 });
 const unverified = (email: string) => new HttpError(403, `Please confirm your email first: open the email we sent to ${email} and press Accept & Continue.`, { code: 'email_unverified', email });
@@ -41,7 +42,7 @@ const str = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String
 function lockedError(until: Date | string | number): HttpError {
   const untilMs = new Date(until).getTime();
   const minutes = Math.max(1, Math.ceil((untilMs - Date.now()) / 60_000));
-  return new HttpError(429, `Too many wrong passwords — this account is locked for ${minutes} more minute(s). You can unlock it now with Forgot password.`,
+  return new HttpError(429, `Too many wrong passwords. This account is locked for ${minutes} more minute(s). You can unlock it now with Forgot password.`,
     { code: 'account_locked', lockedUntil: untilMs }, { 'Retry-After': String(Math.max(1, Math.ceil((untilMs - Date.now()) / 1000))) });
 }
 
@@ -81,14 +82,16 @@ async function signup(ctx: Ctx) {
   if (!name) errors.name = 'Tell us your name.';
   else if (name.length > 80) errors.name = 'Keep the name under 80 characters.';
   if (!validEmail(email)) errors.email = 'Enter a valid email address.';
+  // the account type (Parent, Teacher or Organization) may be chosen here or once later
   let role: string | null = null;
-  if (b.role !== undefined && b.role !== null && b.role !== '') {
-    if (typeof b.role === 'string' && ROLES.includes(b.role)) role = b.role;
-    else errors.role = 'Unknown role.';
+  if (b.role !== undefined) {
+    const r = roleFromInput(b.role);
+    if (r === undefined) errors.role = 'Unknown role.';
+    else role = r;
   }
   const versionSent = b.agreementVersion == null || b.agreementVersion === '' ? null : str(b.agreementVersion).slice(0, 40);
   if (b.agreement !== true) errors.agreement = AGREEMENT_NEEDED;
-  else if (versionSent !== null && versionSent !== agreement.version) errors.agreement = 'The agreement was updated — please read it again and accept it.';
+  else if (versionSent !== null && versionSent !== agreement.version) errors.agreement = 'The agreement was updated. Please read it again and accept it.';
   if (Object.keys(errors).length) {
     const extra = errors.agreement ? { code: 'agreement_required', agreement: { version: agreement.version, text: agreement.text } } : {};
     throw new HttpError(400, Object.values(errors)[0], { errors, ...extra });
@@ -219,7 +222,7 @@ async function verifyEmail(ctx: Ctx) {
     verified: true,
     alreadyVerified: already,
     email: out.email,
-    message: already ? 'Your email is already confirmed — sign in with your password.' : 'Email confirmed! Sign in with the password from your welcome email.',
+    message: already ? 'Your email is already confirmed. Sign in with your password.' : 'Email confirmed! Sign in with the password from your welcome email.',
   };
 }
 
@@ -379,12 +382,12 @@ async function login(ctx: Ctx) {
     await tx((q) => q`update profiles set failed_login_attempts = greatest(failed_login_attempts - 1, 0) where id = ${userId} and locked_until is null`);
     if (g.kind === 'busy') {
       await fail('rate_limited');
-      throw new HttpError(429, 'Too many attempts — wait a few minutes and try again.', { code: 'rate_limited' });
+      throw new HttpError(429, 'Too many attempts. Wait a few minutes and try again.', { code: 'rate_limited' });
     }
     await fail('auth_unavailable');
     if (g.err instanceof HttpError) throw g.err;
     console.error('[auth] sign-in failed in Supabase Auth:', (g.err as Error)?.message ?? g.err);
-    throw new HttpError(503, 'Sign-in is briefly unavailable — please try again in a minute.', { code: 'auth_unavailable' });
+    throw new HttpError(503, 'Sign-in is briefly unavailable. Please try again in a minute.', { code: 'auth_unavailable' });
   }
 
   const s = g.s;
@@ -393,7 +396,7 @@ async function login(ctx: Ctx) {
   if (!acct || (s.userId && s.userId !== userId) || !UUID_RE.test(s.sessionId)) {
     await endGrant();
     console.error('[auth] sign-in returned an unexpected session');
-    throw new HttpError(503, 'Sign-in is briefly unavailable — please try again in a minute.', { code: 'auth_unavailable' });
+    throw new HttpError(503, 'Sign-in is briefly unavailable. Please try again in a minute.', { code: 'auth_unavailable' });
   }
   const { profile, staff } = acct;
   if (profile.blocked_at) {
@@ -463,7 +466,7 @@ async function login(ctx: Ctx) {
     });
   }
   return {
-    user: publicUser(done.profile, staff, isCustomer ? settings.security.maxWarnings : undefined),
+    user: publicUser(done.profile, staff, isCustomer ? settings.security.maxWarnings : undefined, settings.prints),
     session: sessionBody(s, done.expiresAt),
     staff: staffBody(staff, done.keys),
     security: isCustomer ? await securityFor(userId) : null,
@@ -512,19 +515,23 @@ async function me(ctx: Ctx) {
   const settings = await getSettings();
   const keys = u.staff ? await allPermissionKeys() : [];
   return {
-    user: publicUser(u.profile, u.staff, u.staff ? undefined : settings.security.maxWarnings),
+    user: publicUser(u.profile, u.staff, u.staff ? undefined : settings.security.maxWarnings, settings.prints),
     staff: staffBody(u.staff, keys),
     security: u.staff ? null : await securityFor(u.id),
   };
 }
 
+/** PATCH /api/auth/me {name?, role?, timeZone?}. The account type (role) is chosen once: while it
+ *  is empty a customer may set it; after that only staff change it (Admin -> Customers), and a
+ *  different value here is 409 role_locked. Sending the same value again changes nothing. */
 async function updateMe(ctx: Ctx) {
   const u = await requireUser(ctx);
   const b = await readJson(ctx.req);
-  let role = u.profile.role, name = u.profile.name, timeZone = u.profile.time_zone;
+  let name = u.profile.name, timeZone = u.profile.time_zone;
+  let wantRole: string | null | undefined;   // undefined = not sent
   if (b.role !== undefined) {
-    role = b.role == null || b.role === '' ? null : str(b.role);
-    if (role && !ROLES.includes(role)) throw new HttpError(400, 'Unknown role.', { errors: { role: 'Unknown role.' } });
+    wantRole = roleFromInput(b.role);
+    if (wantRole === undefined) throw new HttpError(400, 'Unknown role.', { errors: { role: 'Unknown role.' } });
   }
   if (b.name !== undefined) {
     name = cleanName(b.name);
@@ -535,14 +542,24 @@ async function updateMe(ctx: Ctx) {
     else if (typeof b.timeZone === 'string' && isTimeZone(b.timeZone)) timeZone = b.timeZone;
     else throw new HttpError(400, 'Unknown time zone.', { errors: { timeZone: 'Unknown time zone.' } });
   }
-  const rows = await tx((q) => q<Profile[]>`
-    update profiles set role = ${role}, name = ${name}, time_zone = ${timeZone} where id = ${u.id} returning *`);
+  const rows = await tx(async (q) => {
+    // read the stored type under a lock, so two first choices at once cannot both win
+    const cur = await q<{ role: string | null }[]>`select role from profiles where id = ${u.id} for update`;
+    let role = cur[0]?.role ?? null;
+    if (wantRole !== undefined && wantRole !== role) {
+      if (role !== null) throw new HttpError(409, ROLE_LOCKED, { code: 'role_locked', role });
+      role = wantRole;
+      await securityEvent(ctx, u.id, 'account_type.set', { role }, q);
+    }
+    return await q<Profile[]>`
+      update profiles set role = ${role}, name = ${name}, time_zone = ${timeZone} where id = ${u.id} returning *`;
+  });
   if (name !== u.profile.name) {
     // keep the name Supabase Auth shows in the dashboard in step (best effort)
     ctx.later(() => adminUpdateUser(u.id, { name }));
   }
   const settings = await getSettings();
-  return { user: publicUser(rows[0], u.staff, u.staff ? undefined : settings.security.maxWarnings) };
+  return { user: publicUser(rows[0], u.staff, u.staff ? undefined : settings.security.maxWarnings, settings.prints) };
 }
 
 // ── POST /api/auth/refresh-token ─────────────────────────────────────────────────────────
@@ -556,23 +573,24 @@ async function refresh(ctx: Ctx) {
     s = await refreshGrant(rt, ctx.ip);
   } catch (e) {
     if (e instanceof AuthApiError) {
-      if (e.status === 429) throw new HttpError(429, 'Too many attempts — wait a few minutes and try again.', { code: 'rate_limited' });
+      if (e.status === 429) throw new HttpError(429, 'Too many attempts. Wait a few minutes and try again.', { code: 'rate_limited' });
       throw signIn();
     }
     throw e;
   }
   const acct = UUID_RE.test(s.userId) && UUID_RE.test(s.sessionId) ? await loadAccount(s.userId, s.sessionId) : null;
   const session = acct?.session ?? null;
+  // a blocked account says so first (the block also ended its sessions), as requireUser does
+  if (acct?.profile.blocked_at) {
+    await logoutSession(s.accessToken);
+    throw suspended();
+  }
   if (!acct || !session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
     // our sign-in has ended, so the Supabase Auth session ends too
     await logoutSession(s.accessToken);
     throw signIn();
   }
   const { profile, staff } = acct;
-  if (profile.blocked_at) {
-    await logoutSession(s.accessToken);
-    throw suspended();
-  }
   if (session.blocked_at) {
     // The Supabase Auth session is kept so staff can unblock it. Supabase Auth has already
     // rotated the refresh token, so the browser gets the new one to keep (nothing else).
@@ -580,7 +598,7 @@ async function refresh(ctx: Ctx) {
   }
   if (!profile.email_verified_at) {
     await logoutSession(s.accessToken);
-    throw new HttpError(403, 'Confirm your email address first — open the email we sent you and press Accept & Continue.', { code: 'email_unverified' });
+    throw new HttpError(403, UNVERIFIED_MESSAGE, { code: 'email_unverified' });
   }
   ctx.later(() => tx((q) => q`
     update app_sessions set last_seen_at = now(), ip = ${ctx.ip}, ip_network = ${ctx.ipNetwork}, country = coalesce(${ctx.country}::text, country)
@@ -589,7 +607,7 @@ async function refresh(ctx: Ctx) {
   const keys = staff ? await allPermissionKeys() : [];
   return {
     session: sessionBody(s, session.expires_at),   // the end does not move: it was fixed at sign-in
-    user: publicUser(profile, staff, staff ? undefined : settings.security.maxWarnings),
+    user: publicUser(profile, staff, staff ? undefined : settings.security.maxWarnings, settings.prints),
     staff: staffBody(staff, keys),
     expiresAt: ms(session.expires_at),
   };
@@ -656,7 +674,7 @@ async function resetPassword(ctx: Ctx) {
     }
     if (e instanceof HttpError) throw e;
     console.error('[auth] password not changed in Supabase Auth:', (e as Error)?.message ?? e);
-    throw new HttpError(503, 'Sign-in is briefly unavailable — please try again in a minute.', { code: 'auth_unavailable' });
+    throw new HttpError(503, 'Sign-in is briefly unavailable. Please try again in a minute.', { code: 'auth_unavailable' });
   }
   await tx(async (q) => {
     await q`update auth_tokens set used_at = now() where user_id = ${row.user_id} and purpose = 'reset_password' and used_at is null`;

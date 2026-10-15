@@ -15,6 +15,7 @@ import { getSettings, type Settings } from '../lib/settings.ts';
 import { COVERS, publicUrl, remove, upload, WORKSHEETS } from '../lib/storage.ts';
 import { cleanName, cleanText, randomBytes, sha256Hex } from '../lib/util.ts';
 import { accessDaysFor } from '../services/pricing.ts';
+import { PRINT_RULES, type PrintRule, sheetPrints } from '../services/entitlements.ts';
 import { MAX_STAMP_BYTES, StampError, stampPdf } from '../services/watermark.ts';
 
 const PDF_LIMIT = 40 * 1024 * 1024;
@@ -95,6 +96,7 @@ type SheetRow = {
   status: 'draft' | 'active' | 'archived'; pdf_path: string | null; thumb_url: string | null; cover_path: string | null;
   audience: string | null; rating: number | null; rating_count: number; review_avg: number | null; review_count: number;
   print_limit: number; download_limit: number; stock: number | null; access_days: number | null; landscape: boolean;
+  print_rule: PrintRule;
   tags: string[]; sort: number; created_at: Date; updated_at: Date; updated_by: string | null;
   has_pdf: boolean; pdf_bytes: number; pdf_updated_at: Date | null; ordered: boolean;
 };
@@ -103,7 +105,7 @@ const SHEET_COLUMNS = (q: Tx) => q`
   p.id, p.title, p.description, p.class_id, p.subject, p.group_id, p.section, p.section_label, p.pages,
   p.price_inr, p.was_price_inr, p.status, p.pdf_path, p.thumb_url, p.cover_path, p.audience,
   p.rating::float8 as rating, p.rating_count, p.review_avg::float8 as review_avg, p.review_count,
-  p.print_limit, p.download_limit, p.stock, p.access_days, p.landscape, p.tags, p.sort,
+  p.print_limit, p.print_rule, p.download_limit, p.stock, p.access_days, p.landscape, p.tags, p.sort,
   p.created_at, p.updated_at, p.updated_by,
   exists (select 1 from order_items it where it.product_id = p.id) as ordered`;
 
@@ -155,6 +157,10 @@ export function adminWorksheet(r: SheetRow, s: Settings) {
     wasPrice: r.was_price_inr,
     audience: r.audience,
     printLimit: r.print_limit,
+    // 'account': prints per sheet come from the customer's account type (settings.prints);
+    // 'sheet': printLimit above (0 = no printing)
+    printRule: r.print_rule,
+    prints: sheetPrints(r, s.prints),
     downloadLimit: r.download_limit,
     stock: r.stock,
     accessDays: r.access_days,
@@ -181,6 +187,7 @@ type SheetFields = {
   section_label: string | null; pages: number; price_inr: number; was_price_inr: number | null;
   status: 'draft' | 'active' | 'archived'; audience: string | null; print_limit: number; download_limit: number;
   stock: number | null; access_days: number | null; tags: string[]; sort: number; thumb_url: string | null; landscape: boolean;
+  print_rule: PrintRule;
 };
 
 /** Reads the fields present in a body (old and new names). Missing fields are left out. */
@@ -252,7 +259,13 @@ function parseSheetFields(b: Record<string, unknown>): { set: Partial<SheetField
     else errors.audience = 'Audience is parent, teacher or both.';
   }
   const printKey = has(b, 'printLimit', 'print_limit');
-  if (printKey) put('printLimit', 'print_limit', intIn(b[printKey], 0, 100, 'Print limit (0 = view only)'));
+  if (printKey) put('printLimit', 'print_limit', intIn(b[printKey], 0, 100, 'Print limit (0 = no printing)'));
+  const ruleKey = has(b, 'printRule', 'print_rule');
+  if (ruleKey) {
+    const v = b[ruleKey];
+    if ((PRINT_RULES as readonly unknown[]).includes(v)) set.print_rule = v as PrintRule;
+    else errors.printRule = 'Print rule is account (prints from the account type) or sheet (this sheet\'s own print limit).';
+  }
   const dlKey = has(b, 'downloadLimit', 'download_limit');
   if (dlKey) put('downloadLimit', 'download_limit', intIn(b[dlKey], 0, 100, 'Download limit (0 = view only)'));
   if (b.stock !== undefined) put('stock', 'stock', intIn(b.stock, 0, 1_000_000, 'Stock', true));
@@ -281,7 +294,7 @@ const FIELD_NAMES: Record<keyof SheetFields, string> = {
   title: 'title', description: 'description', class_id: 'cls', subject: 'subject', group_id: 'group', section: 'section',
   section_label: 'sectionLabel', pages: 'pages', price_inr: 'price', was_price_inr: 'wasPrice', status: 'status',
   audience: 'audience', print_limit: 'printLimit', download_limit: 'downloadLimit', stock: 'stock', access_days: 'accessDays',
-  tags: 'tags', sort: 'sort', thumb_url: 'thumb', landscape: 'landscape',
+  tags: 'tags', sort: 'sort', thumb_url: 'thumb', landscape: 'landscape', print_rule: 'printRule',
 };
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -365,16 +378,17 @@ async function createSheet(ctx: Ctx, id: string | null, b: Record<string, unknow
       audience: set.audience ?? null, print_limit: set.print_limit ?? 0, download_limit: set.download_limit ?? 0,
       stock: set.stock ?? null, access_days: set.access_days ?? null, tags: set.tags ?? [], sort: set.sort ?? 0,
       thumb_url: set.thumb_url ?? null, landscape: set.landscape ?? false,
+      print_rule: set.print_rule ?? 'account',
     };
     try {
       await q`
         insert into products (id, title, description, class_id, subject, group_id, section, section_label, pages,
                               price_inr, was_price_inr, status, audience, print_limit, download_limit, stock,
-                              access_days, tags, sort, thumb_url, landscape, updated_by)
+                              access_days, tags, sort, thumb_url, landscape, print_rule, updated_by)
         values (${finalId}, ${v.title}, ${v.description}, ${v.class_id}, ${v.subject}, ${v.group_id}, ${v.section},
                 ${v.section_label}, ${v.pages}, ${v.price_inr}, ${v.was_price_inr}, ${v.status}, ${v.audience},
                 ${v.print_limit}, ${v.download_limit}, ${v.stock}, ${v.access_days}, ${v.tags}::text[], ${v.sort},
-                ${v.thumb_url}, ${v.landscape}, ${ctx.user!.id})`;
+                ${v.thumb_url}, ${v.landscape}, ${v.print_rule}, ${ctx.user!.id})`;
     } catch (e) {
       if (isUnique(e, 'products_pkey')) throw new HttpError(409, 'A worksheet with that id already exists.', { code: 'exists', errors: { id: 'That id is taken.' } });
       throw e;
@@ -432,6 +446,7 @@ async function putSheet(ctx: Ctx) {
       tags: set.tags ?? cur.tags, sort: set.sort ?? cur.sort,
       thumb_url: set.thumb_url !== undefined ? set.thumb_url : cur.thumb_url,
       landscape: set.landscape ?? cur.landscape,
+      print_rule: set.print_rule ?? cur.print_rule,
     };
     const d = diff(cur, next);
     if (!Object.keys(d.after).length) return cur;   // nothing changed: no write, no audit row
@@ -442,7 +457,7 @@ async function putSheet(ctx: Ctx) {
         price_inr = ${next.price_inr}, was_price_inr = ${next.was_price_inr}, status = ${next.status},
         audience = ${next.audience}, print_limit = ${next.print_limit}, download_limit = ${next.download_limit},
         stock = ${next.stock}, access_days = ${next.access_days}, tags = ${next.tags}::text[], sort = ${next.sort},
-        thumb_url = ${next.thumb_url}, landscape = ${next.landscape}, updated_by = ${ctx.user!.id}
+        thumb_url = ${next.thumb_url}, landscape = ${next.landscape}, print_rule = ${next.print_rule}, updated_by = ${ctx.user!.id}
       where id = ${id}`;
     await audit(ctx, { action: 'worksheet.update', targetType: 'product', targetId: id, detail: d }, q);
     return (await loadSheet(q, id))!;

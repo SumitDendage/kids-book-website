@@ -3,9 +3,10 @@ import { useSite } from '../../context/SiteContext.jsx';
 import useMyWorksheets from '../../hooks/useMyWorksheets.js';
 import SecurityStatusCard from '../security/SecurityStatusCard.jsx';
 import { meApi } from '../../services/api.js';
-import { getSiteRules, timeOf } from '../../services/security.js';
+import { getSiteRules, mailTo, timeOf } from '../../services/security.js';
 import { fmtCur } from '../../services/currency.js';
-import { NAV, IDS, classById, planOf } from '../../data/content.js';
+import { NAV, IDS, classById, planOf, accessSpan, printsText } from '../../data/content.js';
+import { sheetOf } from '../../data/catalogue.js';
 import { dateTimeTz, shortClass, timeAgo } from '../../utils/format.js';
 
 const TABS = [
@@ -20,10 +21,10 @@ const classLabel = id => (classById(id) || { label: 'Class' }).label;
 const planName = (cls, plan, label) => classLabel(cls) + ' · ' + (label || planOf(plan).label) + ' plan';
 const offline = err => (err.status === 0 ? 'We could not reach Learn With Why just now.' : err.message);
 
-/* the side drawers: Menu (tablet & phone) and My Account (My Worksheets, Orders, Devices, Security) */
+/* the side drawers: Menu (tablet & phone), My Account (My Worksheets, Orders, Devices, Security) and the Cart */
 export default function Drawers() {
   const site = useSite();
-  const { drawer, closeDrawers, openDrawer, goTo, section, session, accountTab, setAccountTab, signOut, setAuthView, syncEntitlements } = site;
+  const { drawer, closeDrawers, openDrawer, openCart, goTo, section, session, accountTab, setAccountTab, signOut, setAuthView, syncEntitlements, cart, accountType, printsPerSheet } = site;
   const open = drawer === 'bag';
   /* opening My Account asks the server again, so a purchase or an ending made elsewhere shows */
   const signedIn = !!session;
@@ -38,7 +39,8 @@ export default function Drawers() {
         <div className="drawer-head"><span className="drawer-title">Menu</span><button type="button" className="icon-btn" aria-label="Close" onClick={closeDrawers}>✕</button></div>
         <div className="nav-list" id="menuList">
           {NAV.map((l, i) => <button key={IDS[i]} type="button" className={section === i ? 'on' : undefined} onClick={() => goTo(i)}>{l}</button>)}
-          <button type="button" id="bagBtn2" onClick={() => openDrawer('bag')}>Cart</button>
+          <button type="button" id="bagBtn2" onClick={() => openDrawer('bag')}>My Account</button>
+          <button type="button" id="cartBtn2" onClick={openCart}>Cart{cart.count ? ' · ' + cart.count : ''}</button>
         </div>
       </aside>
       <aside className={'drawer acct' + (open ? ' open' : '')} id="bagDrawer" aria-label="My Account" aria-hidden={open ? undefined : 'true'}>
@@ -46,6 +48,10 @@ export default function Drawers() {
         {session ? (
           <div id="bagBody">
             <p className="acct-who"><b>{session.name || 'Your account'}</b><span>{session.email}</span></p>
+            {accountType ? (
+              <p className="acct-type" id="acctType">Account type: <b>{accountType.label} · {printsText(printsPerSheet)} per sheet</b>
+                <small><a href={mailTo(null, 'Change my account type')}>Write to us</a> if this needs changing.</small></p>
+            ) : null}
             <div className="tabs acct-tabs" role="tablist" aria-label="My Account">
               {TABS.map(t => <button key={t.id} type="button" role="tab" id={'acctTab-' + t.id} aria-controls="acctPanel" aria-selected={tab === t.id} className={'tab' + (tab === t.id ? ' on' : '')} onClick={() => setAccountTab(t.id)}>{t.label}</button>)}
             </div>
@@ -65,7 +71,63 @@ export default function Drawers() {
           </div>
         )}
       </aside>
+      <CartDrawer open={drawer === 'cart'} />
     </>
+  );
+}
+
+/* why a line of the cart cannot be bought now */
+const PROBLEM = { owned: 'Already on your account', free: 'Free sheet. No need to buy it.', unavailable: 'Not for sale right now' };
+const rupees = n => fmtCur(Number(n) || 0, 'INR');
+
+/* The Cart: every paid sheet the customer added, with its price, Remove, the total in rupees,
+   Empty cart and Checkout (all the sheets in one order). Signed out, the cart is kept in this
+   browser and Checkout asks for a sign-in first. */
+function CartDrawer({ open }) {
+  const { cart, session, closeDrawers, removeFromCart, emptyCart, checkoutCart, openShop, openSheet } = useSite();
+  const [busy, setBusy] = useState('');
+  const run = async (key, fn) => { setBusy(key); try { await fn(); } finally { setBusy(''); } };
+  const payable = cart.items.filter(l => !l.problem);
+  const n = cart.items.length;
+  return (
+    <aside className={'drawer cart' + (open ? ' open' : '')} id="cartDrawer" aria-label="Cart" aria-hidden={open ? undefined : 'true'}>
+      <div className="drawer-head"><span className="drawer-title">Cart{n ? ' · ' + n : ''}</span><button type="button" className="icon-btn" aria-label="Close" onClick={closeDrawers}>✕</button></div>
+      {!n ? (
+        <>
+          <p className="cart-empty">Your cart is empty. Add paid sheets from the shop, then pay for them together in one go.</p>
+          <button type="button" className="btn btn-primary btn-block" onClick={() => openShop('paid')}>Browse paid sheets →</button>
+        </>
+      ) : (
+        <>
+          <div id="cartList">
+            {cart.items.map(l => {
+              const it = sheetOf(l.worksheet), c = l.cls ? classById(l.cls) : null;
+              const thumb = l.thumb || (it && it.img) || null;
+              const meta = [c ? c.label : null, l.subject || (it && it.subject) || null, l.problem ? null : 'open for ' + accessSpan(l.accessDays || (it && it.accessDays))].filter(Boolean).join(' · ');
+              return (
+                <div key={l.worksheet} className={'cart-row' + (l.problem ? ' has-problem' : '')} data-sheet={l.worksheet}>
+                  <div className="paper-mini">{thumb ? <img src={thumb} alt="" loading="lazy" /> : (it && (it.glyph || it.az)) || 'PDF'}</div>
+                  <div className="nm">{it ? <button type="button" className="link" onClick={() => openSheet(l.worksheet)}>{l.title || it.title}</button> : (l.title || l.worksheet)}
+                    <span>{meta}</span>
+                    {l.problem ? <span className="cart-problem">{(typeof l.note === 'string' && l.note) || PROBLEM[l.problem] || 'Cannot be bought right now'}</span> : null}
+                  </div>
+                  <div className="cart-price">
+                    {l.problem ? null : <span>{rupees(l.priceInr)}{l.wasPriceInr && l.wasPriceInr > l.priceInr ? <> <s>{rupees(l.wasPriceInr)}</s></> : null}</span>}
+                    <button type="button" className="btn btn-ghost acct-mini" disabled={!!busy} aria-label={'Remove ' + (l.title || 'this sheet') + ' from the cart'} onClick={() => run('rm-' + l.worksheet, () => removeFromCart(l.worksheet))}>{busy === 'rm-' + l.worksheet ? 'Removing…' : 'Remove'}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="cart-total" id="cartTotal"><span>Total<small>{payable.length === 1 ? '1 sheet' : payable.length + ' sheets'} · tax and fees are added at checkout</small></span><b>{rupees(cart.totalInr)}</b></div>
+          <div className="cart-actions">
+            <button type="button" className="btn btn-primary btn-block" id="cartCheckout" disabled={!payable.length || !!busy} onClick={checkoutCart}>{session ? 'Checkout' : 'Sign in and checkout'}</button>
+            <button type="button" className="btn btn-ghost btn-block" id="cartEmpty" disabled={!!busy} onClick={() => run('empty', emptyCart)}>{busy === 'empty' ? 'Emptying…' : 'Empty cart'}</button>
+          </div>
+          <p className="cart-note">{session ? 'Every sheet opens on your account as soon as your payment is verified.' : 'Your cart is kept in this browser. Sign in to pay, and it comes with you.'}</p>
+        </>
+      )}
+    </aside>
   );
 }
 
@@ -161,10 +223,11 @@ function OrdersTab({ tz, open }) {
     if (start != null && start > now) return 'Starts ' + dateTimeTz(start, tz) + ' · open until ' + dateTimeTz(end, tz);
     return 'Open until ' + dateTimeTz(end, tz);
   };
+  const lineTitle = l => (l.kind === 'class' ? planName(l.cls, l.plan) : l.title || ((sheetOf(l.worksheet) || {}).title) || 'Worksheet');
   const titleOf = o => {
     const ls = Array.isArray(o.lines) ? o.lines : [];
     if (ls.length === 1) return ls[0].kind === 'class' ? planName(ls[0].cls, ls[0].plan, ls[0].months ? ls[0].months + (ls[0].months === 1 ? ' month' : ' months') : null) : (ls[0].title || 'Worksheet');
-    if (ls.length > 1) return ls.length + ' items';
+    if (ls.length > 1) return ls.every(l => l.kind === 'worksheet') ? ls.length + ' sheets' : ls.length + ' items';
     return o.kind === 'class' ? planName(o.cls, o.plan) : 'Worksheet';
   };
   if (s.list === null) {
@@ -186,8 +249,12 @@ function OrdersTab({ tz, open }) {
           <div key={o.id} className={'acct-order st-' + o.status}>
             <div className="acct-order-top"><b>{titleOf(o)}</b><span className={'pill acct-st'}>{ORDER_STATUS[o.status] || o.status}</span></div>
             <span className="acct-meta">{fmtCur(o.total, o.currency || 'INR')}{PAY_BY[o.method] ? ' · ' + PAY_BY[o.method] : ''}{when ? ' · ' + dateTimeTz(when, tz) : ''}</span>
-            {o.status === 'paid' && ls.length ? (
-              <ul className="acct-lines">{ls.map((l, i) => { const t = lineText(l); return t ? <li key={i}>{ls.length > 1 ? (l.title || 'Item') + ': ' : ''}{t}</li> : null; })}</ul>
+            {ls.length > 1 || (o.status === 'paid' && ls.length) ? (
+              <ul className="acct-lines">{ls.map((l, i) => {
+                const t = o.status === 'paid' ? lineText(l) : '';
+                if (ls.length === 1 && !t) return null;
+                return <li key={i}>{ls.length > 1 ? lineTitle(l) + (t ? ': ' : '') : ''}{t}</li>;
+              })}</ul>
             ) : null}
             {o.status === 'refunded' && o.refundedAt ? <span className="acct-meta">Refunded on {dateTimeTz(o.refundedAt, tz)}</span> : null}
             <small className="acct-id">Order {o.id}</small>

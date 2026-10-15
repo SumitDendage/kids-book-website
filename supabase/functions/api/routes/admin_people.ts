@@ -22,7 +22,8 @@ import { cleanName, cleanText, escapeHtml, fmtDateTime, generatePassword, normEm
 import { blockAccount, endAllSessions, sendResetLink, unblockAccount } from '../services/accounts.ts';
 import { securityStatus } from '../services/sharing.ts';
 import { staffWelcome, type Email } from '../services/emails.ts';
-import { pubEntitlement, type EntRow } from '../services/entitlements.ts';
+import { accountTypeOf, printsPerSheet, pubEntitlement, roleFromInput, type EntRow } from '../services/entitlements.ts';
+import type { Settings } from '../lib/settings.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ROLES = ['owner', 'admin', 'support', 'content', 'developer'] as const;
@@ -132,8 +133,9 @@ async function me(ctx: Ctx) {
   const u = await requireAnyStaff(ctx);
   const perms = await tx((q) => allPermissions(q));
   const keys = perms.map((p) => p.id);
+  const s = await getSettings();
   return {
-    user: publicUser(u.profile, u.staff),
+    user: publicUser(u.profile, u.staff, undefined, s.prints),
     staff: { role: u.staff!.role, permissions: effectivePermissions(u.staff, keys) },
     permissions: keys,
     permissionInfo: perms,
@@ -208,14 +210,17 @@ async function countUsers(q: Tx, f: UserFilter): Promise<number> {
   return r[0]?.n ?? 0;
 }
 
-/** Old admin user row (snake_case, ms times) plus the new fields. */
-function userView(r: UserRow, maxWarnings: number) {
+/** Old admin user row (snake_case, ms times) plus the new fields. `role` is the stored account
+ *  type ('school' = Organization); `accountType` is parent | teacher | organization | null. */
+function userView(r: UserRow, maxWarnings: number, prints: Settings['prints']) {
   const blocked = !!r.blocked_at;
   return {
     id: r.id,
     email: r.email,
     name: r.name,
     role: r.role,
+    accountType: accountTypeOf(r.role),
+    printsPerSheet: printsPerSheet(prints, r.role),
     created_at: ms(r.created_at),
     last_login_at: ms(r.last_login_at),
     email_verified: !!r.email_verified_at,
@@ -247,7 +252,8 @@ function userView(r: UserRow, maxWarnings: number) {
 async function oneUser(q: Tx, id: string) {
   const rows = await findUsers(q, { id, limit: 1, offset: 0 });
   if (!rows[0]) throw new HttpError(404, NO_CUSTOMER);
-  return userView(rows[0], maxWarningsOf(await getSettings(q)));
+  const s = await getSettings(q);
+  return userView(rows[0], maxWarningsOf(s), s.prints);
 }
 
 async function listUsers(ctx: Ctx) {
@@ -266,9 +272,10 @@ async function listUsers(ctx: Ctx) {
     limit: intParam(sp.get('limit'), 1000, 1, 1000), offset: intParam(sp.get('offset'), 0, 0, 1_000_000),
   };
   const out = await tx(async (q) => {
-    const max = maxWarningsOf(await getSettings(q));
+    const s = await getSettings(q);
+    const max = maxWarningsOf(s);
     const rows = await findUsers(q, f);
-    return { users: rows.map((r) => userView(r, max)), total: await countUsers(q, f) };
+    return { users: rows.map((r) => userView(r, max, s.prints)), total: await countUsers(q, f) };
   });
   return { ...out, limit: f.limit, offset: f.offset, nextOffset: f.offset + out.users.length < out.total ? f.offset + out.users.length : null };
 }
@@ -387,9 +394,38 @@ async function setStatus(ctx: Ctx) {
     }
     const fresh = await q<Profile[]>`select * from profiles where id = ${p.id}`;
     const st = await q<StaffInfo[]>`select role, permissions, active from staff_members where user_id = ${p.id} and active`;
-    return publicUser(fresh[0], st[0] ?? null);
+    return publicUser(fresh[0], st[0] ?? null, undefined, (await getSettings(q)).prints);
   });
   return { user };
+}
+
+/** PUT (or PATCH) /api/admin/users/:id {role} — staff set or change a customer's account type:
+ *  parent, teacher or organization (stored as 'school'; 'tutor' is kept as it is). null clears it,
+ *  so the customer is asked again. Customers choose only once themselves (PATCH /api/auth/me);
+ *  after that this is the way to change it. Audited, with a security event on the account. */
+async function updateCustomer(ctx: Ctx) {
+  await requireStaff(ctx, 'customers.write');
+  const id = uuidParam(ctx, 'id', NO_CUSTOMER);
+  const b = await readJson(ctx.req, 8 * 1024);
+  const sent = b.role !== undefined ? b.role : b.accountType;
+  if (sent === undefined) bad('role', 'Send the account type: parent, teacher or organization.');
+  const role = roleFromInput(sent);
+  if (role === undefined) bad('role', 'The account type is parent, teacher or organization.');
+  return await tx(async (q) => {
+    const p = await lockProfilePair(q, ctx.user!.id, id);
+    if (!p) throw new HttpError(404, NO_CUSTOMER);
+    await guardTarget(q, ctx, id, { allowSelf: true });
+    const changed = (p.role ?? null) !== role;
+    if (changed) {
+      await q`update profiles set role = ${role ?? null} where id = ${id}`;
+      await audit(ctx, {
+        action: 'account.role', targetType: 'profile', targetId: id,
+        detail: { before: { role: p.role ?? null, accountType: accountTypeOf(p.role) }, after: { role: role ?? null, accountType: accountTypeOf(role) } },
+      }, q);
+      await securityEvent(ctx, id, 'account_type.changed_by_staff', { by: ctx.user!.id, before: p.role ?? null, after: role ?? null }, q);
+    }
+    return { ok: true, changed, user: await oneUser(q, id) };
+  });
 }
 
 async function block(ctx: Ctx) {
@@ -894,6 +930,9 @@ export function register(r: Router) {
   r.get('/api/admin/users', listUsers);
   r.put('/api/admin/users/status', setStatus);
   r.get('/api/admin/users/:id', getUser);
+  // after /status, which the same pattern would also match
+  r.put('/api/admin/users/:id', updateCustomer);
+  r.patch('/api/admin/users/:id', updateCustomer);
   r.post('/api/admin/users/:id/block', block);
   r.post('/api/admin/users/:id/unblock', unblock);
   r.post('/api/admin/users/:id/sessions/end-all', endSessions);

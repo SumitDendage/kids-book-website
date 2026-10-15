@@ -21,6 +21,8 @@ export type Settings = {
   email: { fromName: string; adminAlerts: string[] };
   quote: { ttlMinutes: number };
   viewer: { tokenHours: number; recheckSeconds: number };
+  /** Prints of each sheet per access record, by account type (sheets whose print rule is 'account'). */
+  prints: { parent: number; teacher: number; organization: number };
   countries: Country[];
 };
 
@@ -37,6 +39,7 @@ export const DEFAULTS: Settings = {
   email: { fromName: 'Learn With Why', adminAlerts: ['learnwithwhy6@gmail.com'] },
   quote: { ttlMinutes: 15 },
   viewer: { tokenHours: 12, recheckSeconds: 60 },
+  prints: { parent: 2, teacher: 4, organization: 300 },
   countries: [],
 };
 

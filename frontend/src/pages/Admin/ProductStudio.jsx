@@ -80,6 +80,7 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState(null), [errs, setErrs] = useState({});
   const [dialog, setDialog] = useState(null);     /* 'archive' | 'restore' | 'delete' */
+  const [printRule, setPrintRule] = useState(it.printRule === 'sheet' ? 'sheet' : 'account');
 
   /* the subjects and shelf topics already in the shop, to pick from */
   const subjects = useMemo(() => [...new Set((all || []).map(s => s.subject).filter(Boolean))].sort(), [all]);
@@ -88,6 +89,8 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
     (all || []).forEach(s => { if (s.section) { const k = (s.group || '') + '|' + s.section; if (!m.has(k)) m.set(k, { group: s.group || '', section: s.section, label: s.sectionLabel || s.section, cls: s.cls }); } });
     return [...m.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [all]);
+  /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
+  const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
   const shopDays = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && x.effectiveAccessDays); return s ? s.effectiveAccessDays : null; }, [all]);
   const topicValue = it.section ? (it.group || '') + '|' + it.section : '';
 
@@ -107,6 +110,7 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
       audience: f.get('audience') || null,
       stock: n('stock'),
       accessDays: n('accessDays'),
+      printRule: f.get('printRule') === 'sheet' ? 'sheet' : 'account',
       printLimit: n('printLimit') ?? 0,
       downloadLimit: n('downloadLimit') ?? 0,
       landscape: f.get('landscape') === 'on',
@@ -234,7 +238,9 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Access and limits per customer</legend>
             <div className="grid-3">
               <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopDays ? 'Shop setting: ' + shopDays : 'Shop setting'} /><small>How long a buyer can open it. Empty uses the shop setting{shopDays ? ' (' + shopDays + ' days)' : ''}.</small>{err1('accessDays')}</div>
-              <div className="field"><label htmlFor="psPrint">Prints</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} /><small>0 means view only.</small>{err1('printLimit')}</div>
+              <div className="field"><label htmlFor="psRule">Prints come from</label><select id="psRule" name="printRule" value={printRule} onChange={e => setPrintRule(e.target.value)}><option value="account">The account type</option><option value="sheet">This sheet only</option></select>
+                <small>{printRule === 'sheet' ? 'Every customer gets the number below.' : typePrints ? 'Parents ' + typePrints.parent + ' · Teachers ' + typePrints.teacher + ' · Organizations ' + typePrints.organization + '. Change these in Settings.' : 'The numbers in Settings → Prints per sheet.'}</small>{err1('printRule')}</div>
+              <div className="field"><label htmlFor="psPrint">Prints with this sheet only</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} aria-describedby="psPrintHelp" /><small id="psPrintHelp">{printRule === 'sheet' ? '0 means view only.' : 'Used only when prints come from this sheet.'}</small>{err1('printLimit')}</div>
               <div className="field"><label htmlFor="psDl">Downloads</label><input id="psDl" name="downloadLimit" type="number" min="0" max="100" defaultValue={it.downloadLimit == null ? 0 : it.downloadLimit} /><small>0 means view only.</small>{err1('downloadLimit')}</div>
             </div>
           </fieldset>

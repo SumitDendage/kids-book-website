@@ -34,6 +34,8 @@ function BookCard({ it, className, canWrite, onEdit, onArchive, onRestore }) {
           <span>{it.audience ? AUDIENCE_LABEL[it.audience] : 'Everyone'}</span>
           <span title="How long a customer can open it after buying">{it.effectiveAccessDays ? it.effectiveAccessDays + ' days' : ''}</span>
         </div>
+        <div className="book-meta"><span className="print-rule" title={it.printRule === 'sheet' ? 'Every customer gets the same number of prints' : 'Prints come from the account type: Settings → Prints per sheet'}>
+          {it.printRule === 'sheet' ? 'Prints: this sheet only: ' + (it.printLimit | 0) + (it.printLimit ? '' : ' (view only)') : 'Prints: by account type'}</span></div>
       </div>
       <div className="book-actions"><b>{it.price === 0 ? 'Free' : inr(it.price)}{it.wasPrice ? <s className="was">{inr(it.wasPrice)}</s> : null}</b>
         <span>

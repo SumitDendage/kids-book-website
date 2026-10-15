@@ -21,6 +21,15 @@ import { startHarness } from './api/harness.ts';
 import { installGatewayFakes } from './api/fakes/gateways.ts';
 import { handle } from '../functions/api/lib/app.ts';
 
+// postgres.js schedules a reconnect with `closedAt + delay - now`, which goes below zero once the
+// delay has passed, and Deno then prints a TimeoutNegativeWarning. A negative delay means "now",
+// so clamp it to 0 (connection.js calls the global setTimeout at run time, so this covers it).
+{
+  const original = globalThis.setTimeout;
+  globalThis.setTimeout = ((fn: (...a: unknown[]) => void, ms?: number, ...rest: unknown[]) =>
+    original(fn, typeof ms === 'number' && ms < 0 ? 0 : ms, ...rest)) as typeof globalThis.setTimeout;
+}
+
 function arg(name: string, fallback: string | null = null): string | null {
   const i = Deno.args.indexOf(`--${name}`);
   return i >= 0 && Deno.args[i + 1] ? Deno.args[i + 1] : fallback;
@@ -132,6 +141,18 @@ async function devRoute(req: Request, url: URL): Promise<Response> {
 Deno.serve({ port, hostname: '127.0.0.1', onListen() {} }, async (req) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith('/__dev/')) return devRoute(req, url);
+  // The website's Supabase client (sign-in session, password reset) talks to /auth/v1 on the same
+  // address: forward it to the fake Supabase Auth with its key, and answer the browser's CORS.
+  if (url.pathname.startsWith('/auth/v1/')) {
+    const cors = { 'access-control-allow-origin': req.headers.get('origin') || '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS' };
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    const headers = new Headers(req.headers);
+    headers.set('apikey', h.fake.publishableKey);
+    const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
+    const r = await fetch(h.fake.url + url.pathname + url.search, { method: req.method, headers, body });
+    const out = new Headers(r.headers); for (const [k, v] of Object.entries(cors)) out.set(k, v);
+    return new Response(r.body, { status: r.status, headers: out });
+  }
   if (!url.pathname.startsWith('/functions/v1/')) return new Response('Learn With Why dev API: use /functions/v1/api/…', { status: 404 });
   // The browser sends no forwarding header locally; the live platform always does.
   const headers = new Headers(req.headers);
@@ -141,7 +162,7 @@ Deno.serve({ port, hostname: '127.0.0.1', onListen() {} }, async (req) => {
 });
 
 console.log(`Learn With Why dev API on http://127.0.0.1:${port}/functions/v1/api (database ${h.db})`);
-console.log(`  website: VITE_API_BASE_URL=http://127.0.0.1:${port}/functions/v1   allowed origins: ${origins.join(', ')}`);
+console.log(`  website: VITE_SUPABASE_URL=http://127.0.0.1:${port} VITE_SUPABASE_PUBLISHABLE_KEY=dev   allowed origins: ${origins.join(', ')}`);
 console.log(`  owner    ${owner.email} / ${owner.password}`);
 console.log(`  customer ${customer.email} / ${customer.password}`);
 console.log(`  files    ${uploaded ? `${uploaded} uploaded from ${filesDir}` : 'sample PDFs for the free sheets only'}; ${missing[0].n} active sheets have a file path`);

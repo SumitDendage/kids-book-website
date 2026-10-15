@@ -4,7 +4,8 @@ import { eventsApi } from '../../services/api.js';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf, accessSpan } from '../../data/content.js';
 import { dateTimeTz } from '../../utils/format.js';
-import { sheetState, openForText } from '../sheets/sheetAccess.js';
+import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
+import { CartButton } from '../sheets/SheetCard.jsx';
 
 const tzOf = access => (access && access.session && access.session.timeZone) || undefined;
 
@@ -33,7 +34,7 @@ function AccountPopup({ id }) {
    until when it is open now, or when it ended ("Buy Access Again"). */
 function SheetDetail({ id }) {
   const site = useSite();
-  const { access, closeModal, openViewer, buy } = site;
+  const { access, closeModal, openViewer, buy, cart } = site;
   const it = sheetOf(id); if (!it) return null;
   const session = access.session, tz = tzOf(access);
   const free = it.price === 0, cls = classById(it.cls) || { label: 'Kindergarten' }, st = sheetState(access, it);
@@ -60,12 +61,12 @@ function SheetDetail({ id }) {
     : st.open
       ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
       : !session
-        ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button><span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : 'Sign in, then buy this PDF. It stays open for ' + span + ' from the day you pay.'}</span></>
+        ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button>{free ? null : <CartButton it={it} st={st} />}<span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : cart.has(it.id) ? 'It is in your cart. Sign in to pay for everything in your cart in one go.' : 'Sign in, then buy this PDF, or add it to your cart and buy a few together. It stays open for ' + span + ' from the day you pay.'}</span></>
         : free
           ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">Free access sheet. No payment needed, just open it.</span></>
           : st.kind === 'ended'
-            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><span className="note">{st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) + '. ' : ''}Buy it again and it opens for another {span} from the day you pay.</span></>
-            : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><span className="note">You see the full price at checkout, before you pay. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
+            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) + '. ' : ''}Buy it again and it opens for another {span} from the day you pay.</span></>
+            : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
   return (
     <>
       <div className="sheet-view">{pic}</div>
@@ -73,7 +74,7 @@ function SheetDetail({ id }) {
         <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3></div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
         <p className="lead">{it.blurb}</p>
         <ul className="about">{about.map((l, i) => <li key={i}>{l}</li>)}</ul>
-        <div className="rows"><div><span>Pages</span><b>{it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b id="sheetAccess">{accessLine}</b></div></div>
+        <div className="rows"><div><span>Pages</span><b>{it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b id="sheetAccess">{accessLine}</b></div><div><span>Prints</span><b id="sheetPrints">{printsLine(it, site)}</b></div></div>
         <div className="sheet-actions">{actions}</div>
       </div>
     </>

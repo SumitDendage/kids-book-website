@@ -4,7 +4,6 @@ import { ToastProvider } from '../context/ToastContext.jsx';
 import { SiteProvider, useSite } from '../context/SiteContext.jsx';
 import { SecurityProvider } from '../context/SecurityContext.jsx';
 import useChapterInput from '../hooks/useChapterInput.js';
-import useMyWorksheets from '../hooks/useMyWorksheets.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
 import MagicLayer from '../components/cinematic/MagicLayer.jsx';
 import Veil from '../components/layout/Veil.jsx';
@@ -21,6 +20,7 @@ import Store from '../components/store/Store.jsx';
 import Checkout from '../components/checkout/Checkout.jsx';
 import SheetModal from '../components/modals/SheetModal.jsx';
 import AIAssistant from '../components/ai/AIAssistant.jsx';
+import AccountTypePopup from '../components/account/AccountTypePopup.jsx';
 import { IDS } from '../data/content.js';
 
 const STAFF = { admin: true, developer: true };
@@ -29,11 +29,10 @@ const STAFF = { admin: true, developer: true };
    pages open over it (the <Outlet/>), exactly like the old #admin overlay. */
 function Site() {
   const site = useSite();
-  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, handleAuthLink, loadCurrency } = site;
+  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, handleAuthLink, loadCurrency, askRole, siteStage } = site;
   const navigate = useNavigate();
   const contentRef = useRef(null), engineRef = useRef(null);
   const [veil, setVeil] = useState({ gone: false, slow: false });
-  const { activeCount } = useMyWorksheets();
 
   /* old links such as /#admin still open the staff pages */
   const onStaffHash = useCallback(h => { if (!STAFF[h]) return false; navigate('/' + h); return true; }, [navigate]);
@@ -71,7 +70,7 @@ function Site() {
       <div id="scrim" />
       <MagicLayer />
       <Veil gone={veil.gone} slow={veil.slow} />
-      <Navbar bagCount={activeCount} />
+      <Navbar />
       <main id="content" ref={contentRef}>
         <div id="stack" ref={el => { stage.stack = el; }}>
           <HomeChapter />
@@ -85,10 +84,11 @@ function Site() {
       <StageChrome />
       <AIAssistant />
       <Suspense fallback={null}><Outlet /></Suspense>
-      <Store bagCount={activeCount} />
+      <Store />
       <Checkout />
       <Drawers />
       <SheetModal />
+      {askRole && siteStage === 'site' ? <AccountTypePopup /> : null}
     </>
   );
 }

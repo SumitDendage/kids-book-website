@@ -103,7 +103,7 @@ function CouponDialog({ coupon, classes, onClose, onDone }) {
       </div>
       <div className="grid-3">
         <div className="field"><label htmlFor="cpApplies">Works on</label><select id="cpApplies" name="appliesTo" value={applies} onChange={e => setApplies(e.target.value)}><option value="all">Everything</option><option value="worksheet">Single sheets only</option><option value="class">Class plans only</option></select>{fe('appliesTo')}</div>
-        <div className="field"><label htmlFor="cpClass">Class</label><select id="cpClass" name="classId" defaultValue={c.cls || ''}><option value="">Any class</option>{classes.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select>{fe('cls')}</div>
+        <div className="field"><label htmlFor="cpClass">Class</label><select id="cpClass" name="classId" defaultValue={c.cls || ''}><option value="">Any class</option>{classes.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}{c.cls && !classes.some(k => k.id === c.cls) ? <option value={c.cls}>{c.cls}</option> : null}</select>{fe('cls')}</div>
         <label className="check"><input type="checkbox" name="active" defaultChecked={coupon ? !!c.active : true} />Switched on</label>
       </div>
       <div className="grid-3">

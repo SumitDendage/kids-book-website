@@ -670,9 +670,10 @@ async function securityEvents(ctx: Ctx) {
   if (type && !/^[a-z_.]{2,60}$/.test(type)) bad('type', 'Unknown event type.');
   const limit = logLimit(ctx);
   const offset = intParam(ctx.query.get('offset'), 0, 0, 1_000_000);
-  const rows = await tx((q) => q<{ id: number; user_id: string | null; event_type: string; detail: unknown; ip: string | null; user_agent: string | null; created_at: Date; email: string | null }[]>`
-    select e.id, e.user_id, e.event_type, e.detail, e.ip, e.user_agent, e.created_at, p.email
+  const rows = await tx((q) => q<{ id: number; user_id: string | null; event_type: string; detail: unknown; ip: string | null; user_agent: string | null; created_at: Date; email: string | null; by_email: string | null }[]>`
+    select e.id, e.user_id, e.event_type, e.detail, e.ip, e.user_agent, e.created_at, p.email, b.email::text as by_email
     from security_events e left join profiles p on p.id = e.user_id
+    left join profiles b on b.id::text = e.detail ->> 'by'
     where (${user}::uuid is null or e.user_id = ${user}::uuid) and (${type}::text is null or e.event_type = ${type}::text)
     order by e.created_at desc, e.id desc limit ${limit} offset ${offset}`);
   return {
@@ -680,6 +681,8 @@ async function securityEvents(ctx: Ctx) {
       id: e.id, user_id: e.user_id, event_type: e.event_type, detail: e.detail ?? null, ip: e.ip, user_agent: e.user_agent,
       created_at: ms(e.created_at), email: e.email,
       userId: e.user_id, type: e.event_type, at: ms(e.created_at),
+      // detail.by names the staff member who acted (a user id); their email for the log page
+      byEmail: e.by_email ?? null,
     })),
   };
 }

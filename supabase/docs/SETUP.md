@@ -193,8 +193,15 @@ keep it as a backup.
   charge it; change it in **Admin → Settings**.
 - **Free sheets:** Alphabet A and B, Colours 1 to 3 and Shapes 1 to 3 (8 sheets), as you asked on
   7 October.
-- **Printing and downloading:** every sheet is "view only" now (0 prints, 0 downloads). You can allow a
-  number of prints or downloads per purchase in **Products**.
+- **Printing:** each sheet a customer can open comes with prints of its own, set by their account type:
+  **Parent 3, Teacher 30, Organization 300** (a school, tuition centre or other group). Customers choose
+  their type once after signing up; you can change it in **Admin → Customers**. Change the three numbers
+  in **Admin → Settings**, or give one sheet its own number in **Products** (its print rule; 0 there
+  means that sheet is not printed).
+- **Downloading:** off for every sheet (0 downloads). You can allow a number of downloads per purchase
+  in **Products**.
+- **The cart:** signed-in customers keep a cart on the server (up to 50 sheets) and pay for it as one
+  order with one receipt. Each sheet in it opens for its own access days from the verified payment.
 - **Old accounts:** customers who signed up on the old local server sign up again (their passwords were
   never copied, on purpose).
 

@@ -164,11 +164,11 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   assertMatch(free.body.reply, /^Eight sheets are free to try/);
 
   const days = await chat('how long does my access last after I buy?');
-  assertMatch(days.body.reply, /stays open for 365 days/);
+  assertEquals(days.body.reply, 'Each sheet you buy stays open for the time shown on the sheet (365 days unless it says otherwise), counted from your verified payment.');
   assert(!days.body.reply.includes('{accessDays}'));
   await h.setSetting('worksheet_access', { days: 200 });
   try {
-    assertMatch((await chat('when does it expire?')).body.reply, /stays open for 200 days/);
+    assertMatch((await chat('when does it expire?')).body.reply, /stays open for the time shown on the sheet \(200 days unless it says otherwise\)/);
   } finally {
     await h.setSetting('worksheet_access', { days: 365 });
   }
@@ -271,7 +271,7 @@ test('faq: published public answers only, with {accessDays} filled', async () =>
   assert(list.length >= 10);
   assert(!list.some((f) => /Admin →|Refund policy is being written/.test(f.answer)));
   const days = list.find((f) => f.question.startsWith('How long can I open'))!;
-  assertMatch(days.answer, /for 365 days/);
+  assertEquals(days.answer, 'Each sheet you buy stays open for the time shown on the sheet (365 days unless it says otherwise), counted from your verified payment.');
 });
 
 test('reviews: published only, initials instead of names, never ids or emails', async () => {

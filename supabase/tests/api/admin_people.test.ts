@@ -293,8 +293,11 @@ test('PUT /api/admin/users/status keeps the old contract (suspend = account bloc
   assertEquals((await liveSessions(c.id)).length, 0);
   const s = await h.sql<{ revoke_reason: string }[]>`select revoke_reason from app_sessions where id = ${c.sessionId}`;
   assertEquals(s[0].revoke_reason, 'account_blocked');
-  // the sign-in has ended (401); signing in again is refused with the old code
-  assertStatus(await h.call('GET', '/api/me/security', { token: c.token }), 401);
+  // the sign-in has ended, and an open page learns why (403 account_suspended before the 401
+  // of an ended sign-in); signing in again is refused with the old code
+  const after = await h.call('GET', '/api/me/security', { token: c.token });
+  assertStatus(after, 403);
+  assertEquals(after.body.code, 'account_suspended');
   const refused = await h.login(c.email, c.password);
   assertStatus(refused, 403);
   assertEquals(refused.body.code, 'account_suspended');
@@ -334,7 +337,12 @@ test('account block / unblock: every sign-in ends, staff accounts protected, aud
   assertEquals(r.body.user.account_status, 'suspended');
   assertEquals(r.body.user.blockedReason, 'Chargeback fraud');
   assertEquals(r.body.user.activeSessionCount, 0);
-  for (const t of [c.token, other.token]) assertStatus(await h.call('GET', '/api/me/security', { token: t }), 401);
+  // every sign-in has ended; open pages are told the account is suspended (403, not just 401)
+  for (const t of [c.token, other.token]) {
+    const x = await h.call('GET', '/api/me/security', { token: t });
+    assertStatus(x, 403);
+    assertEquals(x.body.code, 'account_suspended');
+  }
   // the Supabase Auth sessions are gone as well, so no refresh brings a sign-in back
   assertEquals((await h.sql`select 1 from auth.sessions where user_id = ${c.id}`).length, 0);
   const ref = await h.call('POST', '/api/auth/refresh-token', { body: { refreshToken: c.refreshToken } });
