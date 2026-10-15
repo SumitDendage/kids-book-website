@@ -8,7 +8,7 @@ const code = (await readFile(new URL('../src/services/api.js', import.meta.url),
     getHeaders: async () => ({ apikey: 'public-key', Authorization: 'Bearer session-token' })
   };`)
   .replace("import { BRAND, WEB3FORMS_KEY } from '../data/content.js';", "const BRAND = 'Test', WEB3FORMS_KEY = '';")
-  .replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://liaqgyskuhnxmlvmrnrl.supabase.co'")
+  .replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://wjqmrcglzqemrvafjeel.supabase.co'")
   .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'public-key'");
 const api = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 
@@ -20,8 +20,8 @@ test('catalogue and account requests use the configured project and SDK bearer t
   });
   await api.catalogueApi.worksheets();
   await api.meApi.orders();
-  assert.equal(calls[0].url, 'https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/worksheets');
-  assert.equal(calls[1].url, 'https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/me/orders');
+  assert.equal(calls[0].url, 'https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1/api/worksheets');
+  assert.equal(calls[1].url, 'https://wjqmrcglzqemrvafjeel.supabase.co/functions/v1/api/me/orders');
   assert.equal(calls[1].options.headers.Authorization, 'Bearer session-token');
   assert.equal(calls[0].options.headers.apikey, 'public-key');
 });
