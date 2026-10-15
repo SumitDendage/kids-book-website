@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { staffApi, staffFetch } from '../../services/api.js';
 import { useDash } from './DashContext.js';
+import { validateStaffResponse } from '../../services/staffResponse.js';
 
 export const ADMIN_SECTIONS = [
   ['overview', 'Dashboard'], ['products', 'Products'], ['orders', 'Orders'], ['customers', 'Customers'], ['security', 'Security'], ['messages', 'Messages'],
@@ -95,7 +96,7 @@ export function useStaffGet(path, opts = {}) {
     const n = ++seq.current;
     if (!quiet) setSt(s => ({ data: opts.keep ? s.data : null, error: null, loading: true }));
     try {
-      const data = await staffApi('GET', path);
+      const data = validateStaffResponse(path, await staffApi('GET', path));
       if (n === seq.current) setSt({ data, error: null, loading: false });
       return data;
     } catch (e) {
@@ -105,7 +106,7 @@ export function useStaffGet(path, opts = {}) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, lost]);
-  useEffect(() => { run(false); }, [run]);
+  useEffect(() => { run(false); return () => { seq.current++; }; }, [run]);
   const setData = useCallback(fn => setSt(s => ({ ...s, data: typeof fn === 'function' ? fn(s.data) : fn })), []);
   return { data: st.data, error: st.error, loading: st.loading, reload: run, setData };
 }

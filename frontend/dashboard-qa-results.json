@@ -1,0 +1,337 @@
+{
+  "date": "2026-10-15",
+  "project": "wjqmrcglzqemrvafjeel",
+  "scope": "Local code review and browser UI fixtures; authenticated live workflows remain blocked.",
+  "browser": {
+    "entryGates": [
+      "Admin sign-in rendered and empty fields rejected",
+      "Developer sign-in rendered and empty fields rejected",
+      "Developer reset form rendered and empty email rejected without sending email"
+    ],
+    "sidebarNavigation": [
+      {
+        "panel": "Admin",
+        "pages": [
+          "Dashboard",
+          "Products",
+          "Orders",
+          "Customers",
+          "Security",
+          "Messages",
+          "Analytics",
+          "Coupons",
+          "Content",
+          "Roles",
+          "Settings",
+          "Audit logs"
+        ],
+        "result": "All headings reached; no section crash"
+      },
+      {
+        "panel": "Developer",
+        "pages": [
+          "Dashboard",
+          "Errors",
+          "Emails",
+          "API monitoring",
+          "Database",
+          "Payments",
+          "Webhooks",
+          "Authentication",
+          "Performance",
+          "Security",
+          "Deployments",
+          "Backups",
+          "Audit logs"
+        ],
+        "result": "All headings reached; no section crash"
+      }
+    ],
+    "fixtureStates": [
+      {
+        "panel": "Admin",
+        "page": "Dashboard",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Products",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Orders",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Customers",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Security",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Messages",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Analytics",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Coupons",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Content",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Roles",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Settings",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Admin",
+        "page": "Audit logs",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Dashboard",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Errors",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Emails",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "API monitoring",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Database",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Payments",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Webhooks",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Authentication",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Performance",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Security",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Deployments",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Backups",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer",
+        "page": "Audit logs",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      },
+      {
+        "panel": "Developer component",
+        "page": "Customer sign-ins",
+        "states": [
+          "missing backend",
+          "valid empty fixture",
+          "loading"
+        ],
+        "result": "No rendering crash"
+      }
+    ],
+    "fixtureStateCount": 78,
+    "notes": [
+      "Fixture identity is local only; real backend is not mocked in production.",
+      "Performance and Backups do not issue an initial server data request.",
+      "Health warns about the deliberately simulated public 404 even in empty mode."
+    ]
+  },
+  "fixes": [
+    "Corrected local NEXT_PUBLIC_ names to VITE_; local .env stays ignored.",
+    "Reject incomplete Analytics and Developer health reports before rendering.",
+    "Validate staff identity role and permission envelope.",
+    "Listen to Supabase SDK identity changes in the staff portal.",
+    "Ignore stale staff-identity responses and staff page queries."
+  ],
+  "liveBackend": "29 unique read routes returned HTTP 404 Requested function was not found. See staff-route-results.json.",
+  "notVerified": [
+    "Successful staff login or role assignment",
+    "Authenticated private reads or database RLS",
+    "Product upload/edit/archive",
+    "Refunds or payment verification",
+    "Sending/retrying emails or replying to messages",
+    "Granting/revoking access or blocking accounts",
+    "Exports and backup contents",
+    "Mobile layout at all breakpoints"
+  ]
+}

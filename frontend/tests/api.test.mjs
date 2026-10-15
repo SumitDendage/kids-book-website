@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const code = (await readFile(new URL('../src/services/api.js', import.meta.url), 'utf8'))
+  .replace("import { validateStaffResponse } from './staffResponse.js';", "const validateStaffResponse = (path, data) => data;")
   .replace("import { fetchProducts } from './products.js';", "const fetchProducts = () => api('GET', '/api/worksheets');")
   .replace("import * as sdkAuth from './supabaseAuth.js';", `const sdkAuth = {
     snapshot: () => ({ accessToken: 'session-token' }),

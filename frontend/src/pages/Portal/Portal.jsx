@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext.jsx';
-import { staffAuth } from '../../services/api.js';
+import { staffAuth, staffTokens, onCustomerTokensChange } from '../../services/api.js';
 import StaffLogin, { STAFF } from './StaffLogin.jsx';
 import Dashboard from './Dashboard.jsx';
 import { canWith, panelAllowed, problem, ROLE_LABEL } from './dashboard.js';
@@ -22,6 +22,8 @@ export default function Portal({ kind }) {
   const [me, setMe] = useState(null);
   const [note, setNote] = useState('');
   const [err, setErr] = useState(null);
+  const checkVersion = useRef(0);
+  const lastUser = useRef(staffTokens.get()?.userId);
 
   /* fade in on the next frame, so the transition runs */
   useEffect(() => {
@@ -34,12 +36,16 @@ export default function Portal({ kind }) {
 
   /* who is signed in, and with which permissions (asked again when the tab comes back) */
   const check = useCallback(async quiet => {
+    const version = ++checkVersion.current;
+    const userId = staffTokens.get()?.userId;
     if (!staffAuth.signedIn()) { setMe(null); setState('out'); return; }
     if (!quiet) setState(s => (s === 'in' ? s : 'checking'));
     try {
       const m = await staffAuth.me();
+      if (version !== checkVersion.current || userId !== staffTokens.get()?.userId) return;
       setMe(m); setErr(null); setState('in');
     } catch (e) {
+      if (version !== checkVersion.current || userId !== staffTokens.get()?.userId) return;
       if (e.status === 401 || e.status === 403) {
         await staffAuth.logout();
         setMe(null); setState('out');
@@ -49,13 +55,20 @@ export default function Portal({ kind }) {
       } else if (!quiet) { setErr(e); setState('error'); }
     }
   }, []);
-  useEffect(() => { check(); }, [check]);
+  useEffect(() => { check(); return () => { checkVersion.current++; }; }, [check]);
   useEffect(() => {
     const onVis = () => { if (document.visibilityState === 'visible' && staffAuth.signedIn()) check(true); };
-    const onStore = e => { if (e.key === null || e.key === 'lww_staff_tokens') check(true); };
+    const unsubscribe = onCustomerTokensChange(tokens => {
+      const identityChanged = tokens?.userId !== lastUser.current;
+      if (identityChanged) {
+        lastUser.current = tokens?.userId;
+        setMe(null);
+        setState(tokens ? 'checking' : 'out');
+      }
+      check(!identityChanged);
+    });
     document.addEventListener('visibilitychange', onVis);
-    addEventListener('storage', onStore);
-    return () => { document.removeEventListener('visibilitychange', onVis); removeEventListener('storage', onStore); };
+    return () => { document.removeEventListener('visibilitychange', onVis); unsubscribe(); };
   }, [check]);
 
   /* close: fade out, then leave the route (the site stays where it was) */

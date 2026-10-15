@@ -1,0 +1,271 @@
+{
+  "checkedAt": "2026-10-15T17:16:36.963Z",
+  "project": "https://wjqmrcglzqemrvafjeel.supabase.co",
+  "scope": "Unauthenticated read-only reachability; not authenticated staff workflow verification.",
+  "pages": {
+    "Admin / Dashboard": [
+      "/api/admin/stats"
+    ],
+    "Admin / Products": [
+      "/api/admin/worksheets",
+      "/api/admin/classes",
+      "/api/admin/files"
+    ],
+    "Admin / Orders": [
+      "/api/admin/orders"
+    ],
+    "Admin / Customers": [
+      "/api/admin/users"
+    ],
+    "Admin / Security": [
+      "/api/admin/security/customers",
+      "/api/admin/security/incidents",
+      "/api/admin/security/appeals"
+    ],
+    "Admin / Messages": [
+      "/api/admin/messages"
+    ],
+    "Admin / Analytics": [
+      "/api/admin/analytics"
+    ],
+    "Admin / Coupons": [
+      "/api/admin/coupons"
+    ],
+    "Admin / Content": [
+      "/api/admin/content",
+      "/api/admin/faq",
+      "/api/admin/reviews"
+    ],
+    "Admin / Roles": [
+      "/api/admin/staff",
+      "/api/admin/staff/roles"
+    ],
+    "Admin / Settings": [
+      "/api/admin/settings",
+      "/api/admin/plans"
+    ],
+    "Admin / Audit logs": [
+      "/api/admin/audit"
+    ],
+    "Developer / Dashboard": [
+      "/api/admin/developer/health",
+      "/api/health"
+    ],
+    "Developer / Errors": [
+      "/api/admin/developer/health",
+      "/api/admin/emails",
+      "/api/admin/payment-events"
+    ],
+    "Developer / Emails": [
+      "/api/admin/emails"
+    ],
+    "Developer / API monitoring": [
+      "/api/health",
+      "/api/admin/login-activity",
+      "/api/admin/access-log"
+    ],
+    "Developer / Database": [
+      "/api/admin/developer/health"
+    ],
+    "Developer / Payments": [
+      "/api/admin/payments",
+      "/api/admin/orders"
+    ],
+    "Developer / Webhooks": [
+      "/api/admin/payment-events"
+    ],
+    "Developer / Authentication": [
+      "/api/admin/login-activity",
+      "/api/admin/security/customers"
+    ],
+    "Developer / Performance": [],
+    "Developer / Security": [
+      "/api/admin/security-events",
+      "/api/admin/access-log"
+    ],
+    "Developer / Deployments": [
+      "/api/admin/developer/health",
+      "/api/health"
+    ],
+    "Developer / Backups": [],
+    "Developer / Audit logs": [
+      "/api/admin/audit"
+    ]
+  },
+  "results": [
+    {
+      "path": "/api/admin/me",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/stats",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/worksheets",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/classes",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/files",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/orders",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/users",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/security/customers",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/security/incidents",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/security/appeals",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/messages",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/analytics",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/coupons",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/content",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/faq",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/reviews",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/staff",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/staff/roles",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/settings",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/plans",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/audit",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/developer/health",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/health",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/emails",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/payment-events",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/login-activity",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/access-log",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/payments",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    {
+      "path": "/api/admin/security-events",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    }
+  ]
+}

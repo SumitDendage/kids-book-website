@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { staffApi, staffAuth, staffFetch, staffTokens } from '../../services/api.js';
+import { validateStaffResponse } from '../../services/staffResponse.js';
 import { useDash } from '../Portal/DashContext.js';
 import { dateTimeTz } from '../../utils/format.js';
 import Icon from '../../components/dashboard/Icon.jsx';
@@ -70,7 +71,7 @@ export function useServer(path, opt) {
     if (skip) { setSt({ key: null, data: null, error: null, loading: false }); return undefined; }
     let alive = true;
     setSt(s => ({ key: path, data: s.key === path ? s.data : null, error: null, loading: true }));
-    staffApi('GET', path).then(
+    staffApi('GET', path).then(d => validateStaffResponse(path, d)).then(
       d => { if (alive) setSt({ key: path, data: d, error: null, loading: false }); },
       e => {
         if (!alive) return;

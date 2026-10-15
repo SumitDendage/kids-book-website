@@ -1,6 +1,7 @@
 /* SDK-managed Auth; existing Edge Function contracts await target-project inspection. */
 import * as sdkAuth from './supabaseAuth.js';
 import { fetchProducts } from './products.js';
+import { validateStaffResponse } from './staffResponse.js';
 import { BRAND, WEB3FORMS_KEY } from '../data/content.js';
 
 export const API_BASE = import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, '') + '/functions/v1';
@@ -224,9 +225,9 @@ export const eventsApi = {
 
 /* Staff share the SDK session. Administrative authorization is server-side. */
 export const staffAuth = {
-  login: async body => { await sdkAuth.login(body); return api('GET', '/api/admin/me'); },
+  login: async body => { await sdkAuth.login(body); return staffAuth.me(); },
   logout: sdkAuth.logout,
-  me: () => api('GET', '/api/admin/me', undefined, staffTokens),
+  me: async () => validateStaffResponse('/api/admin/me', await api('GET', '/api/admin/me', undefined, staffTokens)),
   signedIn: () => usable(staffTokens.get()),
 };
 export async function staffApi(method, path, body) {

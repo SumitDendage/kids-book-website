@@ -1,5 +1,19 @@
 # Supabase integration status — 15 October 2026
 
+> Dashboard follow-up: all 12 Admin and 13 Developer sidebar pages were opened in
+> an isolated browser fixture of the actual dashboard shell. Together with customer
+> sign-in controls, 78 loading/empty/missing-backend component checks completed
+> without rendering crashes after fixes. Real Admin/Developer sign-in gates rendered
+> and rejected empty credentials. These are UI checks, not authenticated workflows.
+> Incomplete Analytics/health response crashes are now caught as retryable errors;
+> staff identity responses are validated, SDK identity changes refresh the portal,
+> and stale staff responses are ignored. The local `.env` had changed back to
+> NEXT_PUBLIC_ names and was corrected to VITE_. No secret values were committed.
+> Live read-only probes still returned 404 for 29 staff/public health routes.
+> See `frontend/dashboard-qa-results.json`, `frontend/staff-route-results.json`, and
+> `frontend/tests/browser/README.md` for coverage, limits and reproducible fixtures.
+
+
 > Latest fix: catalogue loading now queries the existing public `products` table
 > directly through the shared Supabase SDK client, using verified columns
 > `id,title,price_inr,class_id,description,status,pages`. The real frontend loader
