@@ -297,3 +297,12 @@ body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-wei
 #content .side-child:not(.on) { color: var(--mf-ink); }
 #content .side-child::before { border-color: rgba(43, 29, 78, 0.35); }
 #content .az-foot > span, #content .az-foot > p { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
+
+/* Oct 16, Sumit: "what i send you paste that exactly in page": the Vocabulary board is his
+   picture, shown whole at its own shape, with a see-through button over each card. */
+#content .vocab-photo { position: relative; margin: 0; padding: 0; border-radius: 22px; overflow: hidden; line-height: 0; box-shadow: 0 16px 36px rgba(60, 80, 40, 0.22); }
+#content .vocab-photo-img { display: block; width: 100%; height: auto; }
+#content .vocab-spot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 16%; cursor: pointer; transition: box-shadow 0.25s var(--ease), background 0.25s var(--ease); line-height: 1.2; }
+#content .vocab-spot:hover, #content .vocab-spot:focus-visible { background: rgba(255, 255, 255, 0.18); box-shadow: 0 0 0 3px #fff, 0 8px 22px rgba(60, 80, 40, 0.3); outline: none; }
+#content .vocab-spot.soon { cursor: default; }
+#content .vocab-spot-tip { position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: #fff; color: #a3134f; font: 800 clamp(0.62rem, 0.5rem + 0.4vw, 0.85rem) / 1.2 var(--font-body); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
