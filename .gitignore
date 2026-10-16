@@ -13,7 +13,9 @@ out/
 *.zip
 
 # editor / tooling
-.claude/
+.claude/*
+# ...except the shared project settings, which turn on Claude Code plugins (e.g. Hostinger) for this repo
+!.claude/settings.json
 __pycache__/
 
 # the backend (server, private PDFs, settings) and the databases are kept OFF GitHub on purpose
