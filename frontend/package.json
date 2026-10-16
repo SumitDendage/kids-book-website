@@ -2,7 +2,7 @@
   "name": "learn-with-why",
   "private": true,
   "version": "2026.9.17",
-  "description": "Learn With Why \u00e2\u20ac\u201d printable worksheets for Kindergarten to Class 3 (Vite + React front end).",
+  "description": "Learn With Why â€” printable worksheets for Kindergarten to Class 3 (Vite + React front end).",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
@@ -16,6 +16,8 @@
     "check:supabase": "node scripts/check-supabase.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/fredoka": "^5.2.5",
+    "@fontsource-variable/nunito": "^5.2.5",
     "@supabase/supabase-js": "2.117.3",
     "pdfjs-dist": "4.10.38",
     "react": "^19.2.0",

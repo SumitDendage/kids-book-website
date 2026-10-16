@@ -1,0 +1,251 @@
+/* ---------- magical forest: brighter, friendlier, readable (Sumit, Oct 16) ----------
+   Same layout, same animations, same features. Only the look changes:
+   - rounded friendly letters (Fredoka for headings, Nunito for reading text)
+   - dark plum words everywhere, with a soft white glow where they sit on the picture
+   - bright pastel cards (yellow, lime, sky, coral, pink, lavender) with white edges
+   - candy buttons with dark words, a little bounce on hover
+   - small leaves and flowers that sway on the cards (still under reduced motion)
+   Loaded last, so it wins over the older colour files without editing them. */
+
+:root {
+  --font-display: 'Fredoka Variable', 'Fredoka', 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito Variable', 'Nunito', 'Baloo 2', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mf-ink: #2b1d4e;
+  --mf-ink-soft: #46386b;
+  --mf-coral: #ff7a59;
+  --mf-pink: #ff5fa2;
+  --mf-yellow: #ffd23f;
+  --mf-lime: #a7e34a;
+  --mf-sky: #5cc8ff;
+  --mf-lavender: #b892ff;
+  --mf-halo-sm: 0 0 2px #fff, 0 0 4px #fff, 0 0 8px rgba(255, 255, 255, 0.9);
+  --mf-halo: 0 0 2px #fff, 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 255, 255, 0.8), 0 0 26px rgba(255, 255, 255, 0.55);
+  /* pastel card pairs */
+  --mf-g-yellow: linear-gradient(145deg, #fff6c2, #ffe27a);
+  --mf-g-lime: linear-gradient(145deg, #eaffc4, #c4f07a);
+  --mf-g-sky: linear-gradient(145deg, #dcf3ff, #a6defc);
+  --mf-g-coral: linear-gradient(145deg, #ffe1d6, #ffb49c);
+  --mf-g-pink: linear-gradient(145deg, #ffe0ef, #ffb3d6);
+  --mf-g-lavender: linear-gradient(145deg, #efe4ff, #d2bcff);
+  --mf-g-aqua: linear-gradient(145deg, #d8fbf6, #9fece0);
+}
+
+/* everything in the chapters reads in dark ink now */
+#content { --fg: var(--mf-ink); --fg-muted: var(--mf-ink-soft); --fg-dim: rgba(43, 29, 78, 0.72); --gold: var(--mf-ink); --peach: var(--mf-pink); --mint: var(--mf-ink); --sky: var(--mf-ink); --cream: var(--mf-ink-soft); color: var(--mf-ink); }
+body, button, input, textarea, select { font-family: var(--font-body); }
+
+/* the soft light over the forest: a little warmer and sunnier */
+#magic-light { background: radial-gradient(ellipse 55% 45% at 72% 16%, rgba(255, 226, 120, 0.7), transparent 70%), radial-gradient(ellipse 50% 45% at 14% 80%, rgba(255, 150, 200, 0.22), transparent 70%), radial-gradient(ellipse 60% 50% at 90% 90%, rgba(120, 220, 255, 0.22), transparent 70%); }
+
+/* ── headings: big, round, dark, with a white glow so they read on the picture ── */
+#content .display, #content .h2, #content .kg-head h3, #content .vocab-head h3, #content .az-head h3 {
+  font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em;
+  background: none; color: var(--mf-ink); -webkit-text-fill-color: currentColor;
+  text-shadow: var(--mf-halo); filter: none; animation: none;
+}
+#content .display { font-size: clamp(2.4rem, 1.3rem + 4.4vw, 5rem); line-height: 1.04; }
+#content .h2 { font-size: clamp(2rem, 1.2rem + 3vw, 3.8rem); line-height: 1.08; }
+/* the coloured words still shimmer, now in candy colours */
+#content .display em, #content .h2 em, #content .kg-head h3 em, #content .az-head h3 em, #content .vocab-head h3 em {
+  font-style: normal; font-weight: 700;
+  background: linear-gradient(100deg, #ff4f93 0%, #ff7a59 30%, #f5a300 55%, #b05cff 80%, #ff4f93 100%); background-size: 240% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: none; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+  animation: storyShimmer 6s ease-in-out infinite alternate; padding-right: 0.06em;
+}
+/* the landing title floats in word by word as before (31-landing-text.css); its words now
+   drift between deep plum and violet, and "why" in candy colours */
+#content .hero-title { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 8px rgba(255, 255, 255, 0.85)); text-shadow: none; }
+#content .hero-title .tw { background-image: linear-gradient(100deg, #2b1d4e 0%, #5a2d9c 30%, #2b1d4e 55%, #7a2d7a 80%, #2b1d4e 100%); }
+#content .hero-title em .tw { background-image: linear-gradient(100deg, #ff4f93, #ff7a59, #f5a300, #b05cff, #ff4f93); }
+#content .hero-title em { filter: none; }
+
+/* small capitals above each heading: a bright little badge */
+#content .eyebrow {
+  display: block; width: fit-content; max-width: 100%;
+  padding: 6px 14px; border-radius: 100px;
+  background: linear-gradient(120deg, #fff4a8, #ffc6dc); border: 2px solid #fff;
+  color: var(--mf-ink); font-family: var(--font-body); font-weight: 800; letter-spacing: 0.16em;
+  text-shadow: none; box-shadow: 0 6px 18px rgba(255, 122, 89, 0.25);
+}
+#content .eyebrow::before { content: '✿ '; color: var(--mf-pink); }
+#content .sheets-head .eyebrow, #testimonials .eyebrow { margin-inline: auto; }
+#content .auth-card .eyebrow, #content .panel .eyebrow, #content .kg-topics .eyebrow, #content .kg-open .eyebrow, #content .vocab .eyebrow, #content .az .eyebrow, #content .player-card .eyebrow { box-shadow: none; }
+
+/* reading text on the picture: dark, and on a soft bright plate */
+#content .lede, #content .aside, #content .whisper, #content .why-line, #content .sheets-head > p, #content .trust-line, #content .ticks li { color: var(--mf-ink-soft); text-shadow: none; }
+#content .lede em, #content .aside em { color: #d6336c; font-style: normal; font-weight: 700; }
+#home .hero-lede, #about .about-copy, #what-we-do .chapter-inner > .lede, #contact .lede, #content .sheets-head > p, #content .trust-line, #what-we-do .ticks {
+  background: rgba(255, 255, 255, 0.8); border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 26px 32px 24px 34px; padding: 14px 20px; width: fit-content; max-width: min(100%, 60ch);
+  box-shadow: 0 12px 30px rgba(60, 40, 120, 0.16); backdrop-filter: blur(10px);
+  font-weight: 600;
+}
+#home .hero-lede { background: linear-gradient(135deg, rgba(255, 250, 214, 0.9), rgba(255, 226, 240, 0.88)); }
+#about .about-copy { background: linear-gradient(150deg, rgba(232, 255, 214, 0.9), rgba(214, 240, 255, 0.88)); padding: 18px 22px; }
+#about .about-copy .lede { background: none; border: 0; box-shadow: none; padding: 0; margin-bottom: 12px; }
+#about .about-copy .lede:last-child { margin-bottom: 0; }
+#what-we-do .chapter-inner > .lede { background: linear-gradient(135deg, rgba(255, 238, 222, 0.9), rgba(240, 228, 255, 0.88)); }
+#content .sheets-head > p { margin-inline: auto; background: linear-gradient(135deg, rgba(220, 245, 255, 0.9), rgba(255, 240, 200, 0.88)); }
+#contact .lede { background: linear-gradient(135deg, rgba(255, 228, 240, 0.9), rgba(220, 250, 240, 0.88)); }
+#content .trust-line { margin-inline: auto; padding: 8px 18px; border-radius: 100px; }
+#content .trust-line b { color: var(--mf-ink); }
+#what-we-do .ticks { padding: 12px 20px; }
+#content .ticks li::before { color: var(--mf-coral); opacity: 1; }
+#content .whisper, #content .why-line { text-shadow: var(--mf-halo-sm); font-weight: 700; color: var(--mf-ink); }
+#content .why-line em, #content .whisper em { color: #d6336c; }
+#content .why-line > span:first-child { color: var(--mf-ink); font-weight: 800; }
+#content .arrow-link { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); border-bottom: 2px solid var(--mf-coral); }
+#content .arrow-link:hover { border-bottom-color: var(--mf-pink); }
+
+/* ── cards: bright pastel, white edge, soft coloured shadow, organic corners ── */
+#content .panel, #content .ws-side, #content .az, #content .kg-topics, #content .kg-open, #content .vocab, #content .kg-tile, #content .player-card, #content .contact-card {
+  --mf-bg: var(--mf-g-sky);
+  background: var(--mf-bg); border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 28px 34px 26px 36px;
+  box-shadow: 0 16px 40px rgba(70, 40, 140, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+  color: var(--mf-ink); --fg: var(--mf-ink); --fg-muted: var(--mf-ink-soft); --fg-dim: rgba(43, 29, 78, 0.7);
+  backdrop-filter: none;
+}
+#content .panel *, #content .kg-tile *, #content .player-card *, #content .ws-side *, #content .az-head *, #content .az *, #content .kg-topics *, #content .kg-open *, #content .vocab * { text-shadow: none; }
+#content .panel h3, #content .card-title:not(.paper *):not(.rc-card *):not(.az-card *), #content .kg-tile h3 { color: var(--mf-ink); font-family: var(--font-display); font-weight: 650; }
+#content .panel > p, #content .panel p { color: var(--mf-ink-soft); font-weight: 600; }
+#content .kg-head p, #content .az-head > p, #content .ws-soon p { color: var(--mf-ink-soft); font-weight: 600; }
+#content .az-head > p b { color: #d6336c; }
+
+/* each card its own colour */
+#content .trio .panel:nth-child(1) { --mf-bg: var(--mf-g-pink); }
+#content .trio .panel:nth-child(2) { --mf-bg: var(--mf-g-lime); }
+#content .trio .panel:nth-child(3) { --mf-bg: var(--mf-g-yellow); }
+#content .trio .mark { background: #fff; color: var(--mf-ink); border-radius: 16px 20px 14px 22px; box-shadow: 0 6px 14px rgba(255, 122, 89, 0.25); }
+#content .trio .panel:nth-child(1) .mark { background: #ff8fbf; }
+#content .trio .panel:nth-child(2) .mark { background: #b6ec5c; }
+#content .trio .panel:nth-child(3) .mark { background: #ffd23f; }
+#content .ws-side { --mf-bg: var(--mf-g-lime); }
+#content .az { --mf-bg: var(--mf-g-coral); }
+#content .kg-topics { --mf-bg: var(--mf-g-sky); }
+#content .kg-open { --mf-bg: var(--mf-g-lavender); }
+#content .vocab { --mf-bg: var(--mf-g-pink); }
+#content .player-card { --mf-bg: var(--mf-g-yellow); }
+#content .contact-card { --mf-bg: var(--mf-g-aqua); }
+#content .kg-tile:nth-child(6n+1) { --mf-bg: var(--mf-g-coral); }
+#content .kg-tile:nth-child(6n+2) { --mf-bg: var(--mf-g-lime); }
+#content .kg-tile:nth-child(6n+3) { --mf-bg: var(--mf-g-pink); }
+#content .kg-tile:nth-child(6n+4) { --mf-bg: var(--mf-g-sky); }
+#content .kg-tile:nth-child(6n+5) { --mf-bg: var(--mf-g-yellow); }
+#content .kg-tile:nth-child(6n+6) { --mf-bg: var(--mf-g-lavender); }
+#content .kg-no { background: #fff; border: 2px solid rgba(255, 255, 255, 0.9); color: #1f7a4a; }
+#content .kg-tile.soon .kg-no { color: var(--mf-ink-soft); }
+#content .kg-access.paid { background: #ffd6e4; color: #b0245a; font-weight: 800; }
+#content .kg-tile .kg-focus { color: var(--mf-ink); font-weight: 700; text-shadow: none; }
+
+/* a playful lift on hover (translate/rotate, so the cards' own transforms are kept) */
+#content .trio .panel, #content .kg-tile, #content .vocab-card, #content .shop-card, #content .az-card, #content .rc-card { transition: translate 0.35s var(--ease), rotate 0.35s var(--ease), box-shadow 0.35s var(--ease); }
+@media (hover: hover) {
+  #content .trio .panel:hover, #content .kg-tile:hover { translate: 0 -6px; rotate: -0.6deg; box-shadow: 0 24px 50px rgba(255, 95, 162, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.7); }
+  #content .trio .panel:nth-child(2n):hover, #content .kg-tile:nth-child(2n):hover { rotate: 0.6deg; }
+  #content .vocab-card:not(.soon):hover, #content .shop-card:hover, #content .az-card:hover, #content .rc-card:hover { translate: 0 -5px; rotate: -0.5deg; }
+}
+
+/* leaves and flowers: one tiny painted sprig on the big cards, swaying gently */
+#content .trio .panel, #content .kg-topics, #content .vocab, #content .contact-card { position: relative; }
+#content .trio .panel::after, #content .kg-topics::after, #content .vocab::after, #content .contact-card::after {
+  content: ''; position: absolute; top: -16px; right: 14px; width: 54px; height: 54px; pointer-events: none;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 60 C30 44 28 34 20 24' stroke='%234caf50' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M24 40 C14 40 8 34 6 26 C16 26 22 30 24 40Z' fill='%238bd448'/%3E%3Cpath d='M30 46 C40 44 46 38 48 30 C38 30 32 36 30 46Z' fill='%23a7e34a'/%3E%3Cg transform='translate(20 18)'%3E%3Ccircle cx='0' cy='-8' r='6' fill='%23ff8fbf'/%3E%3Ccircle cx='8' cy='-2' r='6' fill='%23ffb3d6'/%3E%3Ccircle cx='5' cy='7' r='6' fill='%23ff8fbf'/%3E%3Ccircle cx='-5' cy='7' r='6' fill='%23ffb3d6'/%3E%3Ccircle cx='-8' cy='-2' r='6' fill='%23ff8fbf'/%3E%3Ccircle cx='0' cy='0' r='4.5' fill='%23ffd23f'/%3E%3C/g%3E%3C/svg%3E");
+  transform-origin: 50% 100%; animation: mfSway 4.5s ease-in-out infinite alternate;
+}
+#content .trio .panel:nth-child(2)::after { filter: hue-rotate(160deg); animation-delay: -1.5s; }
+#content .trio .panel:nth-child(3)::after { filter: hue-rotate(250deg); animation-delay: -3s; }
+#content .vocab::after { filter: hue-rotate(200deg); }
+#content .contact-card::after { filter: hue-rotate(60deg); top: -18px; }
+@keyframes mfSway { from { rotate: -7deg; } to { rotate: 7deg; } }
+
+/* ── buttons: candy gradients, dark words, a little bounce ── */
+#content .btn-primary, #shop .btn-primary, .drawer .btn-primary {
+  background: linear-gradient(135deg, #ffe066 0%, #ffab5e 55%, #ff7aa8 100%); color: var(--mf-ink);
+  font-weight: 800; border: 2px solid #fff; text-shadow: none;
+  box-shadow: 0 8px 20px rgba(255, 122, 89, 0.32);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s, filter 0.25s;
+}
+#content .btn-primary:hover, #shop .btn-primary:hover, .drawer .btn-primary:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 14px 28px rgba(255, 95, 162, 0.35); filter: saturate(1.1); }
+#content .btn-ghost { background: rgba(255, 255, 255, 0.85); color: var(--mf-ink); border: 2px solid #fff; font-weight: 800; text-shadow: none; box-shadow: 0 6px 16px rgba(60, 40, 120, 0.14); }
+#content .btn-ghost:hover { background: #fff; transform: translateY(-2px); }
+/* the Kindergarten tiles keep their own colour per tile, a little brighter */
+#content .kg-tile .btn-primary { --b1: #ffe066; --b2: #ff9b6a; border-width: 2px; box-shadow: 0 6px 14px rgba(255, 122, 89, 0.25); }
+#content .kg-tile:nth-child(6n+2) .btn-primary { --b1: #c9f56b; --b2: #6fdcc4; }
+#content .kg-tile:nth-child(6n+3) .btn-primary { --b1: #ffa6cf; --b2: #c39bff; }
+#content .kg-tile:nth-child(6n+4) .btn-primary { --b1: #8fd8ff; --b2: #a9a2ff; }
+#content .kg-tile:nth-child(6n+5) .btn-primary { --b1: #ffe066; --b2: #a7e34a; }
+#content .kg-tile:nth-child(6n+6) .btn-primary { --b1: #ff9b6a; --b2: #ff8fbf; }
+
+/* form boxes inside the bright cards */
+#content .field input, #content .field textarea { background: rgba(255, 255, 255, 0.92); border: 2px solid rgba(255, 255, 255, 1); color: var(--mf-ink); }
+#content .field input::placeholder, #content .field textarea::placeholder { color: rgba(43, 29, 78, 0.55); }
+#content .field label, #content .contact-card label { color: var(--mf-ink); font-weight: 800; }
+#content .contact-card .switch a { color: var(--mf-ink); text-decoration-color: var(--mf-coral); }
+
+/* the sign-up card: same bright family, lavender to pink */
+#content .auth-card { background: linear-gradient(150deg, rgba(240, 230, 255, 0.95), rgba(255, 224, 240, 0.93)); border: 2px solid #fff; border-radius: 28px 34px 26px 36px; box-shadow: 0 18px 44px rgba(120, 70, 200, 0.22); }
+
+/* testimonials: bright notes, dark words (their carousel moves them, so no hover transform) */
+#content .quote-card { --mf-bg: var(--mf-g-yellow); background: var(--mf-bg); border: 2px solid #fff; border-radius: 26px 32px 24px 34px; box-shadow: 0 24px 50px rgba(70, 40, 140, 0.22); }
+#content .quote-card:nth-child(5n+2) { --mf-bg: var(--mf-g-lime); }
+#content .quote-card:nth-child(5n+3) { --mf-bg: var(--mf-g-sky); }
+#content .quote-card:nth-child(5n+4) { --mf-bg: var(--mf-g-pink); }
+#content .quote-card:nth-child(5n+5) { --mf-bg: var(--mf-g-lavender); }
+#content .quote-card .stars { color: #f59f00; }
+#content .quote-card, #content .quote-card .who b { color: var(--mf-ink); }
+#content .thanks-chip { background: rgba(255, 255, 255, 0.85); border: 2px solid #fff; color: var(--mf-ink); font-weight: 700; text-shadow: none; }
+#content .thanks-chip:nth-child(7n+1) { background: #ffe0ef; }
+#content .thanks-chip:nth-child(7n+2) { background: #eaffc4; }
+#content .thanks-chip:nth-child(7n+3) { background: #dcf3ff; }
+#content .thanks-chip:nth-child(7n+4) { background: #efe4ff; }
+#content .thanks-chip:nth-child(7n+5) { background: #ffe1d6; }
+#content .thanks-chip:nth-child(7n+6) { background: #fff6c2; }
+#content .thanks-chip:nth-child(7n+7) { background: #d8fbf6; }
+#content .flow-ctrl span { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
+
+/* the fox and rabbit preview: a sunny wash instead of the dark shade, dark words */
+#content .player { background: #fff7e6; border: 3px solid #fff; box-shadow: 0 30px 70px rgba(70, 40, 140, 0.25); }
+#content .player .shade { background: linear-gradient(90deg, rgba(255, 250, 235, 0.9) 0%, rgba(255, 250, 235, 0.55) 34%, rgba(255, 250, 235, 0) 58%, rgba(255, 230, 245, 0.3) 100%); }
+#content .player-copy p { color: var(--mf-ink-soft); font-weight: 700; }
+@media (max-width: 760px) {
+  #content .player .shade { background: linear-gradient(180deg, rgba(255, 250, 235, 0.85) 0%, rgba(255, 250, 235, 0.45) 45%, rgba(255, 250, 235, 0.1) 70%, rgba(255, 230, 245, 0.4) 100%); }
+  /* on a phone the words sit in the normal flow: lift them over the picture and its wash */
+  #content .player-copy, #content .player-card { position: relative; z-index: 1; }
+}
+
+/* the side drawers (menu, My Account, cart): bright paper instead of the dark panel */
+.drawer { --fg: var(--mf-ink); --fg-muted: var(--mf-ink-soft); --fg-dim: rgba(43, 29, 78, 0.68); --glass-border: rgba(43, 29, 78, 0.14); background: linear-gradient(170deg, #fffaf0 0%, #fff0f6 55%, #eef8ff 100%); color: var(--mf-ink); border-left: 2px solid #fff; box-shadow: -22px 0 52px rgba(70, 40, 140, 0.25); }
+.drawer-scrim { background: rgba(60, 40, 110, 0.28); }
+.drawer .nav-list button { color: var(--mf-ink); font-weight: 800; }
+.drawer .nav-list button:hover, .drawer .nav-list button.on { color: var(--mf-ink); background: linear-gradient(135deg, #ffe9a8, #ffd0e4); }
+.drawer .btn-ghost { background: #fff; color: var(--mf-ink); border: 2px solid rgba(43, 29, 78, 0.14); }
+.drawer .icon-btn { color: var(--mf-ink); }
+.drawer .cart-row .nm select, .drawer .qty button { background: #fff; color: var(--mf-ink); border-color: rgba(43, 29, 78, 0.2); }
+
+/* ── navigation: a white pill with dark words, the current page in coral ── */
+.nav-links { background: rgba(255, 255, 255, 0.88); border: 2px solid #fff; box-shadow: 0 8px 24px rgba(60, 40, 120, 0.16); }
+.nav-link, .nav-link * { color: var(--mf-ink); font-family: var(--font-body); font-weight: 800; text-shadow: none; }
+.nav-link:hover { color: #d6336c; }
+.nav-link.on { color: #fff; background: linear-gradient(135deg, var(--mf-coral), var(--mf-pink)); text-shadow: none; }
+.nav-link.bag { border: 2px solid var(--mf-coral); background: #fff; color: var(--mf-ink); }
+.nav-link.bag:hover { background: #fff1ea; border-color: var(--mf-pink); }
+.nav-link.bag b { background: var(--mf-ink); color: #fff; }
+.nav-link.bag.cart b.has { background: var(--mf-yellow); color: var(--mf-ink); }
+.nav-brand { background: rgba(255, 255, 255, 0.88); border: 2px solid #fff; border-radius: 100px; padding: 4px 14px 4px 4px; box-shadow: 0 8px 24px rgba(60, 40, 120, 0.16); }
+.nav-brand, .nav-brand * { color: var(--mf-ink); text-shadow: none; }
+body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
+
+/* still pictures for people who ask for less motion */
+@media (prefers-reduced-motion: reduce) {
+  #content .display em, #content .h2 em, #content .kg-head h3 em, #content .az-head h3 em, #content .vocab-head h3 em,
+  #content .trio .panel::after, #content .kg-topics::after, #content .vocab::after, #content .contact-card::after { animation: none; }
+  #content .trio .panel, #content .kg-tile, #content .vocab-card, #content .shop-card, #content .az-card, #content .rc-card { transition: none; }
+}
+
+/* the round buttons at the top of a phone (cart, menu): white with dark marks */
+.navbar .icon-btn { background: rgba(255, 255, 255, 0.92); border: 2px solid #fff; color: var(--mf-ink); box-shadow: 0 6px 16px rgba(60, 40, 120, 0.16); }
+.navbar .icon-btn b { background: var(--mf-ink); color: #fff; }
+.drawer.acct .acct-who b, .drawer .sec-count b, #content .auth-note b, #content .auth-card .signed .auth-sub b { color: var(--mf-ink); font-weight: 800; }
+.drawer.cart .nm .link:hover { text-decoration-color: var(--mf-coral); }
