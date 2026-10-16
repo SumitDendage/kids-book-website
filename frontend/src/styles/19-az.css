@@ -15,3 +15,10 @@
 .az-card b { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #1f6b47; }
 .az-card span { font-size: 0.62rem; color: var(--ink-muted); }
 .az-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: var(--fs-eyebrow); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-dim); }
+/* the tile's own sheet picture (Sumit, Oct 16: every sheet card has a photo) */
+.az-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
+.az-card { position: relative; }
+.az-card > b { position: absolute; top: 6px; right: 6px; z-index: 1; padding: 3px 7px; border-radius: 100px; background: rgba(255, 255, 255, 0.92); }
+.az-card .az-pic { display: block; aspect-ratio: 210 / 297; border-radius: 9px; overflow: hidden; background: #fff; border: 1px solid rgba(20, 24, 28, 0.08); }
+.az-card .az-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.az-card > span:last-child { font-size: 0.7rem; font-weight: 700; color: var(--ink); }

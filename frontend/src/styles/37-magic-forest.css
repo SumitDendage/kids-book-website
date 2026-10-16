@@ -249,3 +249,4 @@ body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-wei
 .navbar .icon-btn b { background: var(--mf-ink); color: #fff; }
 .drawer.acct .acct-who b, .drawer .sec-count b, #content .auth-note b, #content .auth-card .signed .auth-sub b { color: var(--mf-ink); font-weight: 800; }
 .drawer.cart .nm .link:hover { text-decoration-color: var(--mf-coral); }
+#content .kg-open-head h3 em { color: #d6336c; font-style: normal; font-weight: 700; text-shadow: none; }
