@@ -42,8 +42,8 @@ export function CartButton({ it, st, className = 'btn btn-ghost' }) {
 /* open the card with Enter or Space as well as a click (the card is focusable) */
 export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } };
 
-/* A paper card on the shelf (Sheets chapter) or in the store. The store shows the
-   printed page when there is a thumbnail and the New / Bestseller tags. */
+/* A paper card on the shelf (Sheets chapter) or in the store: the printed page when there is a
+   thumbnail; the store also shows the New / Bestseller tags. */
 export default function SheetCard({ it, n, store = false }) {
   const { access, openSheet } = useSite();
   const free = it.price === 0, st = sheetState(access, it), mine = st.open;
@@ -51,7 +51,8 @@ export default function SheetCard({ it, n, store = false }) {
     : store && NEW_IDS.includes(it.id) ? <b className="tag" style={{ background: '#3b5bdb' }}>New</b>
     : store && BEST_IDS.includes(it.id) ? <b className="tag" style={{ background: '#b8862b' }}>Bestseller</b>
     : free ? <b className="tag free">Free</b> : <b className="tag" aria-label="Locked">🔒</b>;
-  const shot = store && it.img;
+  /* every card shows the printed page when the sheet has a picture, on the shelf as well as in the store */
+  const shot = !!it.img;
   const meta = store
     ? (it.cls ? classById(it.cls).label + ' · ' : '') + it.subject + (it.pages ? ' · ' + it.pages + ' pages' : '')
     : (it.cls ? classById(it.cls).label : it.cat || '') + (it.pages ? ' · ' + it.pages + ' pages' : '');

@@ -4,13 +4,17 @@ import { RC_WORDS } from '../../data/catalogue.js';
 /* the price is shown when the sheet is opened, not on the tile */
 const useBadge = () => { const { access } = useSite(); return it => (it.price === 0 ? 'Free' : (access.canOpen(it) ? 'Yours' : '🔒')); };
 
-/* a letter tile: A to Z tracing and Colour the letter */
+/* a letter tile: A to Z tracing and Colour the letter, showing the sheet's own picture (the big letter when there is none) */
 export function AzTile({ it, n }) {
   const { openSheet } = useSite(); const badge = useBadge();
   const L = it.az || it.letter;
   return (
     <button type="button" className={'az-card' + (it.price === 0 ? '' : ' paid')} style={{ '--n': n }} aria-label={it.title} onClick={() => openSheet(it.id)}>
-      <b>{badge(it)}</b><span className="glyph">{L}<small>{L.toLowerCase()}</small></span><span>{it.tileLabel || 'Alphabet ' + L}</span>
+      <b>{badge(it)}</b>
+      {it.img
+        ? <span className="az-pic"><img src={it.img} alt="" loading="lazy" /></span>
+        : <span className="glyph">{L}<small>{L.toLowerCase()}</small></span>}
+      <span>{it.tileLabel || 'Alphabet ' + L}</span>
     </button>
   );
 }
