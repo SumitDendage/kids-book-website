@@ -297,3 +297,28 @@ body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-wei
 #content .side-child:not(.on) { color: var(--mf-ink); }
 #content .side-child::before { border-color: rgba(43, 29, 78, 0.35); }
 #content .az-foot > span, #content .az-foot > p { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
+
+/* Oct 16, Sumit: "vocab page look like this": the board sits in his picture's forest. The middle
+   of the picture (its own cards and signs) is softened into sunlight behind the real cards; the
+   bear with the book on the left and the owl and elephant on the right stand at the sides. */
+#content .vocab { position: relative; overflow: hidden; isolation: isolate; background: var(--vocab-bg) center / cover no-repeat, #f4f8e2; }
+#content .vocab > :not(.vocab-deco) { position: relative; z-index: 1; }
+#content .vocab-deco { position: absolute; bottom: 0; z-index: 0; height: 100%; width: 19%; object-fit: cover; pointer-events: none; user-select: none; }
+#content .vocab-deco.left { left: 0; object-position: 40% bottom; }
+#content .vocab-deco.right { right: 0; object-position: 60% bottom; }
+@media (min-width: 900px) {
+  #content .vocab { padding-inline: 19%; }
+  #content .vocab-grid { gap: 12px; }
+  #content .vocab-card { padding: 10px 8px 10px; gap: 5px; border-radius: 20px; }
+  #content .vocab-pic { aspect-ratio: 1 / 0.8; }
+  #content .vocab-name { font-size: clamp(1rem, 0.8rem + 0.5vw, 1.2rem); }
+  #content .vocab-go, #content .vocab-soon { padding: 4px 10px; font-size: 0.7rem; }
+  #content .vocab-n { top: 6px; right: 6px; font-size: 0.58rem; padding: 2px 7px; }
+}
+@media (max-width: 899px) {
+  /* a phone: the cards need the width, so the forest friends peek in only at the bottom corners */
+  #content .vocab-deco { height: auto; width: 34%; max-height: 46%; object-fit: contain; opacity: 0.95; }
+  #content .vocab-foot { margin-bottom: 120px; }
+}
+#content .vocab-deco.left { mask-image: linear-gradient(to right, #000 72%, transparent); }
+#content .vocab-deco.right { mask-image: linear-gradient(to left, #000 72%, transparent); }

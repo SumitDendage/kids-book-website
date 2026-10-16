@@ -3,7 +3,8 @@ import { VOCAB, TopicOpen } from './KgTopics.jsx';
 
 /* Kindergarten › Vocabulary (Sumit, Oct 6): "Explore Vocabulary" with a picture card for each
    of the twelve topics, after Sumit's picture. A topic with sheets opens to them; the rest say
-   "Coming soon" until their sheets are added (TOPIC_SHEETS in catalogue.js). */
+   "Coming soon" until their sheets are added (TOPIC_SHEETS in catalogue.js). Since Oct 16 the
+   board sits in the forest from that picture (assets/vocab/board-*.webp). */
 const PICS = import.meta.glob('../../assets/vocab/*.webp', { eager: true, import: 'default' });
 const picOf = name => PICS['../../assets/vocab/' + name + '.webp'];
 /* a soft colour per card, in the order of the picture */
@@ -16,7 +17,10 @@ export default function VocabBoard({ open, onOpen }) {
   const s = open && all.find(x => x.id === open);
   if (s) return <TopicOpen s={s} crumb="Kindergarten › Vocabulary" back="← All topics" onBack={() => onOpen(null)} />;
   return (
-    <section className="vocab rise" style={{ '--i': 3 }} aria-label="Kindergarten · Vocabulary">
+    <section className="vocab rise" style={{ '--i': 3, '--vocab-bg': 'url(' + picOf('board-bg') + ')' }} aria-label="Kindergarten · Vocabulary">
+      {/* the forest from Sumit's picture: the bear, book and letters on the left, the owl and elephant on the right */}
+      <img className="vocab-deco left" src={picOf('board-left')} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+      <img className="vocab-deco right" src={picOf('board-right')} alt="" aria-hidden="true" loading="lazy" decoding="async" />
       <div className="vocab-head">
         <p className="eyebrow">Kindergarten · Vocabulary</p>
         <h3>Explore Vocabulary</h3>
