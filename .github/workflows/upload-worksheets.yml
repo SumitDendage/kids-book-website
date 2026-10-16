@@ -1,0 +1,41 @@
+# One-off: copies the worksheet PDFs and page pictures into the private Supabase Storage
+# bucket "worksheets" (Mumbai project). This branch is temporary and is deleted after the run.
+name: Upload worksheets to Supabase
+on:
+  push:
+    branches: [upload-worksheets-temp]
+permissions:
+  contents: read
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Get the project's server key
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "SUPABASE_ACCESS_TOKEN secret is missing"; exit 1; }
+          keys=$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/liaqgyskuhnxmlvmrnrl/api-keys?reveal=true")
+          key=$(echo "$keys" | jq -r '[.[] | select(.type=="secret" and .api_key != null)][0].api_key // empty')
+          [ -n "$key" ] || key=$(echo "$keys" | jq -r '[.[] | select(.name=="service_role" and .api_key != null)][0].api_key // empty')
+          [ -n "$key" ] || { echo "No server key returned"; exit 1; }
+          echo "::add-mask::$key"
+          echo "SUPABASE_SECRET_KEY=$key" >> "$GITHUB_ENV"
+      - name: Upload
+        env:
+          SUPABASE_URL: https://liaqgyskuhnxmlvmrnrl.supabase.co
+        run: node upload-files.mjs files
+      - name: Check how many PDFs are stored
+        env:
+          SUPABASE_URL: https://liaqgyskuhnxmlvmrnrl.supabase.co
+        run: |
+          n=0
+          for d in $(ls files); do
+            c=$(curl -fsS -X POST "$SUPABASE_URL/storage/v1/object/list/worksheets" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" -H "Content-Type: application/json" -d "{\"prefix\":\"$d/\",\"limit\":1000}" | jq '[.. | objects | select(.name? and (.name|endswith(".pdf")))] | length')
+            echo "$d: $c PDFs"; n=$((n+c))
+          done
+          echo "Total PDFs in bucket: $n (expected 115)"
