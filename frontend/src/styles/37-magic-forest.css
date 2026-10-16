@@ -306,3 +306,13 @@ body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-wei
 #content .vocab-spot:hover, #content .vocab-spot:focus-visible { background: rgba(255, 255, 255, 0.18); box-shadow: 0 0 0 3px #fff, 0 8px 22px rgba(60, 80, 40, 0.3); outline: none; }
 #content .vocab-spot.soon { cursor: default; }
 #content .vocab-spot-tip { position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: #fff; color: #a3134f; font: 800 clamp(0.62rem, 0.5rem + 0.4vw, 0.85rem) / 1.2 var(--font-body); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
+
+/* Oct 16: the shop's Vocabulary sections (Colours, Shapes, Sizes) as rows under Vocabulary and as
+   headed groups in its list */
+#shop .side-btn.side-sub { margin-left: 22px; width: calc(100% - 22px); font-size: 0.92em; }
+#shop .side-btn.side-sub .side-lbl { justify-content: flex-start; gap: 6px; }
+#shop .side-btn.side-sub .side-lbl::before { content: '↳'; opacity: 0.6; }
+.shop .shop-group { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; margin: 10px 0 0; padding: 8px 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); border: 2px solid #fff; box-shadow: 0 6px 16px rgba(60, 40, 90, 0.12); width: fit-content; }
+.shop .shop-group h4 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; color: var(--mf-ink); }
+.shop .shop-group span { color: var(--mf-ink-soft); font-weight: 800; font-size: 0.85rem; }
+@media (max-width: 860px) { #shop .side-btn.side-sub { width: auto; margin-left: 0; } }

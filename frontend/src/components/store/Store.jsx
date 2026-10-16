@@ -34,8 +34,8 @@ export const matchesSearch = (it, words) => !words.length || (h => words.every(w
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
    (public/shop/learn-with-why-wallpaper.webp). Each skill card shows its own corner of that
    picture (public/shop/cards/<section id>.webp); the sheet cards are see-through, each in its own colour. */
-function SideButton({ on, onClick, n, children }) {
-  return <button type="button" className={'side-btn' + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
+function SideButton({ on, onClick, n, sub, children }) {
+  return <button type="button" className={'side-btn' + (sub ? ' side-sub' : '') + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
 
 const CARD_PICS = '/shop/cards/';
@@ -49,8 +49,15 @@ const soonIn = config => c => (config && config.classStatus && config.classStatu
    "vocab also add here also behind in classes"). Its sheets are Kindergarten sheets, so the
    Kindergarten plan opens them and the Kindergarten row still counts them. */
 const VOCAB = 'vocab';
-const clsLabel = id => (id === VOCAB ? 'Vocabulary' : classById(id).label);
-const planCls = id => (id === 'all' || id === VOCAB ? 'kg' : id);
+/* Vocabulary's own sections, one per topic that has sheets (Colours, Shapes, Sizes), as rows
+   under Vocabulary and as headed groups in its list (Sumit, Oct 16: "all the files add different
+   sections like there is zip of color, shapes, sizes") */
+const vocabParts = () => (KG_TOPICS.find(g => g.id === VOCAB) || { items: [] }).items
+  .map(([id, label]) => ({ id, label, list: topicSheets(id) })).filter(x => x.list.length);
+const isPart = id => typeof id === 'string' && id.startsWith(VOCAB + '-');
+const partLabel = id => (vocabParts().find(x => x.id === id) || { label: id }).label;
+const clsLabel = id => (id === VOCAB ? 'Vocabulary' : isPart(id) ? 'Vocabulary · ' + partLabel(id) : classById(id).label);
+const planCls = id => (id === 'all' || id === VOCAB || isPart(id) ? 'kg' : id);
 
 /* Subscribe to a class (1, 3, 6 months; 12 outside India). The plans and their prices come from
    the server (GET /api/config): the price before tax and fees, in the shop's currency. With a plan
@@ -92,10 +99,12 @@ export default function Store() {
   const tz = (access.session && access.session.timeZone) || undefined;
 
   const vocabIds = groupSheets(VOCAB).map(it => it.id);
+  const parts = vocabParts();
+  const inClass = (it, c) => (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : isPart(c) ? topicSheets(c).some(x => x.id === it.id) : it.cls === c));
   /* the sheets a view, class and subject show */
   const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && !SOON_NOW(it.cls) &&
     (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
-    (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : it.cls === c)) && subjectMatches(it, sj) && matchesSearch(it, words));
+    inClass(it, c) && subjectMatches(it, sj) && matchesSearch(it, words));
   /* every sidebar number is the number of sheets that button lists */
   const countOf = (vw, c, sj) => pick(vw, c, sj).length;
   /* every filter the customer picks is a shop search in the visit statistics (what they looked for, how many sheets it showed) */
@@ -129,7 +138,9 @@ export default function Store() {
   }
   if (searching) title = 'Results for “' + q.trim() + '”' + (skill ? ' · ' + SKILL_NAME[skill] : view !== 'all' ? ' · ' + v.label : '') + (!skill && cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (!skill && subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill && !searching;
-  const soon = !skill && cls !== 'all' && cls !== VOCAB && SOON_NOW(cls);
+  const soon = !skill && cls !== 'all' && cls !== VOCAB && !isPart(cls) && SOON_NOW(cls);
+  /* the Vocabulary list comes in its sections, each under its own heading */
+  const grouped = !skill && cls === VOCAB && shown.length > 0;
   if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
   else if (searching) sub = shown.length ? (shown.length === 1 ? '1 sheet matches' : shown.length + ' sheets match') + ' · tap one to see it' : 'Nothing matches yet.';
   else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
@@ -161,7 +172,8 @@ export default function Store() {
           <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => filter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => {
             const row = <SideButton key={c.id} on={c.id === cls} n={SOON_NOW(c.id) ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => filter({ cls: c.id, skill: null })}>{c.label}</SideButton>;
             if (c.id !== 'kg') return row;
-            return [row, <SideButton key={VOCAB} on={cls === VOCAB} n={countOf(view, VOCAB, subject)} onClick={() => filter({ cls: VOCAB, skill: null })}>Vocabulary</SideButton>];
+            return [row, <SideButton key={VOCAB} on={cls === VOCAB} n={countOf(view, VOCAB, subject)} onClick={() => filter({ cls: VOCAB, skill: null })}>Vocabulary</SideButton>,
+              ...parts.map(x => <SideButton key={x.id} sub on={cls === x.id} n={countOf(view, x.id, subject)} onClick={() => filter({ cls: x.id, skill: null })}>{x.label}</SideButton>)];
           })}</div>
           <p className="side-title">Subjects</p>
           <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => filter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => filter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
@@ -185,7 +197,10 @@ export default function Store() {
                   </div>
                 </div>
               </article>
-            )) : shown.length ? shown.map((it, n) => <SheetCard key={it.id} it={it} n={n} store />)
+            )) : grouped ? parts.map(x => [x, shown.filter(it => x.list.some(y => y.id === it.id))]).filter(([, l]) => l.length).map(([x, l]) => [
+              <div key={'h-' + x.id} className="shop-group"><h4>{x.label}</h4><span>{l.length} {l.length === 1 ? 'sheet' : 'sheets'}</span></div>,
+              ...l.map((it, n) => <SheetCard key={x.id + '-' + it.id} it={it} n={n} store />)])
+            : shown.length ? shown.map((it, n) => <SheetCard key={it.id} it={it} n={n} store />)
               : searching ? <div className="shop-none" id="shopNone" role="status"><b>No sheets match “{q.trim()}”</b><p>Try another word, or look in every class and subject.</p><button type="button" className="btn" onClick={() => { setShopFilter({ q: '', view: 'all', cls: 'all', subject: 'all', skill: null }); }}>Clear the search</button></div>
               : <p className="cart-empty">Nothing here yet. Try another class or subject.</p>}
           </div>
