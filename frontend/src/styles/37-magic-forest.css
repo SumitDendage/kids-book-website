@@ -250,3 +250,50 @@ body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-wei
 .drawer.acct .acct-who b, .drawer .sec-count b, #content .auth-note b, #content .auth-card .signed .auth-sub b { color: var(--mf-ink); font-weight: 800; }
 .drawer.cart .nm .link:hover { text-decoration-color: var(--mf-coral); }
 #content .kg-open-head h3 em { color: #d6336c; font-style: normal; font-weight: 700; text-shadow: none; }
+
+/* ── Explore Vocabulary like Sumit's picture (Oct 16): a sunny forest board, the title on a
+   wooden sign hung with flowers, pastel picture cards, and the closing line on a second sign ── */
+#content .vocab {
+  --mf-bg: radial-gradient(ellipse 60% 45% at 50% 0%, rgba(255, 250, 210, 0.95), transparent 70%),
+           radial-gradient(ellipse 45% 40% at 0% 100%, rgba(190, 235, 160, 0.9), transparent 70%),
+           radial-gradient(ellipse 45% 40% at 100% 100%, rgba(170, 225, 150, 0.9), transparent 70%),
+           linear-gradient(180deg, #f4fbe4 0%, #e3f5cf 55%, #d3efc0 100%);
+}
+#content .vocab::after { filter: none; }
+#content .vocab-head h3, #content .vocab-foot {
+  position: relative; display: block; width: fit-content; max-width: 100%; margin-inline: auto;
+  background: linear-gradient(180deg, #f6dcaa 0%, #e9c287 55%, #ddb072 100%);
+  border: 3px solid #b98a52; border-radius: 18px 22px 16px 24px;
+  box-shadow: 0 10px 22px rgba(120, 80, 30, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  color: #4a2c12; -webkit-text-fill-color: currentColor; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+#content .vocab-head h3 { padding: 10px 34px 12px; font-family: var(--font-display); font-weight: 700; }
+#content .vocab-head h3::before, #content .vocab-head h3::after, #content .vocab-foot::before, #content .vocab-foot::after {
+  content: '✿'; position: absolute; top: -14px; font-size: 1.4rem; line-height: 1; color: #fff; text-shadow: 0 0 2px #e98fb5, 0 1px 3px rgba(120, 80, 30, 0.4);
+}
+#content .vocab-head h3::before, #content .vocab-foot::before { left: 10px; }
+#content .vocab-head h3::after, #content .vocab-foot::after { right: 10px; }
+#content .vocab-sub em { color: #4a2c12; font-family: var(--font-body); font-style: normal; font-weight: 800; text-shadow: var(--mf-halo-sm); }
+#content .vocab-foot { padding: 10px 30px; font-family: var(--font-display); font-weight: 650; backdrop-filter: none; }
+#content .vocab-card { border: 3px solid #fff; background: linear-gradient(170deg, rgba(var(--card), 0.95), rgba(var(--card), 0.7)); box-shadow: 0 12px 26px rgba(70, 90, 40, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.7); }
+#content .vocab-name { font-family: var(--font-display); color: var(--mf-ink); font-weight: 650; }
+#content .vocab-go { color: var(--mf-ink); font-weight: 800; border: 2px solid #fff; }
+#content .vocab-soon { color: #a3134f; font-weight: 800; }
+#content .vocab-n { color: #17603b; font-weight: 800; }
+
+/* ── the Sheets side list (By class / By topic): dark words; the chosen row a bright pill ── */
+#content .ws-side .side-title, #content .ws-nav span { color: var(--mf-ink-soft); font-weight: 800; }
+#content .side-item { color: var(--mf-ink); }
+#content .side-item .lbl b { font-weight: 800; }
+#content .side-item .ic, #content .side-item .n { background: rgba(255, 255, 255, 0.75); color: var(--mf-ink); }
+#content .side-item:hover { background: rgba(255, 255, 255, 0.6); color: var(--mf-ink); }
+#content .side-item.on { background: linear-gradient(135deg, #fff3a6, #ffd0e4); color: var(--mf-ink); border: 2px solid #fff; box-shadow: 0 6px 16px rgba(255, 122, 89, 0.22); }
+#content .side-item.on .ic, #content .side-item.on .n { background: #fff; color: var(--mf-ink); }
+
+/* ── the footer: dark words on a light strip so they read on the picture ── */
+#content .site-foot { color: var(--mf-ink); font-weight: 700; border-top: 0; padding: 14px 20px; border-radius: 24px; background: rgba(255, 255, 255, 0.82); box-shadow: 0 10px 26px rgba(60, 40, 120, 0.14); }
+#content .site-foot a:not(.wa-link):not(.ig-link) { color: var(--mf-ink); font-weight: 800; }
+#content .site-foot a:not(.wa-link):not(.ig-link):hover { color: #d6336c; }
+#content .side-child:not(.on) { color: var(--mf-ink); }
+#content .side-child::before { border-color: rgba(43, 29, 78, 0.35); }
+#content .az-foot > span, #content .az-foot > p { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
