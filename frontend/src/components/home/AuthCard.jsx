@@ -8,13 +8,13 @@ import AcceptRules from '../security/AcceptRules.jsx';
 import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
 import { classById, printsText } from '../../data/content.js';
 
-/* Two ways in: Sign up (name, email and the account rules; the server emails a password and an
-   Accept & Continue link that confirms the address) and Sign in. Forgot password emails a reset
+/* Two ways in: Sign up (name, email, a password the customer picks and the account rules; Supabase
+   Auth makes the account, then it signs in through our server at once) and Sign in. Forgot password emails a reset
    link; the link opens the new-password form here (view 'reset', token in auth.token). When the
    account rules change, sign-in asks for them once more (view 'agree'). Every branch is one call
    to /api/auth/*; the server keeps the record of who signed in and when. */
 const COPY = {
-  signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email. We will email you a password and a link to confirm your address.', submit: 'Create my account →' },
+  signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, and choose a password.', submit: 'Create my account →' },
   signin: { title: 'Welcome back.', sub: 'Sign in to open your worksheets, plans and orders.', submit: 'Sign in →' },
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will email you a link to choose a new password.', submit: 'Send reset link →' },
   reset: { title: 'Create a new password.', sub: 'Eight characters or more, with a number and a capital letter.', submit: 'Save new password →' },
@@ -110,11 +110,13 @@ export default function AuthCard() {
       if (view === 'signup') {
         const b = bad('auName', name ? (name.length > 80 ? 'Keep the name under 80 letters.' : '') : 'Tell us your name.')
           | bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')
+          | bad('auPass', strongPass(pass))
+          | bad('auConfirm', confirm === pass ? '' : 'Both passwords must match.')
           | bad('auAccept', agreed ? '' : 'Please tick the box to agree. Your account is just for you.');
         setErrs(errors); if (b) return;
         busyOn(true);
         let r;
-        try { r = await authApi.signup({ name, email, agreement: true, agreementVersion: rules.agreement.version || undefined, timeZone: zone() }); }
+        try { r = await authApi.signup({ name, email, password: pass, timeZone: zone() }); }
         catch (err) {
           if (err.code === 'agreement_required' && err.body && err.body.agreement) {
             setRules(x => ({ ...x, agreement: err.body.agreement })); setAgreed(false);
@@ -127,11 +129,13 @@ export default function AuthCard() {
           throw err;
         }
         write('lww_seen', true);
-        /* no sign-in yet: the password is in the email, and the address must be confirmed first */
+        /* ready: sign in now (the ticked rules are recorded with this first sign-in) */
+        if (r && r.ready) { await signInWith(email, pass, { agreement: true }); return; }
+        /* Supabase is confirming emails: the link is in the inbox, then sign in here */
         setAuthView('signin', null, { email });
         setTimeout(() => setAuthAlert({
           type: 'ok',
-          msg: 'Account created! We have emailed your password to ' + ((r && r.email) || email) + '. Open that email and press Accept & Continue to confirm your address, then sign in here with that password.',
+          msg: 'Account created! Open the email we sent to ' + ((r && r.email) || email) + ' and press the link to confirm your address, then sign in here with your password.',
           action: { label: 'No email? Send it again', run: () => resendWelcome((r && r.email) || email) },
         }), 0);
       } else if (view === 'signin') {
@@ -194,12 +198,12 @@ export default function AuthCard() {
           {view === 'agree' ? <p className="auth-note">Signing in as <b>{f.email}</b></p> : null}
           <Field id="auName" label="Your name" show={shows('signup')} error={errs.auName}><input id="auName" type="text" autoComplete="name" placeholder="Your name" maxLength={80} value={f.name} onChange={set('name')} /></Field>
           <Field id="auEmail" label="Email address" show={shows('signup signin forgot')} error={errs.auEmail}><input id="auEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} /></Field>
-          <Field id="auPass" label={view === 'reset' ? 'New password' : 'Password'} show={shows('signin reset')} error={errs.auPass}>
-            <div className="pw-wrap"><input id="auPass" type={showPass ? 'text' : 'password'} autoComplete={view === 'signin' ? 'current-password' : 'new-password'} placeholder={view === 'signin' ? 'The password from your email' : 'At least 8 characters'} maxLength={128} value={f.pass} onChange={set('pass')} /><button type="button" className="pw-toggle" id="pwToggle" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(v => !v)}>{showPass ? 'HIDE' : 'SHOW'}</button></div>
+          <Field id="auPass" label={view === 'reset' ? 'New password' : 'Password'} show={shows('signup signin reset')} error={errs.auPass}>
+            <div className="pw-wrap"><input id="auPass" type={showPass ? 'text' : 'password'} autoComplete={view === 'signin' ? 'current-password' : 'new-password'} placeholder={view === 'signin' ? 'Your password' : 'At least 8 characters'} maxLength={128} value={f.pass} onChange={set('pass')} /><button type="button" className="pw-toggle" id="pwToggle" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(v => !v)}>{showPass ? 'HIDE' : 'SHOW'}</button></div>
           </Field>
-          <Field id="auConfirm" label="Confirm password" show={shows('reset')} error={errs.auConfirm}><input id="auConfirm" type="password" autoComplete="new-password" placeholder="Once more" maxLength={128} value={f.confirm} onChange={set('confirm')} /></Field>
+          <Field id="auConfirm" label="Confirm password" show={shows('signup reset')} error={errs.auConfirm}><input id="auConfirm" type="password" autoComplete="new-password" placeholder="Once more" maxLength={128} value={f.confirm} onChange={set('confirm')} /></Field>
           {shows('signup agree') ? <AcceptRules id="auAccept" text={agreement.text} checked={agreed} onChange={v => { setAgreed(v); if (v) setErrs(x => ({ ...x, auAccept: undefined })); }} error={errs.auAccept} /> : null}
-          {view === 'signup' ? <p className="auth-note">No password to choose: we email you one. Keep it to yourself, and change it any time with Forgot password.</p> : null}
+          {view === 'signup' ? <p className="auth-note">Eight characters or more, with a number and a capital letter. Keep it to yourself.</p> : null}
           <div className="between" style={shows('signin agree') ? undefined : { display: 'none' }}><span className="auth-note">You stay signed in until you sign out.</span>{view === 'signin' ? <button type="button" className="link" onClick={() => setAuthView('forgot', null, { email: f.email.trim() })}>Forgot password?</button> : null}</div>
           <button type="submit" className="btn btn-primary btn-block" id="authSubmit" disabled={busy}>{busy ? 'One moment…' : copy.submit}</button>
           <p className="switch" id="authSwitch">{switchLine}</p>

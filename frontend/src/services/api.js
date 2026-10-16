@@ -127,8 +127,9 @@ export async function api(method, path, body, store = customerTokens) {
 
 /* Sign-up, sign-in, sign-out and the account go through our server; the Supabase client keeps the tokens fresh and runs the password-reset link. */
 export const authApi = {
-  /* { name, email, agreement: true, agreementVersion?, timeZone?, role? }: the password arrives by email */
-  signup: body => api('POST', '/api/auth/signup', body),
+  /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
+     service needed); ready means it can sign in at once */
+  signup: body => sdkAuth.signUp(body),
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
   logout: serverLogout,

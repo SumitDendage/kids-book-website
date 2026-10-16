@@ -68,6 +68,32 @@ export async function login({ email, password }) {
   session = data.session;
   return { user: userView(data.user), session: snapshot() };
 }
+/* Sign-up straight with Supabase Auth: the customer picks the password, so no email service is
+   needed. When the project's "Confirm email" switch is off the account is ready at once (the
+   database marks the profile confirmed); when it is on, Supabase emails a confirmation link. */
+export async function signUp({ name, email, password, timeZone }) {
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { name, ...(timeZone ? { timeZone } : {}) }, emailRedirectTo: new URL('/', window.location.origin).href },
+  });
+  if (error) {
+    if (error.code === 'user_already_exists' || error.code === 'email_exists' || /already (been )?registered/i.test(error.message)) {
+      throw Object.assign(new Error('That email already has an account.'), { status: 409, code: 'email_taken', body: {} });
+    }
+    if (error.code === 'weak_password') {
+      throw Object.assign(new Error(error.message), { status: 400, code: 'weak_password', body: { errors: { password: error.message } } });
+    }
+    authError(error);
+  }
+  /* Supabase answers a sign-up for a taken address (while confirming emails) with an empty user */
+  if (data.user && Array.isArray(data.user.identities) && !data.user.identities.length) {
+    throw Object.assign(new Error('That email already has an account.'), { status: 409, code: 'email_taken', body: {} });
+  }
+  const ready = !!data.session;
+  /* the real sign-in goes through our server next, which opens its own record of it */
+  if (ready) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+  return { email: (data.user && data.user.email) || email, ready };
+}
 /* tokens from our server's sign-in become the Supabase client's session */
 export async function adoptSession(s) {
   if (!s || !s.accessToken || !s.refreshToken) throw Object.assign(new Error('Sign-in is briefly unavailable. Please try again in a minute.'), { status: 503, code: 'auth_unavailable', body: {} });
