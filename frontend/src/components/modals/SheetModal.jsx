@@ -49,7 +49,7 @@ function SheetDetail({ id }) {
         <div className="lines"><i /><i /><i /><i /><i /></div><small>{it.title} · {it.subject}</small></div>
     );
   const accessLine = !st.ready && !st.open ? 'Coming soon'
-    : st.kind === 'free' ? (session ? 'Free access · signed in' : 'Free access · sign in to open')
+    : st.kind === 'free' ? (session ? 'Free access · signed in' : 'Free access · no sign-in needed')
     : st.kind === 'bought' ? (st.until ? 'Open until ' + dateTimeTz(st.until, tz) : 'Open on your account')
     : st.kind === 'plan' ? 'In your ' + cls.label + ' plan' + (st.until ? ' · until ' + dateTimeTz(st.until, tz) : '')
     : st.kind === 'ended' ? (st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) : 'Your access has ended')
@@ -58,7 +58,7 @@ function SheetDetail({ id }) {
   const actions = !st.ready
     ? <><button type="button" className="btn btn-primary" disabled>Coming soon</button><span className="note">We are still preparing this sheet. Please check back soon.</span></>
     : st.open && free
-      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">Free access sheet. No payment needed: it opens in a new tab in the protected viewer, with your name on every page.</span></>
+      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">{session ? 'Free access sheet. No payment needed: it opens in a new tab in the protected viewer, with your name on every page.' : 'Free access sheet. No sign-in or payment needed: it opens in a new tab in the protected viewer.'}</span></>
     : st.open
       ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
       : !session

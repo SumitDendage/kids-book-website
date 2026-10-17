@@ -133,9 +133,10 @@ export function makeAccess(session, ent, skew = 0) {
       .forEach(e => { if (!by[e.cls] || by[e.cls].end < e.end) by[e.cls] = e; });
     return Object.values(by).map(e => ({ cls: e.cls, plan: e.plan, start: e.start, end: e.end, planLabel: e.planLabel || null, className: e.className || null }));
   };
-  /* free sheets open for anyone signed in (the server grants the record on the spot); a paid sheet
-     opens with a running class plan or its own live purchase. The server decides; this paints buttons. */
-  const canOpen = it => (it.price === 0 ? !!session : !!(activeSub(it.cls) || itemEnt(it.id)));
+  /* free sheets open for everyone, signed in or not (signed in, the server grants the record on the
+     spot); a paid sheet opens with a running class plan or its own live purchase. The server decides;
+     this paints buttons. */
+  const canOpen = it => (it.price === 0 ? true : !!(activeSub(it.cls) || itemEnt(it.id)));
   return { session, ent: all, live, now, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
 }
 
@@ -464,12 +465,13 @@ export function SiteProvider({ children }) {
       a.setAuthView(view || (read('lww_seen', false) ? 'signin' : 'signup'));
       setTimeout(() => a.setAuthAlert({ type: 'ok', msg: why }), 500);
     };
-    /* Not signed in? Every worksheet first shows what a free account includes. */
+    /* Not signed in? A paid worksheet first shows what a free account includes. */
     a.showAccountPopup = id => setModal({ open: true, kind: 'account', id });
-    /* any sheet, free or paid: a look at the page, what is inside, and the open / buy action */
+    /* any sheet, free or paid: a look at the page, what is inside, and the open / buy action.
+       Free sheets open for everyone, so they show their own window to guests too. */
     a.openSheet = id => {
       const it = sheetOf(id); if (!it) return;
-      if (!sessionRef.current) { a.showAccountPopup(id); return; }
+      if (!sessionRef.current && it.price !== 0) { a.showAccountPopup(id); return; }
       setModal({ open: true, kind: 'sheet', id });
     };
     /* after a verified payment: the popup gets purchaseOf(...) (see above) */
@@ -509,13 +511,14 @@ export function SiteProvider({ children }) {
       text: 'Your access to ' + it.title + (endedAt ? ' ended on ' + dateTimeTz(endedAt, tz()) : ' has ended') + '. You can buy access again to keep opening it.',
       actions: [{ label: 'Buy Access Again', primary: true, run: () => a.buyAgain(it.id) }, { label: 'Not now' }],
     });
-    /* Open a sheet in the protected viewer (new tab, full screen). Sign-in is required for every sheet.
+    /* Open a sheet in the protected viewer (new tab, full screen). Paid sheets need sign-in; a free
+       sheet opens without it (the server hands a guest view token for that one sheet).
        The SERVER decides: POST /api/access/:id answers with a view token (free, or a live access
        record), 402 when payment is needed (expired: true when an earlier purchase ran out), 410 when
        the PDF is not ready yet, 401 when the sign-in is gone, 403 for a block. The page follows it. */
     a.openViewer = async id => {
       const it = sheetOf(id); if (!it) return;
-      if (!sessionRef.current) { a.requireSignIn({ do: 'sheet', id }, 'Sign in to open ' + it.title + '. Free and paid sheets both need an account.'); return; }
+      if (!sessionRef.current && it.price !== 0) { a.requireSignIn({ do: 'sheet', id }, 'Sign in to open ' + it.title + '.'); return; }
       if (it.price !== 0 && !accessNow().canOpen(it)) {
         /* this browser's copy says it is not open, but it may be old (bought in another tab or on
            another device), so the server is asked before anyone is sent to pay */
@@ -551,7 +554,7 @@ export function SiteProvider({ children }) {
       }
     };
     /* a card's own buttons: unlock (free) and buy (paid) */
-    a.unlock = id => { if (!sessionRef.current) { a.showAccountPopup(id); return; } a.openViewer(id); };
+    a.unlock = id => { const it = sheetOf(id); if (!sessionRef.current && !(it && it.price === 0)) { a.showAccountPopup(id); return; } a.openViewer(id); };
     a.buy = async id => {
       if (!sessionRef.current) { a.showAccountPopup(id); return; }
       /* bought already in another tab or on another device? then there is nothing to pay */

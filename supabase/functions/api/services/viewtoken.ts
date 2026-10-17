@@ -4,6 +4,8 @@
 // it stops working. It is never trusted alone: each viewer request checks the database again.
 //
 // Format: base64url("userId|productId|entitlementId|sessionId|exp") "." base64url(HMAC-SHA256)
+// A visitor who is not signed in gets a guest token for a free sheet: base64url("guest|productId|exp"),
+// signed the same way. It opens only that sheet, only while it is free.
 // The key is private.app_secrets.view_token_key (generated in the database, never typed in).
 import type { Tx } from '../lib/db.ts';
 import { b64url, b64urlDecode } from '../lib/util.ts';
@@ -78,6 +80,46 @@ export async function readViewToken(q: Tx, token: string | null | undefined): Pr
   if (!UUID_RE.test(userId) || !UUID_RE.test(sessionId) || !PRODUCT_RE.test(productId)) return null;
   if (!/^[1-9][0-9]{0,15}$/.test(ent) || !/^[0-9]{1,16}$/.test(exp)) return null;
   return { userId, productId, entitlementId, sessionId, exp: expMs };
+}
+
+export type GuestClaims = { productId: string; exp: number };
+
+/** Signs a guest token for a free sheet (no account). */
+export async function makeGuestToken(q: Tx, c: GuestClaims): Promise<string> {
+  if (!PRODUCT_RE.test(c.productId) || !Number.isSafeInteger(c.exp)) throw new Error('makeGuestToken: bad claims');
+  const payload = ['guest', c.productId, c.exp].join('|');
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await viewKey(q), enc.encode(payload)));
+  return `${b64url(enc.encode(payload))}.${b64url(sig)}`;
+}
+
+/** Cheap check, no key needed: is this shaped like a guest token? (readGuestToken checks the signature.) */
+export function isGuestToken(token: string | null | undefined): boolean {
+  if (!token || !TOKEN_RE.test(token)) return false;
+  try {
+    return new TextDecoder().decode(b64urlDecode(token.split('.')[0])).startsWith('guest|');
+  } catch {
+    return false;
+  }
+}
+
+/** The claims of a guest token (even when `exp` has passed), or null when it is not one. */
+export async function readGuestToken(q: Tx, token: string | null | undefined): Promise<GuestClaims | null> {
+  if (!token || !TOKEN_RE.test(token)) return null;
+  const [body, sig] = token.split('.');
+  let payloadBytes: Uint8Array, sigBytes: Uint8Array;
+  try {
+    payloadBytes = b64urlDecode(body);
+    sigBytes = b64urlDecode(sig);
+  } catch {
+    return null;
+  }
+  const parts = new TextDecoder().decode(payloadBytes).split('|');
+  if (parts.length !== 3 || parts[0] !== 'guest' || sigBytes.length !== 32) return null;
+  const ok = await crypto.subtle.verify('HMAC', await viewKey(q), sigBytes as BufferSource, payloadBytes as BufferSource);
+  if (!ok) return null;
+  const [, productId, exp] = parts;
+  if (!PRODUCT_RE.test(productId) || !/^[0-9]{1,16}$/.test(exp)) return null;
+  return { productId, exp: Number(exp) };
 }
 
 /** The token from the request: X-View-Token header, else ?t= (old <img> links). */

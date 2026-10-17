@@ -17,7 +17,7 @@ export default function WhatWeDoChapter() {
         <div className="panel"><span className="mark" aria-hidden="true">✓</span><h3>We test</h3><p>Early-years teachers try each page in real classrooms before it reaches the shelf. If a four-year-old gets stuck, we redraw it.</p></div>
         <div className="panel"><span className="mark" aria-hidden="true">⇩</span><h3>We deliver</h3><p>Unlock a sheet and it opens full screen in our protected viewer, with your name on every page. A bought sheet stays open for {accessSpan(cfg)} from the moment you pay, with a timer in My Worksheets.</p></div>
       </Rise>
-      <Rise as="ul" i={4} className="ticks"><li>Sheets for daily five-minute practice, worksheets for week-by-week progress.</li><li>Ink-friendly, black-and-white friendly, tablet friendly.</li><li>Free sheets to try first: just sign in to open them.</li></Rise>
+      <Rise as="ul" i={4} className="ticks"><li>Sheets for daily five-minute practice, worksheets for week-by-week progress.</li><li>Ink-friendly, black-and-white friendly, tablet friendly.</li><li>Free sheets to try first: open them straight away, no sign-in needed.</li></Rise>
       <Rise as="p" i={5} className="whisper">One idea per page. One giggle per sheet. No clip art was harmed.</Rise>
     </Chapter>
   );
