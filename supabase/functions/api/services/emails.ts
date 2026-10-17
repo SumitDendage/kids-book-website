@@ -87,13 +87,14 @@ export function purchaseSuccessful(o: { name: string; orderId: string; total: st
   const html = layout('Purchase Successful', [
     p(`Hello ${escapeHtml(o.name)}, thank you! Order ${escapeHtml(o.orderId)} (${escapeHtml(o.total)}) is paid.`),
     `<ul style="padding-left:18px;margin:0 0 12px">${items}</ul>`,
-    p('Open your sheets any time before that date in <strong>My Account → My Worksheets</strong>.'),
+    p('Open your sheets any time before then in <strong>My Account → My Worksheets</strong>, where a timer shows the time left.'),
     btn(`${site()}/?account=worksheets`, 'Open My Worksheets'),
-    p('After the date, the sheet moves to your purchase history and you can choose “Buy Access Again”.'),
+    p('When the time is up, the sheet is removed from your account. You can buy it again from the shop.'),
   ].join(''));
   const text = `Purchase Successful\n\nHello ${o.name}, order ${o.orderId} (${o.total}) is paid.\n\n` +
     o.lines.map((l) => `- ${l.title}: open until ${when(l.expiresAt, o.timeZone)}`).join('\n') +
-    `\n\nFind them in My Account → My Worksheets: ${site()}/?account=worksheets\n`;
+    `\n\nFind them in My Account → My Worksheets (a timer shows the time left): ${site()}/?account=worksheets\n` +
+    `When the time is up, the sheet is removed from your account. You can buy it again from the shop.\n`;
   return { subject, html, text };
 }
 

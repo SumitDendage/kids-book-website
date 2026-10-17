@@ -6,6 +6,7 @@ import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
 import { SHEET_STATUS_LABEL, SHEET_TONE } from './common.js';
+import { spanText } from '../../data/content.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -91,7 +92,7 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
   }, [all]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
   const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
-  const shopDays = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && x.effectiveAccessDays); return s ? s.effectiveAccessDays : null; }, [all]);
+  const shopSpan = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && (x.effectiveAccessHours || x.effectiveAccessDays)); return s ? (s.effectiveAccessHours ? spanText(s.effectiveAccessHours) : s.effectiveAccessDays + ' days') : null; }, [all]);
   const topicValue = it.section ? (it.group || '') + '|' + it.section : '';
 
   const pickCover = f => { const r = new FileReader(); r.onload = () => setCover({ file: f, url: r.result }); r.readAsDataURL(f); };
@@ -237,7 +238,7 @@ export default function ProductStudio({ sheet, all, classes, onSaved, onClose })
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Access and limits per customer</legend>
             <div className="grid-3">
-              <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopDays ? 'Shop setting: ' + shopDays : 'Shop setting'} /><small>How long a buyer can open it. Empty uses the shop setting{shopDays ? ' (' + shopDays + ' days)' : ''}.</small>{err1('accessDays')}</div>
+              <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopSpan ? 'Shop setting: ' + shopSpan : 'Shop setting'} /><small>How long a buyer can open it, in days. Empty uses the shop setting{shopSpan ? ' (' + shopSpan + ')' : ''}, set in hours under Settings.</small>{err1('accessDays')}</div>
               <div className="field"><label htmlFor="psRule">Prints come from</label><select id="psRule" name="printRule" value={printRule} onChange={e => setPrintRule(e.target.value)}><option value="account">The account type</option><option value="sheet">This sheet only</option></select>
                 <small>{printRule === 'sheet' ? 'Every customer gets the number below.' : typePrints ? 'Parents ' + typePrints.parent + ' · Teachers ' + typePrints.teacher + ' · Organizations ' + typePrints.organization + '. Change these in Settings.' : 'The numbers in Settings → Prints per sheet.'}</small>{err1('printRule')}</div>
               <div className="field"><label htmlFor="psPrint">Prints with this sheet only</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} aria-describedby="psPrintHelp" /><small id="psPrintHelp">{printRule === 'sheet' ? '0 means view only.' : 'Used only when prints come from this sheet.'}</small>{err1('printLimit')}</div>

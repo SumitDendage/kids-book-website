@@ -3,9 +3,9 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { eventsApi, payApi } from '../../services/api.js';
 import { write } from '../../services/storage.js';
 import { fmtCur, money, setCurrencyFromCountry } from '../../services/currency.js';
-import { addressForQuote, initialAddress, loadCoConfig, loadRazorpay, monthsText, payErrorText, serverPlans, spanOfDays, tidyAddress } from '../../services/checkout.js';
+import { addressForQuote, initialAddress, loadCoConfig, loadRazorpay, monthsText, payErrorText, serverPlans, tidyAddress } from '../../services/checkout.js';
 import { PAY_VIA, RZP_DISPLAY, PAY } from '../../data/checkout.js';
-import { classById } from '../../data/content.js';
+import { classById, hoursOf, spanText } from '../../data/content.js';
 import { sheetOf } from '../../data/catalogue.js';
 import { flagOf, shortClass, dateTimeTz } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
@@ -19,19 +19,19 @@ const keep = { code: '', touched: {}, via: 'qr' };   /* like the original page: 
 const REQUOTE = ['quote_expired', 'quote_invalid', 'quote_mismatch', 'price_changed'];
 const REFRESHED = 'We refreshed your price because the old one had run out. Please check the total and press Pay again.';
 
-/* "Opens as soon as your payment is verified and stays open for 1 year, until 8 Oct 2027, 1:16 pm IST if you pay now." */
+/* "Opens as soon as your payment is verified and stays open for 24 hours, until 18 Oct 2026, 1:16 pm IST if you pay now." */
 function accessNoteOf(q, tz) {
   const its = q && Array.isArray(q.items) ? q.items : [];
   const it = its[0] || null;
   if (its.length > 1) {
     /* a cart: one sentence when every sheet stays open as long, else each line says its own time */
-    const days = Array.from(new Set(its.map(x => x.accessDays || q.accessDays || 0)));
-    if (days.length === 1 && days[0] && it.endsAt) return 'Every sheet opens as soon as your payment is verified and stays open for ' + spanOfDays(days[0]) + ', until ' + dateTimeTz(it.endsAt, tz) + ' if you pay now.';
+    const hours = Array.from(new Set(its.map(x => hoursOf(x) || hoursOf(q))));
+    if (hours.length === 1 && hours[0] && it.endsAt) return 'Every sheet opens as soon as your payment is verified and stays open for ' + spanText(hours[0]) + ', until ' + dateTimeTz(it.endsAt, tz) + ' if you pay now. Then it is removed from your account.';
     return 'Every sheet opens as soon as your payment is verified. How long each one stays open is shown beside it.';
   }
   if (!it || !it.endsAt) return q && q.accessText ? q.accessText : '';
   const until = dateTimeTz(it.endsAt, tz);
-  if (it.kind === 'worksheet') return 'Opens as soon as your payment is verified and stays open for ' + spanOfDays(it.accessDays || q.accessDays) + ', until ' + until + ' if you pay now.';
+  if (it.kind === 'worksheet') return 'Opens as soon as your payment is verified and stays open for ' + spanText(hoursOf(it) || hoursOf(q)) + ', until ' + until + ' if you pay now. Then it is removed from your account.';
   const span = it.months + (it.months === 1 ? ' month' : ' months');
   if (/^Starts /.test(it.expiry || q.accessText || '') && it.startsAt) return 'Starts ' + dateTimeTz(it.startsAt, tz) + ', when your current plan ends, and runs for ' + span + ', until ' + until + '.';
   return 'Every ' + (q.className || 'class') + ' sheet opens as soon as your payment is verified and stays open for ' + span + ', until ' + until + ' if you pay now.';
@@ -268,7 +268,7 @@ export default function Checkout() {
   const cls = item ? classById(item.cls) : subCls ? classById(subCls) : null;
   const q = quote, addrOk = !!(q && q.valid);
   const planNow = plans.find(x => x.id === plan);
-  const days = (q && q.accessDays) || (item && item.accessDays) || (config && config.accessDays) || 365;
+  const hours = hoursOf(q) || hoursOf(item) || hoursOf(config);
   const off = q && q.discountInr ? (q.currency === 'INR' ? '₹' + q.discountInr : fmtCur(Math.round(q.discountInr * q.rate * 100) / 100, q.currency)) : '';
   const accessNote = q ? accessNoteOf(q, tz) : '';
   const summary = (
@@ -277,10 +277,10 @@ export default function Checkout() {
       {multi
         ? <div className="sum-items" id="coItems"><p className="sum-count">{multi.length} sheets in one order</p>{multi.map(id => {
           const s = sheetOf(id) || { title: id }, c = s.cls ? classById(s.cls) : null, qi = q && Array.isArray(q.items) ? q.items.find(x => x.productId === id) : null;
-          return <div key={id} className="sum-item" data-sheet={id}><div className="sum-thumb">{s.glyph || s.az || 'PDF'}</div><div><b>{s.title}</b><small>{c ? c.label + ' · ' : ''}open for {spanOfDays((qi && qi.accessDays) || s.accessDays || days)}{qi && qi.unitPriceInr ? ' · ₹' + qi.unitPriceInr : ''}</small></div></div>;
+          return <div key={id} className="sum-item" data-sheet={id}><div className="sum-thumb">{s.glyph || s.az || 'PDF'}</div><div><b>{s.title}</b><small>{c ? c.label + ' · ' : ''}open for {spanText(hoursOf(qi) || hoursOf(s) || hours)}{qi && qi.unitPriceInr ? ' · ₹' + qi.unitPriceInr : ''}</small></div></div>;
         })}</div>
         : item
-        ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · open for {spanOfDays(days)}{checkout.again ? ' · buying access again' : ''}</small></div></div>
+        ? <div className="sum-item"><div className="sum-thumb">{item.glyph || 'PDF'}</div><div><b>{item.title}</b><small>{cls.label} · one PDF · open for {spanText(hours)}{checkout.again ? ' · buying access again' : ''}</small></div></div>
         : cls && <div className="sum-item"><div className="sum-thumb">{shortClass(cls.label)}</div><div><b>{cls.label} plan</b><small>{planNow ? planNow.label : ''} · every sheet in the class{running && running.end ? ' · starts ' + dateTimeTz(running.end, tz) + ', when your current plan ends' : ''}</small></div></div>}
       <div className={'co-lines' + (busy ? ' busy' : '')}>
         {q ? q.lines.map((l, i) => <div key={i} className="co-line"><span>{l.label}<small>{l.note || ''}</small></span><b>{fmtCur(l.amount, q.currency)}</b></div>)

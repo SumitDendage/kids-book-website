@@ -17,7 +17,8 @@ export type QuoteLine = {
   planId: string | null;
   title: string;
   months: number | null;       // class plans
-  accessDays: number | null;   // worksheets (product.access_days ?? settings.worksheet_access.days)
+  accessDays: number | null;   // worksheets: accessHours in whole days, rounded up (older readers)
+  accessHours?: number | null; // worksheets (product.access_days × 24 ?? settings.worksheet_access.hours)
   unitPriceInr: number;        // before discounts
   discountInr: number;         // coupon + plan/class discount on this line
 };
@@ -149,11 +150,26 @@ export function rateFor(s: Settings, currency: string): number | null {
   return Number.isFinite(r) && r > 0 && r < 1_000_000 ? r : null;
 }
 
-/** Days a bought sheet stays open: the product's own number, else the site-wide setting. */
-export function accessDaysFor(s: Settings, productDays: number | null | undefined): number {
-  if (Number.isInteger(productDays) && productDays! >= 1 && productDays! <= 3650) return productDays!;
+/** Hours a bought sheet stays open: the product's own number of days, else the site-wide setting
+    (worksheet_access.hours; an older setting with days only counts those days). */
+export function accessHoursFor(s: Settings, productDays: number | null | undefined): number {
+  if (Number.isInteger(productDays) && productDays! >= 1 && productDays! <= 3650) return productDays! * 24;
+  const h = Math.round(Number(s.worksheet_access.hours));
+  if (h >= 1 && h <= MAX_ACCESS_HOURS) return h;
   const d = Math.round(Number(s.worksheet_access.days));
-  return d >= 1 && d <= 3650 ? d : DEFAULTS.worksheet_access.days;
+  return d >= 1 && d <= 3650 ? d * 24 : DEFAULTS.worksheet_access.hours;
+}
+export const MAX_ACCESS_HOURS = 87_600;   // ten years
+
+/** Whole days (rounded up) for the older fields that still count in days. */
+export function accessDaysFor(s: Settings, productDays: number | null | undefined): number {
+  return Math.max(1, Math.ceil(accessHoursFor(s, productDays) / 24));
+}
+
+/** "24 hours", "1 hour", "3 days" — days only when the hours make whole days of two or more. */
+export function accessSpanText(hours: number): string {
+  if (hours >= 48 && hours % 24 === 0) return `${hours / 24} days`;
+  return `${hours} hour${hours === 1 ? '' : 's'}`;
 }
 
 /** The gateways a customer in this country may use right now (allowed there AND configured). */
@@ -246,6 +262,7 @@ type Item = {
   classPct: number;
   planPct: number;
   accessDays: number | null;
+  accessHours: number | null;
   problem: SaleProblem | null;   // set when it exists but cannot be sold right now
 };
 
@@ -272,7 +289,7 @@ async function worksheetItem(q: Tx, s: Settings, id: string): Promise<Item | nul
   return {
     kind: 'worksheet', productId: p.id, classId: p.class_id, className: p.class_name, planId: null, planLabel: null,
     planRegions: [], months: null, title: p.title, priceInr: p.price_inr, classPct: Number(p.class_pct) || 0, planPct: 0,
-    accessDays: accessDaysFor(s, p.access_days), problem,
+    accessDays: accessDaysFor(s, p.access_days), accessHours: accessHoursFor(s, p.access_days), problem,
   };
 }
 
@@ -288,7 +305,7 @@ async function planItem(q: Tx, classId: string, planId: string): Promise<Item | 
   return {
     kind: 'class', productId: null, classId: c.id, className: c.name, planId: p.id, planLabel: p.label,
     planRegions: p.regions ?? [], months: p.months, title: `${c.name} plan · ${p.label}`, priceInr: p.price_inr,
-    classPct: Number(c.pct) || 0, planPct: Number(p.pct) || 0, accessDays: null, problem,
+    classPct: Number(c.pct) || 0, planPct: Number(p.pct) || 0, accessDays: null, accessHours: null, problem,
   };
 }
 
@@ -431,9 +448,9 @@ function addMonthsUtc(d: Date, n: number): Date {
 function expiryText(item: Item, startsAt: Date, tz: string | null): { expiry: string; startsAt: number; endsAt: number } {
   const now = Date.now();
   if (item.kind === 'worksheet') {
-    const days = item.accessDays ?? DEFAULTS.worksheet_access.days;
-    const end = new Date(now + days * 86_400_000);
-    return { expiry: `Open for ${days} days from payment — until ${fmtDateTime(end, tz)} if you pay now.`, startsAt: now, endsAt: end.getTime() };
+    const hours = item.accessHours ?? (item.accessDays ? item.accessDays * 24 : DEFAULTS.worksheet_access.hours);
+    const end = new Date(now + hours * 3_600_000);
+    return { expiry: `Open for ${accessSpanText(hours)} from payment — until ${fmtDateTime(end, tz)} if you pay now. After that it is removed from your account.`, startsAt: now, endsAt: end.getTime() };
   }
   const months = item.months ?? 1;
   const end = addMonthsUtc(startsAt, months);
@@ -544,7 +561,7 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
     discount += d;
     return {
       kind: it.kind, productId: it.productId, classId: it.kind === 'class' ? it.classId : null, planId: it.planId,
-      title: it.title, months: it.months, accessDays: it.accessDays, unitPriceInr: it.priceInr, discountInr: roundMoney(d, 'INR'),
+      title: it.title, months: it.months, accessDays: it.accessDays, accessHours: it.accessHours, unitPriceInr: it.priceInr, discountInr: roundMoney(d, 'INR'),
     };
   });
   const line = lines[0];
@@ -567,10 +584,11 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   const whens = items.map((it) => expiryText(it, startsAt, tz));
   const when = whens[0];
   const days = common(items, (it) => it.accessDays);
+  const hours = common(items, (it) => it.accessHours);
   const title = several ? `${items.length} worksheets` : item.title;
   const accessText = !several ? when.expiry
-    : days !== null ? `Each sheet is open for ${days} days from payment, until ${fmtDateTime(new Date(when.endsAt), tz)} if you pay now.`
-    : 'Each sheet is open for the days shown next to it, counted from payment.';
+    : hours !== null && hours !== undefined ? `Each sheet is open for ${accessSpanText(hours)} from payment, until ${fmtDateTime(new Date(when.endsAt), tz)} if you pay now. After that it is removed from your account.`
+    : 'Each sheet is open for the time shown next to it, counted from payment.';
   const cls = common(items, (it) => it.classId);
 
   // only payable quotes are stored; the rest are price previews while the address is typed
@@ -624,6 +642,7 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
     quoteId,
     expiresAt: exp,
     accessDays: days,
+    accessHours: hours ?? null,
     totalInr: priced.totalInr,
     couponError: code ? couponError : null,
     accessText,
@@ -655,7 +674,7 @@ function parseLine(v: unknown): QuoteLine | null {
   if (!kind || unit === null || unit < 0 || disc === null || disc < 0) return null;
   const line: QuoteLine = {
     kind, productId: sOrNull(v.productId), classId: sOrNull(v.classId), planId: sOrNull(v.planId),
-    title: typeof v.title === 'string' ? v.title : '', months: n(v.months), accessDays: n(v.accessDays),
+    title: typeof v.title === 'string' ? v.title : '', months: n(v.months), accessDays: n(v.accessDays), accessHours: n(v.accessHours),
     unitPriceInr: unit, discountInr: disc,
   };
   if (kind === 'worksheet' && (!line.productId || !line.accessDays)) return null;
@@ -742,7 +761,7 @@ export async function revalidateQuote(q: Tx, quote: StoredQuote, userId: string)
     if (it.problem) throw gone(it.problem.message, it.productId ? { worksheet: it.productId } : { cls: it.classId });
     if (it.kind === 'worksheet' && it.priceInr === 0) throw gone('That sheet is free now — just open it.', { worksheet: it.productId });
     if (it.kind === 'class' && !it.planRegions.includes(region)) throw gone(await regionMessage(q, it, region, country.name), { cls: it.classId });
-    if (it.priceInr !== l.unitPriceInr || (it.kind === 'worksheet' && it.accessDays !== l.accessDays) || (it.kind === 'class' && it.months !== l.months)) {
+    if (it.priceInr !== l.unitPriceInr || (it.kind === 'worksheet' && (it.accessDays !== l.accessDays || (l.accessHours != null && it.accessHours !== l.accessHours))) || (it.kind === 'class' && it.months !== l.months)) {
       throw priceChanged();
     }
     items.push(it);

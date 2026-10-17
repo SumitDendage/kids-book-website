@@ -16,7 +16,7 @@ import { enqueue, kickOutbox } from '../lib/mail.ts';
 import { cleanName, cleanText, fmtDateTime, fmtMoney, fromMinor, normEmail, UNSUPPORTED_CURRENCIES, validEmail } from '../lib/util.ts';
 import { pubEntitlement, type EntRow } from '../services/entitlements.ts';
 import { orderRefunded } from '../services/emails.ts';
-import { PAYMENT_METHODS } from '../services/pricing.ts';
+import { accessDaysFor, accessHoursFor, MAX_ACCESS_HOURS, PAYMENT_METHODS } from '../services/pricing.ts';
 import { MAX_SESSION_DAYS } from '../services/accounts.ts';
 
 const ORDER_ID_RE = /^LWO-[A-Z0-9]{6,16}$/;
@@ -104,7 +104,7 @@ type OrderRow = {
 
 type ItemRow = {
   id: number; order_id: string; kind: 'worksheet' | 'class'; product_id: string | null; class_id: string | null;
-  plan_id: string | null; title: string; months: number | null; access_days: number | null; unit_price_inr: number;
+  plan_id: string | null; title: string; months: number | null; access_days: number | null; access_hours: number | null; unit_price_inr: number;
   discount_inr: number; product_class: string | null; price_inr: number | null;
   e_id: number | null; e_user_id: string | null; e_scope: 'worksheet' | 'class' | null; e_kind: 'free' | 'paid' | 'grant' | null;
   e_purchased_at: Date | null; e_starts_at: Date | null; e_expires_at: Date | null; e_revoked_at: Date | null;
@@ -161,7 +161,7 @@ async function orderViews(q: Tx, orders: OrderRow[]) {
   if (!orders.length) return [];
   const ids = orders.map((o) => o.id);
   const items = await q<ItemRow[]>`
-    select it.id, it.order_id, it.kind, it.product_id, it.class_id, it.plan_id, it.title, it.months, it.access_days,
+    select it.id, it.order_id, it.kind, it.product_id, it.class_id, it.plan_id, it.title, it.months, it.access_days, it.access_hours,
            it.unit_price_inr, it.discount_inr::float8 as discount_inr, pr.class_id as product_class, pr.price_inr,
            e.id as e_id, e.user_id as e_user_id, e.scope as e_scope, e.kind as e_kind, e.purchased_at as e_purchased_at,
            e.starts_at as e_starts_at, e.expires_at as e_expires_at, e.revoked_at as e_revoked_at
@@ -189,7 +189,7 @@ async function orderViews(q: Tx, orders: OrderRow[]) {
       }
       return {
         kind: it.kind, worksheet: it.product_id, cls: it.class_id ?? it.product_class, plan: it.plan_id, title: it.title,
-        months: it.months, accessDays: it.access_days, unitPriceInr: it.unit_price_inr, discountInr: it.discount_inr, entitlement,
+        months: it.months, accessDays: it.access_days, accessHours: it.access_hours, unitPriceInr: it.unit_price_inr, discountInr: it.discount_inr, entitlement,
       };
     });
     return {
@@ -1217,7 +1217,20 @@ function checkCountries(input: unknown, s: Settings): Validated {
 const RULES: Record<string, Rule> = {
   worksheet_access: {
     perm: 'pricing.write', read: PRICING_READ,
-    check: (v, s) => fields(v, s.worksheet_access, { days: int(1, 3650) }),
+    // staff set hours (24 = one day); days is kept in step, rounded up, for older readers
+    check: (v, s) => {
+      // an older form sends days only: those days in hours (still checked as days)
+      if (isObj(v) && v.hours === undefined && v.days !== undefined) {
+        const bad = int(1, 3650)(v.days);
+        if (bad) return { value: null, errors: { days: bad } };
+        v = { ...v, hours: (v.days as number) * 24 };
+      }
+      const { days: _days, ...input } = isObj(v) ? v : { days: undefined };
+      const out = fields(isObj(v) ? input : v, { hours: s.worksheet_access.hours }, { hours: int(1, MAX_ACCESS_HOURS) });
+      const val = out.value as Record<string, unknown> | null;
+      if (val && typeof val.hours === 'number') val.days = Math.max(1, Math.ceil(val.hours / 24));
+      return out;
+    },
   },
   fees: {
     perm: 'pricing.write', read: PRICING_READ,
@@ -1333,7 +1346,8 @@ async function getAdminSettings(ctx: Ctx) {
     couponList: showCoupons ? out.coupons.map(couponView) : null,
     settings,
     editable,
-    accessDays: out.s.worksheet_access.days,
+    accessDays: accessDaysFor(out.s, null),
+    accessHours: accessHoursFor(out.s, null),
   };
 }
 

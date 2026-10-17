@@ -9,7 +9,8 @@ export type Country = {
 };
 
 export type Settings = {
-  worksheet_access: { days: number };
+  /** How long a bought sheet opens: hours (days is the same rounded up, kept for older readers). */
+  worksheet_access: { days: number; hours: number };
   sessions: { rememberDays: number; shortHours: number; maxDays: number };
   login: { maxFailed: number; lockMinutes: number };
   auth_links: { verifyHours: number; resetMinutes: number };
@@ -27,7 +28,7 @@ export type Settings = {
 };
 
 export const DEFAULTS: Settings = {
-  worksheet_access: { days: 365 },
+  worksheet_access: { days: 1, hours: 24 },
   sessions: { rememberDays: 30, shortHours: 12, maxDays: 90 },
   login: { maxFailed: 5, lockMinutes: 15 },
   auth_links: { verifyHours: 24, resetMinutes: 30 },
@@ -84,6 +85,11 @@ export async function getSettings(q?: Tx): Promise<Settings> {
   }
   value.currency_rates = { ...DEFAULTS.currency_rates, ...(map.get('currency_rates') as Record<string, number> ?? {}) };
   value.currency_rates.INR = 1;
+  // a stored value from before hours (days only) keeps meaning those days, not the default hours
+  const wa = map.get('worksheet_access') as Record<string, unknown> | undefined;
+  if (wa && typeof wa === 'object' && wa.hours === undefined && typeof wa.days === 'number' && wa.days >= 1) {
+    value.worksheet_access = { days: value.worksheet_access.days, hours: value.worksheet_access.days * 24 };
+  }
   cache = { at: Date.now(), value };
   return value;
 }

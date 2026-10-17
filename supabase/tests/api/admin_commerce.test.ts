@@ -439,7 +439,7 @@ test('GET /api/admin/settings: old shape plus the settings each role may see', a
   assertEquals(r.body.fees.IN, { pct: 2, fixed: 3 });
   assertEquals(typeof r.body.coupons, 'object');
   assertEquals(typeof r.body.discounts, 'object');
-  assertEquals(r.body.settings.worksheet_access.value, { days: 365 });
+  assertEquals(r.body.settings.worksheet_access.value, { days: 1, hours: 24 });
   assert(r.body.editable.includes('security') && r.body.editable.includes('countries') && r.body.editable.includes('agreement'));
 
   const s = await h.call('GET', '/api/admin/settings', { token: support.token });
@@ -463,15 +463,22 @@ test('settings writes: whitelist, permission split, validation, audit, cache cle
   assertStatus(await put('worksheet_access', { days: 30 }, support.token), 403);
   const ok = await put('worksheet_access', { days: 30 });
   assertStatus(ok, 200);
-  assertEquals(ok.body.value, { days: 30 });
+  assertEquals(ok.body.value, { hours: 720, days: 30 }, 'days only (an older form) are stored as hours');
   const a = await auditRows('settings.update', 'worksheet_access');
   assertEquals([a.length, a[0].actor_id], [1, admin.id]);
-  assertEquals(a[0].detail, { before: { days: 365 }, after: { days: 30 } });
+  assertEquals(a[0].detail, { before: { days: 1, hours: 24 }, after: { hours: 720, days: 30 } });
   // the new length is used straight away (cache cleared)
   const shop = await h.call('GET', '/api/worksheets');
   if (shop.status === 200) assertEquals(shop.body.accessDays, 30);
   const g = await h.call('GET', '/api/admin/settings', { token: admin.token });
-  assertEquals(g.body.accessDays, 30);
+  assertEquals([g.body.accessDays, g.body.accessHours], [30, 720]);
+  // hours: what the Admin form sends now
+  for (const v of [{ hours: 0 }, { hours: 87601 }, { hours: '6' }, { hours: 1.5 }, { hours: 6, extra: 1 }]) assertStatus(await put('worksheet_access', v), 400, JSON.stringify(v));
+  const six = await put('worksheet_access', { hours: 6 });
+  assertStatus(six, 200);
+  assertEquals(six.body.value, { hours: 6, days: 1 });
+  const quick = await h.call('GET', '/api/worksheets');
+  if (quick.status === 200) assertEquals([quick.body.accessHours, quick.body.accessDays], [6, 1]);
   // also accepts the fields directly (no { value } wrapper)
   assertStatus(await h.call('PUT', '/api/admin/settings/worksheet_access', { token: admin.token, body: { days: 365 } }), 200);
 

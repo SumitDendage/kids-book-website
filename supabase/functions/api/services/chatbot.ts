@@ -5,6 +5,7 @@ import type { Tx } from '../lib/db.ts';
 import { DEFAULTS, type Settings } from '../lib/settings.ts';
 import { validEmail } from '../lib/util.ts';
 import { printsPerSheet } from './entitlements.ts';
+import { accessDaysFor, accessHoursFor, accessSpanText } from './pricing.ts';
 
 export type ChatAnswer = {
   reply: string;
@@ -27,8 +28,9 @@ export function supportEmail(s: Settings): string {
 /** Fills the placeholders staff may use in answers: {accessDays}, {supportEmail}, and the prints
  *  of each sheet by account type {printsParent}, {printsTeacher} and {printsOrganization}. */
 export function fillAnswer(text: string, s: Settings): string {
-  const days = Number.isInteger(s.worksheet_access.days) && s.worksheet_access.days > 0 ? s.worksheet_access.days : DEFAULTS.worksheet_access.days;
-  return text.replace(/\{accessDays\}/g, String(days)).replace(/\{supportEmail\}/g, supportEmail(s))
+  // "{accessDays} days" reads as the real span ("24 hours", "3 days"); a bare {accessDays} is whole days
+  const hours = accessHoursFor(s, null);
+  return text.replace(/\{accessDays\} days/g, accessSpanText(hours)).replace(/\{accessDays\}/g, String(accessDaysFor(s, null))).replace(/\{supportEmail\}/g, supportEmail(s))
     .replace(/\{printsParent\}/g, String(printsPerSheet(s.prints, 'parent')))
     .replace(/\{printsTeacher\}/g, String(printsPerSheet(s.prints, 'teacher')))
     .replace(/\{printsOrganization\}/g, String(printsPerSheet(s.prints, 'school')));

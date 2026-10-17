@@ -80,7 +80,7 @@ export function monthsText(plans) {
   const list = m.length === 1 ? String(m[0]) : m.slice(0, -1).join(', ') + ' or ' + m[m.length - 1];
   return list + (m.length === 1 && m[0] === 1 ? ' month' : ' months');
 }
-/* how long a bought sheet stays open: 365 days is "1 year" */
+/* how long a bought sheet stays open: spanOfDays(sheet | quote line | quote) or a number of days */
 export const spanOfDays = accessSpan;
 
 /* Razorpay Checkout is loaded only when someone pays */

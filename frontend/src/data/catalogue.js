@@ -85,8 +85,8 @@ export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2'
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
-   (the sheet's accessDays from the server, 365 days until it answers) */
-export const accessLine = (price, days) => (price === 0 ? 'Free sample. Just sign in to open it.' : 'Once bought, it stays open for ' + accessSpan(days) + ' from the day you pay.');
+   (the sheet's accessHours from the server, 24 hours until it answers) */
+export const accessLine = (price, it) => (price === 0 ? 'Free sample. Just sign in to open it.' : 'Once bought, it stays open for ' + accessSpan(it) + ' from the moment you pay. Then it is removed from your account.');
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */
 /* Each real PDF is built once and kept, so the store, the topic board and the sheet
    page all hold the same object — a price from the server reaches every one of them. */
@@ -288,6 +288,7 @@ export function applyServerCatalogue(worksheets) {
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
     /* how long a purchase stays open, whether its PDF is ready, and how many copies come with it */
     if (w.accessDays) it.accessDays = w.accessDays;
+    if (w.accessHours) it.accessHours = w.accessHours;
     it.available = w.available !== false && w.real !== false;
     it.onSale = w.onSale !== false;
     it.comingSoon = !!w.comingSoon;
@@ -300,7 +301,7 @@ export function applyServerCatalogue(worksheets) {
     if (typeof w.sectionLabel === 'string' && w.sectionLabel.trim()) it.sectionLabel = w.sectionLabel;
     if (Array.isArray(w.tags)) it.tags = w.tags.filter(t => typeof t === 'string');
     /* the printable pages carry the free/paid line in their own words, so keep it in step */
-    if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it.accessDays); } });
+    if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it); } });
   (worksheets || []).forEach(w => { if (!itemById(w.id)) SERVER_PRICE[w.id] = w.price; });   /* letter tracing + picture reading */
 }
 /* products edited in the admin's book studio */

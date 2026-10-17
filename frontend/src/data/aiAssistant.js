@@ -2,14 +2,14 @@
    practice answers it gives when neither the FAQ list (data/faq.json) nor our server has an
    answer (see services/aiChat.js).
    Each answer lists the words that bring it up (a plural counts too); the first match wins.
-   {access} becomes how long a bought sheet stays open ("1 year" for 365 days). */
+   {access} becomes how long a bought sheet stays open ("24 hours" unless staff change it). */
 export const AI_NAME = 'Learn With Why AI';
 export const AI_WELCOME = 'Hi! 👋 Welcome. How can I help you today?';
 export const AI_PLACEHOLDER = 'Ask me anything...';
 
 export const AI_ANSWERS = [
   { words: ['free', 'sample', 'try'], reply: 'Eight sheets are free to try: Alphabet A and B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Sign in first, then open them from the shop (pick Free). Every other sheet is bought on its own or opens with a class plan.' },
-  { words: ['how long', 'expire', 'expiry', 'expires', 'expired', 'forever', 'keep', 'year', 'days', 'access', 'buy again'], reply: 'A sheet you buy stays open for {access}, counted from the moment your payment is verified. You can see the exact end date and time right after you pay and in My Account → My Worksheets. When it ends, the sheet moves to your history and you can choose Buy Access Again.' },
+  { words: ['how long', 'expire', 'expiry', 'expires', 'expired', 'forever', 'keep', 'year', 'days', 'access', 'buy again'], reply: 'A sheet you buy stays open for {access}, counted from the moment your payment is verified. My Account → My Worksheets shows a timer with the time left. When it reaches zero, the sheet is removed from your account, and you can buy it again from the shop.' },
   { words: ['subscribe', 'subscription', 'plan', 'month'], reply: 'You can take a Kindergarten plan for 1, 3 or 6 months (12 months too outside India). Every Kindergarten sheet opens while the plan runs, and it ends after its months. Pick a plan in the shop’s Subscription view; the price shows on the payment page.' },
   { words: ['price', 'cost', 'pay', 'buy', 'rupee', '₹', 'payment'], reply: 'You can buy single sheets or take a Kindergarten plan. The price shows on our secure payment page before you pay, and a bought sheet stays open for {access}.' },
   { words: ['class 1', 'class 2', 'class 3', 'grade', 'standard'], reply: 'Class 1, 2 and 3 sheets are coming soon. The Kindergarten sheets are ready now.' },

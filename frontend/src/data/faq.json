@@ -505,7 +505,7 @@
 },
 {
 "q": "What happens when my subscription expires?",
-"a": "Access supplied by that class plan ends when the plan expires. The uploaded site describes individually purchased PDFs as separate, non-expiring purchases. Check your account for current entitlements.",
+"a": "Access supplied by that class plan ends when the plan expires. A PDF bought on its own has its own timer: it stays open for a set number of hours (24 unless the shop says otherwise), then it is removed from your account. Check My Account → My Worksheets for the time left.",
 "alt": [],
 "kw": [
 "expired subscription",
@@ -1115,7 +1115,7 @@
 },
 {
 "q": "Do individually purchased PDFs expire?",
-"a": "The uploaded website describes single-PDF purchases as yours to keep with no expiry. Your current order terms and account status still govern access; a subscription has a separate end date.",
+"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop.",
 "alt": [],
 "kw": [
 "pdf expiry",

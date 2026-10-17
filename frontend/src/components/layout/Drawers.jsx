@@ -5,7 +5,8 @@ import SecurityStatusCard from '../security/SecurityStatusCard.jsx';
 import { meApi } from '../../services/api.js';
 import { getSiteRules, mailTo, timeOf } from '../../services/security.js';
 import { fmtCur } from '../../services/currency.js';
-import { NAV, IDS, classById, planOf, accessSpan, printsText } from '../../data/content.js';
+import { NAV, IDS, classById, planOf, accessSpan, printsText, spanText, hoursOf, DEFAULT_ACCESS_HOURS } from '../../data/content.js';
+import Countdown from '../sheets/Countdown.jsx';
 import { sheetOf } from '../../data/catalogue.js';
 import { dateTimeTz, shortClass, timeAgo } from '../../utils/format.js';
 
@@ -103,7 +104,7 @@ function CartDrawer({ open }) {
             {cart.items.map(l => {
               const it = sheetOf(l.worksheet), c = l.cls ? classById(l.cls) : null;
               const thumb = l.thumb || (it && it.img) || null;
-              const meta = [c ? c.label : null, l.subject || (it && it.subject) || null, l.problem ? null : 'open for ' + accessSpan(l.accessDays || (it && it.accessDays))].filter(Boolean).join(' · ');
+              const meta = [c ? c.label : null, l.subject || (it && it.subject) || null, l.problem ? null : 'open for ' + accessSpan(hoursOf(l) ? l : it)].filter(Boolean).join(' · ');
               return (
                 <div key={l.worksheet} className={'cart-row' + (l.problem ? ' has-problem' : '')} data-sheet={l.worksheet}>
                   <div className="paper-mini">{thumb ? <img src={thumb} alt="" loading="lazy" /> : (it && (it.glyph || it.az)) || 'PDF'}</div>
@@ -131,12 +132,15 @@ function CartDrawer({ open }) {
   );
 }
 
-/* My Worksheets: what opens now (with its end), plans, and what ran out ("Buy Access Again") */
+/* My Worksheets: what opens now (a bought sheet with a live timer; it leaves the list when the timer
+   reaches zero) and the class plans */
 function SheetsTab({ tz }) {
-  const { openViewer, openShop, buyAgain, renewPlan, setAccountTab } = useSite();
-  const { subs, endedPlans, sheets, expired, paused, now } = useMyWorksheets();
-  const [days, setDays] = useState(365);
-  useEffect(() => { let alive = true; getSiteRules().then(r => { if (alive) setDays(r.accessDays); }); return () => { alive = false; }; }, []);
+  const { openViewer, openShop, renewPlan, setAccountTab, syncEntitlements } = useSite();
+  const { subs, endedPlans, sheets, paused, now } = useMyWorksheets();
+  const [rules, setRules] = useState({ accessHours: DEFAULT_ACCESS_HOURS });
+  useEffect(() => { let alive = true; getSiteRules().then(r => { if (alive) setRules(r); }); return () => { alive = false; }; }, []);
+  const skew = now - Date.now();
+  const ranOut = () => { if (syncEntitlements) syncEntitlements().catch(() => {}); };
   const until = end => (end ? ' · open until ' + dateTimeTz(end, tz) : '');
   const noteOf = s => (s.kind === 'plan' ? 'In your ' + classLabel(s.cls) + ' plan' + until(s.end)
     : s.kind === 'free' ? 'Free with your account'
@@ -169,27 +173,14 @@ function SheetsTab({ tz }) {
       <p className="eyebrow acct-eyebrow">My Worksheets · {sheets.length}</p>
       {sheets.length ? sheets.map(s => (s.it ? (
         <div key={s.id} className="cart-row acct-open" role="button" tabIndex={0} title="Open in the viewer" onClick={() => openViewer(s.id)} onKeyDown={openKey(s.id)}>
-          <div className="paper-mini">{s.it.glyph || s.it.az || 'PDF'}</div><div className="nm">{s.title}<span>{noteOf(s)}</span></div><span className="pill">Open ↗</span>
+          <div className="paper-mini">{s.it.glyph || s.it.az || 'PDF'}</div><div className="nm">{s.title}<span>{noteOf(s)}</span>{s.kind === 'paid' && s.end ? <Countdown end={s.end} skew={skew} onDone={ranOut} /> : null}</div><span className="pill">Open ↗</span>
         </div>
       ) : (
         <div key={s.id} className="cart-row"><div className="paper-mini">PDF</div><div className="nm">{s.title}<span>{noteOf(s)}</span></div></div>
       ))) : <p className="cart-empty">Nothing here yet. Free sheets you open, PDFs you buy and every sheet in a class plan appear here.</p>}
 
-      {expired.length ? (
-        <>
-          <p className="eyebrow acct-eyebrow">Expired · {expired.length}</p>
-          {expired.map(x => (
-            <div key={'exp-' + x.id} className="cart-row is-ended">
-              <div className="paper-mini">{(x.it && (x.it.glyph || x.it.az)) || 'PDF'}</div>
-              <div className="nm">{x.title}<span>Access ended on {dateTimeTz(x.end, tz)}</span></div>
-              {x.it ? <button type="button" className="btn btn-primary acct-mini" onClick={() => buyAgain(x.id)}>Buy Access Again</button> : null}
-            </div>
-          ))}
-        </>
-      ) : null}
-
       <button type="button" className="btn btn-primary btn-block" style={{ marginTop: '16px' }} onClick={() => openShop('all')}>Browse all sheets →</button>
-      <p className="cart-empty acct-fine">Each PDF you buy opens for {days} days from the day you pay, and a class plan for as long as it runs. The end date is shown next to each one, and we check your access every time a sheet opens.</p>
+      <p className="cart-empty acct-fine">Each PDF you buy opens for {spanText(hoursOf(rules) || DEFAULT_ACCESS_HOURS)} from the moment you pay. The timer shows the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. A class plan lasts as long as it runs.</p>
     </>
   );
 }

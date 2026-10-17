@@ -407,11 +407,11 @@ test('mail capture: transport, failNext, outbox, and the HTTP path', async () =>
 });
 
 test('setSetting writes the row and clears the cache', async () => {
-  assertEquals((await getSettings()).worksheet_access.days, 365);
+  assertEquals((await getSettings()).worksheet_access, { days: 1, hours: 24 });
   await h.setSetting('worksheet_access', { days: 30 });
-  assertEquals((await getSettings()).worksheet_access.days, 30);
-  await h.setSetting('worksheet_access', { days: 365 });
-  assertEquals((await getSettings()).worksheet_access.days, 365);
+  assertEquals((await getSettings()).worksheet_access, { days: 30, hours: 720 }, 'days only still mean those days');
+  await h.setSetting('worksheet_access', { days: 1, hours: 24 });
+  assertEquals((await getSettings()).worksheet_access, { days: 1, hours: 24 });
 });
 
 test('fake.route adds and overrides endpoints', async () => {

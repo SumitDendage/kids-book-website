@@ -188,9 +188,10 @@ async function createOrder(ctx: Ctx) {
     if (!id) throw new Error('could not allocate an order id');
     for (const l of quote.lines) {
       await q`
-        insert into order_items (order_id, kind, product_id, class_id, plan_id, title, months, access_days, unit_price_inr, discount_inr)
+        insert into order_items (order_id, kind, product_id, class_id, plan_id, title, months, access_days, access_hours, unit_price_inr, discount_inr)
         values (${id}, ${l.kind}, ${l.productId}, ${l.kind === 'class' ? l.classId : null}, ${l.planId}, ${l.title || 'Learn With Why'},
-                ${l.kind === 'class' ? l.months : null}, ${l.kind === 'worksheet' ? l.accessDays : null}, ${l.unitPriceInr}, ${l.discountInr})`;
+                ${l.kind === 'class' ? l.months : null}, ${l.kind === 'worksheet' ? l.accessDays : null},
+                ${l.kind === 'worksheet' ? (l.accessHours ?? null) : null}, ${l.unitPriceInr}, ${l.discountInr})`;
     }
     await q`
       update quotes set used_at = coalesce(used_at, now()), used_by_order = coalesce(used_by_order, ${id})
