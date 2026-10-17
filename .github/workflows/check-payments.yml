@@ -1,0 +1,13 @@
+# Temporary: reads the live server's public config to see whether Razorpay is connected. Removed after use.
+name: Check payments setup
+on:
+  push:
+    branches: [claude/razorpay-test-payments-nhnze4]
+    paths: ['.github/workflows/check-payments.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B="https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api"
+          curl -sS --max-time 30 "$B/config" | jq '{gateway, gateways, keys, features}'
