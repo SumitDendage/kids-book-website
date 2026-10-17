@@ -160,6 +160,10 @@ From then on, every day, in the `kids-book-website` folder: `git pull` (it updat
 
 ## Put it on Hostinger
 
+**It happens by itself.** After every change to `frontend` on `main`, GitHub builds the website and puts the ready files on the `live-site` branch (`.github/workflows/publish-website.yml`). Hostinger pulls that branch into `public_html/_live` (hPanel → Websites → learnwithwhy.com → Advanced → Git), and a timed job (hPanel → Advanced → Cron Jobs) copies `_live` into the site every 5 minutes, replacing changed files only. Nothing is deleted from the site, and there is nothing to upload or extract. To stop it, switch off auto-deployment in that Git page or delete the cron job.
+
+To upload by hand instead:
+
 1. In the `kids-book-website` folder run:
 
    ```bat
