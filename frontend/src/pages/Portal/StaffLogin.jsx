@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { authApi, staffAuth } from '../../services/api.js';
-import { isEmail } from '../../utils/format.js';
+import { isEmail, strongPass } from '../../utils/format.js';
 
 export const STAFF = {
   admin: { title: 'Admin account', kicker: 'Staff · admin', blurb: 'Customers, sheets, prices and access.' },
@@ -15,7 +15,7 @@ function loginProblem(e) {
       const left = e.body && e.body.lockedUntil ? Math.max(1, Math.ceil((e.body.lockedUntil - Date.now()) / 60000)) : null;
       return 'Too many wrong passwords, so this account is locked' + (left ? ' for ' + left + ' more minute' + (left === 1 ? '' : 's') : ' for a while') + '. You can unlock it now with Forgot password.';
     }
-    case 'not_staff': return 'This account is not a staff account. Customers sign in on the main site.';
+    case 'not_staff': return 'This account is not on the staff list yet. Ask the shop owner to add your email on Admin → Roles, then sign in again.';
     case 'account_suspended': return 'This account is blocked. Ask the shop owner to unblock it.';
     case 'email_unverified': return 'This email address is not confirmed yet. Open the email we sent you, press Accept & Continue, then sign in here.';
     case 'rate_limited': return 'Too many attempts. Wait a few minutes and try again.';
@@ -28,15 +28,19 @@ function loginProblem(e) {
   }
 }
 
-/* Staff sign in with their own account (made by an owner on the Roles page). There is no sign-up
-   here; a forgotten password is reset by email like any other account. */
+const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (_) { return undefined; } };
+
+/* Staff sign in with their own account. A new person can make an account here (no email service
+   needed), but it opens the panels only after an owner adds that email on Admin → Roles; the
+   server decides who is staff, never this form. A forgotten password is reset by email. */
 export default function StaffLogin({ kind, note, onSignedIn }) {
-  const [view, setView] = useState('signin');   /* 'signin' | 'forgot' */
+  const [view, setView] = useState('signin');   /* 'signin' | 'signup' | 'forgot' */
   const [alert, setAlert] = useState('');
   const [ok, setOk] = useState('');
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const cfg = STAFF[kind], forgot = view === 'forgot';
   const switchTo = v => { setView(v); setAlert(''); setOk(''); setErrs({}); };
 
@@ -81,6 +85,48 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
     setBusy(false);
   };
 
+  const signUp = async e => {
+    e.preventDefault();
+    if (busy) return;
+    const f = new FormData(e.currentTarget);
+    const nm = name.trim(), em = email.trim().toLowerCase(), pw = String(f.get('password') || ''), cf = String(f.get('confirm') || '');
+    const bad = {};
+    if (!nm) bad.name = 'Tell us your name.'; else if (nm.length > 80) bad.name = 'Keep the name under 80 letters.';
+    if (!isEmail(em)) bad.email = 'Enter a valid email address.';
+    const weak = strongPass(pw); if (weak) bad.password = weak;
+    if (!bad.password && cf !== pw) bad.confirm = 'Both passwords must match.';
+    setErrs(bad); setAlert(''); setOk('');
+    if (Object.keys(bad).length) return;
+    setBusy(true);
+    try {
+      const r = await authApi.signup({ name: nm, email: em, password: pw, timeZone: zone() });
+      setBusy(false); setView('signin'); setErrs({});
+      setOk(r && r.ready
+        ? 'Your account is made. Ask the shop owner to add ' + em + ' on Admin → Roles, then sign in here with your password.'
+        : 'Your account is made. Open the email we sent to ' + em + ' to confirm it, ask the shop owner to add you on Admin → Roles, then sign in here.');
+    } catch (err) {
+      setBusy(false);
+      if (err.code === 'email_taken') { setView('signin'); setErrs({}); setAlert('That email already has an account. Sign in with its password. If it is not on the staff list yet, ask the shop owner to add it on Admin → Roles.'); }
+      else if (err.code === 'weak_password') setErrs({ password: err.message });
+      else setAlert(loginProblem(err));
+    }
+  };
+
+  if (view === 'signup') {
+    return (
+      <form className="panel portal-login" noValidate onSubmit={signUp} aria-busy={busy ? 'true' : 'false'}>
+        <h3 className="card-title" style={{ marginBottom: '6px' }}>Create a staff account</h3>
+        <p className="auth-sub">Choose your password. The panel opens once the shop owner adds your email on Admin → Roles.</p>
+        <div role="alert">{alert ? <div className="alert err">{alert}</div> : null}</div>
+        <div className="field"><label htmlFor="stName">Your name</label><input id="stName" name="name" type="text" autoComplete="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} aria-invalid={errs.name ? 'true' : undefined} aria-describedby="stNameErr" /><div className="err" id="stNameErr">{errs.name || ''}</div></div>
+        <div className="field"><label htmlFor="stUpEmail">Email</label><input id="stUpEmail" name="email" type="email" autoComplete="username" placeholder="you@learnwithwhy.in" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={errs.email ? 'true' : undefined} aria-describedby="stUpEmailErr" /><div className="err" id="stUpEmailErr">{errs.email || ''}</div></div>
+        <div className="field"><label htmlFor="stUpPass">Password</label><input id="stUpPass" name="password" type="password" autoComplete="new-password" placeholder="8+ characters, a capital and a number" aria-invalid={errs.password ? 'true' : undefined} aria-describedby="stUpPassErr" /><div className="err" id="stUpPassErr">{errs.password || ''}</div></div>
+        <div className="field"><label htmlFor="stUpConfirm">Password again</label><input id="stUpConfirm" name="confirm" type="password" autoComplete="new-password" placeholder="Type it again" aria-invalid={errs.confirm ? 'true' : undefined} aria-describedby="stUpConfirmErr" /><div className="err" id="stUpConfirmErr">{errs.confirm || ''}</div></div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Creating…' : 'Create my staff account →'}</button>
+        <p className="switch">Already have an account? <button type="button" className="link" onClick={() => switchTo('signin')}>Sign in</button></p>
+      </form>
+    );
+  }
   if (forgot) {
     return (
       <form className="panel portal-login" noValidate onSubmit={sendReset} aria-busy={busy ? 'true' : 'false'}>
@@ -98,11 +144,12 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
     <form className="panel portal-login" noValidate onSubmit={signIn} aria-busy={busy ? 'true' : 'false'}>
       <h3 className="card-title" style={{ marginBottom: '6px' }}>Sign in as staff</h3><p className="auth-sub">{cfg.blurb}</p>
       <div role="alert">{alert ? <div className="alert err">{alert}</div> : note ? <div className="alert info">{note}</div> : null}</div>
+      <div role="status">{ok ? <div className="alert ok">{ok}</div> : null}</div>
       <div className="field"><label htmlFor="stEmail">Email</label><input id="stEmail" name="email" type="email" autoComplete="username" placeholder="you@learnwithwhy.in" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={errs.email ? 'true' : undefined} aria-describedby="stEmailErr" /><div className="err" id="stEmailErr">{errs.email || ''}</div></div>
       <div className="field"><label htmlFor="stPass">Password</label><input id="stPass" name="password" type="password" autoComplete="current-password" placeholder="Your password" aria-invalid={errs.password ? 'true' : undefined} aria-describedby="stPassErr" /><div className="err" id="stPassErr">{errs.password || ''}</div></div>
       <p className="portal-remember">You stay signed in until you sign out.</p>
       <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in →'}</button>
-      <p className="switch"><button type="button" className="link" onClick={() => switchTo('forgot')}>Forgot password?</button></p>
+      <p className="switch">New staff? <button type="button" className="link" onClick={() => switchTo('signup')}>Create an account</button> &nbsp;·&nbsp; <button type="button" className="link" onClick={() => switchTo('forgot')}>Forgot password?</button></p>
     </form>
   );
 }
