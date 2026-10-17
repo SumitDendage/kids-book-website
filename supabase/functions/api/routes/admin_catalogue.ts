@@ -88,6 +88,15 @@ function thumbIn(v: unknown): Parsed<string | null> {
   return { ok: false, error: 'Use a site path like /sheets/a.jpg or an https link.' };
 }
 
+/** A moment as ms or an ISO string; null or '' = none. At most ten years ahead. */
+function timeIn(v: unknown, label: string): Parsed<Date | null> {
+  if (v === null || v === '') return { ok: true, value: null };
+  const d = typeof v === 'number' ? new Date(v) : typeof v === 'string' && v.length <= 40 ? new Date(v) : new Date(NaN);
+  if (Number.isNaN(d.getTime())) return { ok: false, error: `${label} must be a date and time.` };
+  if (d.getTime() > Date.now() + 10 * 366 * 86400_000 || d.getFullYear() < 2020) return { ok: false, error: `${label} is out of range.` };
+  return { ok: true, value: d };
+}
+
 // ── worksheet rows and the admin shape ───────────────────────────────────────────────────
 
 type SheetRow = {
@@ -99,6 +108,7 @@ type SheetRow = {
   print_rule: PrintRule;
   tags: string[]; sort: number; created_at: Date; updated_at: Date; updated_by: string | null;
   has_pdf: boolean; pdf_bytes: number; pdf_updated_at: Date | null; ordered: boolean;
+  publish_at: Date | null; sold: number; revenue: number;
 };
 
 const SHEET_COLUMNS = (q: Tx) => q`
@@ -106,8 +116,18 @@ const SHEET_COLUMNS = (q: Tx) => q`
   p.price_inr, p.was_price_inr, p.status, p.pdf_path, p.thumb_url, p.cover_path, p.audience,
   p.rating::float8 as rating, p.rating_count, p.review_avg::float8 as review_avg, p.review_count,
   p.print_limit, p.print_rule, p.download_limit, p.stock, p.access_days, p.landscape, p.tags, p.sort,
-  p.created_at, p.updated_at, p.updated_by,
-  exists (select 1 from order_items it where it.product_id = p.id) as ordered`;
+  p.created_at, p.updated_at, p.updated_by, p.publish_at,
+  exists (select 1 from order_items it where it.product_id = p.id) as ordered,
+  coalesce(st.sold, 0)::int as sold, coalesce(st.revenue, 0)::float8 as revenue`;
+
+// paid sales per sheet (refunded and unpaid orders do not count)
+const SALES_JOIN = (q: Tx) => q`
+  left join (
+    select it.product_id, count(*) as sold, sum(greatest(it.unit_price_inr - it.discount_inr, 0)) as revenue
+    from order_items it join orders o on o.id = it.order_id
+    where o.status = 'paid' and it.product_id is not null
+    group by it.product_id
+  ) st on st.product_id = p.id`;
 
 async function loadSheets(q: Tx): Promise<SheetRow[]> {
   return await q<SheetRow[]>`
@@ -115,6 +135,7 @@ async function loadSheets(q: Tx): Promise<SheetRow[]> {
            coalesce(f.has_pdf, false) as has_pdf, coalesce(f.pdf_bytes, 0) as pdf_bytes, f.pdf_updated_at
     from products p
     left join private.product_file_status() f on f.product_id = p.id
+    ${SALES_JOIN(q)}
     order by p.class_id, p.sort, p.id`;
 }
 
@@ -126,6 +147,7 @@ async function loadSheet(q: Tx, id: string, lock = false): Promise<SheetRow | nu
            (f.name is not null) as has_pdf, coalesce(f.size, 0) as pdf_bytes, f.updated_at as pdf_updated_at
     from products p
     left join lateral (select o.name, o.size, o.updated_at from private.worksheet_objects(array[p.pdf_path]) o limit 1) f on true
+    ${SALES_JOIN(q)}
     where p.id = ${id}`;
   return r[0] ?? null;
 }
@@ -175,6 +197,14 @@ export function adminWorksheet(r: SheetRow, s: Settings) {
     reviewAvg: r.review_avg,
     reviewCount: r.review_count,
     ordered: r.ordered,
+    // visibility: on sale from publishAt (null = at once); scheduled = on sale but not listed yet
+    publishAt: ms(r.publish_at),
+    scheduled: r.status === 'active' && r.publish_at != null && new Date(r.publish_at).getTime() > Date.now(),
+    // the price cut against the original price, worked out from the two prices
+    discountPct: r.was_price_inr && r.was_price_inr > r.price_inr ? Math.round((1 - r.price_inr / r.was_price_inr) * 100) : 0,
+    // paid sales of this sheet
+    sold: r.sold,
+    revenue: Number(r.revenue) || 0,
     created: ms(r.created_at),
     updatedBy: r.updated_by,
   };
@@ -188,7 +218,7 @@ type SheetFields = {
   section_label: string | null; pages: number; price_inr: number; was_price_inr: number | null;
   status: 'draft' | 'active' | 'archived'; audience: string | null; print_limit: number; download_limit: number;
   stock: number | null; access_days: number | null; tags: string[]; sort: number; thumb_url: string | null; landscape: boolean;
-  print_rule: PrintRule;
+  print_rule: PrintRule; publish_at: Date | null;
 };
 
 /** Reads the fields present in a body (old and new names). Missing fields are left out. */
@@ -288,6 +318,8 @@ function parseSheetFields(b: Record<string, unknown>): { set: Partial<SheetField
     if (typeof b.landscape !== 'boolean') errors.landscape = 'landscape is true or false.';
     else set.landscape = b.landscape;
   }
+  const pubKey = has(b, 'publishAt', 'publish_at');
+  if (pubKey) put('publishAt', 'publish_at', timeIn(b[pubKey], 'The publish time'));
   return { set, errors };
 }
 
@@ -295,7 +327,7 @@ const FIELD_NAMES: Record<keyof SheetFields, string> = {
   title: 'title', description: 'description', class_id: 'cls', subject: 'subject', group_id: 'group', section: 'section',
   section_label: 'sectionLabel', pages: 'pages', price_inr: 'price', was_price_inr: 'wasPrice', status: 'status',
   audience: 'audience', print_limit: 'printLimit', download_limit: 'downloadLimit', stock: 'stock', access_days: 'accessDays',
-  tags: 'tags', sort: 'sort', thumb_url: 'thumb', landscape: 'landscape', print_rule: 'printRule',
+  tags: 'tags', sort: 'sort', thumb_url: 'thumb', landscape: 'landscape', print_rule: 'printRule', publish_at: 'publishAt',
 };
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -309,6 +341,15 @@ function diff(before: Partial<SheetFields>, after: Partial<SheetFields>) {
     a[FIELD_NAMES[k]] = after[k] ?? null;
   }
   return { before: b, after: a };
+}
+
+/** A section picked from Admin → Categories fills in its group and name (unless the request named them). */
+async function sectionDetails(q: Tx, v: SheetFields, set: Partial<SheetFields>) {
+  if (!v.section) return;
+  const r = await q<{ group_id: string | null; label: string }[]>`select group_id, label from sections where id = ${v.section}`;
+  if (!r.length) return;
+  if (set.group_id === undefined) v.group_id = r[0].group_id;
+  if (set.section_label === undefined) v.section_label = r[0].label;
 }
 
 async function classExists(q: Tx, id: string): Promise<boolean> {
@@ -379,17 +420,18 @@ async function createSheet(ctx: Ctx, id: string | null, b: Record<string, unknow
       audience: set.audience ?? null, print_limit: set.print_limit ?? 0, download_limit: set.download_limit ?? 0,
       stock: set.stock ?? null, access_days: set.access_days ?? null, tags: set.tags ?? [], sort: set.sort ?? 0,
       thumb_url: set.thumb_url ?? null, landscape: set.landscape ?? false,
-      print_rule: set.print_rule ?? 'account',
+      print_rule: set.print_rule ?? 'account', publish_at: set.publish_at ?? null,
     };
+    await sectionDetails(q, v, set);
     try {
       await q`
         insert into products (id, title, description, class_id, subject, group_id, section, section_label, pages,
                               price_inr, was_price_inr, status, audience, print_limit, download_limit, stock,
-                              access_days, tags, sort, thumb_url, landscape, print_rule, updated_by)
+                              access_days, tags, sort, thumb_url, landscape, print_rule, publish_at, updated_by)
         values (${finalId}, ${v.title}, ${v.description}, ${v.class_id}, ${v.subject}, ${v.group_id}, ${v.section},
                 ${v.section_label}, ${v.pages}, ${v.price_inr}, ${v.was_price_inr}, ${v.status}, ${v.audience},
                 ${v.print_limit}, ${v.download_limit}, ${v.stock}, ${v.access_days}, ${v.tags}::text[], ${v.sort},
-                ${v.thumb_url}, ${v.landscape}, ${v.print_rule}, ${ctx.user!.id})`;
+                ${v.thumb_url}, ${v.landscape}, ${v.print_rule}, ${v.publish_at}, ${ctx.user!.id})`;
     } catch (e) {
       if (isUnique(e, 'products_pkey')) throw new HttpError(409, 'A worksheet with that id already exists.', { code: 'exists', errors: { id: 'That id is taken.' } });
       throw e;
@@ -448,7 +490,9 @@ async function putSheet(ctx: Ctx) {
       thumb_url: set.thumb_url !== undefined ? set.thumb_url : cur.thumb_url,
       landscape: set.landscape ?? cur.landscape,
       print_rule: set.print_rule ?? cur.print_rule,
+      publish_at: set.publish_at !== undefined ? set.publish_at : cur.publish_at,
     };
+    if (set.section !== undefined && set.section !== cur.section) await sectionDetails(q, next, set);
     const d = diff(cur, next);
     if (!Object.keys(d.after).length) return cur;   // nothing changed: no write, no audit row
     await q`
@@ -458,7 +502,8 @@ async function putSheet(ctx: Ctx) {
         price_inr = ${next.price_inr}, was_price_inr = ${next.was_price_inr}, status = ${next.status},
         audience = ${next.audience}, print_limit = ${next.print_limit}, download_limit = ${next.download_limit},
         stock = ${next.stock}, access_days = ${next.access_days}, tags = ${next.tags}::text[], sort = ${next.sort},
-        thumb_url = ${next.thumb_url}, landscape = ${next.landscape}, print_rule = ${next.print_rule}, updated_by = ${ctx.user!.id}
+        thumb_url = ${next.thumb_url}, landscape = ${next.landscape}, print_rule = ${next.print_rule},
+        publish_at = ${next.publish_at}, updated_by = ${ctx.user!.id}
       where id = ${id}`;
     await audit(ctx, { action: 'worksheet.update', targetType: 'product', targetId: id, detail: d }, q);
     return (await loadSheet(q, id))!;
@@ -844,6 +889,172 @@ async function putClasses(ctx: Ctx) {
   return { classes: rows.map(classView) };
 }
 
+// ── sections (Admin → Categories) ────────────────────────────────────────────────────────
+// Where a sheet shows on the website. Builtin sections are the ones the website's own boards
+// draw (Alphabet, Vocabulary, …): staff may rename, reorder or hide them, not delete them.
+// A section staff add is listed in the shop under "More sections" once a sheet is in it.
+
+type SectionRow = {
+  id: string; label: string; group_id: string | null; group_label: string | null; class_id: string; description: string;
+  sort: number; visible: boolean; builtin: boolean; updated_at: Date; products: number; active_products: number;
+};
+
+async function loadSections(q: Tx): Promise<SectionRow[]> {
+  return await q<SectionRow[]>`
+    select s.id, s.label, s.group_id, s.group_label, s.class_id, s.description, s.sort, s.visible, s.builtin, s.updated_at,
+           count(p.id)::int as products, count(p.id) filter (where p.status = 'active')::int as active_products
+    from sections s left join products p on p.section = s.id
+    group by s.id
+    order by s.sort, s.id`;
+}
+
+const sectionView = (r: SectionRow) => ({
+  id: r.id, label: r.label, group: r.group_id, groupLabel: r.group_label, cls: r.class_id, description: r.description,
+  sort: r.sort, visible: r.visible, builtin: r.builtin, products: r.products, activeProducts: r.active_products, updated: ms(r.updated_at),
+});
+
+function sectionSlug(label: string): string {
+  return label.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/, '');
+}
+
+type SectionIn = { label?: string; group_id?: string | null; group_label?: string | null; class_id?: string; description?: string; sort?: number; visible?: boolean };
+
+function parseSection(b: Record<string, unknown>): { set: SectionIn; errors: Record<string, string> } {
+  const set: SectionIn = {};
+  const errors: Record<string, string> = {};
+  const labelKey = has(b, 'label', 'name');
+  if (labelKey) {
+    const l = cleanName(b[labelKey]);
+    if (!l) errors.label = 'Give the section a name.';
+    else if (l.length > 60) errors.label = 'Keep the name under 60 characters.';
+    else set.label = l;
+  }
+  if (b.group !== undefined) {
+    const g = b.group;
+    if (g === null || g === '') set.group_id = null;
+    else if (typeof g === 'string' && GROUP_RE.test(g.trim())) set.group_id = g.trim();
+    else errors.group = 'Groups are lower-case letters, digits and dashes.';
+  }
+  if (b.groupLabel !== undefined) {
+    const l = b.groupLabel === null ? '' : cleanName(b.groupLabel);
+    if (l.length > 60) errors.groupLabel = 'Keep the group name under 60 characters.';
+    else set.group_label = l || null;
+  }
+  const clsKey = has(b, 'cls', 'classId');
+  if (clsKey) {
+    const c = typeof b[clsKey] === 'string' ? (b[clsKey] as string).trim() : '';
+    if (!CLASS_RE.test(c)) errors.cls = 'Pick a known class.'; else set.class_id = c;
+  }
+  if (b.description !== undefined) {
+    if (b.description !== null && typeof b.description !== 'string') errors.description = 'The description must be text.';
+    else if (String(b.description ?? '').length > 300) errors.description = 'Keep the description under 300 characters.';
+    else set.description = cleanText(b.description, 300);
+  }
+  if (b.sort !== undefined) {
+    const p = intIn(b.sort, -1_000_000, 1_000_000, 'Order');
+    if (p.ok) set.sort = p.value!; else errors.sort = p.error;
+  }
+  if (b.visible !== undefined) {
+    if (typeof b.visible !== 'boolean') errors.visible = 'visible is true or false.'; else set.visible = b.visible;
+  }
+  return { set, errors };
+}
+
+function sectionIdOf(ctx: Ctx): string {
+  const id = ctx.params.id ?? '';
+  if (!SECTION_RE.test(id)) throw new HttpError(400, 'Section ids are lower-case letters, digits and dashes.');
+  return id;
+}
+
+async function listSections(ctx: Ctx) {
+  await requireStaff(ctx, 'catalogue.read');
+  const rows = await tx((q) => loadSections(q));
+  return { sections: rows.map(sectionView) };
+}
+
+async function postSection(ctx: Ctx) {
+  await requireStaff(ctx, 'catalogue.write');
+  const b = await readJson(ctx.req, 16 * 1024);
+  const { set, errors } = parseSection(b);
+  if (!set.label && !errors.label) errors.label = 'Give the section a name.';
+  let id = '';
+  if (b.id !== undefined && b.id !== null && b.id !== '') {
+    if (typeof b.id === 'string' && SECTION_RE.test(b.id.trim())) id = b.id.trim();
+    else errors.id = 'Section ids are lower-case letters, digits and dashes.';
+  }
+  if (Object.keys(errors).length) throw invalid(errors);
+  const rows = await tx(async (q) => {
+    const cls = set.class_id ?? 'kg';
+    if (!(await classExists(q, cls))) throw invalid({ cls: 'Pick a known class.' });
+    let finalId = id || sectionSlug(set.label!) || 'section';
+    if (finalId.length < 2) finalId = 'section-' + finalId;
+    if (!id) {
+      // a name already used gets a number after it
+      const taken = new Set((await q<{ id: string }[]>`select id from sections where id like ${finalId + '%'}`).map((r) => r.id));
+      for (let n = 2, base = finalId; taken.has(finalId); n++) finalId = `${base}-${n}`;
+    }
+    const v = {
+      label: set.label!, group_id: set.group_id ?? null, group_label: set.group_label ?? null, class_id: cls,
+      description: set.description ?? '', sort: set.sort ?? 5000, visible: set.visible ?? true,
+    };
+    try {
+      await q`
+        insert into sections (id, label, group_id, group_label, class_id, description, sort, visible, builtin, updated_by)
+        values (${finalId}, ${v.label}, ${v.group_id}, ${v.group_label}, ${v.class_id}, ${v.description}, ${v.sort}, ${v.visible}, false, ${ctx.user!.id})`;
+    } catch (e) {
+      if (isUnique(e, 'sections_pkey')) throw new HttpError(409, 'A section with that id already exists.', { code: 'exists', errors: { id: 'That id is taken.' } });
+      throw e;
+    }
+    await audit(ctx, { action: 'section.create', targetType: 'section', targetId: finalId, detail: { before: null, after: v } }, q);
+    return { all: await loadSections(q), id: finalId };
+  });
+  return json(201, { section: sectionView(rows.all.find((r) => r.id === rows.id)!), sections: rows.all.map(sectionView) });
+}
+
+async function putSection(ctx: Ctx) {
+  await requireStaff(ctx, 'catalogue.write');
+  const id = sectionIdOf(ctx);
+  const b = await readJson(ctx.req, 16 * 1024);
+  const { set, errors } = parseSection(b);
+  if (Object.keys(errors).length) throw invalid(errors);
+  const all = await tx(async (q) => {
+    const cur = (await q<SectionRow[]>`select *, 0 as products, 0 as active_products from sections where id = ${id} for update`)[0];
+    if (!cur) throw notFound('No such section.');
+    if (set.class_id && set.class_id !== cur.class_id && !(await classExists(q, set.class_id))) throw invalid({ cls: 'Pick a known class.' });
+    const prev = { label: cur.label, group_id: cur.group_id, group_label: cur.group_label, class_id: cur.class_id, description: cur.description, sort: cur.sort, visible: cur.visible };
+    const next = { ...prev, ...Object.fromEntries(Object.entries(set).filter(([, x]) => x !== undefined)) } as typeof prev;
+    const before: Record<string, unknown> = {}, after: Record<string, unknown> = {};
+    for (const k of Object.keys(next) as (keyof typeof next)[]) if (!same(next[k], prev[k])) { before[k] = prev[k]; after[k] = next[k]; }
+    if (Object.keys(after).length) {
+      await q`
+        update sections set label = ${next.label}, group_id = ${next.group_id}, group_label = ${next.group_label}, class_id = ${next.class_id},
+          description = ${next.description}, sort = ${next.sort}, visible = ${next.visible}, updated_by = ${ctx.user!.id}
+        where id = ${id}`;
+      // the sheets in it carry the section's name for the shop's search
+      if (after.label !== undefined) await q`update products set section_label = ${next.label} where section = ${id}`;
+      await audit(ctx, { action: 'section.update', targetType: 'section', targetId: id, detail: { before, after } }, q);
+    }
+    return await loadSections(q);
+  });
+  return { section: sectionView(all.find((r) => r.id === id)!), sections: all.map(sectionView) };
+}
+
+async function deleteSection(ctx: Ctx) {
+  await requireStaff(ctx, 'catalogue.write');
+  const id = sectionIdOf(ctx);
+  const all = await tx(async (q) => {
+    const cur = (await q<{ builtin: boolean; label: string }[]>`select builtin, label from sections where id = ${id} for update`)[0];
+    if (!cur) throw notFound('No such section.');
+    if (cur.builtin) throw new HttpError(409, 'This section is part of the website. You can hide it instead.', { code: 'builtin' });
+    const used = (await q<{ n: number }[]>`select count(*)::int as n from products where section = ${id}`)[0].n;
+    if (used) throw new HttpError(409, `${used} ${used === 1 ? 'sheet is' : 'sheets are'} still in this section. Move them to another section first.`, { code: 'in_use', products: used });
+    await q`delete from sections where id = ${id}`;
+    await audit(ctx, { action: 'section.delete', targetType: 'section', targetId: id, detail: { before: { label: cur.label }, after: null } }, q);
+    return await loadSections(q);
+  });
+  return { ok: true, deleted: true, sections: all.map(sectionView) };
+}
+
 export function register(r: Router) {
   r.get('/api/admin/worksheets', listSheets);
   r.post('/api/admin/worksheets', postSheet);
@@ -857,4 +1068,8 @@ export function register(r: Router) {
   r.get('/api/admin/files', files);
   r.get('/api/admin/classes', listClasses);
   r.put('/api/admin/classes', putClasses);
+  r.get('/api/admin/sections', listSections);
+  r.post('/api/admin/sections', postSection);
+  r.put('/api/admin/sections/:id', putSection);
+  r.delete('/api/admin/sections/:id', deleteSection);
 }

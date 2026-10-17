@@ -290,8 +290,24 @@ export function SiteProvider({ children }) {
     a.closeNotice = () => setNotice(null);
     a.closeShop = () => setShop(s => (s.open ? { ...s, open: false } : s));
     a.closeCheckout = () => setCheckout(c => (c.open ? { ...c, open: false } : c));
+    /* the catalogue from the database (GET /api/worksheets): what staff publish, hide, schedule or
+       price in Admin → Products shows without a new website upload. Loaded at the start, again when
+       the shop opens and when the visitor comes back to the tab (at most once a minute). */
+    let catalogueAt = 0, catalogueBusy = null;
+    a.reloadCatalogue = (force = false) => {
+      if (catalogueBusy) return catalogueBusy;
+      if (!force && Date.now() - catalogueAt < 60_000) return Promise.resolve(false);
+      catalogueBusy = catalogueApi.worksheets().then(r => {
+        catalogueAt = Date.now();
+        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes });
+        a.rerenderAll();
+        return true;
+      }).finally(() => { catalogueBusy = null; });
+      return catalogueBusy;
+    };
     a.openShop = view => {
       setDrawer(null); a.closeModal();
+      a.reloadCatalogue().catch(() => {});
       setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
@@ -761,6 +777,13 @@ export function SiteProvider({ children }) {
     return () => removeEventListener('keydown', onKey);
   }, [actions]);
 
+  /* back on the tab: pick up what changed in Admin → Products meanwhile */
+  useEffect(() => {
+    const on = () => { if (document.visibilityState === 'visible') actions.reloadCatalogue().catch(() => {}); };
+    document.addEventListener('visibilitychange', on);
+    return () => document.removeEventListener('visibilitychange', on);
+  }, [actions]);
+
   /* THE SERVER IS THE SOURCE OF TRUTH: prices and which sheets have a real PDF come from the
      database (GET /api/worksheets); the sign-in kept in this browser is checked with a refresh
      (POST /api/auth/refresh-token) and the access records loaded, so a stale copy in this browser
@@ -770,7 +793,7 @@ export function SiteProvider({ children }) {
     let alive = true;
     try { localStorage.removeItem('lww_maybe_in'); } catch (_) {}
     (async () => {
-      try { const r = await catalogueApi.worksheets(); if (!alive) return; applyServerCatalogue(r.worksheets || []); rerenderAll(); }
+      try { await actions.reloadCatalogue(true); }
       catch (err) { console.warn('catalogue: ' + err.message + ' (showing the built-in prices)'); }
     })();
     (async () => {

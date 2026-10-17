@@ -9,7 +9,13 @@ export type ProductRow = {
   price_inr: number; status: 'draft' | 'active' | 'archived'; pdf_path: string | null; thumb_url: string | null;
   print_limit: number; download_limit: number; access_days: number | null; landscape: boolean; stock: number | null;
   print_rule: PrintRule;
+  // a time in the future = scheduled: not listed or sold to customers until then
+  publish_at: Date | null;
 };
+
+/** On sale but with a publish time still to come. */
+export const isScheduled = (p: { status: string; publish_at?: Date | string | null }) =>
+  p.status === 'active' && p.publish_at != null && new Date(p.publish_at).getTime() > Date.now();
 
 /** 'account': prints per sheet come from the account type (settings.prints); 'sheet': the
  *  sheet's own print_limit (0 = no printing). */
@@ -160,7 +166,7 @@ export async function loadProduct(q: Tx, id: string): Promise<ProductRow | null>
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{1,63}$/.test(id)) return null;
   const r = await q<ProductRow[]>`
     select id, title, description, class_id, subject, pages, price_inr, status, pdf_path, thumb_url,
-           print_limit, download_limit, access_days, landscape, stock, print_rule
+           print_limit, download_limit, access_days, landscape, stock, print_rule, publish_at
     from products where id = ${id}`;
   return r[0] ?? null;
 }

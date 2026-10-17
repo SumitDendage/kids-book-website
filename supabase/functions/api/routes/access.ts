@@ -13,7 +13,7 @@ import { getSettings } from '../lib/settings.ts';
 import { download, downloadBytes, WORKSHEETS } from '../lib/storage.ts';
 import { fmtDateTime } from '../lib/util.ts';
 import {
-  coveringEntitlements, effectivePrintLimit, entStatus, type EntRow, hasPdf, isLive, loadProduct, pickBest, type ProductRow,
+  coveringEntitlements, effectivePrintLimit, entStatus, type EntRow, hasPdf, isLive, isScheduled, loadProduct, pickBest, type ProductRow,
   pubEntitlement,
 } from '../services/entitlements.ts';
 import { makeViewToken, readViewToken, type ViewClaims, viewTokenFrom } from '../services/viewtoken.ts';
@@ -47,7 +47,7 @@ type Denied = { denied: HttpError };
  *  one yet. The partial unique index keeps this to one live pass even when two tabs race.
  *  True when the caller must re-read the access records (a pass was made, here or by a racing open). */
 async function ensureFreePass(q: Tx, userId: string, p: ProductRow, rows: EntRow[]): Promise<boolean> {
-  if (p.price_inr !== 0 || p.status === 'archived') return false;
+  if (p.price_inr !== 0 || p.status === 'archived' || isScheduled(p)) return false;
   if (rows.some((e) => e.kind === 'free' && isLive(e, 0))) return false;
   // a racing open may have made the pass first (do nothing): either way the caller re-reads
   await q`
@@ -68,7 +68,7 @@ async function deny(q: Tx, ctx: Ctx, user: AuthedUser, action: AccessAction, err
  *  (archived ones still need live access, checked by the caller). */
 function visibleTo(p: ProductRow | null, user: AuthedUser): p is ProductRow {
   if (!p) return false;
-  return p.status !== 'draft' || hasPermission(user.staff, 'catalogue.read');
+  return (p.status !== 'draft' && !isScheduled(p)) || hasPermission(user.staff, 'catalogue.read');
 }
 
 const priceFor = (e: EntRow, p: ProductRow) => (e.scope === 'worksheet' ? p.price_inr : null);
