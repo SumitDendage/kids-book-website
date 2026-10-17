@@ -5,6 +5,9 @@
 DirectoryIndex index.html
 Options -MultiViews -Indexes
 
+# _live is where Hostinger pulls each new build before it is copied into the site; never serve it.
+RedirectMatch 404 ^/_live(/|$)
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
