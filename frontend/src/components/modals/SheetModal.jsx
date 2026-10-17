@@ -3,6 +3,7 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { eventsApi } from '../../services/api.js';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf, accessSpan } from '../../data/content.js';
+import Countdown from '../sheets/Countdown.jsx';
 import { dateTimeTz } from '../../utils/format.js';
 import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
 import { CartButton } from '../sheets/SheetCard.jsx';
@@ -38,7 +39,7 @@ function SheetDetail({ id }) {
   const it = sheetOf(id); if (!it) return null;
   const session = access.session, tz = tzOf(access);
   const free = it.price === 0, cls = classById(it.cls) || { label: 'Kindergarten' }, st = sheetState(access, it);
-  const span = accessSpan(it.accessDays);
+  const span = accessSpan(it);
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const buyAgain = () => (site.buyAgain ? site.buyAgain(it.id) : (closeModal(), site.openCheckout({ worksheet: it.id, again: true })));
   const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} />
@@ -132,7 +133,8 @@ function PurchasePopup({ p }) {
           <div className="expiry" key={i} data-line={l.worksheet || l.cls || i}>
             <small>{l.kind === 'class' ? titleOfLine(l) + ': every ' + (c ? c.label : 'class') + ' sheet is open until' : titleOfLine(l) + ' is open until'}</small>
             <b>{end ? dateTimeTz(end, tz) : 'See My Worksheets'}</b>
-            <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
+            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.now ? access.now - now : 0)} /> : null}
+            <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : end && l.kind !== 'class' ? 'Open it as often as you like until then. When the timer reaches zero, it is removed from your account.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
           </div>
         );
       })}

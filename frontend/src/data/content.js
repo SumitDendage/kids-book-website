@@ -50,8 +50,15 @@ export const PLANS = [
   { id: 'y1', label: '12 months', months: 12, price: 1499, note: 'best value', regions: ['INTL'] },
 ];
 export const planOf = id => PLANS.find(x => x.id === id) || PLANS[0];
-/* How long a bought sheet stays open (the server's accessDays, 365 unless staff change it): 365 days is "1 year" */
-export const accessSpan = days => { const d = Math.round(Number(days)) || 365; return d === 365 ? '1 year' : d + (d === 1 ? ' day' : ' days'); };
+/* How long a bought sheet stays open. The server sends accessHours (24 unless staff change it) and,
+   for older readers, accessDays rounded up. "24 hours", "1 hour", "3 days" (days only when the hours
+   make whole days of two or more), as the server words it. */
+export const DEFAULT_ACCESS_HOURS = 24;
+export const spanText = hours => { const h = Math.round(Number(hours)) || DEFAULT_ACCESS_HOURS; return h >= 48 && h % 24 === 0 ? h / 24 + ' days' : h + (h === 1 ? ' hour' : ' hours'); };
+/* hours from anything that carries accessHours / accessDays (a sheet, a quote line, the config) */
+export const hoursOf = x => { if (!x || typeof x !== 'object') return 0; const h = Number(x.accessHours); if (h > 0) return Math.round(h); const d = Number(x.accessDays); return d > 0 ? Math.round(d * 24) : 0; };
+/* accessSpan(sheet | config | line) — or a number of days, as older callers pass */
+export const accessSpan = x => spanText(x && typeof x === 'object' ? hoursOf(x) : Number(x) > 0 ? Number(x) * 24 : 0);
 /* India buys 1, 3 or 6 months; every other country also 12 months (the server decides where each plan is sold) */
 export const plansFor = country => PLANS.filter(x => (Array.isArray(x.regions) ? x.regions.includes(country === 'IN' ? 'IN' : 'INTL') : (country !== 'IN' || x.id !== 'y1')));
 /* the plans from GET /api/config, in the server's order (the objects are updated in place) */

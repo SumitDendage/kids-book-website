@@ -12,7 +12,7 @@ import { enqueue, kickOutbox } from '../lib/mail.ts';
 import { getSettings } from '../lib/settings.ts';
 import { cleanName, cleanText, normEmail, validEmail } from '../lib/util.ts';
 import { contactToInbox } from '../services/emails.ts';
-import { accessDaysFor, countryList } from '../services/pricing.ts';
+import { accessDaysFor, accessHoursFor, countryList } from '../services/pricing.ts';
 import { answerQuestion, fillAnswer, supportEmail } from '../services/chatbot.ts';
 import { printsPerSheet } from '../services/entitlements.ts';
 
@@ -84,6 +84,7 @@ async function config(_ctx: Ctx) {
     classStatus: Object.fromEntries(classes.map((c) => [c.id, c.status])),
     classDiscounts: Object.fromEntries(classes.filter((c) => c.pct > 0).map((c) => [c.id, c.pct])),
     accessDays: accessDaysFor(s, null),
+    accessHours: accessHoursFor(s, null),
     agreement: { version: s.agreement.version, text: s.agreement.text },
     features: {
       email: mailReady(),

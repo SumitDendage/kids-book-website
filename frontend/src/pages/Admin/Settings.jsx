@@ -19,8 +19,8 @@ export default function Settings() {
       {d ? <>
         <p className="eyebrow group-head">Prices and access</p>
         {has('worksheet_access') ? <SettingCard q={q} k="worksheet_access" title="How long a bought sheet stays open"
-          intro="Counted from the day of purchase. A class plan lasts its own number of months. One sheet can have its own number under Products."
-          fields={[{ name: 'days', label: 'Days', type: 'int', min: 1, max: 3650, help: '365 is one year.' }]} /> : null}
+          intro="Counted from the moment of payment. The customer sees a timer in My Worksheets, and when it reaches zero the sheet is removed from their account. A class plan lasts its own number of months. One sheet can have its own number of days under Products."
+          fields={[{ name: 'hours', label: 'Hours', type: 'int', min: 1, max: 87600, help: '24 is one day, 168 is one week, 720 is 30 days.' }]} /> : null}
         {has('prints') ? <SettingCard q={q} k="prints" title="Prints per sheet"
           intro="How many times a customer can print each sheet they have, by the account type they chose. A sheet set to its own number under Products keeps that number."
           fields={[{ name: 'parent', label: 'Parents', type: 'int', min: 0, max: 1000 }, { name: 'teacher', label: 'Teachers', type: 'int', min: 0, max: 1000 },
@@ -84,7 +84,7 @@ function SettingCard({ q, k, title, intro, fields }) {
     setBusy(true); setErr(null); setErrs({});
     try {
       const r = await staffApi('PUT', '/api/admin/settings/' + k, { value });
-      q.setData(d => ({ ...d, settings: { ...d.settings, [k]: { ...d.settings[k], value: r.value, updatedAt: Date.now() } }, accessDays: k === 'worksheet_access' ? r.value.days : d.accessDays }));
+      q.setData(d => ({ ...d, settings: { ...d.settings, [k]: { ...d.settings[k], value: r.value, updatedAt: Date.now() } }, accessDays: k === 'worksheet_access' ? r.value.days : d.accessDays, accessHours: k === 'worksheet_access' ? r.value.hours : d.accessHours }));
       toast(title + ': saved');
     } catch (x) { const fe = fieldErrors(x); setErrs(fe); setErr(Object.keys(fe).length ? 'Please check the values marked in red.' : problem(x)); }
     setBusy(false);

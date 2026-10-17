@@ -14,7 +14,7 @@ import { HttpError, json, readJson } from '../lib/http.ts';
 import { requireUser } from '../lib/auth.ts';
 import { rateLimit } from '../lib/guard.ts';
 import { getSettings, type Settings } from '../lib/settings.ts';
-import { accessDaysFor, FREE_MESSAGE, MAX_SHEETS_PER_ORDER, OWNED_MESSAGE } from '../services/pricing.ts';
+import { accessDaysFor, accessHoursFor, FREE_MESSAGE, MAX_SHEETS_PER_ORDER, OWNED_MESSAGE } from '../services/pricing.ts';
 import { ownedSheets } from '../services/entitlements.ts';
 
 export const CART_MAX = MAX_SHEETS_PER_ORDER;
@@ -77,6 +77,7 @@ async function readCart(q: Tx, s: Settings, userId: string) {
       subject: r.subject,
       thumb: r.thumb_url,
       accessDays: accessDaysFor(s, r.access_days),
+      accessHours: accessHoursFor(s, r.access_days),
       problem,
       note: problem === 'unavailable' ? unavailableNote(r) : problem ? NOTES[problem] : null,
       addedAt: new Date(r.added_at).getTime(),

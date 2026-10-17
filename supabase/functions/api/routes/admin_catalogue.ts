@@ -14,7 +14,7 @@ import { audit, rateLimit } from '../lib/guard.ts';
 import { getSettings, type Settings } from '../lib/settings.ts';
 import { COVERS, publicUrl, remove, upload, WORKSHEETS } from '../lib/storage.ts';
 import { cleanName, cleanText, randomBytes, sha256Hex } from '../lib/util.ts';
-import { accessDaysFor } from '../services/pricing.ts';
+import { accessDaysFor, accessHoursFor } from '../services/pricing.ts';
 import { PRINT_RULES, type PrintRule, sheetPrints } from '../services/entitlements.ts';
 import { MAX_STAMP_BYTES, StampError, stampPdf } from '../services/watermark.ts';
 
@@ -165,6 +165,7 @@ export function adminWorksheet(r: SheetRow, s: Settings) {
     stock: r.stock,
     accessDays: r.access_days,
     effectiveAccessDays: accessDaysFor(s, r.access_days),
+    effectiveAccessHours: accessHoursFor(s, r.access_days),
     tags: r.tags,
     sort: r.sort,
     landscape: r.landscape,

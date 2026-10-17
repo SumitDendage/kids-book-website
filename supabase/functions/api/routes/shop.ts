@@ -8,7 +8,7 @@ import { json, readJson } from '../lib/http.ts';
 import { optionalUser, requireUser } from '../lib/auth.ts';
 import { rateLimit } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
-import { accessDaysFor, buildQuote } from '../services/pricing.ts';
+import { accessDaysFor, accessHoursFor, buildQuote } from '../services/pricing.ts';
 import { entStatus, type PrintRule, pubEntitlement, sheetPrints, type EntRow } from '../services/entitlements.ts';
 
 const ms = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).getTime());
@@ -63,6 +63,7 @@ async function catalogue(_ctx: Ctx) {
       comingSoon: w.class_status === 'coming_soon',
       onSale: w.has_pdf && w.class_status === 'available' && !soldOut,
       accessDays: accessDaysFor(s, w.access_days),
+      accessHours: accessHoursFor(s, w.access_days),
       printLimit: w.print_limit,
       // prints of this sheet per account type ('account' rule: settings.prints; 'sheet': printLimit)
       printRule: w.print_rule,
@@ -91,6 +92,7 @@ async function catalogue(_ctx: Ctx) {
     })),
     plans: plans.map((p) => ({ id: p.id, label: p.label, months: p.months, price: p.price_inr, discountPct: p.pct, regions: p.regions, note: p.note })),
     accessDays: accessDaysFor(s, null),
+    accessHours: accessHoursFor(s, null),
   }, { 'Cache-Control': 'no-cache' });
 }
 
@@ -115,7 +117,7 @@ type OrderRow = {
 
 type ItemRow = {
   id: number; order_id: string; kind: 'worksheet' | 'class'; product_id: string | null; class_id: string | null;
-  plan_id: string | null; title: string; months: number | null; access_days: number | null; unit_price_inr: number;
+  plan_id: string | null; title: string; months: number | null; access_days: number | null; access_hours: number | null; unit_price_inr: number;
   discount_inr: number; product_class: string | null; price_inr: number | null;
   e_id: number | null; e_scope: 'worksheet' | 'class' | null; e_kind: 'free' | 'paid' | 'grant' | null;
   e_purchased_at: Date | null; e_starts_at: Date | null; e_expires_at: Date | null; e_revoked_at: Date | null;
@@ -148,7 +150,7 @@ export async function orderViews(q: Tx, userId: string, orderIds?: string[], lim
   if (!orders.length) return [];
   const ids = orders.map((o) => o.id);
   const items = await q<ItemRow[]>`
-    select it.id, it.order_id, it.kind, it.product_id, it.class_id, it.plan_id, it.title, it.months, it.access_days,
+    select it.id, it.order_id, it.kind, it.product_id, it.class_id, it.plan_id, it.title, it.months, it.access_days, it.access_hours,
            it.unit_price_inr, it.discount_inr::float8 as discount_inr, pr.class_id as product_class, pr.price_inr,
            e.id as e_id, e.scope as e_scope, e.kind as e_kind, e.purchased_at as e_purchased_at,
            e.starts_at as e_starts_at, e.expires_at as e_expires_at, e.revoked_at as e_revoked_at
@@ -189,7 +191,7 @@ export async function orderViews(q: Tx, userId: string, orderIds?: string[], lim
         plan: it.plan_id,
         title: it.title,
         months: it.months,
-        accessDays: it.access_days,
+        accessDays: it.access_days, accessHours: it.access_hours,
         unitPriceInr: it.unit_price_inr,
         discountInr: it.discount_inr,
         entitlement,
@@ -261,6 +263,7 @@ async function myEntitlements(ctx: Ctx) {
     entitlements,
     now: Date.now(),
     accessDays: accessDaysFor(s, null),
+    accessHours: accessHoursFor(s, null),
     accessStatus: u.profile.subscription_suspended_at ? 'suspended' : 'active',
   };
 }

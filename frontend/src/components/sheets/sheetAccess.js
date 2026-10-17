@@ -21,8 +21,8 @@ export function sheetState(access, it) {
   return { kind: 'buy', ready, open: false };
 }
 
-/* "Open for 1 year once bought" (365 days), "Open for 30 days once bought" otherwise */
-export const openForText = it => 'Open for ' + accessSpan(it && it.accessDays) + ' once bought';
+/* "Open for 24 hours once bought", "Open for 3 days once bought" */
+export const openForText = it => 'Open for ' + accessSpan(it) + ' once bought';
 
 /* Can this sheet go in the cart? Paid, ready, on sale and not open on the account now
    (a purchase that ended can be bought again from the cart too). */

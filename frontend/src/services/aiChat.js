@@ -18,7 +18,7 @@ const has = (text, w) => new RegExp('(^|[^a-z])' + escape(w) + 's?([^a-z]|$)').t
 export function practiceReply(message, { file } = {}) {
   const text = String(message || '').toLowerCase();
   const hit = AI_ANSWERS.find(a => a.words.some(w => has(text, w)));
-  if (hit) return hit.reply.replace(/\{access\}/g, accessSpan((getCoConfig() || {}).accessDays));
+  if (hit) return hit.reply.replace(/\{access\}/g, accessSpan(getCoConfig() || {}));
   return file ? AI_FILE_REPLY : AI_FALLBACK;
 }
 

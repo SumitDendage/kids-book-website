@@ -258,7 +258,7 @@ test('settings: prints per account type are validated; /api/config, sign-in and 
 test('customer text: how long a sheet stays open, printing and account types', async () => {
   const faq = (await h.call('GET', '/api/faq')).body.faq as { question: string; answer: string }[];
   assertEquals(faq.find((f) => f.question === 'How long can I open a sheet I bought?')!.answer,
-    'Each sheet you buy stays open for the time shown on the sheet (365 days unless it says otherwise), counted from your verified payment.');
+    'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
   const printing = faq.find((f) => f.question === 'How many times can I print a sheet?')!;
   assert(printing.answer.includes('2 with a Parent account, 4 with a Teacher account and 300 with an Organization account'), printing.answer);
   assert(faq.some((f) => f.question === 'Which account type should I choose?'));
@@ -442,7 +442,7 @@ test('cart: add, list, remove and empty; free, unknown, draft and owned sheets a
   assertEquals(typeof addedAt, 'number');
   assertEquals(item, {
     worksheet: 'az-C', title: 'Alphabet C — tracing sheet', priceInr: 19, wasPriceInr: null, cls: 'kg', subject: 'English',
-    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 365, problem: null, note: null,
+    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 1, accessHours: 24, problem: null, note: null,
   });
   assertEquals((await addToCart(c, 'az-C')).body.count, 1, 'adding twice is harmless');
   const two = await addToCart(c, ' az-D ');
@@ -544,7 +544,7 @@ test('quote: several sheets are priced as one order, one line each; refusals nam
   const r = await quote(c, ['az-C', 'az-D', 'az-C', 'az-F']);
   assertStatus(r, 200);
   const q = r.body;
-  assertEquals([q.valid, q.kind, q.worksheet, q.title, q.count, q.cls, q.accessDays, q.listInr], [true, 'worksheet', null, '3 worksheets', 3, 'kg', 365, 57]);
+  assertEquals([q.valid, q.kind, q.worksheet, q.title, q.count, q.cls, q.accessDays, q.listInr], [true, 'worksheet', null, '3 worksheets', 3, 'kg', 1, 57]);
   assertEquals(q.worksheets, ['az-C', 'az-D', 'az-F']);
   assertEquals((q.items as Any[]).map((i) => [i.productId, i.unitPriceInr, i.discountInr, typeof i.endsAt]), [
     ['az-C', 19, 0, 'number'], ['az-D', 19, 0, 'number'], ['az-F', 19, 0, 'number'],
