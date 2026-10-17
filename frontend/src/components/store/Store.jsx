@@ -5,7 +5,7 @@ import { money, isIndia } from '../../services/currency.js';
 import { getCoConfig, loadCoConfig, monthsText, serverPlans } from '../../services/checkout.js';
 import { eventsApi } from '../../services/api.js';
 import { dateTimeTz } from '../../utils/format.js';
-import { ITEMS, PDF_SHEETS, VIEWS, NEW_IDS, BEST_IDS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets } from '../../data/catalogue.js';
+import { ITEMS, VIEWS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets, inView, isListed, byOrder, extraSections } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 import { CartIcon } from '../layout/Navbar.jsx';
 
@@ -56,8 +56,15 @@ const vocabParts = () => (KG_TOPICS.find(g => g.id === VOCAB) || { items: [] }).
   .map(([id, label]) => ({ id, label, list: topicSheets(id) })).filter(x => x.list.length);
 const isPart = id => typeof id === 'string' && id.startsWith(VOCAB + '-');
 const partLabel = id => (vocabParts().find(x => x.id === id) || { label: id }).label;
-const clsLabel = id => (id === VOCAB ? 'Vocabulary' : isPart(id) ? 'Vocabulary · ' + partLabel(id) : classById(id).label);
-const planCls = id => (id === 'all' || id === VOCAB || isPart(id) ? 'kg' : id);
+/* "More sections": the sections staff made in Admin → Categories and the site's other topics, once
+   they have sheets; picked as cls 'sec:<section id>' */
+const SEC = 'sec:';
+const isSec = id => typeof id === 'string' && id.startsWith(SEC);
+const secOf = id => extraSections().find(x => x.id === id.slice(SEC.length));
+const clsLabel = id => (id === VOCAB ? 'Vocabulary' : isPart(id) ? 'Vocabulary · ' + partLabel(id) : isSec(id) ? ((secOf(id) || {}).label || 'Section') : classById(id).label);
+const planCls = id => (id === 'all' || id === VOCAB || isPart(id) ? 'kg' : isSec(id) ? ((secOf(id) || {}).cls || 'kg') : id);
+/* every printable sheet in the shop now */
+const listedSheets = () => ITEMS.filter(it => it.pdf && isListed(it));
 
 /* Subscribe to a class (1, 3, 6 months; 12 outside India). The plans and their prices come from
    the server (GET /api/config): the price before tax and fees, in the shop's currency. With a plan
@@ -100,10 +107,10 @@ export default function Store() {
 
   const vocabIds = groupSheets(VOCAB).map(it => it.id);
   const parts = vocabParts();
-  const inClass = (it, c) => (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : isPart(c) ? topicSheets(c).some(x => x.id === it.id) : it.cls === c));
-  /* the sheets a view, class and subject show */
-  const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && !SOON_NOW(it.cls) &&
-    (vw === 'all' || (vw === 'new' && NEW_IDS.includes(it.id)) || (vw === 'best' && BEST_IDS.includes(it.id)) || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0)) &&
+  const extras = extraSections();
+  const inClass = (it, c) => (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : isPart(c) ? topicSheets(c).some(x => x.id === it.id) : isSec(c) ? ((secOf(c) || { list: [] }).list.includes(it)) : it.cls === c));
+  /* the sheets a view, class and subject show (only what the server lists: hidden, draft and scheduled sheets stay out) */
+  const pick = (vw, c, sj) => ITEMS.filter(it => it.pdf && isListed(it) && !SOON_NOW(it.cls) && inView(vw, it) &&
     inClass(it, c) && subjectMatches(it, sj) && matchesSearch(it, words));
   /* every sidebar number is the number of sheets that button lists */
   const countOf = (vw, c, sj) => pick(vw, c, sj).length;
@@ -127,8 +134,10 @@ export default function Store() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, open]);
   const clearSearch = () => { setQuery(''); if (searchRef.current) searchRef.current.focus(); };
-  const list = pick(view, cls, subject).sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1));
-  const v = VIEWS.find(x => x.id === view);
+  const list = pick(view, cls, subject).sort((a, b) => ((a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)) || byOrder(a, b));
+  const v = VIEWS.find(x => x.id === view) || VIEWS[0];
+  /* Featured, Popular and Recommended appear only when some sheet has that label */
+  const views = VIEWS.filter(x => !x.label_ || x.id === view || countOf(x.id, 'all', 'all') > 0);
   let title, sub, shown = list;
   if (skill) {
     shown = skillSheets(skill).filter(it => matchesSearch(it, words));
@@ -138,12 +147,12 @@ export default function Store() {
   }
   if (searching) title = 'Results for “' + q.trim() + '”' + (skill ? ' · ' + SKILL_NAME[skill] : view !== 'all' ? ' · ' + v.label : '') + (!skill && cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (!skill && subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill && !searching;
-  const soon = !skill && cls !== 'all' && cls !== VOCAB && !isPart(cls) && SOON_NOW(cls);
+  const soon = !skill && cls !== 'all' && cls !== VOCAB && !isPart(cls) && !isSec(cls) && SOON_NOW(cls);
   /* the Vocabulary list comes in its sections, each under its own heading */
   const grouped = !skill && cls === VOCAB && shown.length > 0;
   if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
   else if (searching) sub = shown.length ? (shown.length === 1 ? '1 sheet matches' : shown.length + ' sheets match') + ' · tap one to see it' : 'Nothing matches yet.';
-  else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + PDF_SHEETS.length + ' printable PDF sheets · click one to browse';
+  else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + listedSheets().length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
 
   return (
@@ -167,7 +176,7 @@ export default function Store() {
             {q ? <button type="button" className="search-x" id="shopSearchClear" aria-label="Clear the search" onClick={clearSearch}>✕</button> : null}
           </div>
           <p className="side-title">Browse</p>
-          <div className="side-list" id="shopViews">{VIEWS.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => filter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
+          <div className="side-list" id="shopViews">{views.map(x => <SideButton key={x.id} on={x.id === view} n={countOf(x.id, 'all', 'all')} onClick={() => filter({ view: x.id, cls: 'all', subject: 'all', skill: null })}>{x.label}{x.note ? <small>{x.note}</small> : null}</SideButton>)}</div>
           <p className="side-title">Classes</p>
           <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => filter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => {
             const row = <SideButton key={c.id} on={c.id === cls} n={SOON_NOW(c.id) ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => filter({ cls: c.id, skill: null })}>{c.label}</SideButton>;
@@ -175,6 +184,8 @@ export default function Store() {
             return [row, <SideButton key={VOCAB} on={cls === VOCAB} n={countOf(view, VOCAB, subject)} onClick={() => filter({ cls: VOCAB, skill: null })}>Vocabulary</SideButton>,
               ...parts.map(x => <SideButton key={x.id} sub on={cls === x.id} n={countOf(view, x.id, subject)} onClick={() => filter({ cls: x.id, skill: null })}>{x.label}</SideButton>)];
           })}</div>
+          {extras.length ? <><p className="side-title">More sections</p>
+            <div className="side-list" id="shopSections">{extras.map(x => <SideButton key={x.id} on={cls === SEC + x.id} n={countOf(view, SEC + x.id, subject)} onClick={() => filter({ cls: SEC + x.id, skill: null })}>{x.label}</SideButton>)}</div></> : null}
           <p className="side-title">Subjects</p>
           <div className="side-list" id="shopSubjects"><SideButton on={subject === 'all'} n={countOf(view, cls, 'all')} onClick={() => filter({ subject: 'all', skill: null })}>All subjects</SideButton>{SUBJECTS.map(x => <SideButton key={x.id} on={x.id === subject} n={countOf(view, cls, x.id)} onClick={() => filter({ subject: x.id, skill: null })}>{x.label}</SideButton>)}</div>
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
@@ -183,7 +194,7 @@ export default function Store() {
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className={'shop-grid' + (showSkills ? ' skills' : '')} id="shopGrid">
             {view === 'paid' && !skill && !soon && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} config={config} failed={failed} tz={tz} />}
-            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {clsLabel(cls)} worksheets right now. Until then, Kindergarten has {PDF_SHEETS.length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => filter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
+            {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {clsLabel(cls)} worksheets right now. Until then, Kindergarten has {listedSheets().filter(it => it.cls === 'kg').length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => filter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className={'skill-card skill-' + c.id} style={{ '--n': n }}>
                 {/* each skill has its own corner of the Learn With Why picture (public/shop/cards/) */}
                 <img className="skill-pic" src={CARD_PICS + c.id + '.webp'} alt="" loading="lazy" decoding="async" />

@@ -143,9 +143,10 @@ export function topicSheets(id) {
   const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
     bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)), vz: () => VOCAB_NUMBERS.map(n => vocabItem('vz', n)) };
   const out = [];
-  (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !out.includes(it)) out.push(it); }); });
-  ITEMS.forEach(it => { if (it.topic === id && !out.includes(it)) out.push(it); });
-  return out;
+  /* a built-in sheet staff moved to another section (Admin → Products) leaves its own sections */
+  (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !it.movedTo && !out.includes(it)) out.push(it); }); });
+  ITEMS.forEach(it => { if ((it.topic === id && (!it.movedTo || it.movedTo === id)) || it.movedTo === id) { if (!out.includes(it)) out.push(it); } });
+  return out.filter(isListed);
 }
 /* Picture-reading charts: six landscape pages (A, I, N, P, S, T) — a big letter with pictures whose names carry its sound. */
 export const RC_LETTERS = 'AINPST'.split('');
@@ -252,7 +253,7 @@ PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); 
 const vocabOf = id => { const m = /^(vc|vs|vz)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
 const sheetOfRaw = id => /^v[csz]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
-export const sheetOf = id => { try { return sheetOfRaw(id); } catch (_) { return undefined; } };
+export const sheetOf = id => { try { const known = itemById(id); return known && known.dynamic ? known : sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
 /* only sheets with a real PDF are listed: the Colours and Shapes sheets are the newest, then the missing-letter and sound sheets; the A to Z set the favourites */
@@ -262,8 +263,40 @@ export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANG
 export const PLAYER_IDS = ['az-A', 'rc-A', 'cl-C', 'bx-1'];   /* the reading charts are A, I, N, P, S and T */
 export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
+  { id: 'featured', label: 'Featured', note: 'our picks', label_: true }, { id: 'popular', label: 'Popular', label_: true }, { id: 'recommended', label: 'Recommended', label_: true },
   { id: 'free', label: 'Free', note: 'try first' }, { id: 'paid', label: 'Paid', note: 'buy or subscribe' },
 ];
+/* Product labels staff set in Admin → Products. They are tags on the product: the shop's New and
+   Bestselling lists follow them once the server's catalogue is in (NEW_IDS and BEST_IDS until then);
+   Featured, Popular and Recommended show in the shop only when a sheet has that label.
+   'home' puts a sheet in the "Picked for you" row on the home page. */
+export const LABELS = [['bestseller', 'Best Seller'], ['featured', 'Featured'], ['new', 'New Arrival'], ['popular', 'Popular'], ['recommended', 'Recommended']];
+const VIEW_TAG = { new: 'new', best: 'bestseller', featured: 'featured', popular: 'popular', recommended: 'recommended' };
+const tagsOf = it => (Array.isArray(it.tags) ? it.tags : []);
+export const hasLabel = (it, tag) => (SERVER.ready ? tagsOf(it).includes(tag) : tag === 'new' ? NEW_IDS.includes(it.id) : tag === 'bestseller' ? BEST_IDS.includes(it.id) : false);
+/* the sheets a Browse view lists (free and paid by price; the label views by label) */
+export const inView = (vw, it) => vw === 'all' || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0) || (VIEW_TAG[vw] ? hasLabel(it, VIEW_TAG[vw]) : false);
+/* the label a card shows (one, the first that applies) */
+const CARD_ORDER = ['new', 'bestseller', 'featured', 'popular', 'recommended'];
+const CARD_TEXT = { new: 'New', bestseller: 'Bestseller', featured: 'Featured', popular: 'Popular', recommended: 'Recommended' };
+export const LABEL_COLOUR = { new: '#3b5bdb', bestseller: '#b8862b', featured: '#8e44ad', popular: '#d9480f', recommended: '#2b8a3e' };
+export const cardLabel = it => { const t = CARD_ORDER.find(x => hasLabel(it, x)); return t ? { tag: t, text: CARD_TEXT[t] } : null; };
+/* "25% off" when staff set an original price above the selling price */
+export const discountPct = it => (it.wasPrice && it.wasPrice > it.price ? Math.round((1 - it.price / it.wasPrice) * 100) : 0);
+/* is this sheet in the shop now? (the server's list says; hidden, draft and scheduled sheets are not) */
+export function isListed(it) { return !!it && !it.unlisted; }
+/* the server's view of the catalogue beyond the sheets: its sections and which classes are open */
+export const SERVER = { ready: false, sections: [], classStatus: {} };
+/* the sheets on the home page ("Picked for you"): labelled 'home', in display order */
+export const homeSheets = () => (SERVER.ready ? ITEMS.filter(it => it.pdf && isListed(it) && tagsOf(it).includes('home')).sort(byOrder) : []);
+/* display order: the order staff set (Admin → Products), then the site's own order */
+export const byOrder = (a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9);
+/* the sections staff added in Admin → Categories, and the website's own topics outside Alphabet and
+   Vocabulary, that have sheets: the shop lists them under "More sections" */
+export const extraSections = () => SERVER.sections.filter(x => x.group !== 'alpha' && x.group !== 'vocab')
+  .map(x => ({ ...x, list: topicSheets(x.id).filter(it => it.pdf) }))
+  /* a website topic joins the list once staff put a sheet in it (its own sheets are shown elsewhere already) */
+  .filter(x => x.list.length && (!x.builtin || x.list.some(it => it.dynamic || it.movedTo === x.id)));
 /* the store's cards are the same seven Alphabet sections as the Kindergarten tiles (Sumit, Oct 5),
    each with the same sheets: a card's id is its section id */
 const ALPHA_ITEMS = KG_TOPICS.find(g => g.id === 'alpha').items;
@@ -271,7 +304,8 @@ export const SKILL_CATEGORIES = ALPHA_ITEMS.map(([id, label, description]) => ({
 export const SKILL_NAME = Object.fromEntries(SKILL_CATEGORIES.map(c => [c.id, c.label]));
 /* the PDF sheets in a section (the Sound charts A to E sit in both Beginning and Ending Sounds) */
 export const skillSheets = skill => topicSheets(skill).filter(it => it.pdf);
-SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(c.id).length; });
+const countSkills = () => SKILL_CATEGORIES.forEach(c => { c.count = skillSheets(c.id).length; });
+countSkills();
 
 /* Prices are the server's alone (GET /api/worksheets and GET /api/config). Older builds let prices a staff
    member typed in their own browser (lww_prices, lww_plan_prices) change what that browser showed; they are
@@ -283,8 +317,19 @@ export function applyLocalPrices() {}
 export function applyAdminProducts() {}
 /* THE SERVER IS THE SOURCE OF TRUTH — prices, page counts and which sheets have a real PDF
    come from GET /api/worksheets and override the built-in values. */
-export function applyServerCatalogue(worksheets) {
+/* the sections a built-in sheet sits in by the site's own lists (TOPIC_SHEETS) */
+const naturalTopics = it => { const pre = String(it.id).split('-')[0]; return Object.keys(TOPIC_SHEETS).filter(t => TOPIC_SHEETS[t].includes(pre) || TOPIC_SHEETS[t].includes(it.id)); };
+const glyphOf = t => String(t || '?').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '✎';
+/* a sheet staff added in Admin → Products: the site builds its card from the server's fields */
+function serverItem(w) {
+  const subj = SUBJECTS.find(x => x.id === String(w.subject).toLowerCase() || x.label.toLowerCase() === String(w.subject).toLowerCase());
+  return { id: w.id, cls: w.cls, kind: 'sheet', subject: w.subject, subjectId: subj ? subj.id : String(w.subject || '').toLowerCase(), title: w.title, glyph: glyphOf(w.title),
+    pages: w.pages || 1, price: w.price, free: w.price === 0, real: !!w.real, pdf: true, dynamic: true, about: [] };
+}
+export function applyServerCatalogue(worksheets, extra) {
   const byId = {}; (worksheets || []).forEach(w => { byId[w.id] = w; });
+  /* sheets added in Admin → Products join the shelf (a class the website does not draw is left out) */
+  (worksheets || []).forEach(w => { if (!itemById(w.id) && CLASSES.some(c => c.id === w.cls)) { const it = serverItem(w); ITEMS.push(it); PDF_SHEETS.push(it); } });
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
     /* how long a purchase stays open, whether its PDF is ready, and how many copies come with it */
     if (w.accessDays) it.accessDays = w.accessDays;
@@ -300,9 +345,32 @@ export function applyServerCatalogue(worksheets) {
     if (typeof w.description === 'string' && w.description.trim()) it.description = w.description;
     if (typeof w.sectionLabel === 'string' && w.sectionLabel.trim()) it.sectionLabel = w.sectionLabel;
     if (Array.isArray(w.tags)) it.tags = w.tags.filter(t => typeof t === 'string');
+    /* labels, display order and the original price (Admin → Products) */
+    it.sort = Number.isFinite(w.sort) ? w.sort : it.sort;
+    it.wasPrice = w.wasPrice != null && w.wasPrice > w.price ? w.wasPrice : null;
+    it.section = w.section || null;
+    if (it.pdf) {
+      /* the title, words and picture staff set; the site's own words stay when the server has none */
+      if (typeof w.title === 'string' && w.title.trim()) it.title = w.title;
+      if (typeof w.description === 'string' && w.description.trim()) it.blurb = w.description;
+      if (typeof w.thumb === 'string' && w.thumb) it.img = w.thumb;
+      if (typeof w.landscape === 'boolean') it.landscape = w.landscape;
+      if (it.dynamic) { it.cls = w.cls; it.subject = w.subject; it.topic = w.section || null; }
+      /* a built-in sheet staff put in another section moves there */
+      else it.movedTo = w.section && !naturalTopics(it).includes(w.section) ? w.section : null;
+    }
     /* the printable pages carry the free/paid line in their own words, so keep it in step */
-    if (it.pdf) { it.free = it.price === 0; if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it); } });
+    if (it.pdf) { it.free = it.price === 0;
+      if (it.dynamic) it.about = [it.blurb, (it.pages === 1 ? 'One A4 page.' : it.pages + ' A4 pages.'), 'Opens full screen in the protected viewer.', accessLine(it.price, it)].filter(Boolean);
+      else if (Array.isArray(it.about)) it.about[it.about.length - 1] = accessLine(it.price, it); } });
   (worksheets || []).forEach(w => { if (!itemById(w.id)) SERVER_PRICE[w.id] = w.price; });   /* letter tracing + picture reading */
+  /* what the server does not list (a draft, hidden, scheduled or deleted sheet) leaves the website */
+  if (worksheets && worksheets.length) ITEMS.forEach(it => { if (it.pdf) it.unlisted = !byId[it.id]; });
+  /* labels and sections need the newer server (it sends sections); an older one keeps the built-in lists */
+  SERVER.ready = !!(worksheets && worksheets.length && extra && Array.isArray(extra.sections));
+  if (extra && Array.isArray(extra.sections)) SERVER.sections = extra.sections.slice().sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(b.id));
+  if (extra && Array.isArray(extra.classes)) SERVER.classStatus = Object.fromEntries(extra.classes.map(c => [c.id, c.status]));
+  countSkills();
 }
 /* products edited in the admin's book studio */
 export function removeItem(id) { [CATALOGUE, SHEETS, WORKSHEETS, ITEMS].forEach(a => { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); }); }

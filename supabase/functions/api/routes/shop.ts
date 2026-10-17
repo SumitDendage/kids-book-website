@@ -22,28 +22,34 @@ type ListRow = {
   thumb_url: string | null; audience: string | null; rating: number | null; rating_count: number;
   review_avg: number | null; review_count: number; print_limit: number; download_limit: number; stock: number | null;
   access_days: number | null; landscape: boolean; tags: string[]; has_pdf: boolean; class_status: string;
-  print_rule: PrintRule;
+  print_rule: PrintRule; sort: number; created_at: Date;
 };
+
+type SectionRow = { id: string; label: string; group_id: string | null; group_label: string | null; class_id: string; description: string; sort: number; builtin: boolean };
 
 async function catalogue(_ctx: Ctx) {
   const s = await getSettings();
-  const { rows, classes, plans } = await tx(async (q) => {
+  const { rows, classes, plans, sections } = await tx(async (q) => {
     // one call tells which PDFs are uploaded (never the storage paths themselves)
     const rows = await q<ListRow[]>`
       select p.id, p.title, p.description, p.class_id, p.subject, p.group_id, p.section, p.section_label, p.pages,
              p.price_inr, p.was_price_inr, p.thumb_url, p.audience, p.rating::float8 as rating, p.rating_count,
              p.review_avg::float8 as review_avg, p.review_count, p.print_limit, p.print_rule, p.download_limit, p.stock,
-             p.access_days, p.landscape, p.tags, coalesce(f.has_pdf, false) as has_pdf, c.status as class_status
+             p.access_days, p.landscape, p.tags, coalesce(f.has_pdf, false) as has_pdf, c.status as class_status,
+             p.sort, p.created_at
       from products p
       join classes c on c.id = p.class_id
       left join private.product_file_status() f on f.product_id = p.id
-      where p.status = 'active' and c.status <> 'hidden'
+      where p.status = 'active' and c.status <> 'hidden' and (p.publish_at is null or p.publish_at <= now())
       order by c.sort, c.id, p.sort, p.id`;
     const classes = await q<{ id: string; name: string; status: string; pct: number; sort: number }[]>`
       select id, name, status, discount_pct::float8 as pct, sort from classes where status <> 'hidden' order by sort, id`;
     const plans = await q<{ id: string; label: string; months: number; price_inr: number; pct: number; regions: string[]; note: string | null }[]>`
       select id, label, months, price_inr, discount_pct::float8 as pct, regions, note from plans where active order by sort, id`;
-    return { rows, classes, plans };
+    // the website's sections and the ones staff made in Admin → Categories (visible ones only)
+    const sections = await q<SectionRow[]>`
+      select id, label, group_id, group_label, class_id, description, sort, builtin from sections where visible order by sort, id`;
+    return { rows, classes, plans, sections };
   });
   const worksheets = rows.map((w) => {
     const soldOut = w.stock !== null && w.stock <= 0;
@@ -82,6 +88,9 @@ async function catalogue(_ctx: Ctx) {
       sectionLabel: w.section_label,
       tags: w.tags,
       landscape: w.landscape,
+      // display order (Admin → Products) and when it was added
+      sort: w.sort,
+      created: ms(w.created_at),
     };
   });
   return json(200, {
@@ -91,6 +100,10 @@ async function catalogue(_ctx: Ctx) {
       available: c.status === 'available', comingSoon: c.status === 'coming_soon', discountPct: c.pct,
     })),
     plans: plans.map((p) => ({ id: p.id, label: p.label, months: p.months, price: p.price_inr, discountPct: p.pct, regions: p.regions, note: p.note })),
+    sections: sections.map((x) => ({
+      id: x.id, label: x.label, group: x.group_id, groupLabel: x.group_label, cls: x.class_id,
+      description: x.description, sort: x.sort, builtin: x.builtin,
+    })),
     accessDays: accessDaysFor(s, null),
     accessHours: accessHoursFor(s, null),
   }, { 'Cache-Control': 'no-cache' });

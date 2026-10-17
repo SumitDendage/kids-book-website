@@ -502,3 +502,31 @@
   .menu.notes-menu { position: fixed; left: 12px; right: 12px; top: 60px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .dm-scrim, .dm, .cmdk, .dash .ld-line { animation: none; } .dm-spin { animation-duration: 2s; } }
+
+/* ---------- product manager (Oct 17): free/paid and visibility switches, labels, sales, categories ---------- */
+.dash .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; margin: 0 0 12px; border-radius: calc(var(--radius) - 2px); background: var(--muted); }
+.dash .seg-opt { display: inline-flex; align-items: center; height: 30px; padding: 0 14px; border-radius: calc(var(--radius) - 4px); font-size: 14px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; }
+.dash .seg-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.dash .seg-opt.on { background: var(--background); color: var(--foreground); box-shadow: var(--shadow-sm); }
+.dash .seg-opt:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 1px; }
+.dash .price-sum { margin: 2px 0 14px; font-size: 14px; color: var(--muted-foreground); }
+.dash .price-sum b { color: var(--foreground); }
+.dash .label-picks { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.dash .label-picks .pick { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px dashed var(--input); border-radius: calc(var(--radius) - 2px); cursor: pointer; }
+.dash .label-picks .pick.on { border-style: solid; border-color: var(--primary); background: color-mix(in oklab, var(--primary) 10%, transparent); }
+.book-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.book-labels span { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--muted); color: var(--foreground); }
+.book-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; }
+.book-quick .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+.dash .filters-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.dash .filters-row select { height: 34px; }
+.top-sellers { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.top-sellers li { display: flex; gap: 12px; justify-content: space-between; font-size: 14px; border-bottom: 1px solid var(--border); padding: 6px 0; }
+.top-sellers li span { color: var(--muted-foreground); white-space: nowrap; }
+.sec-list { display: grid; gap: 0; margin: 8px 0 0; }
+.sec-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sec-row .sec-name b { display: block; }
+.sec-row .sec-name small { color: var(--muted-foreground); }
+.sec-row input[type=number] { width: 76px; }
+.sec-group { margin: 18px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); }
+@media (max-width: 720px) { .sec-row { grid-template-columns: 1fr auto; } }

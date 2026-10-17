@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
-import { NEW_IDS, BEST_IDS } from '../../data/catalogue.js';
+import { cardLabel, discountPct, LABEL_COLOUR } from '../../data/catalogue.js';
 import { sheetState, openForText, cartable } from './sheetAccess.js';
 
 /* the line beside a card's button: free, bought, in a plan, ended, or how long a purchase stays open */
@@ -47,15 +47,17 @@ export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.ke
 export default function SheetCard({ it, n, store = false }) {
   const { access, openSheet } = useSite();
   const free = it.price === 0, st = sheetState(access, it), mine = st.open;
+  /* the label staff set in Admin → Products (New, Bestseller, Featured, Popular, Recommended) */
+  const label = store ? cardLabel(it) : null, off = free ? 0 : discountPct(it);
   const tag = mine ? <b className="tag">{free ? 'Free' : 'Unlocked'}</b>
-    : store && NEW_IDS.includes(it.id) ? <b className="tag" style={{ background: '#3b5bdb' }}>New</b>
-    : store && BEST_IDS.includes(it.id) ? <b className="tag" style={{ background: '#b8862b' }}>Bestseller</b>
+    : label ? <b className="tag" style={{ background: LABEL_COLOUR[label.tag] }}>{label.text}</b>
     : free ? <b className="tag free">Free</b> : <b className="tag" aria-label="Locked">🔒</b>;
   /* every card shows the printed page when the sheet has a picture, on the shelf as well as in the store */
   const shot = !!it.img;
   const meta = store
     ? (it.cls ? classById(it.cls).label + ' · ' : '') + it.subject + (it.pages ? ' · ' + it.pages + ' pages' : '')
     : (it.cls ? classById(it.cls).label : it.cat || '') + (it.pages ? ' · ' + it.pages + ' pages' : '');
+  const offLine = off && !mine ? ' · ' + off + '% off' : '';
   const open = () => openSheet(it.id);
   return (
     <article className="shop-card" style={{ '--n': n }} tabIndex={0} aria-label={it.title} onClick={open} onKeyDown={cardKeys(open)}>
@@ -63,7 +65,7 @@ export default function SheetCard({ it, n, store = false }) {
         {shot ? <img src={it.img} alt="" loading="lazy" /> : <><small>{it.subject}</small><div className="glyph">{it.glyph}</div><small>Learn With Why · PDF</small></>}
         {tag}
       </div>
-      <p className="meta">{meta}</p>
+      <p className="meta">{meta}{offLine}</p>
       <h3 className="card-title">{it.title}</h3>
       <p>{it.blurb}</p>
       {store && cartable(it, st)
