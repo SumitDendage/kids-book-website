@@ -8,7 +8,8 @@ import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 /** Larger files are sent unstamped (and reported) so one request cannot exhaust the function's memory. */
 export const MAX_STAMP_BYTES = 20 * 1024 * 1024;
 
-export type StampInfo = { name?: string | null; email: string; orderId: string | null; kind: 'free' | 'paid' | 'grant'; at: Date };
+/** guest: a free sheet opened without an account (email is then the site's address). */
+export type StampInfo = { name?: string | null; email: string; orderId: string | null; kind: 'free' | 'paid' | 'grant'; at: Date; guest?: boolean };
 
 // Standard PDF fonts only cover Latin-1; anything else becomes "?" so stamping never fails on a name.
 const latin = (s: string, max: number) => s.replace(/[^\x20-\x7e]/g, '?').slice(0, max);
@@ -24,6 +25,7 @@ export function stampName(name: string | null | undefined): string {
 /** The parts of the stamp the customer cannot change, in the order they are drawn:
  *  "Licensed to a@b.c", "Order LWO-…" (or "Free sheet" / "Granted access"), "2026-10-07 12:30 UTC". */
 export function stampParts(o: StampInfo): string[] {
+  if (o.guest) return [`Free sheet from ${latin(o.email, 254)}`, o.at.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'];
   const ref = o.orderId ? `Order ${o.orderId}` : o.kind === 'free' ? 'Free sheet' : 'Granted access';
   const when = o.at.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
   return [`Licensed to ${latin(o.email, 254)}`, latin(ref, 80), when];

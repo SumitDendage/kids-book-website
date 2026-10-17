@@ -86,7 +86,7 @@ export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
    (the sheet's accessHours from the server, 24 hours until it answers) */
-export const accessLine = (price, it) => (price === 0 ? 'Free sample. Just sign in to open it.' : 'Once bought, it stays open for ' + accessSpan(it) + ' from the moment you pay. Then it is removed from your account.');
+export const accessLine = (price, it) => (price === 0 ? 'Free sample. It opens straight away, no sign-in needed.' : 'Once bought, it stays open for ' + accessSpan(it) + ' from the moment you pay. Then it is removed from your account.');
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */
 /* Each real PDF is built once and kept, so the store, the topic board and the sheet
    page all hold the same object — a price from the server reaches every one of them. */
@@ -95,8 +95,8 @@ const keepSheet = (id, build) => PDF_CACHE[id] || (PDF_CACHE[id] = build());
 export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice('az-' + L); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: '/sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
   about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
-/* Kindergarten's A to Z section: 26 tracing sheets, real PDFs in sheets/a-to-z/. A and B are free (sign-in needed, like every
-   sheet); the others are bought one at a time or open with the Kindergarten plan. The server's prices decide. */
+/* Kindergarten's A to Z section: 26 tracing sheets, real PDFs in sheets/a-to-z/. A and B are free (they open
+   without signing in); the others are bought one at a time or open with the Kindergarten plan. The server's prices decide. */
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product

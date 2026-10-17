@@ -3,11 +3,15 @@
 // paid-access suspension, the sheet, its PDF and the access record again in the database —
 // the view token alone opens nothing. PDFs only leave through these routes (stamped), never as
 // a storage link.
+// A free sheet also opens without an account (Sumit, Oct 17: "the free can access easily, not
+// required to sign in"): a visitor with no sign-in gets a guest token for that one sheet, held to
+// limits per IP address, view only (no counted prints or downloads), and every request checks
+// again that the sheet is still free and on sale.
 import type { Router } from '../lib/router.ts';
 import type { AuthedUser, Ctx } from '../lib/context.ts';
 import { tx, type Tx } from '../lib/db.ts';
 import { HttpError, intParam, streamResponse } from '../lib/http.ts';
-import { hasPermission, requireUser } from '../lib/auth.ts';
+import { bearer, hasPermission, requireUser } from '../lib/auth.ts';
 import { analytics, rateLimit, securityEvent } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
 import { download, downloadBytes, WORKSHEETS } from '../lib/storage.ts';
@@ -16,13 +20,17 @@ import {
   coveringEntitlements, effectivePrintLimit, entStatus, type EntRow, hasPdf, isLive, isScheduled, loadProduct, pickBest, type ProductRow,
   pubEntitlement,
 } from '../services/entitlements.ts';
-import { makeViewToken, readViewToken, type ViewClaims, viewTokenFrom } from '../services/viewtoken.ts';
+import { type GuestClaims, isGuestToken, makeGuestToken, makeViewToken, readGuestToken, readViewToken, type ViewClaims, viewTokenFrom } from '../services/viewtoken.ts';
 import { StampError, stampPdf } from '../services/watermark.ts';
 import { type AccessAction, maybeEvaluateRules, observeAccess } from '../services/sharing.ts';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 /** Whole-PDF deliveries per customer for the viewer: one per opened sheet is plenty for reading. */
 export const FILE_LIMIT = { count: 60, seconds: 3600 };
+/** Guests (free sheets, no account) per IP address: opens, viewer requests and whole PDFs. */
+export const GUEST_LIMITS = { open: { count: 30, seconds: 600 }, view: { count: 300, seconds: 300 }, file: { count: 40, seconds: 3600 } };
+/** What a guest copy is stamped with in place of an account email. */
+export const GUEST_STAMP = 'learnwithwhy.com';
 
 const NO_SHEET = 'No such worksheet.';
 const PAY = 'Payment required to open this sheet.';
@@ -36,6 +44,7 @@ const NOT_IN_PLAN = 'This sheet is not in your plan.';
 const NO_LONGER_FREE = 'This sheet is not free any more — buy it on the site to open it.';
 const NO_PAGE = 'No such page.';
 const NO_FILE = 'This sheet has no PDF yet.';
+const GUEST_COPY = 'Sign in to print or download this sheet. It opens in the viewer without an account.';
 
 const ms = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).getTime());
 const iso = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).toISOString());
@@ -105,6 +114,8 @@ function laterRules(ctx: Ctx, user: AuthedUser, force = false) {
 // ── POST /api/access/:id ─────────────────────────────────────────────────────────────────
 
 async function openSheet(ctx: Ctx) {
+  // no sign-in at all: a free sheet still opens (as a guest); a paid one asks for sign-in
+  if (!bearer(ctx)) return await openAsGuest(ctx);
   const user = await requireUser(ctx);
   const id = ctx.params.id ?? '';
   if (!ID_RE.test(id)) throw new HttpError(404, NO_SHEET);
@@ -164,6 +175,125 @@ async function openSheet(ctx: Ctx) {
     worksheet: { id: p.id, title: p.title, pages: p.pages, cls: p.class_id, subject: p.subject, price: p.price_inr, real: true, status: p.status },
     entitlement: pubEntitlement(ent, priceFor(ent, p)),
   };
+}
+
+// ── guests: free sheets without an account ───────────────────────────────────────────────
+
+/** On sale to everyone right now (not a draft, archived or scheduled) and free. */
+const openToGuests = (p: ProductRow) => p.status === 'active' && !isScheduled(p) && p.price_inr === 0;
+
+const SIGN_IN_TO_OPEN = 'Sign in to open this sheet.';
+
+async function openAsGuest(ctx: Ctx) {
+  const id = ctx.params.id ?? '';
+  if (!ID_RE.test(id)) throw new HttpError(404, NO_SHEET);
+  await rateLimit(ctx, 'access_guest', null, GUEST_LIMITS.open.count, GUEST_LIMITS.open.seconds);
+  const out = await tx(async (q) => {
+    const p = await loadProduct(q, id);
+    if (!p || p.status === 'draft' || p.status === 'archived' || isScheduled(p)) throw new HttpError(404, NO_SHEET);
+    // a paid sheet: the same answer as before for someone signed out
+    if (!openToGuests(p)) throw new HttpError(401, SIGN_IN_TO_OPEN, { code: 'signin', worksheet: p.id, price: p.price_inr });
+    if (!(await hasPdf(q, p))) throw new HttpError(410, PREPARING, { code: 'unavailable', worksheet: p.id });
+    const vs = await viewerSettings(q);
+    const exp = Date.now() + vs.tokenHours * 3_600_000;
+    const token = await makeGuestToken(q, { productId: p.id, exp });
+    await analytics(q, ctx, { kind: 'viewer_open', userId: null, productId: p.id, meta: { guest: true } });
+    return { p, token, exp, vs };
+  });
+  const { p, token, exp, vs } = out;
+  return {
+    ok: true,
+    guest: true,
+    token,
+    viewToken: token,
+    tokenExpiresAt: exp,
+    expiresAt: null,
+    expiresAtMs: null,
+    recheckSeconds: vs.recheckSeconds,
+    printsLeft: 0, downloadsLeft: 0, printLimit: 0, downloadLimit: 0, printRule: p.print_rule,
+    worksheet: { id: p.id, title: p.title, pages: p.pages, cls: p.class_id, subject: p.subject, price: p.price_inr, real: true, status: p.status },
+    entitlement: null,
+  };
+}
+
+type GuestView = { p: ProductRow; claims: GuestClaims; images: { name: string; page: number }[]; vs: { tokenHours: number; recheckSeconds: number } };
+
+/** The guest version of viewContext: null when the request carries no guest token (then it is an
+ *  account's viewer request). The sheet must still be free and on sale, with its PDF. */
+async function guestContext(ctx: Ctx, o: { images?: boolean } = {}): Promise<GuestView | null> {
+  const raw = viewTokenFrom(ctx.req, ctx.query);
+  if (!isGuestToken(raw)) return null;
+  const claims = await tx((q) => readGuestToken(q, raw));
+  // shaped like a guest token but not one of ours
+  if (!claims) throw new HttpError(403, BAD_LINK, { code: 'invalid', worksheet: null, scope: null, cls: null });
+  await rateLimit(ctx, 'view_guest', null, GUEST_LIMITS.view.count, GUEST_LIMITS.view.seconds);
+  return await tx(async (q) => {
+    const ref = { worksheet: claims.productId, scope: 'worksheet', cls: null as string | null };
+    const p = await loadProduct(q, claims.productId);
+    if (p) ref.cls = p.class_id;
+    if (!p || p.status === 'draft' || p.status === 'archived' || isScheduled(p)) throw new HttpError(404, NO_SHEET, ref);
+    if (!openToGuests(p)) throw new HttpError(403, NO_LONGER_FREE, { ...ref, code: 'expired', expired: true });
+    if (!(await hasPdf(q, p))) throw new HttpError(410, PREPARING, { ...ref, code: 'unavailable' });
+    if (claims.exp <= Date.now()) throw new HttpError(403, OLD_LINK, { ...ref, code: 'invalid', tokenExpired: true });
+    const images = o.images && p.pdf_path
+      ? await q<{ name: string; page: number }[]>`select name, page from private.worksheet_page_images(${p.pdf_path.replace(/\.pdf$/i, '')})`
+      : [];
+    return { p, claims, images, vs: await viewerSettings(q) };
+  });
+}
+
+function guestMeta(g: GuestView) {
+  const { p } = g;
+  const now = Date.now();
+  return {
+    title: p.title,
+    cls: p.class_id,
+    subject: p.subject,
+    pages: g.images.length || p.pages,
+    kind: 'free',
+    scope: 'worksheet',
+    since: null,
+    until: null,
+    real: true,
+    hasPdf: true,
+    hasImages: g.images.length > 0,
+    now,
+    guest: true,
+    user: null,
+    worksheet: p.id,
+    grant: false,
+    expiresAt: null,
+    tokenExpiresAt: g.claims.exp,
+    recheckSeconds: g.vs.recheckSeconds,
+    watermark: { name: null, email: GUEST_STAMP, orderId: null, issuedAt: now },
+    printsLeft: 0, downloadsLeft: 0, printLimit: 0, downloadLimit: 0, printRule: p.print_rule,
+    entitlement: null,
+  };
+}
+
+async function guestFile(ctx: Ctx, g: GuestView) {
+  await rateLimit(ctx, 'view_file_guest', null, GUEST_LIMITS.file.count, GUEST_LIMITS.file.seconds,
+    'Very many sheets were opened from this connection in the last hour — please wait a while, then open the sheet again.');
+  const bytes = await downloadBytes(WORKSHEETS, g.p.pdf_path!);
+  if (!bytes) throw new HttpError(404, NO_FILE, { code: 'nofile' });
+  let out: { bytes: Uint8Array; pages: number | null };
+  try {
+    out = await stampPdf(bytes, { email: GUEST_STAMP, orderId: null, kind: 'free', at: new Date(), guest: true });
+  } catch (e) {
+    console.error('[view] guest watermark failed', g.p.id, e instanceof StampError ? e.reason : 'stamp_failed');
+    out = { bytes, pages: null };
+  }
+  return streamResponse(out.bytes, 'application/pdf', { 'X-Pages': String(out.pages ?? g.p.pages) });
+}
+
+async function guestPage(ctx: Ctx, g: GuestView, n: number) {
+  const img = g.images[n];
+  if (!img) throw new HttpError(404, NO_PAGE);
+  const type = IMAGE_TYPES[(img.name.split('.').pop() ?? '').toLowerCase()];
+  if (!type) throw new HttpError(404, NO_PAGE);
+  const f = await download(WORKSHEETS, img.name);
+  if (!f) throw new HttpError(404, NO_PAGE);
+  return streamResponse(f.body, type, { 'X-Pages': String(g.images.length) });
 }
 
 // ── the viewer ───────────────────────────────────────────────────────────────────────────
@@ -258,6 +388,8 @@ async function viewContext(ctx: Ctx, action: AccessAction, o: { images?: boolean
 }
 
 async function meta(ctx: Ctx) {
+  const g = await guestContext(ctx, { images: true });
+  if (g) return guestMeta(g);
   const v = await viewContext(ctx, 'meta', { images: true, log: true });
   const { user, p, ent } = v;
   const now = Date.now();
@@ -306,6 +438,8 @@ async function stampedPdf(ctx: Ctx, v: ViewOk, bytes: Uint8Array): Promise<{ byt
  *  never refused for that; every delivery is authenticated, stamped with the customer's name and
  *  email, logged and held to its own rate limit. */
 async function file(ctx: Ctx) {
+  const g = await guestContext(ctx);
+  if (g) return await guestFile(ctx, g);
   const v = await viewContext(ctx, 'pdf', { log: false });
   const meta = { action: 'pdf' as const, productId: v.p.id, entitlementId: v.ent.id };
   try {
@@ -327,6 +461,8 @@ const IMAGE_TYPES: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jp
 async function page(ctx: Ctx) {
   // 0-based, as the old viewer asks for it
   const n = intParam(ctx.query.get('n'), 0, 0, 999);
+  const g = await guestContext(ctx, { images: true });
+  if (g) return await guestPage(ctx, g, n);
   const v = await viewContext(ctx, 'page', { images: true, log: true, detail: `p${n}` });
   const img = v.images[n];
   if (!img) throw new HttpError(404, NO_PAGE);
@@ -342,6 +478,7 @@ async function page(ctx: Ctx) {
 const COPY = { print: 'printable', download: 'downloadable' } as const;
 
 async function takeCopy(ctx: Ctx, kind: 'print' | 'download') {
+  if (await guestContext(ctx)) throw new HttpError(403, GUEST_COPY, { code: 'not_allowed', limit: 0, signin: true });
   const v = await viewContext(ctx, kind, { log: false });
   await rateLimit(ctx, 'delivery', v.user.id, 30, 600);
   // prints: the effective allowance worked out in viewContext (print rule + account type)

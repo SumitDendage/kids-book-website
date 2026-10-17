@@ -277,7 +277,7 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
               <div className="field"><label htmlFor="psPct">Discount %</label><input id="psPct" type="number" min="0" max="100" step="1" value={pct} onChange={e => onPct(e.target.value)} placeholder="0" disabled={!canPrice || free || !orig} aria-invalid={!!errs.pct} /><small>Needs an original price.</small>{err1('pct')}</div>
               <div className="field"><label htmlFor="psPrice">Selling price ₹</label><input id="psPrice" type="number" min="0" max="100000" step="1" value={free ? '0' : sell} onChange={e => onSell(e.target.value)} disabled={!canPrice || free} aria-invalid={!!errs.price} />{err1('price')}</div>
             </div>
-            <p className="price-sum">{!canPrice ? 'Your role cannot change prices.' : free ? 'Free: anyone signed in can open it.' : finalPrice == null ? 'Enter the selling price.'
+            <p className="price-sum">{!canPrice ? 'Your role cannot change prices.' : free ? 'Free: anyone can open it, no sign-in needed.' : finalPrice == null ? 'Enter the selling price.'
               : <>Customers pay <b>₹{finalPrice}</b>{origPrice > finalPrice ? <> instead of <s>₹{origPrice}</s> ({Math.round((1 - finalPrice / origPrice) * 100)}% off, they save ₹{origPrice - finalPrice})</> : null}, before tax and fees.</>}</p>
             <div className="grid-3">
               <div className="field"><label htmlFor="psStock">Stock</label><input id="psStock" name="stock" type="number" min="0" defaultValue={v('stock')} placeholder="No limit" /><small>Leave empty for no limit.</small>{err1('stock')}</div>
