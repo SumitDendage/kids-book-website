@@ -8,6 +8,8 @@ export type Env = {
   publishableKey: string;       // sb_publishable_… or the legacy anon key
   jwks: string | null;          // SUPABASE_JWKS (JSON), when the project signs with asymmetric keys
   jwtSecret: string | null;     // legacy HS256 secret, only if the owner adds it as a secret
+  loginOtpEncryptionKey: string | null;
+  adminSecurityEmail: string | null;
   siteUrl: string;              // where links in emails point, e.g. https://learnwithwhy.in
   allowedOrigins: string[];     // browser origins allowed to call the API (empty = any)
   mail: {
@@ -70,6 +72,8 @@ export function env(): Env {
     publishableKey: firstKey('SUPABASE_PUBLISHABLE_KEYS') ?? get('SUPABASE_ANON_KEY') ?? '',
     jwks: get('SUPABASE_JWKS'),
     jwtSecret: get('LWW_JWT_SECRET'),
+    loginOtpEncryptionKey: get('LOGIN_OTP_ENCRYPTION_KEY'),
+    adminSecurityEmail: get('ADMIN_SECURITY_EMAIL'),
     siteUrl: (get('SITE_URL') ?? 'http://localhost:5173').replace(/\/+$/, ''),
     allowedOrigins: (get('ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean),
     mail: {
