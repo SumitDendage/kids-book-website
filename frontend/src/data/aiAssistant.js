@@ -1,17 +1,16 @@
 /* The AI assistant on the landing page: its name, its first message, and the short
    practice answers it gives when neither the FAQ list (data/faq.json) nor our server has an
    answer (see services/aiChat.js).
-   Each answer lists the words that bring it up (a plural counts too); the first match wins.
-   {access} becomes how long a bought sheet stays open ("24 hours" unless staff change it). */
+   Each answer lists the words that bring it up (a plural counts too); the first match wins. */
 export const AI_NAME = 'Learn With Why AI';
 export const AI_WELCOME = 'Hi! 👋 Welcome. How can I help you today?';
 export const AI_PLACEHOLDER = 'Ask me anything...';
 
 export const AI_ANSWERS = [
   { words: ['free', 'sample', 'try'], reply: 'Eight sheets are free to try: Alphabet A and B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Open them from the shop (pick Free): no sign-in is needed. Every other sheet is bought on its own or opens with a class plan.' },
-  { words: ['how long', 'expire', 'expiry', 'expires', 'expired', 'forever', 'keep', 'year', 'days', 'access', 'buy again'], reply: 'A sheet you buy stays open for {access}, counted from the moment your payment is verified. My Account → My Worksheets shows a timer with the time left. When it reaches zero, the sheet is removed from your account, and you can buy it again from the shop. Pages you have already printed or downloaded stay with you: a copy on a device or on paper cannot be removed from here.' },
+  { words: ['how long', 'expire', 'expiry', 'expires', 'expired', 'forever', 'keep', 'year', 'days', 'access', 'buy again'], reply: 'A sheet you buy stays on your account for good. Open it from My Account → My Worksheets as often as you like. A class plan opens its sheets for as long as the plan runs.' },
   { words: ['subscribe', 'subscription', 'plan', 'month'], reply: 'You can take a Kindergarten plan for 1, 3 or 6 months (12 months too outside India). Every Kindergarten sheet opens while the plan runs, and it ends after its months. Pick a plan in the shop’s Subscription view; the price shows on the payment page.' },
-  { words: ['price', 'cost', 'pay', 'buy', 'rupee', '₹', 'payment'], reply: 'You can buy single sheets or take a Kindergarten plan. The price shows on our secure payment page before you pay, and a bought sheet stays open for {access}.' },
+  { words: ['price', 'cost', 'pay', 'buy', 'rupee', '₹', 'payment'], reply: 'You can buy single sheets or take a Kindergarten plan. The price shows on our secure payment page before you pay, and a sheet you buy is yours to keep.' },
   { words: ['class 1', 'class 2', 'class 3', 'grade', 'standard'], reply: 'Class 1, 2 and 3 sheets are coming soon. The Kindergarten sheets are ready now.' },
   { words: ['kindergarten', 'kg', 'alphabet', 'letter', 'tracing', 'phonics', 'sound', 'abc'], reply: 'Kindergarten has seven Alphabet sections: A to Z letter tracing, letter recognition, matching uppercase and lowercase, letter before and after, beginning sounds, ending sounds, and finding the missing letters. Vocabulary has Colours and Shapes sheets.' },
   { words: ['english', 'maths', 'math', 'science', 'subject'], reply: 'Right now our sheets are Kindergarten English: the Alphabet sections, plus Colours and Shapes in Vocabulary. More classes and subjects are coming soon.' },

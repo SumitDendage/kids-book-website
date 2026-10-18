@@ -15,7 +15,6 @@ import './styles/35-cart-prints.css';
 import './styles/36-readable-auth.css';
 /* the brighter magical forest look (Oct 16): loaded last */
 import './styles/37-magic-forest.css';
-import './styles/38-countdown.css';
 
 installTelemetry();
 

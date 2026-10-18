@@ -140,8 +140,7 @@ export const authApi = {
      409 { code: 'role_locked' } and only staff can change it */
   updateMe: body => api('PATCH', '/api/auth/me', body),
   verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
-  verifySignupCode: sdkAuth.verifySignupCode,    /* { email, code }: the 6-digit code from the sign-up email */
-  resendVerification: sdkAuth.resendVerification, /* { email }: Supabase emails a new sign-up code */
+  resendVerification: body => api('POST', '/api/auth/resend-verification', body),   /* { email }: unconfirmed accounts only; a fresh password comes with the link */
   forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
   resetPassword: sdkAuth.resetPassword,             /* { token, password } */
   hasTokens: () => usable(customerTokens.get()),

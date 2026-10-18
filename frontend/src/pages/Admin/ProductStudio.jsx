@@ -6,7 +6,6 @@ import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
 import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, VISIBILITY, localInput, fromLocalInput } from './common.js';
-import { spanText } from '../../data/content.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -109,7 +108,6 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
   }, [all]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
   const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
-  const shopSpan = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && (x.effectiveAccessHours || x.effectiveAccessDays)); return s ? (s.effectiveAccessHours ? spanText(s.effectiveAccessHours) : s.effectiveAccessDays + ' days') : null; }, [all]);
   const topicValue = it.section ? (it.group || '') + '|' + it.section : '';
   /* the website's sections (Admin → Categories), by group; the sheets' own sections if they could not load */
   const sectionGroups = useMemo(() => {
@@ -135,7 +133,6 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
       pages: n('pages') || 1,
       audience: f.get('audience') || null,
       stock: n('stock'),
-      accessDays: n('accessDays'),
       printRule: f.get('printRule') === 'sheet' ? 'sheet' : 'account',
       printLimit: n('printLimit') ?? 0,
       downloadLimit: n('downloadLimit') ?? 0,
@@ -297,11 +294,10 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
               {VISIBILITY.map(([id, name]) => <label key={id} className={'seg-opt' + (vis === id ? ' on' : '')}><input type="radio" name="visibility" value={id} checked={vis === id} onChange={() => setVis(id)} />{name}</label>)}
             </div>
             {vis === 'scheduled' ? <div className="grid-3"><div className="field"><label htmlFor="psWhen">Publish on</label><input id="psWhen" type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} aria-invalid={!!errs.publishAt} />{err1('publishAt')}</div></div> : null}
-            <small className="muted">{{ draft: 'Not on the website. Only staff can see it.', published: hasPdf ? 'On the website as soon as you save.' : 'Add the PDF first: a sheet goes on the website only with its PDF.', scheduled: 'Goes on the website by itself at the time you pick.', hidden: 'Taken off the website. Customers who bought it keep their access until it ends.' }[vis]}</small>
+            <small className="muted">{{ draft: 'Not on the website. Only staff can see it.', published: hasPdf ? 'On the website as soon as you save.' : 'Add the PDF first: a sheet goes on the website only with its PDF.', scheduled: 'Goes on the website by itself at the time you pick.', hidden: 'Taken off the website. Customers who bought it keep it.' }[vis]}</small>
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Access and limits per customer</legend>
             <div className="grid-3">
-              <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopSpan ? 'Shop setting: ' + shopSpan : 'Shop setting'} /><small>How long a buyer can open it, in days. Empty uses the shop setting{shopSpan ? ' (' + shopSpan + ')' : ''}, set in hours under Settings.</small>{err1('accessDays')}</div>
               <div className="field"><label htmlFor="psRule">Prints come from</label><select id="psRule" name="printRule" value={printRule} onChange={e => setPrintRule(e.target.value)}><option value="account">The account type</option><option value="sheet">This sheet only</option></select>
                 <small>{printRule === 'sheet' ? 'Every customer gets the number below.' : typePrints ? 'Parents ' + typePrints.parent + ' · Teachers ' + typePrints.teacher + ' · Organizations ' + typePrints.organization + '. Change these in Settings.' : 'The numbers in Settings → Prints per sheet.'}</small>{err1('printRule')}</div>
               <div className="field"><label htmlFor="psPrint">Prints with this sheet only</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} aria-describedby="psPrintHelp" /><small id="psPrintHelp">{printRule === 'sheet' ? '0 means view only.' : 'Used only when prints come from this sheet.'}</small>{err1('printLimit')}</div>

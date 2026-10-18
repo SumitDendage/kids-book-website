@@ -487,7 +487,7 @@
 },
 {
 "q": "How is a subscription different from buying one PDF?",
-"a": "A class plan provides access to its sheets while the plan runs. The uploaded website describes an individually purchased PDF as yours to keep with no expiry, subject to account and licence conditions.",
+"a": "A class plan opens its sheets while the plan runs. A PDF you buy on its own is yours to keep: it stays on your account for good.",
 "alt": [],
 "kw": [
 "single pdf versus subscription",
@@ -505,7 +505,7 @@
 },
 {
 "q": "What happens when my subscription expires?",
-"a": "Access supplied by that class plan ends when the plan expires. A PDF bought on its own has its own timer: it stays open for a set number of hours (24 unless the shop says otherwise), then it is removed from your account. Check My Account → My Worksheets for the time left.",
+"a": "Access supplied by that class plan ends when the plan expires. A PDF you bought on its own is not affected: it stays on your account for good, in My Account → My Worksheets.",
 "alt": [],
 "kw": [
 "expired subscription",
@@ -1115,7 +1115,7 @@
 },
 {
 "q": "Do individually purchased PDFs expire?",
-"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. The timer controls opening the sheet on this website. Pages you have already printed or downloaded stay with you, because a copy on a device or on paper cannot be removed from here.",
+"a": "No. A PDF you buy stays on your account for good. Open it from My Account → My Worksheets as often as you like. A class plan is different: its sheets open while the plan runs.",
 "alt": [],
 "kw": [
 "pdf expiry",

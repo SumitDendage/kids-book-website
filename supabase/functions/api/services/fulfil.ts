@@ -89,7 +89,7 @@ type PaidOrder = {
   email: string; name: string; time_zone: string | null;
 };
 
-type PaidLine = { title: string; kind: 'worksheet' | 'class'; product_id: string | null; starts_at: Date; expires_at: Date };
+type PaidLine = { title: string; kind: 'worksheet' | 'class'; product_id: string | null; starts_at: Date; expires_at: Date | null };
 
 async function afterPaid(q: Tx, ctx: Ctx | null, o: FulfilInput, source: string, ids: number[], previousStatus: string | null) {
   const ord = (await q<PaidOrder[]>`
@@ -124,7 +124,7 @@ async function afterPaid(q: Tx, ctx: Ctx | null, o: FulfilInput, source: string,
   }
   await notify(q, {
     audience: 'customer', userId: ord.user_id, kind: 'purchase.success', title: 'Purchase successful',
-    body: lines.map((l) => `${l.title}: open until ${fmtDateTime(l.expires_at, ord.time_zone)}`).join('\n') || `Order ${ord.id} is paid.`,
+    body: lines.map((l) => `${l.title}: ${l.expires_at ? 'open until ' + fmtDateTime(l.expires_at, ord.time_zone) : 'yours to keep'}`).join('\n') || `Order ${ord.id} is paid.`,
     link: '/?account=worksheets',
     data: { orderId: ord.id, entitlements: ids },
   });

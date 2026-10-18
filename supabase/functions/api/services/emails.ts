@@ -76,25 +76,25 @@ export function passwordChanged(o: { name: string; at: Date; timeZone?: string |
   return { subject, html, text };
 }
 
-export type PurchaseLine = { title: string; expiresAt: Date | string; startsAt?: Date | string | null; kind: 'worksheet' | 'class' };
+// expiresAt null: a sheet bought on its own, which stays on the account for good
+export type PurchaseLine = { title: string; expiresAt: Date | string | null; startsAt?: Date | string | null; kind: 'worksheet' | 'class' };
 
 export function purchaseSuccessful(o: { name: string; orderId: string; total: string; lines: PurchaseLine[]; timeZone?: string | null }): Email {
   const subject = `Purchase Successful — ${o.lines.map((l) => l.title).join(', ').slice(0, 120)}`;
   const items = o.lines.map((l) => {
     const starts = l.startsAt && new Date(l.startsAt).getTime() > Date.now() + 60_000 ? `<br>Starts: ${escapeHtml(when(l.startsAt, o.timeZone))}` : '';
-    return `<li style="margin-bottom:10px"><strong>${escapeHtml(l.title)}</strong>${starts}<br>Open until: <strong>${escapeHtml(when(l.expiresAt, o.timeZone))}</strong></li>`;
+    const until = l.expiresAt ? `Open until: <strong>${escapeHtml(when(l.expiresAt, o.timeZone))}</strong>` : '<strong>Yours to keep</strong>: it stays on your account for good.';
+    return `<li style="margin-bottom:10px"><strong>${escapeHtml(l.title)}</strong>${starts}<br>${until}</li>`;
   }).join('');
   const html = layout('Purchase Successful', [
     p(`Hello ${escapeHtml(o.name)}, thank you! Order ${escapeHtml(o.orderId)} (${escapeHtml(o.total)}) is paid.`),
     `<ul style="padding-left:18px;margin:0 0 12px">${items}</ul>`,
-    p('Open your sheets any time before then in <strong>My Account → My Worksheets</strong>, where a timer shows the time left.'),
+    p('Open them any time in <strong>My Account → My Worksheets</strong>.'),
     btn(`${site()}/?account=worksheets`, 'Open My Worksheets'),
-    p('When the time is up, the sheet is removed from your account. You can buy it again from the shop.'),
   ].join(''));
   const text = `Purchase Successful\n\nHello ${o.name}, order ${o.orderId} (${o.total}) is paid.\n\n` +
-    o.lines.map((l) => `- ${l.title}: open until ${when(l.expiresAt, o.timeZone)}`).join('\n') +
-    `\n\nFind them in My Account → My Worksheets (a timer shows the time left): ${site()}/?account=worksheets\n` +
-    `When the time is up, the sheet is removed from your account. You can buy it again from the shop.\n`;
+    o.lines.map((l) => `- ${l.title}: ${l.expiresAt ? 'open until ' + when(l.expiresAt, o.timeZone) : 'yours to keep'}`).join('\n') +
+    `\n\nFind them in My Account → My Worksheets: ${site()}/?account=worksheets\n`;
   return { subject, html, text };
 }
 

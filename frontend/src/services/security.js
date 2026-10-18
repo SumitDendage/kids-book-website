@@ -5,7 +5,7 @@
    the /account-blocked page can say so after the sign-in is gone. No sample data, no made-up
    numbers: when the server has not answered, nothing is shown. */
 import { fetchConfig, meApi } from './api.js';
-import { INBOX, DEFAULT_ACCESS_HOURS } from '../data/content.js';
+import { INBOX } from '../data/content.js';
 
 export const SUPPORT_EMAIL = INBOX;
 export const MAX_WARNINGS = 3;
@@ -35,12 +35,10 @@ export async function getSiteRules() {
       supportEmail: validEmail(c && c.supportEmail) ? c.supportEmail : SUPPORT_EMAIL,
       maxWarnings: num(c && c.security && c.security.maxWarnings) || MAX_WARNINGS,
       emailOn: !(c && c.features && c.features.email === false),
-      accessDays: num(c && c.accessDays) || 1,
-      accessHours: num(c && c.accessHours) || (num(c && c.accessDays) ? num(c.accessDays) * 24 : DEFAULT_ACCESS_HOURS),
       known: true,
     };
   } catch (_) {
-    return { agreement: DEFAULT_AGREEMENT, supportEmail: SUPPORT_EMAIL, maxWarnings: MAX_WARNINGS, emailOn: true, accessDays: 1, accessHours: DEFAULT_ACCESS_HOURS, known: false };
+    return { agreement: DEFAULT_AGREEMENT, supportEmail: SUPPORT_EMAIL, maxWarnings: MAX_WARNINGS, emailOn: true, known: false };
   }
 }
 

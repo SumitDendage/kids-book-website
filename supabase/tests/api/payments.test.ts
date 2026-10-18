@@ -4,7 +4,6 @@
 // real POST /api/quote (builder B's pricing service).
 import { assert, assertEquals, assertMatch, assertStatus, startHarness, test, type Harness, type TestUser } from './harness.ts';
 import { installGatewayFakes, type Delivery } from './fakes/gateways.ts';
-import { fmtDateTime } from '../../functions/api/lib/util.ts';
 
 const h: Harness = await startHarness();
 const gw = await installGatewayFakes(h);
@@ -96,8 +95,8 @@ test('razorpay: order, then verify with a correct signature grants exactly once'
   assertEquals(v.body.order.paymentId, pay.paymentId);
   assertEquals(v.body.entitlement.worksheet, 'az-C');
   assertEquals(v.body.entitlement.status, 'active');
-  const hours = (v.body.entitlement.end - Date.now()) / 3_600_000;
-  assert(hours > 23.9 && hours <= 24.01, `a bought sheet is open for 24 hours, got ${hours}`);
+  assertEquals(v.body.entitlement.end, null, 'a bought sheet stays on the account for good');
+  assertEquals((await h.sql`select expires_at from entitlements where order_id = ${orderId}`)[0].expires_at, null);
   const line = (await h.sql<{ access_days: number; access_hours: number }[]>`select access_days, access_hours from order_items where order_id = ${orderId}`)[0];
   assertEquals([line.access_hours, line.access_days], [24, 1], 'the order line keeps the hours it was sold with');
   assertEquals(h.fake.calls(`/v1/payments/${pay.paymentId}`, 'GET').length, fetchesBefore + 1, 'the payment is fetched from Razorpay');
@@ -704,7 +703,7 @@ test('paypal webhook: verified with PayPal on the raw text; capture completed gr
 
 // ── the Purchase Successful email ────────────────────────────────────────────────────────
 
-test('Purchase Successful email: queued once per order, with the title, the expiry and My Account → My Worksheets', async () => {
+test('Purchase Successful email: queued once per order, with the title, yours to keep and My Account → My Worksheets', async () => {
   const c = await h.customer();
   await h.sql`update profiles set time_zone = 'America/New_York' where id = ${c.id}`;
   const { orderId, gateway, pay } = await paidRazorpay(c, { worksheet: 'az-F' });
@@ -723,10 +722,8 @@ test('Purchase Successful email: queued once per order, with the title, the expi
   const m = mails[0];
   const title = (await h.sql<Any[]>`select title from products where id = 'az-F'`)[0].title as string;
   assert(m.subject.includes(title), `subject names the sheet: ${m.subject}`);
-  const exp = (await entsOf(c.id))[0].expires_at as Date;
-  const when = fmtDateTime(exp, 'America/New_York');
-  assert(when !== fmtDateTime(exp, 'UTC'), `shown in the customer's zone, not UTC: ${when}`);
-  assert(m.text.includes(title) && m.text.includes(when), `text has the title and the expiry in the customer's zone:\n${m.text}`);
+  assertEquals((await entsOf(c.id))[0].expires_at, null, 'a bought sheet has no end');
+  assert(m.text.includes(title + ': yours to keep') && !/open until|removed/i.test(m.text), `text has the title, yours to keep, and no end:\n${m.text}`);
   assert(m.text.includes('My Account → My Worksheets'), 'text points to My Account → My Worksheets');
   assert(m.html.includes('My Account → My Worksheets'), 'html points to My Account → My Worksheets');
   assert(m.text.includes(orderId));
@@ -756,7 +753,7 @@ async function rzCaptured(rzOrderId: string) {
 }
 
 const liveEnts = (userId: string) => h.sql<Any[]>`
-  select * from entitlements where user_id = ${userId} and revoked_at is null and expires_at > now() order by id`;
+  select * from entitlements where user_id = ${userId} and revoked_at is null and (expires_at is null or expires_at > now()) order by id`;
 
 test('coupon: a per-customer limit cannot be beaten by opening a second discounted order before paying the first (MONEY-1a)', async () => {
   const c = await h.customer();

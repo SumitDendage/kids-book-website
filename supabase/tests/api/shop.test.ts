@@ -131,7 +131,8 @@ test('quote: India — base, GST 18% and fee from database prices; stored as quo
   assertEquals(b.sig, b.quoteId);
   assert(b.expiresAt === b.exp && b.exp > Date.now() + 14 * 60_000 && b.exp <= Date.now() + 15 * 60_000 + 5000, 'expires in 15 minutes');
   assertEquals([b.accessDays, b.accessHours], [1, 24]);
-  assertMatch(b.items[0].expiry, /Open for 24 hours from payment — until .* After that it is removed from your account\./);
+  assertEquals(b.items[0].expiry, 'Yours to keep: it opens as soon as your payment is verified and stays on your account for good.');
+  assertEquals(b.items[0].endsAt, null, 'a bought sheet has no end');
   assertEquals(b.methods, [], 'no gateway is configured in the test env');
 
   const row = (await h.sql`select * from quotes where id = ${b.quoteId}`)[0];

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import { CLASSES, SUBJECTS, classById, accessSpan } from '../../data/content.js';
+import { CLASSES, SUBJECTS, classById } from '../../data/content.js';
 import { ITEMS, KG_TOPICS, AZ_LETTERS, AZ_FREE, azItem, isListed, byOrder, SERVER } from '../../data/catalogue.js';
 import { subjectMatches } from './SheetCard.jsx';
 import Rise from '../common/Rise.jsx';
@@ -32,7 +32,7 @@ function AzBlock() {
     <section className="az rise" style={{ '--i': 3 }} aria-label="A to Z free sheets">
       <div className="az-head">
         <div><p className="eyebrow">Letter tracing · A to Z</p><h3>Every letter, <em>one calm page.</em></h3></div>
-        <p>Twenty-six alphabet sheets to trace, colour and say out loud. <b>{AZ_FREE.join(', ')} are free</b>: open them straight away, no sign-in needed. Tap any other letter to see what is inside. Once bought, a sheet stays open for {accessSpan(AZ_LETTERS.map(azItem).find(it => it.price > 0) || {})}.</p>
+        <p>Twenty-six alphabet sheets to trace, colour and say out loud. <b>{AZ_FREE.join(', ')} are free</b>: open them straight away, no sign-in needed. Tap any other letter to see what is inside. A sheet you buy is yours to keep.</p>
       </div>
       <div className="az-grid">{azShown().map((it, n) => <AzTile key={it.id} it={it} n={n} />)}</div>
       <div className="az-foot"><span>{azShown().length} sheets · PDF · A4</span><span>{AZ_FREE.length} free · the rest are paid</span></div>

@@ -157,26 +157,16 @@ async function chat(message: string, ip?: string) {
   return await h.call('POST', '/api/ai/chat', { body: { message, history: [] }, ip });
 }
 
-test('chat: answers from the published public FAQ and fills {accessDays}', async () => {
+test('chat: answers from the published public FAQ', async () => {
   const free = await chat('Which sheets are FREE?');
   assertStatus(free, 200);
   assertEquals(free.body.source, 'faq');
   assertMatch(free.body.reply, /^Eight sheets are free to try/);
 
   const days = await chat('how long does my access last after I buy?');
-  assertEquals(days.body.reply, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.body.reply, 'A sheet you buy stays on your account for good. Open it from My Account → My Worksheets as often as you like. A class plan opens its sheets for as long as the plan runs.');
   assert(!days.body.reply.includes('{accessDays}'));
-  await h.setSetting('worksheet_access', { days: 200 });
-  try {
-    assertMatch((await chat('when does it expire?')).body.reply, /stays open for 200 days, counted from your verified payment/);
-  } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 6 });
-  }
-  try {
-    assertMatch((await chat('when does it expire?')).body.reply, /stays open for 6 hours, counted from your verified payment/);
-  } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 24 });
-  }
+  assertMatch((await chat('when does it expire?')).body.reply, /stays on your account for good/);
 
   assertMatch((await chat('hi')).body.reply, /^Hello!/);
   assertMatch((await chat('Is class 2 ready?')).body.reply, /coming soon/);
@@ -276,7 +266,7 @@ test('faq: published public answers only, with {accessDays} filled', async () =>
   assert(list.length >= 10);
   assert(!list.some((f) => /Admin →|Refund policy is being written/.test(f.answer)));
   const days = list.find((f) => f.question.startsWith('How long can I open'))!;
-  assertEquals(days.answer, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.answer, 'A sheet you buy stays on your account for good. Open it from My Account → My Worksheets as often as you like. A class plan opens its sheets for as long as the plan runs.');
 });
 
 test('reviews: published only, initials instead of names, never ids or emails', async () => {

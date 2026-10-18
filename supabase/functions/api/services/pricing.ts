@@ -447,12 +447,11 @@ function addMonthsUtc(d: Date, n: number): Date {
   return out;
 }
 
-function expiryText(item: Item, startsAt: Date, tz: string | null): { expiry: string; startsAt: number; endsAt: number } {
+// a sheet bought on its own has no end (Sumit, Oct 18: no more timed access); a class plan runs its months
+function expiryText(item: Item, startsAt: Date, tz: string | null): { expiry: string; startsAt: number; endsAt: number | null } {
   const now = Date.now();
   if (item.kind === 'worksheet') {
-    const hours = item.accessHours ?? (item.accessDays ? item.accessDays * 24 : DEFAULTS.worksheet_access.hours);
-    const end = new Date(now + hours * 3_600_000);
-    return { expiry: `Open for ${accessSpanText(hours)} from payment — until ${fmtDateTime(end, tz)} if you pay now. After that it is removed from your account.`, startsAt: now, endsAt: end.getTime() };
+    return { expiry: 'Yours to keep: it opens as soon as your payment is verified and stays on your account for good.', startsAt: now, endsAt: null };
   }
   const months = item.months ?? 1;
   const end = addMonthsUtc(startsAt, months);
@@ -589,8 +588,7 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   const hours = common(items, (it) => it.accessHours);
   const title = several ? `${items.length} worksheets` : item.title;
   const accessText = !several ? when.expiry
-    : hours !== null && hours !== undefined ? `Each sheet is open for ${accessSpanText(hours)} from payment, until ${fmtDateTime(new Date(when.endsAt), tz)} if you pay now. After that it is removed from your account.`
-    : 'Each sheet is open for the time shown next to it, counted from payment.';
+    : 'Every sheet opens as soon as your payment is verified and stays on your account for good.';
   const cls = common(items, (it) => it.classId);
 
   // only payable quotes are stored; the rest are price previews while the address is typed

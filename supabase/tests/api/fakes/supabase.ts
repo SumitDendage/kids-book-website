@@ -395,6 +395,24 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       return authError(404, 'not_found', 'Not found');
     }
 
+    // Self sign-up as Supabase Auth answers it with "Confirm email" off (the live setting since
+    // Oct 18): the account is confirmed at once and the answer carries a session.
+    if (path === '/signup' && method === 'POST') {
+      if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
+      const b = await readBody(req);
+      if (!b) return authError(400, 'bad_json', 'Could not parse request body as JSON');
+      const email = String(b.email ?? '').trim().toLowerCase();
+      if (email && await userByEmail(email)) return authError(422, 'user_already_exists', 'User already registered');
+      const made = await createUser({ email, password: String(b.password ?? ''), confirmed: true, via: 'signup',
+        userMeta: b.data && typeof b.data === 'object' ? b.data as Record<string, unknown> : {} });
+      if (made.status !== 200) return made;
+      const user = await loadUser(((await made.json()) as { id: string }).id);
+      const res = await openAuthSession(user!, req.headers.get('user-agent'), validIp(req.headers.get('sb-forwarded-for')));
+      // a new address comes back with its one email identity (an empty list means "already registered")
+      const ident = { id: user!.id, user_id: user!.id, provider: 'email', identity_data: { sub: user!.id, email } };
+      return json(200, { ...res, user: { ...res.user, identities: [ident] } });
+    }
+
     if (path === '/token' && method === 'POST') {
       if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
       const grant = u.searchParams.get('grant_type');

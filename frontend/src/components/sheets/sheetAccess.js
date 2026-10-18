@@ -2,12 +2,12 @@
    (SiteContext's makeAccess: only live records open anything, the rest is history). It only
    paints labels and buttons: the server decides again every time a sheet opens.
      free    a free sheet (open once its PDF is ready, signed in or not)
-     bought  bought on its own and still open (until: when it closes, ms)
+     bought  bought on its own: yours to keep (until: only for an older access with an end, ms)
      plan    opens through a running class plan (until: the plan's end, ms)
      ended   bought before, and that access has ended (endedAt, ms): "Buy Access Again"
      buy     not bought yet
    ready is false while the sheet's PDF is still being prepared ("Coming soon"). */
-import { accessSpan, printsText } from '../../data/content.js';
+import { printsText } from '../../data/content.js';
 
 export function sheetState(access, it) {
   const ready = it.available !== false;
@@ -21,8 +21,8 @@ export function sheetState(access, it) {
   return { kind: 'buy', ready, open: false };
 }
 
-/* "Open for 24 hours once bought", "Open for 3 days once bought" */
-export const openForText = it => 'Open for ' + accessSpan(it) + ' once bought';
+/* a sheet you buy stays on your account for good */
+export const openForText = () => 'Yours to keep once bought';
 
 /* Can this sheet go in the cart? Paid, ready, on sale and not open on the account now
    (a purchase that ended can be bought again from the cart too). */

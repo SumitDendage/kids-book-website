@@ -69,8 +69,8 @@ export async function login({ email, password }) {
   return { user: userView(data.user), session: snapshot() };
 }
 /* Sign-up straight with Supabase Auth: the customer picks the password, so no email service is
-   needed. With the project's "Confirm email" switch on, Supabase emails a 6-digit code and the
-   account only opens once verifySignupCode accepts it; with it off the account is ready at once. */
+   needed. When the project's "Confirm email" switch is off the account is ready at once (the
+   database marks the profile confirmed); when it is on, Supabase emails a confirmation link. */
 export async function signUp({ name, email, password, timeZone }) {
   const { data, error } = await supabase.auth.signUp({
     email, password,
@@ -134,25 +134,8 @@ export async function resetPassword({ password }) {
   await logout();
   return { message: 'Password updated. Sign in with your new password.' };
 }
-/* The code from the sign-up email ({{ .Token }} in Supabase's "Confirm signup" template) confirms
-   the address; only then is the account usable. The real sign-in goes through our server next. */
-export async function verifySignupCode({ email, code }) {
-  const token = String(code || '').replace(/\s+/g, '');
-  if (!/^\d{6,10}$/.test(token)) {
-    throw Object.assign(new Error('Enter the code from the email. It is 6 numbers.'), { status: 400, code: 'otp_format', body: {} });
-  }
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
-  if (error) {
-    if (error.code === 'otp_expired' || /expired|invalid/i.test(error.message)) {
-      throw Object.assign(new Error('That code is wrong or too old. Check the newest email, or send a new code.'), { status: 400, code: 'otp_invalid', body: {} });
-    }
-    authError(error);
-  }
-  if (data && data.session) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-  return { ok: true };
-}
 export async function resendVerification({ email }) {
   const { error } = await supabase.auth.resend({ type: 'signup', email });
   authError(error);
-  return { message: 'A new code is on its way to ' + email + '. Use the newest one.' };
+  return { message: 'A confirmation link is on its way. Your password has not changed. Use Forgot password if you need a new one.' };
 }

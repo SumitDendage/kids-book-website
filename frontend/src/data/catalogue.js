@@ -3,7 +3,7 @@
    objects that the server (GET /api/worksheets) and the admin's book studio
    update in place; components re-render through the catalogue version in the
    site store (see src/context/SiteContext.jsx). */
-import { CLASSES, SUBJECTS, subjectById, accessSpan } from './content.js';
+import { CLASSES, SUBJECTS, subjectById } from './content.js';
 
 export const CATALOGUE = [
   { id: 'nur-eng-abc', cls: 'kg', subject: 'english', title: 'Alphabet tracing A–Z', glyph: 'Aa', pages: 26, price: 0, was: 99, blurb: 'Uppercase and lowercase with dotted guides and a picture cue for every letter.', skills: ['Pencil grip', 'Letter shapes', 'Phonics sounds'] },
@@ -84,9 +84,8 @@ export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'eleph
 export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2', 'vs-3'], SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
-/* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
-   (the sheet's accessHours from the server, 24 hours until it answers) */
-export const accessLine = (price, it) => (price === 0 ? 'Free sample. It opens straight away, no sign-in needed.' : 'Once bought, it stays open for ' + accessSpan(it) + ' from the moment you pay. Then it is removed from your account.');
+/* the last line of every printable sheet's "what is inside": free, or yours to keep once bought */
+export const accessLine = price => (price === 0 ? 'Free sample. It opens straight away, no sign-in needed.' : 'Once bought, it stays on your account for good.');
 export const SERVER_PRICE = {};   /* filled by syncCatalogue() for ids that are not in ITEMS */
 /* Each real PDF is built once and kept, so the store, the topic board and the sheet
    page all hold the same object — a price from the server reaches every one of them. */
@@ -331,9 +330,7 @@ export function applyServerCatalogue(worksheets, extra) {
   /* sheets added in Admin → Products join the shelf (a class the website does not draw is left out) */
   (worksheets || []).forEach(w => { if (!itemById(w.id) && CLASSES.some(c => c.id === w.cls)) { const it = serverItem(w); ITEMS.push(it); PDF_SHEETS.push(it); } });
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
-    /* how long a purchase stays open, whether its PDF is ready, and how many copies come with it */
-    if (w.accessDays) it.accessDays = w.accessDays;
-    if (w.accessHours) it.accessHours = w.accessHours;
+    /* whether its PDF is ready, and how many copies come with it */
     it.available = w.available !== false && w.real !== false;
     it.onSale = w.onSale !== false;
     it.comingSoon = !!w.comingSoon;

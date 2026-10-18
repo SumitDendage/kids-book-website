@@ -255,10 +255,10 @@ test('settings: prints per account type are validated; /api/config, sign-in and 
   }
 });
 
-test('customer text: how long a sheet stays open, printing and account types', async () => {
+test('customer text: a bought sheet stays for good, printing and account types', async () => {
   const faq = (await h.call('GET', '/api/faq')).body.faq as { question: string; answer: string }[];
   assertEquals(faq.find((f) => f.question === 'How long can I open a sheet I bought?')!.answer,
-    'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+    'A sheet you buy stays on your account for good. Open it from My Account → My Worksheets as often as you like. A class plan opens its sheets for as long as the plan runs.');
   const printing = faq.find((f) => f.question === 'How many times can I print a sheet?')!;
   assert(printing.answer.includes('2 with a Parent account, 4 with a Teacher account and 300 with an Organization account'), printing.answer);
   assert(faq.some((f) => f.question === 'Which account type should I choose?'));
@@ -546,8 +546,8 @@ test('quote: several sheets are priced as one order, one line each; refusals nam
   const q = r.body;
   assertEquals([q.valid, q.kind, q.worksheet, q.title, q.count, q.cls, q.accessDays, q.listInr], [true, 'worksheet', null, '3 worksheets', 3, 'kg', 1, 57]);
   assertEquals(q.worksheets, ['az-C', 'az-D', 'az-F']);
-  assertEquals((q.items as Any[]).map((i) => [i.productId, i.unitPriceInr, i.discountInr, typeof i.endsAt]), [
-    ['az-C', 19, 0, 'number'], ['az-D', 19, 0, 'number'], ['az-F', 19, 0, 'number'],
+  assertEquals((q.items as Any[]).map((i) => [i.productId, i.unitPriceInr, i.discountInr, i.endsAt]), [
+    ['az-C', 19, 0, null], ['az-D', 19, 0, null], ['az-F', 19, 0, null],
   ]);
   assert(q.totalInr >= 57, 'the total covers every sheet');
   const single = await h.call('POST', '/api/quote', { token: c.token, body: { worksheet: 'az-C', address: IN_ADDR } });

@@ -7,7 +7,7 @@
    the server with the order. */
 import { fetchConfig, fetchGeo } from './api.js';
 import { read } from './storage.js';
-import { accessSpan, applyServerPlans } from '../data/content.js';
+import { applyServerPlans } from '../data/content.js';
 
 let coConfig = null, geoCountry = null, geoAsked = false;
 export const getCoConfig = () => coConfig;
@@ -80,8 +80,6 @@ export function monthsText(plans) {
   const list = m.length === 1 ? String(m[0]) : m.slice(0, -1).join(', ') + ' or ' + m[m.length - 1];
   return list + (m.length === 1 && m[0] === 1 ? ' month' : ' months');
 }
-/* how long a bought sheet stays open: spanOfDays(sheet | quote line | quote) or a number of days */
-export const spanOfDays = accessSpan;
 
 /* Razorpay Checkout is loaded only when someone pays */
 export function loadRazorpay() {

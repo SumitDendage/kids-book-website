@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { eventsApi } from '../../services/api.js';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
-import { classById, planOf, accessSpan } from '../../data/content.js';
-import Countdown from '../sheets/Countdown.jsx';
+import { classById, planOf } from '../../data/content.js';
 import { dateTimeTz } from '../../utils/format.js';
 import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
 import { CartButton } from '../sheets/SheetCard.jsx';
@@ -31,15 +30,14 @@ function AccountPopup({ id }) {
 }
 
 /* any sheet, free or paid: a look at the page, what is inside, and the open / buy action.
-   The Access row says how long a purchase stays open (the sheet's accessDays from the server),
-   until when it is open now, or when it ended ("Buy Access Again"). */
+   The Access row says a purchase is yours to keep, that it is on the account now, or when an
+   older access ended ("Buy Access Again"). */
 function SheetDetail({ id }) {
   const site = useSite();
   const { access, closeModal, openViewer, buy, cart } = site;
   const it = sheetOf(id); if (!it) return null;
   const session = access.session, tz = tzOf(access);
   const free = it.price === 0, cls = classById(it.cls) || { label: 'Kindergarten' }, st = sheetState(access, it);
-  const span = accessSpan(it);
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const buyAgain = () => (site.buyAgain ? site.buyAgain(it.id) : (closeModal(), site.openCheckout({ worksheet: it.id, again: true })));
   const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} />
@@ -50,7 +48,7 @@ function SheetDetail({ id }) {
     );
   const accessLine = !st.ready && !st.open ? 'Coming soon'
     : st.kind === 'free' ? (session ? 'Free access · signed in' : 'Free access · no sign-in needed')
-    : st.kind === 'bought' ? (st.until ? 'Open until ' + dateTimeTz(st.until, tz) : 'Open on your account')
+    : st.kind === 'bought' ? (st.until ? 'Open until ' + dateTimeTz(st.until, tz) : 'Yours to keep · on your account')
     : st.kind === 'plan' ? 'In your ' + cls.label + ' plan' + (st.until ? ' · until ' + dateTimeTz(st.until, tz) : '')
     : st.kind === 'ended' ? (st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) : 'Your access has expired')
     : openForText(it);
@@ -62,12 +60,12 @@ function SheetDetail({ id }) {
     : st.open
       ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
       : !session
-        ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button>{free ? null : <CartButton it={it} st={st} />}<span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : cart.has(it.id) ? 'It is in your cart. Sign in to pay for everything in your cart in one go.' : 'Sign in, then buy this PDF, or add it to your cart and buy a few together. It stays open for ' + span + ' from the day you pay.'}</span></>
+        ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button>{free ? null : <CartButton it={it} st={st} />}<span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : cart.has(it.id) ? 'It is in your cart. Sign in to pay for everything in your cart in one go.' : 'Sign in, then buy this PDF, or add it to your cart and buy a few together. It is yours to keep.'}</span></>
         : free
           ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">Free access sheet. No payment needed, just open it.</span></>
           : st.kind === 'ended'
-            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) + '. ' : 'Your access has expired. '}Buy it again and it opens for another {span} from the day you pay.</span></>
-            : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
+            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) + '. ' : 'Your access has expired. '}Buy it again and it stays on your account for good.</span></>
+            : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays on your account for good.</span></>;
   return (
     <>
       <div className="sheet-view">{pic}</div>
@@ -105,8 +103,8 @@ const titleOfLine = l => {
 };
 const endOfLine = l => (l.end != null ? l.end : l.expiresAt ? Date.parse(l.expiresAt) : null);
 
-/* Shown right after a verified payment: "Purchase Successful", each sheet or plan with the date and time
-   its access ends (with the time zone), and where to find it again: My Account → My Worksheets.
+/* Shown right after a verified payment: "Purchase Successful", each sheet ("Yours to keep") or plan with
+   the date and time it ends (with the time zone), and where to find it again: My Account → My Worksheets.
    Props: { p } where p is what SiteContext.showPurchasePopup(...) builds with purchaseOf():
    { order: 'LWO-…', total: '₹25.80', method: 'Razorpay · QR code', paidAt, lines: [{ kind, worksheet, cls, plan,
    title, start, end (ms), expiresAt (ISO) }], entitlements }. The older { order, worksheet | cls + plan, total,
@@ -129,12 +127,12 @@ function PurchasePopup({ p }) {
       <p className="lead">{plan ? 'Your plan is ready.' : lines.length > 1 ? 'Your sheets are ready to open.' : 'Your sheet is ready to open.'}</p>
       {lines.map((l, i) => {
         const end = endOfLine(l), starts = l.start != null && l.start > now + 60e3 ? l.start : null, c = classById(l.cls);
+        const keep = l.kind !== 'class' && !end;
         return (
           <div className="expiry" key={i} data-line={l.worksheet || l.cls || i}>
-            <small>{l.kind === 'class' ? titleOfLine(l) + ': every ' + (c ? c.label : 'class') + ' sheet is open until' : titleOfLine(l) + ' is open until'}</small>
-            <b>{end ? dateTimeTz(end, tz) : 'See My Worksheets'}</b>
-            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.skew) || 0} /> : null}
-            <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : end && l.kind !== 'class' ? 'Open it as often as you like until then. When the timer reaches zero, it is removed from your account.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
+            <small>{l.kind === 'class' ? titleOfLine(l) + ': every ' + (c ? c.label : 'class') + ' sheet is open until' : keep ? titleOfLine(l) : titleOfLine(l) + ' is open until'}</small>
+            <b>{keep ? 'Yours to keep' : end ? dateTimeTz(end, tz) : 'See My Worksheets'}</b>
+            <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : keep ? 'It stays on your account for good. Open it as often as you like.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
           </div>
         );
       })}

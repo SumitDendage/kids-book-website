@@ -7,7 +7,6 @@ import { Guard, ErrorNote, Loading } from '../../components/dashboard/States.jsx
 import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, useAct, fmt, inr, cur, qs, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
-import { accessSpan } from '../../data/content.js';
 import { ORDER_STATUS_LABEL, METHOD_LABEL, ENT_STATUS_LABEL, ENT_TONE, orderWhat, orderAmount, entName, startOfDayIso, endOfDayIso } from './common.js';
 
 const FILTERS = [['', 'All'], ['paid', 'Paid'], ['created', 'Unpaid'], ['refunded', 'Refunded'], ['cancelled', 'Cancelled'], ['failed', 'Failed'], ['expired', 'Expired']];
@@ -131,7 +130,7 @@ function OrderDetail({ id, onBack }) {
           <section className="panel"><p className="eyebrow">What was bought</p>
             <DataTable plain head={['Item', 'Price', 'Discount', 'Access', 'Open until']} empty="No lines on this order."
               rows={o.lines.map((l, i) => ({ key: i, cells: [
-                <span key="t">{l.title || l.worksheet}<br /><small>{l.kind === 'class' ? 'Class plan' + (l.months ? ', ' + plural(l.months, 'month') : '') : 'Sheet' + (l.accessHours || l.accessDays ? ', open ' + accessSpan(l) : '')}</small></span>,
+                <span key="t">{l.title || l.worksheet}<br /><small>{l.kind === 'class' ? 'Class plan' + (l.months ? ', ' + plural(l.months, 'month') : '') : 'Sheet'}</small></span>,
                 inr(l.unitPriceInr), l.discountInr ? inr(l.discountInr) : '',
                 l.entitlement ? <Pill key="e" tone={ENT_TONE[l.entitlement.status]}>{ENT_STATUS_LABEL[l.entitlement.status] || l.entitlement.status}</Pill> : <small key="e">{o.status === 'paid' ? 'Not given' : 'Given when paid'}</small>,
                 l.entitlement && l.entitlement.end ? fmt(l.entitlement.end) : '',

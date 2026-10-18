@@ -6,8 +6,6 @@
    3. If the server cannot answer, the chat suggests the closest FAQ questions, or falls back
       to the short practice answers in data/aiAssistant.js. A visitor always gets a reply. */
 import { aiApi } from './api.js';
-import { getCoConfig } from './checkout.js';
-import { accessSpan } from '../data/content.js';
 import { findAnswer } from './faqSearch.js';
 import { AI_ANSWERS, AI_FALLBACK, AI_FILE_REPLY, AI_SUGGEST, AI_BUSY, AI_NOT_SURE } from '../data/aiAssistant.js';
 
@@ -18,7 +16,7 @@ const has = (text, w) => new RegExp('(^|[^a-z])' + escape(w) + 's?([^a-z]|$)').t
 export function practiceReply(message, { file } = {}) {
   const text = String(message || '').toLowerCase();
   const hit = AI_ANSWERS.find(a => a.words.some(w => has(text, w)));
-  if (hit) return hit.reply.replace(/\{access\}/g, accessSpan(getCoConfig() || {}));
+  if (hit) return hit.reply;
   return file ? AI_FILE_REPLY : AI_FALLBACK;
 }
 
