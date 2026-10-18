@@ -40,6 +40,7 @@ const MAIL_OFF = 'The server cannot send email yet. Please try again later.';
 const LOGIN_OTP_MINUTES = 10;
 const LOGIN_OTP_MAX_ATTEMPTS = 5;
 const LOGIN_OTP_MAX_RESENDS = 3;
+const LOGIN_OTP_CHALLENGE_TTL_SECONDS = LOGIN_OTP_MINUTES * 60;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
