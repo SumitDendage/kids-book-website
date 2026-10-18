@@ -17,10 +17,22 @@ import {
   BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, UNVERIFIED_MESSAGE, verifyAccessToken,
 } from '../lib/auth.ts';
 import { cleanName, generatePassword, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
-import { passwordChanged, resendVerification as resendVerificationMail, welcome } from '../services/emails.ts';
+import {
+  loginOtpEmail,
+  passwordChanged,
+  resendVerification as resendVerificationMail,
+  staffAlert,
+  welcome,
+} from '../services/emails.ts';
 import { endAllSessions, issueLinkToken, linkUrl, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
 import { evaluateRules, securityStatus, type SecurityStatus } from '../services/sharing.ts';
 import { ROLE_LOCKED, roleFromInput } from '../services/entitlements.ts';
+import {
+  decryptLoginSession,
+  encryptLoginSession,
+  generateLoginOtp,
+  hashLoginOtp,
+} from '../lib/loginOtp.ts';
 const BAD_LOGIN = 'We could not match that email and password. New here? Sign up instead.';
 const SESSION_BLOCKED = 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.';
 const AGREEMENT_NEEDED = 'Please accept the agreement: your account is personal and must not be shared.';
