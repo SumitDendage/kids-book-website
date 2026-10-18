@@ -22,10 +22,9 @@ deliberately does not claim to do.
 
 ## Sign-in
 
-- Passwords are stored by Supabase Auth only. The server generates the customer's first password
-  (16 characters, no look-alike letters) and emails it once; it is never stored or logged in plain
-  text, and the welcome email's text is not kept in the email log. It works until the customer
-  resets it — there is no forced change at first sign-in.
+- Passwords are stored by Supabase Auth only, and are never logged or kept anywhere else. Customers
+  choose their own password at sign-up, and the account opens only after they confirm their email
+  with the 6-digit code Supabase sends.
 - Every API request checks the token **and** the database: the sign-in session must be one the API
   opened, not ended, not blocked and not past its end (12 hours, or 30 days with "Keep me signed
   in", never more than 90 days — the settings cannot raise this and the database refuses a longer
@@ -61,8 +60,8 @@ deliberately does not claim to do.
 
 ## Worksheet access
 
-- A bought sheet opens for the number of days set by staff (365 by default), counted from the
-  moment the payment is verified. Class plans last their months. Dates are stored in UTC and shown
+- A bought sheet opens for the number of hours set by staff (24 by default), counted from the
+  moment the payment is verified, with a live countdown; it leaves the account when the time is up. Class plans last their months. Dates are stored in UTC and shown
   with the time zone named.
 - Expired sheets disappear from the active list but stay in order history and staff records, with
   **Buy Access Again**.
