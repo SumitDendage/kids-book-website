@@ -13,26 +13,8 @@ import { blockAccount, endAllSessions, unblockAccount } from '../../functions/ap
 
 const h: Harness = await startHarness();
 const SITE = 'http://localhost:5173';
-const PASSWORD_RE = /\b[A-HJ-NP-Za-km-z2-9]{4}-[A-HJ-NP-Za-km-z2-9]{4}-[A-HJ-NP-Za-km-z2-9]{4}-[A-HJ-NP-Za-km-z2-9]{4}\b/;
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────
-
-async function signup(email: string, extra: Record<string, unknown> = {}) {
-  return await h.call('POST', '/api/auth/signup', { body: { name: 'Asha Rao', email, agreement: true, ...extra } });
-}
-
-/** Signs up through the API and returns the emailed password and verify token. */
-async function signupFromMail(email: string, extra: Record<string, unknown> = {}) {
-  const r = await signup(email, extra);
-  assertStatus(r, 201);
-  const m = h.mail.last(email);
-  assert(m, 'welcome email was sent');
-  const pw = PASSWORD_RE.exec(m.text)?.[0];
-  assert(pw, 'welcome email holds the password');
-  const token = h.mail.linkParam(email, 'verify');
-  assert(token, 'welcome email holds the verify link');
-  return { password: pw, token, mail: m, body: r.body };
-}
 
 async function profileOf(email: string) {
   const r = await h.sql`select * from profiles where email = ${email}`;
@@ -74,255 +56,107 @@ async function ctxAs(u: TestUser): Promise<Ctx> {
 const me = (token?: string) => h.call('GET', '/api/auth/me', { token });
 const refresh = (refreshToken: unknown) => h.call('POST', '/api/auth/refresh-token', { body: { refreshToken } });
 
-// ── sign-up ──────────────────────────────────────────────────────────────────────────────
+// ── code sign-up and sign-in (Supabase Auth's emailed 6-digit code) ─────────────────────
 
-test('signup: password emailed once, verify link, agreement recorded, nothing secret stored', async () => {
-  const email = uniqueEmail('signup');
-  const { password, token, mail, body } = await signupFromMail(email, { role: 'teacher', timeZone: 'Europe/London', password: 'Ignored-Pass1' });
-  assertEquals(body.ok, true);
-  assertEquals(body.verificationRequired, true);
-  assertEquals(body.passwordEmailed, true);
-  assertEquals(body.email, email);
-  assertMatch(body.message, /^Account created! We have emailed your password to /);
-  assertEquals(mail.subject, 'Welcome to Learn With Why: your password inside');
-  assert(mail.html.includes(password), 'password in the html part too');
-  assertEquals(h.mail.link(email, 'verify'), `${SITE}/?verify=${token}`);
-  assertMatch(token, /^[A-Za-z0-9_-]{43}$/);
+test('otp: new sign-up, the account opens only after the right code; agreement recorded', async () => {
+  const email = uniqueEmail('otp-new');
+  // a wrong code first: nothing opens, no app sign-in
+  const wrong = await h.otpLogin(email, { createUser: true, name: 'Asha Rao', agreement: true, code: '000001' });
+  assertEquals(wrong.verified, 403);
+  assertEquals(wrong.body.error_code, 'otp_expired');
+  const p0 = await profileOf(email);
+  assert(p0, 'Supabase Auth may hold an unconfirmed record before the code');
+  assertEquals(p0.email_verified_at, null);
+  assertEquals((await appSessions(p0.id)).length, 0);
 
+  const ok = await h.otpLogin(email, { createUser: true, name: 'Asha Rao', agreement: true });
+  assertStatus(ok, 200);
+  assert(ok.token && ok.refreshToken);
+  assertEquals(ok.body.user.email, email);
+  assertEquals(ok.body.user.name, 'Asha Rao');
+  assertEquals(ok.body.staff, null);
   const p = await profileOf(email);
-  assertEquals(p.status, 'pending_verification');
-  assertEquals(p.email_verified_at, null);
-  assertEquals(p.created_via, 'signup');
-  assertEquals(p.role, 'teacher');
-  assertEquals(p.time_zone, 'Europe/London');
-  assertEquals(p.name, 'Asha Rao');
+  assert(p.email_verified_at, 'the code confirmed the address');
   assertEquals(p.agreement_version, DEFAULTS.agreement.version);
-  assert(p.agreement_accepted_at, 'agreement time set');
-
-  const acc = await h.sql`select * from agreement_acceptances where user_id = ${p.id}`;
-  assertEquals(acc.length, 1);
-  assertEquals(acc[0].context, 'signup');
-  assertEquals(acc[0].version, DEFAULTS.agreement.version);
-  assertEquals(acc[0].text_sha256, await sha256Hex(DEFAULTS.agreement.text));
-
-  const tok = await h.sql`select * from auth_tokens where user_id = ${p.id}`;
-  assertEquals(tok.length, 1);
-  assertEquals(tok[0].purpose, 'verify_email');
-  assertEquals(tok[0].token_hash, await sha256Hex(token));
-
-  const out = await h.sql`select * from email_outbox where to_user_id = ${p.id}`;
-  assertEquals(out.length, 1);
-  assertEquals(out[0].template, 'welcome');
-  assertEquals(out[0].sensitive, true);
-  assertEquals(out[0].status, 'sent');
-  assertEquals(out[0].body_html, null);
-  assertEquals(out[0].body_text, null);
-
-  // neither the generated password, the client's ignored one, nor the raw link token is stored anywhere
-  assertEquals(await rowsContaining(password), []);
-  assertEquals(await rowsContaining('Ignored-Pass1'), []);
-  assertEquals(await rowsContaining(token), []);
-
-  const an = await h.sql`select * from analytics_events where kind = 'signup' and user_id = ${p.id}`;
-  assertEquals(an.length, 1);
-  const ev = await h.sql`select * from security_events where event_type = 'signup' and user_id = ${p.id}`;
-  assertEquals(ev.length, 1);
+  assertEquals((await appSessions(p.id)).length, 1);
+  assertStatus(await me(ok.token), 200);
+  // no code is ever stored by this API
+  assertEquals((await rowsContaining(h.fake.auth.lastOtp(email) ?? 'never-a-code')).filter((t) => !t.startsWith('auth.')).length, 0);
 });
 
-test('signup: agreement is required, stale versions are refused, fields validated', async () => {
-  const email = uniqueEmail('noagree');
-  const before = h.mail.sent.length;
-  let r = await h.call('POST', '/api/auth/signup', { body: { name: 'No Agree', email } });
-  assertStatus(r, 400);
-  assertEquals(r.body.code, 'agreement_required');
-  assert(r.body.errors.agreement);
-  assertEquals(r.body.agreement.version, DEFAULTS.agreement.version);
-  assertEquals(r.body.agreement.text, DEFAULTS.agreement.text);
-
-  r = await signup(email, { agreement: 'yes' });
-  assertStatus(r, 400);
-  assertEquals(r.body.code, 'agreement_required');
-
-  r = await signup(email, { agreementVersion: '1999-01-01' });
-  assertStatus(r, 400);
-  assertEquals(r.body.code, 'agreement_required');
-
-  r = await h.call('POST', '/api/auth/signup', { body: { email: 'bad', agreement: true } });
-  assertStatus(r, 400);
-  assertEquals(r.body.error, 'Tell us your name.');
-  assertEquals(r.body.errors, { name: 'Tell us your name.', email: 'Enter a valid email address.' });
-  assertEquals(r.body.code, undefined);
-
-  r = await signup(email, { role: 'pirate' });
-  assertStatus(r, 400);
-  assertEquals(r.body.errors.role, 'Unknown role.');
-
-  assertEquals(await profileOf(email), undefined);
-  assertEquals(h.mail.sent.length, before);
+test('otp: a new account must accept the agreement; the session waits for the tick', async () => {
+  const email = uniqueEmail('otp-agree');
+  const headers = { apikey: h.env().SUPABASE_ANON_KEY!, 'Content-Type': 'application/json' };
+  await (await fetch(`${h.fake.url}/auth/v1/otp`, { method: 'POST', headers, body: JSON.stringify({ email, create_user: true }) })).body?.cancel();
+  const v = await (await fetch(`${h.fake.url}/auth/v1/verify`, { method: 'POST', headers, body: JSON.stringify({ type: 'email', email, token: h.fake.auth.lastOtp(email) }) })).json();
+  const first = await h.call('POST', '/api/auth/otp/session', { token: v.access_token, body: { refreshToken: v.refresh_token } });
+  assertStatus(first, 403);
+  assertEquals(first.body.code, 'agreement_required');
+  // the same session goes through once ticked: no second code needed
+  const second = await h.call('POST', '/api/auth/otp/session', { token: v.access_token, body: { refreshToken: v.refresh_token, agreement: true } });
+  assertStatus(second, 200);
+  // and only once
+  const third = await h.call('POST', '/api/auth/otp/session', { token: v.access_token, body: { refreshToken: v.refresh_token, agreement: true } });
+  assertStatus(third, 409);
 });
 
-test('signup: an existing email gets the old 409', async () => {
+test('otp: existing customer signs in with a fresh code; unknown address is refused without create_user', async () => {
   const c = await h.customer();
-  const r = await signup(c.email.toUpperCase());
-  assertStatus(r, 409);
-  assertEquals(r.body.code, 'email_taken');
-  assertEquals(r.body.errors.email, 'That email already has an account.');
-});
-
-test('signup: welcome email failure → 502 mail_failed and no account left', async () => {
-  const email = uniqueEmail('mailfail');
-  h.mail.failNext(1, true);
-  const r = await signup(email);
-  assertStatus(r, 502);
-  assertEquals(r.body.code, 'mail_failed');
-  assertEquals(r.body.error, 'We could not send your welcome email just now, so the account was not created. Please try again in a few minutes.');
-  assertEquals(await profileOf(email), undefined);
-  const au = await h.sql`select id from auth.users where email = ${email}`;
-  assertEquals(au.length, 0);
-  // the failed send is on record (who/when/status) without a body
-  const out = await h.sql`select * from email_outbox where to_email = ${email}`;
-  assertEquals(out.length, 1);
-  assertEquals(out[0].status, 'failed');
-  assertEquals(out[0].body_text, null);
-  // the address can sign up again
-  const again = await signup(email);
-  assertStatus(again, 201);
-});
-
-test('signup: email not configured → 503 mail_unavailable before anything is created', async () => {
-  const email = uniqueEmail('mailoff');
-  h.setEnv({ MAIL_PROVIDER: undefined, BREVO_API_KEY: undefined, MAIL_FROM: undefined });
-  h.mail.off();
-  try {
-    const before = h.fake.calls('/auth/v1/admin/users', 'POST').length;
-    const r = await signup(email);
-    assertStatus(r, 503);
-    assertEquals(r.body.code, 'mail_unavailable');
-    assertEquals(h.fake.calls('/auth/v1/admin/users', 'POST').length, before);
-    assertEquals(await profileOf(email), undefined);
-    const f = await h.call('POST', '/api/auth/forgot-password', { body: { email } });
-    assertStatus(f, 503);
-    assertEquals(f.body.code, 'mail_unavailable');
-  } finally {
-    h.mail.on();
-    h.resetEnv();
-  }
-});
-
-// ── verification and first sign-in ───────────────────────────────────────────────────────
-
-test('unverified login → 403 email_unverified; verify → login works', async () => {
-  const email = uniqueEmail('verify');
-  const { password, token } = await signupFromMail(email);
-
-  let r = await h.login(email, password);
-  assertStatus(r, 403);
-  assertEquals(r.body.code, 'email_unverified');
-  assertEquals(r.body.email, email);
-  const p = await profileOf(email);
-  assertEquals((await appSessions(p.id)).length, 0);
-  assertEquals(await authSessionCount(p.id), 0);
-
-  const bad = await h.call('POST', '/api/auth/verify-email', { body: { token: 'x'.repeat(43) } });
-  assertStatus(bad, 400);
-  assertEquals(bad.body.code, 'token_invalid');
-
-  const v = await h.call('POST', '/api/auth/verify-email', { body: { token } });
-  assertStatus(v, 200);
-  assertEquals(v.body, { ok: true, verified: true, alreadyVerified: false, email, message: 'Email confirmed! Sign in with the password from your welcome email.' });
-  const again = await h.call('POST', '/api/auth/verify-email', { body: { token } });
+  const r = await h.otpLogin(c.email);
+  assertStatus(r, 200);
+  assertEquals(r.body.user.id, c.id);
+  const before = (await appSessions(c.id)).length;
+  const again = await h.otpLogin(c.email);
   assertStatus(again, 200);
-  assertEquals(again.body.alreadyVerified, true);
-  const au = await h.sql`select email_confirmed_at from auth.users where id = ${p.id}`;
-  assert(au[0].email_confirmed_at, 'Supabase Auth marks the address confirmed');
-
-  r = await h.login(email, password, { remember: true });
-  assertStatus(r, 200);
-  assertEquals(r.body.user.email, email);
-  assertEquals(r.body.user.emailVerified, true);
-  assertEquals(r.body.user.status, 'active');
-  assertEquals(r.body.staff, null);
-  assert('security' in r.body, 'customers get a security field');
-  const s = r.body.session;
-  assert(s.accessToken && s.refreshToken, 'tokens returned');
-  assertEquals(typeof s.expiresAt, 'number');
-  assertEquals(typeof s.expiresIn, 'number');
-  const rows = await appSessions(p.id);
-  assertEquals(rows.length, 1);
-  assertEquals(rows[0].remember, true);
-  assertEquals(rows[0].is_staff, false);
-  assertEquals(rows[0].device_id_hash, await h.deviceHash());
-  assertEquals(new Date(rows[0].expires_at).getTime(), s.sessionExpiresAt);
-  const days = (s.sessionExpiresAt - Date.now()) / 86400_000;
-  assert(days > 29.9 && days <= 30, `remember me lasts 30 days (got ${days})`);
-  const la = await h.sql`select * from login_activity where user_id = ${p.id} order by id`;
-  assertEquals(la.map((x) => [x.success, x.failure_reason]), [[false, 'email_unverified'], [true, null]]);
-  assertEquals(la[1].session_id, rows[0].id);
-  const an = await h.sql`select 1 from analytics_events where kind = 'login' and user_id = ${p.id}`;
-  assertEquals(an.length, 1);
-
-  const m = await me(s.accessToken);
-  assertStatus(m, 200);
-  assertEquals(m.body.user.email, email);
+  assertEquals((await appSessions(c.id)).length, before + 1);
+  const nobody = await h.otpLogin(uniqueEmail('otp-nobody'));
+  assertEquals(nobody.sent, 422);
 });
 
-test('verify-email: expired link → token_expired with the email', async () => {
-  const email = uniqueEmail('expired');
-  const { token } = await signupFromMail(email);
-  await h.sql`update auth_tokens set expires_at = now() - interval '1 minute' where token_hash = ${await sha256Hex(token)}`;
-  const r = await h.call('POST', '/api/auth/verify-email', { body: { token } });
-  assertStatus(r, 400);
-  assertEquals(r.body.code, 'token_expired');
-  assertEquals(r.body.email, email);
+test('otp: an expired code and a used code fail', async () => {
+  const c = await h.customer();
+  const headers = { apikey: h.env().SUPABASE_ANON_KEY!, 'Content-Type': 'application/json' };
+  h.fake.auth.forgetOtp(c.email);
+  await (await fetch(`${h.fake.url}/auth/v1/otp`, { method: 'POST', headers, body: JSON.stringify({ email: c.email, create_user: false }) })).body?.cancel();
+  const code = h.fake.auth.lastOtp(c.email)!;
+  h.fake.auth.expireOtp(c.email);
+  const expired = await fetch(`${h.fake.url}/auth/v1/verify`, { method: 'POST', headers, body: JSON.stringify({ type: 'email', email: c.email, token: code }) });
+  assertEquals(expired.status, 403);
+  await expired.body?.cancel();
+  // a resend inside 60 s is held by Supabase Auth
+  const soon = await fetch(`${h.fake.url}/auth/v1/otp`, { method: 'POST', headers, body: JSON.stringify({ email: c.email, create_user: false }) });
+  assertEquals(soon.status, 429);
+  await soon.body?.cancel();
 });
 
-test('login repairs an address we confirmed but Supabase Auth did not', async () => {
-  const email = uniqueEmail('heal');
-  const { password } = await signupFromMail(email);
-  await h.sql`update profiles set email_verified_at = now(), status = 'active' where email = ${email}`;
-  const r = await h.login(email, password);
-  assertStatus(r, 200);
-  const s = (await appSessions(r.body.user.id))[0];
-  const hours = (new Date(s.expires_at).getTime() - Date.now()) / 3600_000;
-  assert(hours > 11.9 && hours <= 12, `a normal sign-in lasts 12 hours (got ${hours})`);
+test('otp/session: refuses a password session, a forged or missing token, and a blocked account', async () => {
+  const c = await h.customer();
+  // c.token came from the password grant: not a code sign-in
+  const pw = await h.call('POST', '/api/auth/otp/session', { token: c.token, body: { refreshToken: c.refreshToken, agreement: true } });
+  assertStatus(pw, 401);
+  assertEquals(pw.body.code, 'otp_required');
+  assertStatus(await h.call('POST', '/api/auth/otp/session', { body: { refreshToken: 'x' } }), 401);
+  const forged = await h.fake.auth.mintAccessToken({ userId: c.id, sessionId: crypto.randomUUID(), secret: 'not-the-secret-not-the-secret-0123456789' });
+  assertStatus(await h.call('POST', '/api/auth/otp/session', { token: forged, body: { refreshToken: 'x' } }), 401);
+
+  const ctx = await ctxAs(await h.staff('admin'));
+  await tx((q) => blockAccount(q, ctx, c.id, 'test'));
+  const blocked = await h.otpLogin(c.email, { agreement: true });
+  assert(blocked.status === 403, `blocked: ${blocked.status}`);
 });
 
-test('resend-verification: new password and link for unverified accounts only, same answer for all', async () => {
-  const email = uniqueEmail('resend');
-  const first = await signupFromMail(email);
-  const r = await h.call('POST', '/api/auth/resend-verification', { body: { email } });
-  assertStatus(r, 200);
-  assertMatch(r.body.message, /^If .+ has an account that still needs confirming/);
-  const m = h.mail.last(email)!;
-  assertEquals(m.subject, 'Learn With Why: confirm your email (new password inside)');
-  const pw2 = PASSWORD_RE.exec(m.text)?.[0];
-  const token2 = h.mail.linkParam(email, 'verify');
-  assert(pw2 && token2 && pw2 !== first.password && token2 !== first.token, 'fresh password and token');
-  assertEquals(await rowsContaining(pw2), []);
-
-  // the old password and link stop working
-  assertStatus(await h.login(email, first.password), 401);
-  const old = await h.call('POST', '/api/auth/verify-email', { body: { token: first.token } });
-  assertStatus(old, 400);
-  assertStatus(await h.call('POST', '/api/auth/verify-email', { body: { token: token2 } }), 200);
-  assertStatus(await h.login(email, pw2), 200);
-
-  // verified and unknown addresses: same answer, no mail
-  const count = h.mail.sent.length;
-  const v = await h.call('POST', '/api/auth/resend-verification', { body: { email } });
-  assertStatus(v, 200);
-  const u = await h.call('POST', '/api/auth/resend-verification', { body: { email: uniqueEmail('nobody') } });
-  assertStatus(u, 200);
-  assertEquals(h.mail.sent.length, count);
-  const bad = await h.call('POST', '/api/auth/resend-verification', { body: { email: 'nope' } });
-  assertStatus(bad, 400);
-  assertEquals(bad.body.errors.email, 'Enter a valid email address.');
+test('password sign-in is for staff only; customers are told to use the code', async () => {
+  const c = await h.customer();
+  const r = await h.login(c.email, c.password);
+  assertStatus(r, 403);
+  assertEquals(r.body.code, 'otp_required');
+  assertEquals((await appSessions(c.id)).length, 1, 'no new sign-in');
+  const s = await h.staff('support');
+  assertStatus(await h.login(s.email, s.password), 200);
 });
-
-// ── sign-in rules ────────────────────────────────────────────────────────────────────────
 
 test('login: wrong passwords lock the account; the lock expires', async () => {
-  const c = await h.customer();
+  const c = await h.staff('support');
   const ip = randomIp();
   for (let i = 1; i <= 4; i++) {
     const r = await h.login(c.email, 'Wrong-Pass1', { ip });
@@ -381,7 +215,7 @@ test('login: validation and the old bad_credentials answers', async () => {
   assertStatus(long, 401);
   assertEquals(long.body.code, 'bad_credentials');
   // the /signin alias works
-  const c = await h.customer();
+  const c = await h.staff('support');
   r = await h.call('POST', '/api/auth/signin', { body: { email: c.email, password: c.password } });
   assertStatus(r, 200);
 });
@@ -394,15 +228,15 @@ test('login: agreement version bump → 403 agreement_required, then accepted wi
   try {
     const sessionsBefore = (await appSessions(c.id)).length;
     const authBefore = await authSessionCount(c.id);
-    let r = await h.login(c.email, c.password);
+    let r = await h.otpLogin(c.email);
     assertStatus(r, 403);
     assertEquals(r.body.code, 'agreement_required');
     assertEquals(r.body.agreement, next);
     assertEquals(r.body.session, undefined);
     assertEquals((await appSessions(c.id)).length, sessionsBefore);
-    assertEquals(await authSessionCount(c.id), authBefore, 'the refused Supabase Auth session was ended');
+    assertEquals(await authSessionCount(c.id), authBefore + 1, 'the code session waits for the tick');
 
-    r = await h.login(c.email, c.password, { agreement: true });
+    r = await h.otpLogin(c.email, { agreement: true });
     assertStatus(r, 200);
     assertEquals(r.body.user.agreementVersion, next.version);
     const acc = await h.sql`select * from agreement_acceptances where user_id = ${c.id} order by id`;
@@ -413,25 +247,24 @@ test('login: agreement version bump → 403 agreement_required, then accepted wi
     assertEquals((await profileOf(c.email)).agreement_version, next.version);
 
     // accepted once is enough
-    r = await h.login(c.email, c.password);
+    r = await h.otpLogin(c.email);
     assertStatus(r, 200);
     assertEquals((await h.sql`select 1 from agreement_acceptances where user_id = ${c.id}`).length, 2);
 
     // staff are not asked
-    r = await h.login(st.email, st.password, { staff: true });
-    assertStatus(r, 200);
+    assertStatus(await h.login(st.email, st.password, { staff: true }), 200);
   } finally {
     await h.setSetting('agreement', DEFAULTS.agreement);
   }
 });
 
-test('login: staff:true for a customer → 403 not_staff; staff get role and permissions', async () => {
+test('login: password for a customer → 403 otp_required; staff get role and permissions', async () => {
   const c = await h.customer();
   let r = await h.login(c.email, c.password, { staff: true });
   assertStatus(r, 403);
-  assertEquals(r.body.code, 'not_staff');
+  assertEquals(r.body.code, 'otp_required');
   const la = await h.sql`select failure_reason from login_activity where user_id = ${c.id}`;
-  assertEquals(la.map((x) => x.failure_reason), ['staff_only']);
+  assertEquals(la.map((x) => x.failure_reason), ['otp_required']);
   assertEquals(await authSessionCount(c.id), 1, 'only the harness session is left');
 
   const sup = await h.staff('support');
@@ -456,7 +289,7 @@ test('login: staff:true for a customer → 403 not_staff; staff get role and per
 
 test('login: blocked account → 403 account_suspended (block/unblock service)', async () => {
   const c = await h.customer();
-  const second = await h.login(c.email, c.password);
+  const second = await h.otpLogin(c.email);
   assertStatus(second, 200);
   const admin = await h.staff('admin');
   const ctx = await ctxAs(admin);
@@ -476,7 +309,7 @@ test('login: blocked account → 403 account_suspended (block/unblock service)',
   const ev = await h.sql`select event_type from security_events where user_id = ${c.id} and event_type like 'account_%'`;
   assertEquals(ev.map((x) => x.event_type), ['account_blocked']);
 
-  let r = await h.login(c.email, c.password);
+  let r = await h.otpLogin(c.email);
   assertStatus(r, 403);
   assertEquals(r.body.code, 'account_suspended');
   assertEquals(await authSessionCount(c.id), 0, 'the refused Supabase Auth session was ended');
@@ -488,7 +321,7 @@ test('login: blocked account → 403 account_suspended (block/unblock service)',
 
   assertEquals(await tx((q) => unblockAccount(q, ctx, c.id)), true);
   assertEquals(await tx((q) => unblockAccount(q, ctx, c.id)), false);
-  r = await h.login(c.email, c.password);
+  r = await h.otpLogin(c.email);
   assertStatus(r, 200);
   const au2 = await h.sql`select action from audit_logs where target_id = ${c.id} order by id`;
   assertEquals(au2.map((x) => x.action), ['account.block', 'account.unblock']);
@@ -496,7 +329,7 @@ test('login: blocked account → 403 account_suspended (block/unblock service)',
 
 test('endAllSessions keeps the named session', async () => {
   const c = await h.customer();
-  const other = await h.login(c.email, c.password);
+  const other = await h.otpLogin(c.email);
   const n = await tx((q) => endAllSessions(q, c.id, 'staff', c.sessionId));
   assertEquals(n, 1);
   assertStatus(await me(c.token), 200);
@@ -604,7 +437,7 @@ test('logout with only the refresh token (expired access token) still ends the s
 });
 
 test('login: a parallel burst of wrong passwords gets at most maxFailed password checks', async () => {
-  const c = await h.customer();
+  const c = await h.staff('support');
   const before = h.fake.calls('/auth/v1/token', 'POST').length;
   const all = await Promise.all(Array.from({ length: 12 }, () => h.login(c.email, 'Wrong-Pass1')));
   const checks = h.fake.calls('/auth/v1/token', 'POST').length - before;
@@ -617,7 +450,7 @@ test('login: a parallel burst of wrong passwords gets at most maxFailed password
 test('sessions: maxDays caps "remember me"', async () => {
   await h.setSetting('sessions', { rememberDays: 30, shortHours: 12, maxDays: 2 });
   try {
-    const c = await h.customer();
+    const c = await h.staff('support');
     const r = await h.login(c.email, c.password, { remember: true });
     assertStatus(r, 200);
     const days = (r.body.session.sessionExpiresAt - Date.now()) / 86400_000;
@@ -638,7 +471,7 @@ test('AUTH-1 a sign-in never lasts more than 90 days, whatever the settings say'
     assertStatus(await h.call('PUT', '/api/admin/settings/sessions', { token: admin.token, body: { rememberDays: 90, shortHours: 12, maxDays: 90 } }), 200);
     // an over-long value stored some other way is still capped at sign-in
     await h.setSetting('sessions', { rememberDays: 365, shortHours: 12, maxDays: 3650 });
-    const c = await h.customer();
+    const c = await h.staff('support');
     const l = await h.login(c.email, c.password, { remember: true });
     assertStatus(l, 200);
     const days = (l.body.session.sessionExpiresAt - Date.now()) / 86400_000;
@@ -710,8 +543,8 @@ test('PATCH /api/auth/me validates role, name and time zone', async () => {
 
 // ── password reset ───────────────────────────────────────────────────────────────────────
 
-test('reset-password ends every session; the old refresh token fails', async () => {
-  const c = await h.customer();
+test('reset-password (staff) ends every session; the old refresh token fails', async () => {
+  const c = await h.staff('support');
   const other = await h.login(c.email, c.password, { remember: true });
   assertStatus(other, 200);
 
@@ -763,8 +596,7 @@ test('reset-password ends every session; the old refresh token fails', async () 
 });
 
 test('reset-password: expired link, and a reset also confirms an unverified address', async () => {
-  const email = uniqueEmail('resetverify');
-  await signupFromMail(email);
+  const email = (await h.customer({ verified: false })).email;
   await h.call('POST', '/api/auth/forgot-password', { body: { email } });
   const token = h.mail.linkParam(email, 'reset')!;
   await h.sql`update auth_tokens set expires_at = now() - interval '1 second' where token_hash = ${await sha256Hex(token)}`;
@@ -780,11 +612,13 @@ test('reset-password: expired link, and a reset also confirms an unverified addr
   const p = await profileOf(email);
   assertEquals(p.status, 'active');
   assert(p.email_verified_at, 'verified by the reset link');
-  assertStatus(await h.login(email, 'Strong-Pass9'), 200);
+  // a customer still signs in with the emailed code, not the new password
+  assertEquals((await h.login(email, 'Strong-Pass9')).body.code, 'otp_required');
+  assertStatus(await h.otpLogin(email, { agreement: true }), 200);
 });
 
 test('reset-password: Supabase Auth down → 503 and the link still works afterwards', async () => {
-  const c = await h.customer();
+  const c = await h.staff('support');
   await h.call('POST', '/api/auth/forgot-password', { body: { email: c.email } });
   const token = h.mail.linkParam(c.email, 'reset')!;
   const remove = h.fake.route('PUT', '/auth/v1/admin/users/', () => new Response('down', { status: 502 }));
@@ -803,7 +637,7 @@ test('reset-password: Supabase Auth down → 503 and the link still works afterw
 test('token routes are rate limited per IP (30 / 15 min)', async () => {
   const ip = randomIp();
   for (let i = 0; i < 30; i++) {
-    const r = await h.call('POST', '/api/auth/verify-email', { body: { token: 'short' }, ip });
+    const r = await h.call('POST', '/api/auth/reset-password', { body: { token: 'short', password: 'x' }, ip });
     assertStatus(r, 400);
   }
   const r = await h.call('POST', '/api/auth/reset-password', { body: { token: 'short', password: 'x' }, ip });

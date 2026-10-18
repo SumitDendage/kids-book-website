@@ -624,7 +624,7 @@ test('opening a paid sheet runs the sharing rules after the response', async () 
   await h.grant(c.id, { productId: 'az-S', days: 30 });
   // one sign-in per device (a device is a sign-in; the X-Device-Id of a request does not add devices)
   const signIn = async (device: string, ip: string) => {
-    const r = await h.login(c.email, c.password, { device, ip });
+    const r = await h.otpLogin(c.email, { device, ip });
     assertStatus({ status: r.status, text: r.text }, 200);
     return r.token as string;
   };

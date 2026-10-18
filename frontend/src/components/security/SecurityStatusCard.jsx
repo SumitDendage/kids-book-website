@@ -33,7 +33,7 @@ export default function SecurityStatusCard() {
               {paused
                 ? 'Paid sheets are paused on this account under our account-sharing rules. Free sheets still open, and you can still sign in and see your orders. If you think this is a mistake, send us a note below.'
                 : status.warningCount === 0
-                  ? 'No warnings on your account. Your password is personal, so please keep it to yourself.'
+                  ? 'No warnings on your account. Your account is personal, so please keep it and your sign-in codes to yourself.'
                   : 'We saw signs that your account may be shared. Each warning ends on its own after a while. After ' + max + ' warnings, paid sheets are paused.'}
             </p>
             {status.warnings.length ? (

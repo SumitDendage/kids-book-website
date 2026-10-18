@@ -13,6 +13,9 @@
 // Extra routes for people and browser tests (dev server only, never in the real API):
 //   GET  /__dev/users                  the seeded owner and customer, with their passwords
 //   GET  /__dev/mail?to=a@b.c          captured emails, newest first (text only)
+//   GET  /__dev/otp?email=a@b.c        the last 6-digit sign-in code sent to that address
+//   POST /__dev/otp/expire             {email} → that address's code has expired
+//   POST /__dev/otp/wait-over          {email} → the 60 s wait before a new code is over
 //   GET  /__dev/razorpay/checkout.js   a stand-in for Razorpay Checkout: open() "pays" at once
 //   POST /__dev/razorpay/pay           {order_id} → the handler response Razorpay would give
 //   POST /__dev/expire                 {email} → that customer's paid access ends now
@@ -105,6 +108,18 @@ async function devRoute(req: Request, url: URL): Promise<Response> {
         owner: { email: owner.email, password: owner.password },
         customer: { email: customer.email, password: customer.password },
       });
+    case 'GET /__dev/otp': {
+      // the last sign-in code the fake Supabase Auth "emailed" to ?email= (browser tests)
+      return devJson(200, { code: h.fake.auth.lastOtp(url.searchParams.get('email') ?? '') });
+    }
+    case 'POST /__dev/otp/expire': {
+      h.fake.auth.expireOtp(String(body.email ?? ''));
+      return devJson(200, { ok: true });
+    }
+    case 'POST /__dev/otp/wait-over': {
+      h.fake.auth.endOtpWait(String(body.email ?? ''));
+      return devJson(200, { ok: true });
+    }
     case 'GET /__dev/mail': {
       const to = url.searchParams.get('to');
       const list = (to ? h.mail.to(to) : h.mail.sent).slice().reverse()

@@ -965,7 +965,7 @@ test('old logs: filters by type, success and worksheet; bad filters refused', as
   assertEquals(r.body.events.map((e: { type: string; event_type: string }) => [e.type, e.event_type]), [['test.other', 'test.other']]);
   assertStatus(await h.call('GET', '/api/admin/security-events?type=DROP%20TABLE', { token: support.token }), 400);
 
-  assertStatus(await h.login(c.email, c.password), 200);
+  assertStatus(await h.otpLogin(c.email), 200);
   await h.login(c.email, 'wrong-password-2B');
   r = await h.call('GET', `/api/admin/login-activity?user=${c.id}&success=true`, { token: support.token });
   assertStatus(r, 200);

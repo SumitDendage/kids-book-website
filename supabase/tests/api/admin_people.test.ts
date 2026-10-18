@@ -298,7 +298,7 @@ test('PUT /api/admin/users/status keeps the old contract (suspend = account bloc
   const after = await h.call('GET', '/api/me/security', { token: c.token });
   assertStatus(after, 403);
   assertEquals(after.body.code, 'account_suspended');
-  const refused = await h.login(c.email, c.password);
+  const refused = await h.otpLogin(c.email);
   assertStatus(refused, 403);
   assertEquals(refused.body.code, 'account_suspended');
   assertEquals((await audits('account.block', c.id)).length, 1);
@@ -309,7 +309,7 @@ test('PUT /api/admin/users/status keeps the old contract (suspend = account bloc
   assertStatus(r, 200);
   assertEquals(r.body.user.status, 'active');
   assertEquals((await audits('account.unblock', c.id)).length, 1);
-  const login = await h.login(c.email, c.password);
+  const login = await h.otpLogin(c.email);
   assertStatus(login, 200);
 
   // activating someone who never confirmed the email: old message
@@ -356,7 +356,7 @@ test('account block / unblock: every sign-in ends, staff accounts protected, aud
   const again = await h.call('POST', `/api/admin/users/${c.id}/block`, { token: admin.token, body: { reason: 'Chargeback fraud' } });
   assertStatus(again, 200);
   assertEquals(again.body.changed, false);
-  const blockedLogin = await h.login(c.email, c.password);
+  const blockedLogin = await h.otpLogin(c.email);
   assertStatus(blockedLogin, 403);
   assertEquals(blockedLogin.body.code, 'account_suspended');
 
@@ -364,7 +364,7 @@ test('account block / unblock: every sign-in ends, staff accounts protected, aud
   assertStatus(r, 200);
   assertEquals(r.body.changed, true);
   assertEquals(r.body.user.blocked, false);
-  assertStatus(await h.login(c.email, c.password), 200);
+  assertStatus(await h.otpLogin(c.email), 200);
   assertEquals((await audits('account.block', c.id)).length, 1);
   assertEquals((await audits('account.unblock', c.id)).length, 1);
 
@@ -451,10 +451,12 @@ test('password-reset: the "Forgot password" link (sendResetLink), never a passwo
     select sensitive, body_text, body_html from email_outbox where to_user_id = ${c.id} and template = 'password_reset'`;
   assert(out.length === 1 && out[0].sensitive && out[0].body_text === null && out[0].body_html === null, 'sensitive mail body never stored');
 
-  // the link works: the customer chooses a new password with it
+  // the link still sets a password, but customers sign in with an emailed code, never a password
   const reset = await h.call('POST', '/api/auth/reset-password', { body: { token: link, password: 'Brand-New-Pass-42' } });
   assertStatus(reset, 200);
-  assertStatus(await h.login(c.email, 'Brand-New-Pass-42'), 200);
+  const pw = await h.login(c.email, 'Brand-New-Pass-42');
+  assertStatus(pw, 403);
+  assertEquals(pw.body.code, 'otp_required');
 
   // the email service fails: 502 and a second audit row says so
   h.mail.failNext(1, true);

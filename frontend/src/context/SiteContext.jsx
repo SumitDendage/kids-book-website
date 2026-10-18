@@ -242,7 +242,7 @@ export function SiteProvider({ children }) {
   const [notice, setNotice] = useState(null);             /* { kind, title, text, actions: [{ label, run?, primary? }] } */
   const [shop, setShop] = useState({ open: false, view: 'all', cls: 'all', subject: 'all', skill: null, q: '' });
   const [checkout, setCheckout] = useState({ open: false, item: null, nonce: 0 });
-  /* the sign-in card: view 'signup' | 'signin' | 'forgot' | 'reset' | 'agree'; token = the reset link's;
+  /* the sign-in card: view 'signup' | 'signin' | 'code' | 'reset' (staff reset link); token = the reset link's;
      email = to fill in; agreement = { version, text } when the rules must be accepted again */
   const [auth, setAuth] = useState(() => ({ view: authApi.hasTokens() || read('lww_seen', false) ? 'signin' : 'signup', alert: null, nonce: 0, token: null, email: '', agreement: null }));
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
@@ -567,32 +567,16 @@ export function SiteProvider({ children }) {
     /* after a purchase: My Account → My Worksheets */
     a.openMyWorksheets = () => { a.closeModal(); a.closeNotice(); a.openAccount('sheets'); };
 
-    /* The links in the account emails: /?verify=… (Accept & Continue) confirms the email and shows
-       sign-in; /?reset=… opens the new-password form. Both land on the sign-in card (chapter 01). */
+    /* Customers sign in with an emailed code, so their emails carry no links to act on. A staff
+       password-reset link (Supabase recovery) opens the new-password form; an old /?verify= or
+       /?reset= link from before the codes just leaves the address bar. */
     a.handleAuthLink = async () => {
       a.handleAccountLink();
-      const u = new URL(window.location.href), verify = u.searchParams.get('verify'), reset = u.searchParams.get('reset');
+      const u = new URL(window.location.href);
       if (isRecovery()) { a.forgetSession(); stage.goTo(0); a.setAuthView('reset', 'supabase'); return; }
-      if (!verify && !reset) return;
+      if (!u.searchParams.has('verify') && !u.searchParams.has('reset')) return;
       u.searchParams.delete('verify'); u.searchParams.delete('reset');
-      history.replaceState(history.state, '', u.pathname + u.search + u.hash);   /* the token leaves the address bar */
-      stage.goTo(0);
-      if (reset) {
-        /* signed in here? sign this browser out first: the reset signs out every device anyway, and the form only shows to guests */
-        if (sessionRef.current || authApi.hasTokens()) { await authApi.logout().catch(() => {}); a.forgetSession(); }
-        a.setAuthView('reset', reset); return;
-      }
-      try {
-        const r = await authApi.verifyEmail({ token: verify });
-        if (sessionRef.current) { toast('Email confirmed. Thank you!'); return; }
-        a.setAuthView('signin', null, { email: r.email || '' });
-        setTimeout(() => a.setAuthAlert({ type: 'ok', msg: r.alreadyVerified ? 'Your email is already confirmed. Sign in with your password.' : 'Email confirmed! Sign in with the password from your welcome email.' }), 0);
-      } catch (err) {
-        const email = (err.body && err.body.email) || '';
-        a.setAuthView('signin', null, { email });
-        const resend = email ? { label: 'Send the email again', run: () => a.resendWelcome(email) } : null;
-        setTimeout(() => a.setAuthAlert({ type: 'err', msg: err.message, action: resend }), 0);
-      }
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
     };
     /* The purchase and account emails link to /?account=worksheets (also orders, devices, security):
        open My Account on that tab, once the sign-in kept in this browser is back (or after signing in). */
@@ -611,10 +595,6 @@ export function SiteProvider({ children }) {
         if (++n > 40 || !authApi.hasTokens()) { clearInterval(t); a.requireSignIn({ do: 'account', tab }, 'Sign in to see My Account.', 'signin'); }
       }, 250);
     };
-    /* Confirmation resend never changes the password. */
-    a.resendWelcome = email => authApi.resendVerification({ email })
-      .then(r => a.setAuthAlert({ type: 'ok', msg: (r.message || 'A confirmation link is on its way. Your password has not changed.') }),
-        err => a.setAuthAlert({ type: 'err', msg: err.message }));
 
     /* Back from Stripe or PayPal: ?pay=stripe&order=…&session=…  ·  ?pay=paypal&order=…&token=…  ·  ?pay=cancel&order=… */
     a.handlePaymentReturn = () => {

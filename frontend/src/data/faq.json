@@ -267,7 +267,7 @@
 },
 {
 "q": "How do I create an account?",
-"a": "Use Sign up on the home page, enter your name and email, and submit the form. The current signup text says a generated password and email-confirmation link will be emailed to you.",
+"a": "Use Sign up on the home page: enter your name and email, choose Parent, Teacher or Organization, and tick the rules. We email you a 6-digit code. Type it on the website to finish. No password is needed.",
 "alt": [
 "How do I sign up?",
 "How do I register?"
@@ -280,7 +280,7 @@
 },
 {
 "q": "Will I receive a password by email?",
-"a": "The uploaded website says that signup sends a generated password and a link to confirm your email address. Email delivery depends on the connected backend email service.",
+"a": "No. There are no passwords. Every time you sign up or sign in, we email you a fresh 6-digit code. The email has only the code, never a link.",
 "alt": [
 "Where do I get my generated password?"
 ],
@@ -300,8 +300,8 @@
 ]
 },
 {
-"q": "I did not receive my signup email. What should I do?",
-"a": "Check Spam or Junk, confirm that you entered the correct email, and use Send the email again if offered. If it still does not arrive, contact learnwithwhy6@gmail.com without sending your password.",
+"q": "I did not receive my code. What should I do?",
+"a": "Wait a minute and check Spam or Junk. Make sure the email address is right (use Change email if not). After 60 seconds you can press Send a new code. If it still does not arrive, contact learnwithwhy6@gmail.com.",
 "alt": [],
 "kw": [
 "email missing",
@@ -311,7 +311,7 @@
 },
 {
 "q": "How do I sign in?",
-"a": "Select Sign in, enter your registered email and password, and submit. Complete email verification if the website asks for it.",
+"a": "Select Sign in, type your registered email and press Email me a code. Type the 6-digit code from the email to sign in.",
 "alt": [
 "How do I log in?"
 ],
@@ -331,7 +331,7 @@
 },
 {
 "q": "I forgot my password. How can I reset it?",
-"a": "Choose Forgot password, enter the email on your account, and open the reset link sent to you. Use that link to choose a new password.",
+"a": "There is no password to forget. Select Sign in, type your email and we send you a 6-digit code to sign in.",
 "alt": [
 "How do I recover my password?"
 ],
@@ -341,8 +341,8 @@
 ]
 },
 {
-"q": "What are the new-password requirements?",
-"a": "The reset-password form asks for at least eight characters, including a capital letter and a number. Enter the same password in both new-password fields.",
+"q": "How long does a sign-in code work?",
+"a": "A code works once, for a short time (about 10 minutes). If it has expired, press Send a new code and use the newest email.",
 "alt": [],
 "kw": [
 "password requirements",
@@ -351,8 +351,8 @@
 ]
 },
 {
-"q": "What if my two password entries do not match?",
-"a": "Re-enter the new password and confirmation so that both fields match exactly.",
+"q": "The website says my code is wrong. What should I do?",
+"a": "Check that you typed the 6 numbers from the newest email. Older codes stop working when a new one is sent. After too many wrong tries, wait a few minutes and ask for a new code.",
 "alt": [],
 "kw": [
 "password mismatch",
@@ -360,8 +360,8 @@
 ]
 },
 {
-"q": "My reset link is not working. What should I do?",
-"a": "Use Forgot password to request a fresh link for your registered email. Open the newest email and try again; contact support if the problem continues.",
+"q": "Why is there no link in the email?",
+"a": "For safety our emails carry only a 6-digit code, never a link to click. Type the code on the website.",
 "alt": [],
 "kw": [
 "reset link",
@@ -421,7 +421,7 @@
 },
 {
 "q": "My session ended. What should I do?",
-"a": "Sign in again with your registered email and password, then return to My Worksheets or the sheet you were opening.",
+"a": "Sign in again with your registered email and the 6-digit code we email you, then return to My Worksheets or the sheet you were opening.",
 "alt": [],
 "kw": [
 "session ended",
@@ -1144,8 +1144,8 @@
 ]
 },
 {
-"q": "Can I share my password?",
-"a": "Keep your password private. If someone else needs access, ask support about the correct licence or separate account. Do not send your password to the assistant or support.",
+"q": "Can I share my sign-in code?",
+"a": "No. Keep your codes private: a code lets someone into your account. If someone else needs access, ask support about the correct licence or a separate account. Never send a code to the assistant.",
 "alt": [],
 "kw": [
 "share password",

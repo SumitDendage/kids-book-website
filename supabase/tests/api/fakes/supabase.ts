@@ -60,6 +60,14 @@ export type FakeSupabase = {
     setAccessTtl(seconds: number): void;
     /** Forget every refresh token (as if the Auth server lost them). */
     clearRefreshTokens(): void;
+    /** The last one-time code POST /auth/v1/otp "emailed" to this address (null when none). */
+    lastOtp(email: string): string | null;
+    /** Makes the address's current code expired. */
+    expireOtp(email: string): void;
+    /** Forgets the address's code, so the next POST /otp is not held by the 60 s wait. */
+    forgetOtp(email: string): void;
+    /** Moves the address's code a minute into the past, so the next POST /otp is not held by the 60 s wait. */
+    endOtpWait(email: string): void;
   };
   sql: postgres.Sql;
   close(): Promise<void>;
@@ -157,6 +165,7 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
   });
   const secret = enc.encode(o.jwtSecret);
   let accessTtl = 3600;
+  const otps = new Map<string, { code: string; sentAt: number; expiresAt: number }>();
   const refresh = new Map<string, RefreshEntry>();
   const objects = new Map<string, { bytes: Uint8Array; type: string; cacheControl: string; updated: number }>();
   const extra: { method: string; prefix: string; fn: FakeHandler; seq: number }[] = [];
@@ -197,7 +206,7 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
 
   async function mint(m: { userId: string; sessionId: string; email?: string; expiresIn?: number; secret?: string; issuer?: string; audience?: string;
     // deno-lint-ignore no-explicit-any
-    appMeta?: Record<string, any>; userMeta?: Record<string, any> }): Promise<string> {
+    appMeta?: Record<string, any>; userMeta?: Record<string, any>; amr?: string }): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
     return await new jose.SignJWT({
       email: m.email ?? '',
@@ -206,7 +215,7 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       user_metadata: m.userMeta ?? {},
       role: 'authenticated',
       aal: 'aal1',
-      amr: [{ method: 'password', timestamp: now }],
+      amr: [{ method: m.amr ?? 'password', timestamp: now }],
       session_id: m.sessionId,
       is_anonymous: false,
     })
@@ -220,13 +229,13 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       .sign(m.secret ? enc.encode(m.secret) : secret);
   }
 
-  async function tokenResponse(u: UserRow, sessionId: string, refreshToken: string): Promise<TokenResponse> {
+  async function tokenResponse(u: UserRow, sessionId: string, refreshToken: string, amr?: string): Promise<TokenResponse> {
     const now = Math.floor(Date.now() / 1000);
-    const access = await mint({ userId: u.id, sessionId, email: u.email ?? '', appMeta: u.raw_app_meta_data ?? {}, userMeta: u.raw_user_meta_data ?? {} });
+    const access = await mint({ userId: u.id, sessionId, email: u.email ?? '', appMeta: u.raw_app_meta_data ?? {}, userMeta: u.raw_user_meta_data ?? {}, amr });
     return { access_token: access, token_type: 'bearer', expires_in: accessTtl, expires_at: now + accessTtl, refresh_token: refreshToken, user: userJson(u) };
   }
 
-  async function openAuthSession(u: UserRow, ua: string | null, ip: string | null): Promise<TokenResponse> {
+  async function openAuthSession(u: UserRow, ua: string | null, ip: string | null, amr?: string): Promise<TokenResponse> {
     const sessionId = crypto.randomUUID();
     await sql.begin(async (t) => {
       await t`insert into auth.sessions (id, user_id, created_at, updated_at, user_agent, ip)
@@ -236,7 +245,7 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
     const rt = randomToken();
     refresh.set(rt, { sessionId, userId: u.id, revokedAt: null, next: null });
     const fresh = (await loadUser(u.id)) ?? u;
-    return tokenResponse(fresh, sessionId, rt);
+    return tokenResponse(fresh, sessionId, rt, amr);
   }
 
   async function createUser(b: { email: string; password?: string; name?: string; confirmed?: boolean; via?: string;
@@ -444,6 +453,46 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
         return json(200, await tokenResponse(user, s.id, next));
       }
       return authError(400, 'validation_failed', 'unsupported_grant_type');
+    }
+
+    // one-time codes: POST /otp {email, create_user, data} "emails" a 6-digit code (kept here for
+    // the tests), POST /verify {type: 'email'|'signup', email, token} checks it and opens a session
+    if (path === '/otp' && method === 'POST') {
+      if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
+      const b = await readBody(req);
+      if (!b) return authError(400, 'bad_json', 'Could not parse request body as JSON');
+      const email = String(b.email ?? '').trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) return authError(400, 'validation_failed', 'Unable to validate email address: invalid format');
+      let user = await userByEmail(email);
+      if (!user) {
+        if (b.create_user === false) return authError(422, 'otp_disabled', 'Signups not allowed for otp');
+        const res = await createUser({ email, userMeta: b.data && typeof b.data === 'object' ? b.data : {} });
+        if (!res.ok) return res;
+        user = await userByEmail(email);
+      }
+      const last = otps.get(email);
+      if (last && Date.now() - last.sentAt < 60_000) {
+        return authError(429, 'over_email_send_rate_limit', 'For security purposes, you can only request this after 60 seconds.');
+      }
+      otps.set(email, { code: String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0'), sentAt: Date.now(), expiresAt: Date.now() + 600_000 });
+      return json(200, {});
+    }
+    if (path === '/verify' && method === 'POST') {
+      if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
+      const b = await readBody(req);
+      if (!b) return authError(400, 'bad_json', 'Could not parse request body as JSON');
+      const email = String(b.email ?? '').trim().toLowerCase();
+      const entry = otps.get(email);
+      const user = email ? await userByEmail(email) : null;
+      if (!['email', 'signup', 'magiclink'].includes(String(b.type)) || !entry || !user
+        || entry.expiresAt <= Date.now() || entry.code !== String(b.token ?? '')) {
+        return authError(403, 'otp_expired', 'Token has expired or is invalid');
+      }
+      otps.delete(email);
+      if (isBanned(user)) return authError(403, 'user_banned', 'User is banned');
+      await sql`update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()), updated_at = now() where id = ${user.id}`;
+      const fresh = (await loadUser(user.id))!;
+      return json(200, await openAuthSession(fresh, req.headers.get('user-agent'), validIp(req.headers.get('sb-forwarded-for')), 'otp'));
     }
 
     if (path === '/logout' && method === 'POST') {
@@ -679,6 +728,20 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       remove: async (bucket, path) => { await deleteObjects(bucket, [path]); },
     },
     auth: {
+      lastOtp(email) {
+        return otps.get(email.trim().toLowerCase())?.code ?? null;
+      },
+      forgetOtp(email) {
+        otps.delete(email.trim().toLowerCase());
+      },
+      expireOtp(email) {
+        const e = otps.get(email.trim().toLowerCase());
+        if (e) e.expiresAt = Date.now() - 1;
+      },
+      endOtpWait(email) {
+        const e = otps.get(email.trim().toLowerCase());
+        if (e) e.sentAt = Math.min(e.sentAt, Date.now() - 61_000);
+      },
       async createUser(c) {
         const res = await createUser({ email: c.email, password: c.password, name: c.name, confirmed: c.confirmed !== false, via: c.via });
         const b = await res.json();

@@ -49,7 +49,7 @@ export default function SecurityWarningModal({ level, max = 3, reason, endsAt, p
         </div>
         <h2 id={titleId} className="sec-modal-title">Security warning <span className="sec-of">{n} of {max}</span></h2>
         <div id={bodyId} className="sec-modal-body">
-          <p>We saw signs that your account may be used by more than one person. Your password is personal, so please keep it to yourself and do not share your account.</p>
+          <p>We saw signs that your account may be used by more than one person. Your account is personal, so please keep your sign-in codes to yourself and do not share your account.</p>
           {reason ? <p className="sec-reason"><b>What we saw:</b> {reason}</p> : null}
           {paused
             ? <p className="sec-final">This is warning {n} of {max}, so paid sheets on this account are now paused. Free sheets still open, and you can still sign in and see your orders. If you think this is a mistake, write to us from My Account → Security.</p>
