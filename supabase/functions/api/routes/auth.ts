@@ -7,7 +7,7 @@ import { tx } from '../lib/db.ts';
 import { HttpError, json, ms, readJson } from '../lib/http.ts';
 import { analytics, loginActivity, rateLimit, securityEvent } from '../lib/guard.ts';
 import { enqueue, kickOutbox, sendSensitive } from '../lib/mail.ts';
-import { mailReady } from '../lib/env.ts';
+import { env, mailReady } from '../lib/env.ts';
 import { getSettings } from '../lib/settings.ts';
 import {
   adminCreateUser, adminDeleteUser, adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
