@@ -119,12 +119,15 @@ export function gatewayModes() {
 }
 
 /** Names of settings and whether each is present. Never the values. */
+
 export function envReport() {
   const names = [
     'SITE_URL', 'ALLOWED_ORIGINS', 'MAIL_PROVIDER', 'MAIL_FROM', 'BREVO_API_KEY', 'RESEND_API_KEY',
+    'LOGIN_OTP_ENCRYPTION_KEY', 'ADMIN_SECURITY_EMAIL',
     'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET',
     'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_ID', 'PAYPAL_SECRET', 'PAYPAL_MODE', 'PAYPAL_WEBHOOK_ID',
     'AUTH_FORWARD_IP', 'LWW_JWT_SECRET', 'SUPABASE_JWKS', 'SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_URL',
   ];
   return Object.fromEntries(names.map((n) => [n, get(n) !== null]));
 }
+
