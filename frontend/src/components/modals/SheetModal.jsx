@@ -52,7 +52,7 @@ function SheetDetail({ id }) {
     : st.kind === 'free' ? (session ? 'Free access · signed in' : 'Free access · no sign-in needed')
     : st.kind === 'bought' ? (st.until ? 'Open until ' + dateTimeTz(st.until, tz) : 'Open on your account')
     : st.kind === 'plan' ? 'In your ' + cls.label + ' plan' + (st.until ? ' · until ' + dateTimeTz(st.until, tz) : '')
-    : st.kind === 'ended' ? (st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) : 'Your access has ended')
+    : st.kind === 'ended' ? (st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) : 'Your access has expired')
     : openForText(it);
   /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab */
   const actions = !st.ready
@@ -66,7 +66,7 @@ function SheetDetail({ id }) {
         : free
           ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">Free access sheet. No payment needed, just open it.</span></>
           : st.kind === 'ended'
-            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) + '. ' : ''}Buy it again and it opens for another {span} from the day you pay.</span></>
+            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) + '. ' : 'Your access has expired. '}Buy it again and it opens for another {span} from the day you pay.</span></>
             : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
   return (
     <>
@@ -133,7 +133,7 @@ function PurchasePopup({ p }) {
           <div className="expiry" key={i} data-line={l.worksheet || l.cls || i}>
             <small>{l.kind === 'class' ? titleOfLine(l) + ': every ' + (c ? c.label : 'class') + ' sheet is open until' : titleOfLine(l) + ' is open until'}</small>
             <b>{end ? dateTimeTz(end, tz) : 'See My Worksheets'}</b>
-            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.now ? access.now - now : 0)} /> : null}
+            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.skew) || 0} /> : null}
             <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : end && l.kind !== 'class' ? 'Open it as often as you like until then. When the timer reaches zero, it is removed from your account.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
           </div>
         );
