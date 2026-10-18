@@ -57,7 +57,7 @@ export default function Drawers() {
               {TABS.map(t => <button key={t.id} type="button" role="tab" id={'acctTab-' + t.id} aria-controls="acctPanel" aria-selected={tab === t.id} className={'tab' + (tab === t.id ? ' on' : '')} onClick={() => setAccountTab(t.id)}>{t.label}</button>)}
             </div>
             <div id="acctPanel" role="tabpanel" aria-labelledby={'acctTab-' + tab}>
-              {tab === 'sheets' ? <SheetsTab tz={tz} /> : null}
+              {tab === 'sheets' ? <SheetsTab tz={tz} open={open} /> : null}
               {tab === 'orders' ? <OrdersTab tz={tz} open={open} /> : null}
               {tab === 'devices' ? <DevicesTab tz={tz} open={open} /> : null}
               {tab === 'security' ? <SecurityStatusCard /> : null}
@@ -134,13 +134,17 @@ function CartDrawer({ open }) {
 
 /* My Worksheets: what opens now (a bought sheet with a live timer; it leaves the list when the timer
    reaches zero) and the class plans */
-function SheetsTab({ tz }) {
+function SheetsTab({ tz, open }) {
   const { openViewer, openShop, renewPlan, setAccountTab, syncEntitlements } = useSite();
-  const { subs, endedPlans, sheets, paused, now } = useMyWorksheets();
+  const { subs, endedPlans, sheets, paused, now, skew } = useMyWorksheets();
   const [rules, setRules] = useState({ accessHours: DEFAULT_ACCESS_HOURS });
   useEffect(() => { let alive = true; getSiteRules().then(r => { if (alive) setRules(r); }); return () => { alive = false; }; }, []);
-  const skew = now - Date.now();
-  const ranOut = () => { if (syncEntitlements) syncEntitlements().catch(() => {}); };
+  /* a timer that reached zero: the row stops opening at once and says so until the drawer closes;
+     the sheet itself has left the account (it is gone the next time My Account opens) */
+  const [over, setOver] = useState(() => new Map());
+  useEffect(() => { if (!open) setOver(o => (o.size ? new Map() : o)); }, [open]);
+  const ranOut = s => { setOver(o => new Map(o).set(s.id, s)); if (syncEntitlements) syncEntitlements().catch(() => {}); };
+  const rows = sheets.concat(Array.from(over.values()).filter(o => !sheets.some(s => s.id === o.id)));
   const until = end => (end ? ' · open until ' + dateTimeTz(end, tz) : '');
   const noteOf = s => (s.kind === 'plan' ? 'In your ' + classLabel(s.cls) + ' plan' + until(s.end)
     : s.kind === 'free' ? 'Free with your account'
@@ -171,16 +175,20 @@ function SheetsTab({ tz }) {
       ))}
 
       <p className="eyebrow acct-eyebrow">My Worksheets · {sheets.length}</p>
-      {sheets.length ? sheets.map(s => (s.it ? (
+      {rows.length ? rows.map(s => (s.it && over.has(s.id) ? (
+        <div key={s.id} className="cart-row is-ended" aria-disabled="true">
+          <div className="paper-mini">{s.it.glyph || s.it.az || 'PDF'}</div><div className="nm">{s.title}<span>Your access has expired.</span></div><span className="pill">Expired</span>
+        </div>
+      ) : s.it ? (
         <div key={s.id} className="cart-row acct-open" role="button" tabIndex={0} title="Open in the viewer" onClick={() => openViewer(s.id)} onKeyDown={openKey(s.id)}>
-          <div className="paper-mini">{s.it.glyph || s.it.az || 'PDF'}</div><div className="nm">{s.title}<span>{noteOf(s)}</span>{s.kind === 'paid' && s.end ? <Countdown end={s.end} skew={skew} onDone={ranOut} /> : null}</div><span className="pill">Open ↗</span>
+          <div className="paper-mini">{s.it.glyph || s.it.az || 'PDF'}</div><div className="nm">{s.title}<span>{noteOf(s)}</span>{s.kind === 'paid' && s.end ? <Countdown end={s.end} skew={skew} onDone={() => ranOut(s)} /> : null}</div><span className="pill">Open ↗</span>
         </div>
       ) : (
         <div key={s.id} className="cart-row"><div className="paper-mini">PDF</div><div className="nm">{s.title}<span>{noteOf(s)}</span></div></div>
       ))) : <p className="cart-empty">Nothing here yet. Free sheets you open, PDFs you buy and every sheet in a class plan appear here.</p>}
 
       <button type="button" className="btn btn-primary btn-block" style={{ marginTop: '16px' }} onClick={() => openShop('all')}>Browse all sheets →</button>
-      <p className="cart-empty acct-fine">Each PDF you buy opens for {spanText(hoursOf(rules) || DEFAULT_ACCESS_HOURS)} from the moment you pay. The timer shows the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. A class plan lasts as long as it runs.</p>
+      <p className="cart-empty acct-fine">Each PDF you buy opens for {spanText(hoursOf(rules) || DEFAULT_ACCESS_HOURS)} from the moment you pay. The timer shows the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. A class plan lasts as long as it runs. Your orders stay in Orders after the time is up. The timer controls opening sheets on this website: pages you have already printed or downloaded stay with you, because a copy on a device or on paper cannot be removed from here.</p>
     </>
   );
 }

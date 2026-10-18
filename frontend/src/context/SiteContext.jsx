@@ -137,7 +137,7 @@ export function makeAccess(session, ent, skew = 0) {
      spot); a paid sheet opens with a running class plan or its own live purchase. The server decides;
      this paints buttons. */
   const canOpen = it => (it.price === 0 ? true : !!(activeSub(it.cls) || itemEnt(it.id)));
-  return { session, ent: all, live, now, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
+  return { session, ent: all, live, now, skew: Number(skew) || 0, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
 }
 
 const PAY_LABEL = { razorpay: 'Razorpay', stripe: 'Stripe', paypal: 'PayPal' };
@@ -507,8 +507,8 @@ export function SiteProvider({ children }) {
     a.renewPlan = (cls, plan) => { a.closeNotice(); a.openCheckout({ cls, plan: plan || 'm3', again: true }); };
     /* the time on a sheet bought on its own ran out: say when, and offer to buy access again */
     const endedNotice = (it, endedAt) => a.showNotice({
-      kind: 'expired', title: 'Your access has ended',
-      text: 'Your access to ' + it.title + (endedAt ? ' ended on ' + dateTimeTz(endedAt, tz()) : ' has ended') + '. You can buy access again to keep opening it.',
+      kind: 'expired', title: 'Your access has expired',
+      text: 'Your access to ' + it.title + (endedAt ? ' expired on ' + dateTimeTz(endedAt, tz()) : ' has expired') + '. You can buy access again to keep opening it.',
       actions: [{ label: 'Buy Access Again', primary: true, run: () => a.buyAgain(it.id) }, { label: 'Not now' }],
     });
     /* Open a sheet in the protected viewer (new tab, full screen). Paid sheets need sign-in; a free

@@ -41,7 +41,7 @@ function reasonOf(status, b, meta) {
       return { title: 'Your plan has ended', text: 'Your ' + (c ? c.label + ' ' : '') + 'plan has ended, so this sheet has closed. You can renew the plan on the site, or buy this sheet on its own.', action: 'Renew my plan', go: { scope: 'class', cls, id: sheet } };
     }
     if (meta && meta.kind === 'free') return { title: 'This sheet is not free any more', text: 'This sheet has become a paid sheet, so it has closed. You can buy it on the site.', action: 'Buy this sheet', go: { id: sheet } };
-    return { title: 'Your access has ended', text: 'Your access to this sheet ended' + (b.expiredAt ? ' on ' + dateTimeTz(b.expiredAt, tzOf(meta)) : '') + ', so it has closed. You can buy access again on the site.', action: 'Buy Access Again', go: { id: sheet } };
+    return { title: 'Your access has expired', text: 'Your access to this sheet expired' + (b.expiredAt ? ' on ' + dateTimeTz(b.expiredAt, tzOf(meta)) : '') + ', so it has closed. You can buy access again on the site.', action: 'Buy Access Again', go: { id: sheet } };
   }
   if (code === 'access_suspended') return { title: 'Paid sheets are paused', text: 'Paid sheets are paused on this account, so this sheet has closed. Free sheets still open. You can see why, and write to us, in My Account → Security.' };
   if (code === 'session_blocked') return { title: 'This sign-in was stopped', text: 'This sign-in was stopped, so the sheet has closed. Please sign in again on the site. If you think this is a mistake, write to us at ' + INBOX + '.' };
@@ -87,7 +87,7 @@ export default function Viewer() {
   useEffect(() => {
     const token = new URLSearchParams(location.hash.slice(1)).get('t') || '';
     const api = (p, opt) => viewerFetch(token, p, opt);
-    const r0 = { ended: false, meta: null, cancelled: false, checking: false, last: 0, deny: null, recheck: null }; run.current = r0;
+    const r0 = { ended: false, meta: null, cancelled: false, checking: false, last: 0, deny: null, recheck: null, skew: 0 }; run.current = r0;
     const stage = stageRef.current;
     let timer = 0, endTimer = 0;
     const screen = (title, text, opts = {}) => { if (!r0.cancelled) setVeil({ title, text, spin: !!opts.spin, action: opts.action, onAction: opts.onAction, back: !!opts.back, off: false }); };
@@ -109,13 +109,20 @@ export default function Viewer() {
       const left = Math.max(0, Number(meta.printsLeft) || 0);
       setCopies({ printsLeft: left, printLimit: Math.max(left, Number(meta.printLimit) || 0), downloadsLeft: Math.max(0, Number(meta.downloadsLeft) || 0) });
     };
+    /* when the access ends, on the server's clock (meta.now; skew = the server's clock minus this device's) */
+    const endOf = meta => (meta ? (meta.expiresAt ? Date.parse(meta.expiresAt) : (meta.until || 0)) : 0);
+    const keepSkew = meta => { if (meta && Number(meta.now) > 0) r0.skew = Number(meta.now) - Date.now(); };
+    const pastEnd = () => { const at = endOf(r0.meta); return at > 0 && Date.now() + r0.skew >= at; };
     /* check again right when the access is due to end, so the sheet does not stay open past it */
+    const atEnd = () => { if (r0.checking) endTimer = setTimeout(atEnd, 1000); else recheck('end'); };
     const watchEnd = meta => {
       clearTimeout(endTimer);
-      const at = meta.expiresAt ? Date.parse(meta.expiresAt) : (meta.until || 0);
-      const wait = at ? at - Date.now() + 1500 : 0;
-      if (wait > 0 && wait < 2147483000) endTimer = setTimeout(() => recheck('end'), wait);
+      const at = endOf(meta);
+      const wait = at ? at - (Date.now() + r0.skew) + 1500 : 0;
+      if (wait > 0 && wait < 2147483000) endTimer = setTimeout(atEnd, wait);
     };
+    /* the server could not be asked (no connection, or an error) but the time is up: close anyway */
+    const closeIfOver = () => { if (pastEnd()) closed(403, { code: 'expired', expired: true, expiredAt: endOf(r0.meta) }); };
 
     /* the server said no: the pages are wiped and the reason shown, with a way back to the site */
     const closed = (status, body) => {
@@ -141,12 +148,12 @@ export default function Viewer() {
         const r = await api('/api/view/meta');
         if (r.ok) {
           const m = await r.json();
-          if (!r0.ended && !r0.cancelled) { r0.meta = Object.assign({}, r0.meta, m); setHead(describe(r0.meta)); keepCounts(m); watchEnd(m); }
+          if (!r0.ended && !r0.cancelled) { keepSkew(m); r0.meta = Object.assign({}, r0.meta, m); setHead(describe(r0.meta)); keepCounts(m); watchEnd(r0.meta); }
         } else {
           const e = await r.json().catch(() => ({}));
-          if (isDenial(r.status, e)) closed(r.status, e);
+          if (isDenial(r.status, e)) closed(r.status, e); else closeIfOver();
         }
-      } catch (_) { /* no connection: keep showing what is already drawn, and ask again later */ }
+      } catch (_) { closeIfOver(); /* no connection: keep showing what is already drawn until the time is up, and ask again later */ }
       finally { r0.checking = false; schedule(); }
     };
     r0.recheck = recheck;
@@ -165,7 +172,7 @@ export default function Viewer() {
         else screen('We could not open the sheet', 'Please try again in a minute from the site.', { back: true });
         return;
       }
-      const meta = await r.json(); if (r0.cancelled) return; r0.meta = meta; r0.last = Date.now();
+      const meta = await r.json(); if (r0.cancelled) return; keepSkew(meta); r0.meta = meta; r0.last = Date.now();
       document.title = meta.title + ' · Learn With Why';
       const info = describe(meta);
       setHead(info); keepCounts(meta); watchEnd(meta); schedule();

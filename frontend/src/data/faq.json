@@ -1115,7 +1115,7 @@
 },
 {
 "q": "Do individually purchased PDFs expire?",
-"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop.",
+"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. The timer controls opening the sheet on this website. Pages you have already printed or downloaded stay with you, because a copy on a device or on paper cannot be removed from here.",
 "alt": [],
 "kw": [
 "pdf expiry",
