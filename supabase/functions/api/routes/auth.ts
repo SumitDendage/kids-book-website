@@ -37,6 +37,16 @@ const BAD_LOGIN = 'We could not match that email and password. New here? Sign up
 const SESSION_BLOCKED = 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.';
 const AGREEMENT_NEEDED = 'Please accept the agreement: your account is personal and must not be shared.';
 const MAIL_OFF = 'The server cannot send email yet. Please try again later.';
+const LOGIN_OTP_MINUTES = 10;
+const LOGIN_OTP_MAX_ATTEMPTS = 5;
+const LOGIN_OTP_MAX_RESENDS = 3;
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return 'your email';
+  const visible = local.length <= 2 ? local[0] : local.slice(0, 2);
+  return `${visible}***@${domain}`;
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ipKey = (ctx: Ctx) => ctx.ip ?? '-';
