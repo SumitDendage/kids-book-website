@@ -16,6 +16,8 @@ import './styles/36-readable-auth.css';
 /* the brighter magical forest look (Oct 16): loaded last */
 import './styles/37-magic-forest.css';
 import './styles/38-countdown.css';
+/* the payment page in white with soft shadows (Oct 18) */
+import './styles/39-checkout-light.css';
 
 installTelemetry();
 

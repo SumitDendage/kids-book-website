@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
-import { money, isIndia } from '../../services/currency.js';
-import { getCoConfig, loadCoConfig, monthsText, serverPlans } from '../../services/checkout.js';
+import { money, isIndia, setCurrencyFromCountry } from '../../services/currency.js';
+import { getCoConfig, guessCountry, initialAddress, loadCoConfig, monthsText, serverPlans, tidyAddress } from '../../services/checkout.js';
+import { write } from '../../services/storage.js';
 import { eventsApi } from '../../services/api.js';
 import { dateTimeTz } from '../../utils/format.js';
 import { ITEMS, VIEWS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets, inView, isListed, byOrder, extraSections } from '../../data/catalogue.js';
@@ -69,15 +70,33 @@ const listedSheets = () => ITEMS.filter(it => it.pdf && isListed(it));
 /* Subscribe to a class (1, 3, 6 months; 12 outside India). The plans and their prices come from
    the server (GET /api/config): the price before tax and fees, in the shop's currency. With a plan
    running it says until when, and the same buttons renew it: the new plan starts when the current one ends. */
-function SubscribeBox({ cls, sub, openCheckout, config, failed, tz }) {
+function SubscribeBox({ cls, sub, openCheckout, config, failed, tz, rerenderAll }) {
   const label = classById(cls).label;
-  const plans = serverPlans(config, isIndia() ? 'IN' : 'OTHER', cls);
+  const india = isIndia();
+  const plans = serverPlans(config, india ? 'IN' : 'OTHER', cls);
   const months = monthsText(plans);
+  /* India or outside India: the plans, the currency and the country the checkout starts with all follow it */
+  const pickRegion = inIndia => {
+    if (inIndia === india || !config) return;
+    const was = initialAddress();
+    let country = 'IN';
+    if (!inIndia) {
+      const guess = was.country !== 'IN' ? was.country : guessCountry();
+      country = guess !== 'IN' && config.countries.some(c => c.code === guess) ? guess : 'OTHER';
+    }
+    write('lww_address', tidyAddress({ ...was, country, state: '', postal: '' }));
+    setCurrencyFromCountry(config, country);
+    rerenderAll();
+  };
   return (
     <div className="shop-sub">
+      {config && <div className="shop-sub-region" role="group" aria-label="Where you live">
+        <button type="button" className={india ? 'on' : ''} aria-pressed={india} onClick={() => pickRegion(true)}>🇮🇳 India</button>
+        <button type="button" className={india ? '' : 'on'} aria-pressed={!india} onClick={() => pickRegion(false)}>🌍 Outside India</button>
+      </div>}
       {sub
         ? <div><b>Your {label} plan is active{sub.end ? ' until ' + dateTimeTz(sub.end, tz) : ''}</b><p>Every sheet in the class opens for you. Tap any sheet below.{sub.end ? ' Renew any time: the new plan starts the moment this one ends.' : ''}</p></div>
-        : <div><b>Subscribe to {label}</b><p>Every sheet in the class opens while your plan runs.{months ? (isIndia() ? ' In India: ' : ' Choose ') + months + '.' : ''}</p></div>}
+        : <div><b>Subscribe to {label}</b><p>Every sheet in the class opens while your plan runs.{months ? (india ? ' In India: ' : ' Outside India: ') + months + '.' : ''}</p></div>}
       {(!sub || sub.end) && <div className="shop-sub-plans">{plans.length
         ? plans.map(x => <button key={x.id} type="button" className="sub-plan" onClick={() => openCheckout({ cls, plan: x.id })}><b>{sub ? 'Renew · ' + x.label : x.label}</b><span>{money(x.price)}</span>{x.note ? <small>{x.note}</small> : null}</button>)
         : <p>{failed ? 'We could not load the plans just now. Please try again in a minute.' : 'Loading the plans…'}</p>}</div>}
@@ -86,7 +105,7 @@ function SubscribeBox({ cls, sub, openCheckout, config, failed, tz }) {
 }
 
 export default function Store() {
-  const { shop, setShopFilter, closeShop, openDrawer, openCart, openCheckout, access, cart } = useSite();
+  const { shop, setShopFilter, closeShop, openDrawer, openCart, openCheckout, access, cart, rerenderAll } = useSite();
   const { open, view, cls, subject, skill } = shop;
   const q = shop.q || '';
   const words = wordsOf(q);
@@ -193,7 +212,7 @@ export default function Store() {
         <main className="shop-main">
           <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
           <div className={'shop-grid' + (showSkills ? ' skills' : '')} id="shopGrid">
-            {view === 'paid' && !skill && !soon && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} config={config} failed={failed} tz={tz} />}
+            {view === 'paid' && !skill && !soon && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} config={config} failed={failed} tz={tz} rerenderAll={rerenderAll} />}
             {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {clsLabel(cls)} worksheets right now. Until then, Kindergarten has {listedSheets().filter(it => it.cls === 'kg').length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => filter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className={'skill-card skill-' + c.id} style={{ '--n': n }}>
                 {/* each skill has its own corner of the Learn With Why picture (public/shop/cards/) */}
