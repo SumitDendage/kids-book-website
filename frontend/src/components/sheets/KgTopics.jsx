@@ -1,4 +1,4 @@
-import { KG_TOPICS, ITEMS, topicSheets } from '../../data/catalogue.js';
+import { KG_TOPICS, ITEMS, topicSheets, isListed } from '../../data/catalogue.js';
 import SheetCard from './SheetCard.jsx';
 import { AzTile, PicTile } from './SheetTiles.jsx';
 
@@ -10,7 +10,7 @@ export const VOCAB = KG_TOPICS.find(g => g.id === 'vocab');
 const idsOf = g => new Set(g.items.flatMap(([id]) => topicSheets(id).map(it => it.id)));
 const inSections = () => new Set([...idsOf(ALPHA), ...idsOf(VOCAB)]);
 /* the Kindergarten books and weekly sheets that are not in a sub-category */
-export const kgMore = () => { const seen = inSections(); return ITEMS.filter(it => it.pdf && it.cls === 'kg' && !seen.has(it.id)); };
+export const kgMore = () => { const seen = inSections(); return ITEMS.filter(it => it.pdf && isListed(it) && it.cls === 'kg' && !seen.has(it.id)); };
 export const kgSheetCount = () => inSections().size + kgMore().length;
 /* the Alphabet board shows the seven sub-categories and the "More" tile */
 export const alphaSheetCount = () => idsOf(ALPHA).size + kgMore().length;

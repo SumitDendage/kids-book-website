@@ -36,3 +36,14 @@ export const dateInput = ms => { if (!ms) return ''; const d = new Date(ms); con
 /* the end of that local day, as an ISO time the server understands */
 export const endOfDayIso = s => { if (!s) return null; const d = new Date(s + 'T23:59:59'); return Number.isNaN(d.getTime()) ? null : d.toISOString(); };
 export const startOfDayIso = s => { if (!s) return null; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? null : d.toISOString(); };
+
+/* product labels (they are tags on the product; the website reads the same words) and the home page tag */
+export const LABELS = [['bestseller', 'Best Seller'], ['featured', 'Featured'], ['new', 'New Arrival'], ['popular', 'Popular'], ['recommended', 'Recommended']];
+export const HOME_TAG = 'home';
+/* where a sheet is: draft (staff only), published, scheduled (published from a time on), hidden (archived) */
+export const VISIBILITY = [['draft', 'Draft'], ['published', 'Published'], ['scheduled', 'Scheduled'], ['hidden', 'Hidden']];
+export const VISIBILITY_TONE = { draft: 'neutral', published: 'ok', scheduled: 'info', hidden: 'neutral' };
+export const visibilityOf = s => (!s ? 'draft' : s.status === 'archived' ? 'hidden' : s.status === 'draft' ? 'draft' : s.scheduled ? 'scheduled' : 'published');
+/* a time for an <input type="datetime-local"> (this browser's time zone), and back to ms */
+export const localInput = ms => { if (!ms) return ''; const d = new Date(ms); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+export const fromLocalInput = s => { if (!s) return null; const t = new Date(s).getTime(); return Number.isNaN(t) ? null : t; };

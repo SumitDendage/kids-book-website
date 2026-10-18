@@ -149,7 +149,7 @@
 },
 {
 "q": "How do I find free sheets?",
-"a": "Choose the Free view in the shop. Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Sign in, then pick Free in the shop. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Choose the Free view in the shop. Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Show me the free worksheets"
 ],
@@ -198,7 +198,7 @@
 },
 {
 "q": "How many worksheets are free?",
-"a": "Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Sign in, then pick Free in the shop. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Are all worksheets free?",
 "Which two sheets are free?",
@@ -228,7 +228,7 @@
 },
 {
 "q": "Do I need an account to open free sheets?",
-"a": "Yes. Create a free account and sign in, then select Open it free on an eligible sheet.",
+"a": "Yes. Select Open it free on a free sheet. No account or sign-in is needed. Printing a free sheet needs a free account.",
 "alt": [
 "Can I open free PDFs without login?"
 ],
@@ -249,7 +249,7 @@
 },
 {
 "q": "How do I open Alphabet A or Alphabet B?",
-"a": "Sign in, open the Free shop view or A–Z tracing section, choose Alphabet A or B, then select Open it free. The sheet opens in the protected viewer.",
+"a": "Open the Free shop view or the A–Z tracing section, choose Alphabet A or B, then select Open it free. No sign-in is needed. The sheet opens in the protected viewer.",
 "alt": [],
 "kw": [
 "open a",
@@ -1173,7 +1173,7 @@
 },
 {
 "q": "What is Alphabet A — tracing sheet?",
-"a": "Alphabet A — tracing sheet is a one-page A4 Kindergarten English resource. Trace the big A and the small a, then say it: A is for apple. It is a free sample; sign in to open it. It opens in the protected viewer.",
+"a": "Alphabet A — tracing sheet is a one-page A4 Kindergarten English resource. Trace the big A and the small a, then say it: A is for apple. It is a free sample; it opens without signing in. It opens in the protected viewer.",
 "alt": [
 "Tell me about Alphabet A — tracing sheet",
 "What is included in Alphabet A — tracing sheet?",
@@ -1189,7 +1189,7 @@
 },
 {
 "q": "What is Alphabet B — tracing sheet?",
-"a": "Alphabet B — tracing sheet is a one-page A4 Kindergarten English resource. Trace the big B and the small b, then say it: B is for boy. It is a free sample; sign in to open it. It opens in the protected viewer.",
+"a": "Alphabet B — tracing sheet is a one-page A4 Kindergarten English resource. Trace the big B and the small b, then say it: B is for boy. It is a free sample; it opens without signing in. It opens in the protected viewer.",
 "alt": [
 "Tell me about Alphabet B — tracing sheet",
 "What is included in Alphabet B — tracing sheet?",
@@ -2415,7 +2415,7 @@
 },
 {
 "q": "What is in Vocabulary?",
-"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours and Shapes have 10 sheets each, and the first three of each are free after you sign in. The other topics say Coming soon.",
+"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours and Shapes have 10 sheets each, and the first three of each are free, with no sign-in needed. The other topics say Coming soon.",
 "alt": [
 "Colours and shapes sheets",
 "Do you have colour sheets?",

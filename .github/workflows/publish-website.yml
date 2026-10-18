@@ -1,0 +1,52 @@
+# Builds the website after every change to frontend/ on main and puts the ready files on the
+# `live-site` branch. Hostinger pulls that branch into public_html/_live by itself (Websites ->
+# Advanced -> Git, auto-deployment), and a timed job on Hostinger copies _live into the site every
+# 5 minutes, replacing changed files only (it never deletes). Nothing to upload or extract by hand.
+# Run by hand: Actions -> "Publish the website" -> Run workflow.
+name: Publish the website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['frontend/**', '.github/workflows/publish-website.yml']
+
+concurrency:
+  group: publish-website
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Put the build on the live-site branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin live-site; then
+            git worktree add -B live-site ../live FETCH_HEAD
+          else
+            git worktree add --orphan -b live-site ../live
+          fi
+          find ../live -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a frontend/dist/. ../live/
+          cd ../live
+          git add -A
+          if git diff --cached --quiet; then echo "The live site already has this build."; exit 0; fi
+          git commit -q -m "Website built from main ${GITHUB_SHA::7}"
+          git push origin live-site

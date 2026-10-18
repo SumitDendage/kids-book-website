@@ -3,8 +3,8 @@ import { PDFDocument, PDFName, PDFRawStream, StandardFonts } from 'pdf-lib';
 import { assert, assertEquals, assertMatch, assertStatus, startHarness, test } from './harness.ts';
 import { tx } from '../../functions/api/lib/db.ts';
 import { decodeClaims } from '../../functions/api/lib/gotrue.ts';
-import { makeViewToken } from '../../functions/api/services/viewtoken.ts';
-import { FILE_LIMIT } from '../../functions/api/routes/access.ts';
+import { makeGuestToken, makeViewToken } from '../../functions/api/services/viewtoken.ts';
+import { FILE_LIMIT, GUEST_LIMITS } from '../../functions/api/routes/access.ts';
 import { footerLines, stampText } from '../../functions/api/services/watermark.ts';
 
 const h = await startHarness();
@@ -115,6 +115,93 @@ test('signed out → 401; unknown or malformed sheet → 404; no PDF yet → 410
   assertEquals((await h.sql`select count(*)::int as n from entitlements where user_id = ${c.id}`)[0].n, 0);
   const log = await accessRows(c.id);
   assert(log.length >= 2 && log.every((x) => !x.ok), 'refusals are logged');
+});
+
+// ── free sheets without an account (guests) ─────────────────────────────────────────────
+
+test('GUEST a free sheet opens without signing in: view only, stamped with the site, no access record', async () => {
+  await ready('vs-2', 2);
+  const before = (await h.sql`select count(*)::int as n from entitlements`)[0].n;
+  const r = await h.call('POST', '/api/access/vs-2', { ip: '10.77.0.1' });
+  assertStatus(r, 200);
+  assertEquals(r.body.guest, true);
+  assert(typeof r.body.token === 'string' && r.body.token === r.body.viewToken, 'a view token');
+  assertEquals(r.body.entitlement, null);
+  assertEquals([r.body.printLimit, r.body.printsLeft, r.body.downloadsLeft], [0, 0, 0]);
+  assertEquals(r.body.worksheet.id, 'vs-2');
+  assertEquals((await h.sql`select count(*)::int as n from entitlements`)[0].n, before);
+
+  const m = await h.call('GET', '/api/view/meta', { headers: viewHeaders(r.body.token), ip: '10.77.0.1' });
+  assertStatus(m, 200);
+  assertEquals([m.body.guest, m.body.kind, m.body.user, m.body.until, m.body.printLimit], [true, 'free', null, null, 0]);
+  assertEquals(m.body.watermark.email, 'learnwithwhy.com');
+
+  const f = await h.call('GET', '/api/view/file', { headers: viewHeaders(r.body.token), ip: '10.77.0.1' });
+  assertStatus(f, 200);
+  assertEquals(f.headers.get('content-type'), 'application/pdf');
+  const content = await pdfContent(f.bytes);
+  assert(content.includes(hexOf('Free sheet from learnwithwhy.com - ')), 'stamped as a free sheet from the site');
+  assert(!content.includes(hexOf('Licensed to')), 'no account line');
+
+  // no counted copies without an account
+  for (const kind of ['print', 'download']) {
+    const x = await h.call('POST', `/api/view/${kind}`, { headers: viewHeaders(r.body.token), ip: '10.77.0.1' });
+    assertStatus(x, 403);
+    assertEquals(x.body.code, 'not_allowed');
+  }
+});
+
+test('GUEST a paid sheet still asks for sign-in; drafts and unknown sheets are 404', async () => {
+  await ready('az-C');
+  const paid = await h.call('POST', '/api/access/az-C', { ip: '10.77.0.2' });
+  assertStatus(paid, 401);
+  assertEquals(paid.body.code, 'signin');
+  assertStatus(await h.call('POST', '/api/access/no-such-sheet', { ip: '10.77.0.2' }), 404);
+  await ready('vs-3');
+  await h.sql`update products set status = 'draft' where id = 'vs-3'`;
+  try {
+    assertStatus(await h.call('POST', '/api/access/vs-3', { ip: '10.77.0.2' }), 404);
+  } finally {
+    await h.sql`update products set status = 'active' where id = 'vs-3'`;
+  }
+});
+
+test('GUEST the token opens nothing once the sheet is paid, when it runs out or when it is forged', async () => {
+  await ready('vs-2', 2);
+  const r = await h.call('POST', '/api/access/vs-2', { ip: '10.77.0.3' });
+  assertStatus(r, 200);
+  await h.sql`update products set price_inr = 25 where id = 'vs-2'`;
+  try {
+    const m = await h.call('GET', '/api/view/meta', { headers: viewHeaders(r.body.token), ip: '10.77.0.3' });
+    assertStatus(m, 403);
+    assertEquals([m.body.code, m.body.expired, m.body.worksheet], ['expired', true, 'vs-2']);
+    assertStatus(await h.call('GET', '/api/view/file', { headers: viewHeaders(r.body.token), ip: '10.77.0.3' }), 403);
+  } finally {
+    await h.sql`update products set price_inr = 0 where id = 'vs-2'`;
+  }
+  const old = await tx((q) => makeGuestToken(q, { productId: 'vs-2', exp: Date.now() - 1000 }));
+  const o = await h.call('GET', '/api/view/meta', { headers: viewHeaders(old), ip: '10.77.0.3' });
+  assertStatus(o, 403);
+  assertEquals([o.body.code, o.body.tokenExpired], ['invalid', true]);
+  const [body, sig] = r.body.token.split('.');
+  const forged = body + '.' + (sig[0] === 'A' ? 'B' : 'A') + sig.slice(1);
+  const bad = await h.call('GET', '/api/view/meta', { headers: viewHeaders(forged), ip: '10.77.0.3' });
+  assertStatus(bad, 403);
+  assertEquals(bad.body.code, 'invalid');
+});
+
+test('GUEST opens are limited per connection', async () => {
+  await ready('vs-2', 2);
+  const ip = '10.77.0.4';
+  await h.sql`
+    insert into private.rate_limits (bucket, window_start, hits)
+    values (${'access_guest:' + ip}, to_timestamp(floor(extract(epoch from now()) / ${GUEST_LIMITS.open.seconds}) * ${GUEST_LIMITS.open.seconds}), ${GUEST_LIMITS.open.count})
+    on conflict (bucket, window_start) do update set hits = excluded.hits`;
+  const r = await h.call('POST', '/api/access/vs-2', { ip });
+  assertStatus(r, 429);
+  assertEquals(r.body.code, 'rate_limited');
+  // another connection is not affected
+  assertStatus(await h.call('POST', '/api/access/vs-2', { ip: '10.77.0.5' }), 200);
 });
 
 // ── paid sheets ─────────────────────────────────────────────────────────────────────────

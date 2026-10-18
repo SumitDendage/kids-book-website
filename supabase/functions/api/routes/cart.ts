@@ -27,6 +27,7 @@ type CartRow = {
   product_id: string; added_at: Date; title: string | null; price_inr: number | null; was_price_inr: number | null;
   class_id: string | null; subject: string | null; thumb_url: string | null; access_days: number | null;
   status: string | null; stock: number | null; class_status: string | null; has_pdf: boolean | null;
+  scheduled: boolean;
 };
 
 const NOTES: Record<CartProblem, string> = {
@@ -51,7 +52,8 @@ async function lockCart(q: Tx, userId: string) {
 async function cartRows(q: Tx, userId: string): Promise<CartRow[]> {
   return await q<CartRow[]>`
     select ci.product_id, ci.added_at, p.title, p.price_inr, p.was_price_inr, p.class_id, p.subject, p.thumb_url,
-           p.access_days, p.status, p.stock, c.status as class_status, f.has_pdf
+           p.access_days, p.status, p.stock, c.status as class_status, f.has_pdf,
+           coalesce(p.publish_at > now(), false) as scheduled
     from cart_items ci
     left join products p on p.id = ci.product_id
     left join classes c on c.id = p.class_id
@@ -66,7 +68,7 @@ async function readCart(q: Tx, s: Settings, userId: string) {
   const owned = await ownedSheets(q, userId, rows.map((r) => r.product_id));
   const items = rows.map((r) => {
     const price = r.price_inr ?? 0;
-    const onSale = r.status === 'active' && r.class_status === 'available' && !(r.stock !== null && r.stock <= 0) && !!r.has_pdf;
+    const onSale = r.status === 'active' && !r.scheduled && r.class_status === 'available' && !(r.stock !== null && r.stock <= 0) && !!r.has_pdf;
     const problem: CartProblem | null = owned.has(r.product_id) ? 'owned' : price === 0 ? 'free' : onSale ? null : 'unavailable';
     return {
       worksheet: r.product_id,

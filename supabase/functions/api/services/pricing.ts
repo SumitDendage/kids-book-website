@@ -269,6 +269,7 @@ type Item = {
 type ProductSaleRow = {
   id: string; title: string; class_id: string; price_inr: number; status: string; pdf_path: string | null;
   stock: number | null; access_days: number | null; class_name: string; class_status: string; class_pct: number;
+  scheduled: boolean;
 };
 
 /** A sheet as a thing to buy; null when it does not exist for customers (unknown, draft, hidden class). */
@@ -276,11 +277,12 @@ async function worksheetItem(q: Tx, s: Settings, id: string): Promise<Item | nul
   if (!PRODUCT_RE.test(id)) return null;
   const r = await q<ProductSaleRow[]>`
     select p.id, p.title, p.class_id, p.price_inr, p.status, p.pdf_path, p.stock, p.access_days,
-           c.name as class_name, c.status as class_status, c.discount_pct::float8 as class_pct
+           c.name as class_name, c.status as class_status, c.discount_pct::float8 as class_pct,
+           coalesce(p.publish_at > now(), false) as scheduled
     from products p join classes c on c.id = p.class_id
     where p.id = ${id}`;
   const p = r[0];
-  if (!p || p.status === 'draft' || p.class_status === 'hidden') return null;
+  if (!p || p.status === 'draft' || p.class_status === 'hidden' || (p.status === 'active' && p.scheduled)) return null;
   let problem: SaleProblem | null = null;
   if (p.status !== 'active') problem = { message: 'This sheet is no longer for sale.', code: 'unavailable' };
   else if (p.class_status !== 'available') problem = { message: `${p.class_name} sheets are coming soon — they are not for sale yet.`, code: 'unavailable' };

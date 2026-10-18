@@ -8,7 +8,7 @@ export const AI_WELCOME = 'Hi! 👋 Welcome. How can I help you today?';
 export const AI_PLACEHOLDER = 'Ask me anything...';
 
 export const AI_ANSWERS = [
-  { words: ['free', 'sample', 'try'], reply: 'Eight sheets are free to try: Alphabet A and B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Sign in first, then open them from the shop (pick Free). Every other sheet is bought on its own or opens with a class plan.' },
+  { words: ['free', 'sample', 'try'], reply: 'Eight sheets are free to try: Alphabet A and B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Open them from the shop (pick Free): no sign-in is needed. Every other sheet is bought on its own or opens with a class plan.' },
   { words: ['how long', 'expire', 'expiry', 'expires', 'expired', 'forever', 'keep', 'year', 'days', 'access', 'buy again'], reply: 'A sheet you buy stays open for {access}, counted from the moment your payment is verified. My Account → My Worksheets shows a timer with the time left. When it reaches zero, the sheet is removed from your account, and you can buy it again from the shop.' },
   { words: ['subscribe', 'subscription', 'plan', 'month'], reply: 'You can take a Kindergarten plan for 1, 3 or 6 months (12 months too outside India). Every Kindergarten sheet opens while the plan runs, and it ends after its months. Pick a plan in the shop’s Subscription view; the price shows on the payment page.' },
   { words: ['price', 'cost', 'pay', 'buy', 'rupee', '₹', 'payment'], reply: 'You can buy single sheets or take a Kindergarten plan. The price shows on our secure payment page before you pay, and a bought sheet stays open for {access}.' },
@@ -18,7 +18,7 @@ export const AI_ANSWERS = [
   { words: ['print', 'download', 'pdf', 'open', 'view'], reply: 'Your sheets open in our protected viewer after you sign in. Find them in My Account → My Worksheets. If a sheet can be printed or downloaded, the viewer shows how many times are left.' },
   { words: ['share', 'sharing'], reply: 'Your sign-in is just for you, so please do not share it or the sheets. Every page shows your name.' },
   { words: ['contact', 'email', 'mail', 'phone', 'help', 'support', 'query'], reply: 'You can write to us at learnwithwhy6@gmail.com, or use the form in the Contact section of this page.' },
-  { words: ['sign in', 'login', 'log in', 'sign up', 'account', 'password'], reply: 'Use the sign-in card on the first screen of this page. New here? Sign up with your name and email, and we will email you a password. You need to be signed in to open any sheet, the free ones too.' },
+  { words: ['sign in', 'login', 'log in', 'sign up', 'account', 'password'], reply: 'Use the sign-in card on the first screen of this page. New here? Sign up with your name and email, and we will email you a password. Free sheets open without signing in; you need to be signed in to buy and open paid sheets.' },
   { words: ['hello', 'hi', 'hey', 'namaste', 'good morning', 'good evening'], reply: 'Hello! I can help you find worksheets, explain how plans work, or tell you how to reach us. What would you like to know?' },
   { words: ['thank', 'thanks', 'great', 'nice'], reply: 'You’re welcome! Ask me anything else whenever you like.' },
 ];

@@ -95,9 +95,10 @@ export default function Viewer() {
     /* what the header and footer say: "Open until 8 Oct 2027, 9:15 pm IST" (in the customer's zone) */
     const describe = meta => {
       const until = meta.expiresAt || meta.until || null, plan = meta.scope === 'class', free = meta.kind === 'free', c = classById(meta.cls), tz = tzOf(meta);
-      const who = (meta.user && meta.user.name ? meta.user.name + ' · ' : '') + ((meta.user && meta.user.email) || '');
+      /* a free sheet opened without signing in (guest): no account, the site's name instead */
+      const who = meta.guest ? 'Learn With Why' : (meta.user && meta.user.name ? meta.user.name + ' · ' : '') + ((meta.user && meta.user.email) || '');
       return {
-        title: meta.title, sub: meta.pages > 1 ? ' · ' + meta.pages + ' pages' : '', who,
+        title: meta.title, sub: meta.pages > 1 ? ' · ' + meta.pages + ' pages' : '', who, guest: !!meta.guest,
         pill: until ? 'Open until ' + dateTimeTz(until, tz) : free ? 'Free sheet' : plan ? 'In your plan' : 'On your account',
         pillShort: until ? 'Until ' + shortDate(until) : free ? 'Free' : plan ? 'In your plan' : 'Open',
         line: (free ? 'Free sheet' : plan ? 'In your ' + (c ? c.label + ' ' : '') + 'plan' : 'Bought ' + (meta.since ? dateTimeTz(meta.since, tz) : '')) + (until ? ' · open until ' + dateTimeTz(until, tz) : ''),
@@ -169,9 +170,10 @@ export default function Viewer() {
       const info = describe(meta);
       setHead(info); keepCounts(meta); watchEnd(meta); schedule();
       const wm = meta.watermark || {}, when = new Date(wm.issuedAt || Date.now());
-      const stamp = info.who + (wm.orderId ? ' · ' + wm.orderId : '') + ' · ' + when.toLocaleDateString('en-IN') + ' ' + when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const stamp = (meta.guest ? 'Free sheet from ' + (wm.email || 'learnwithwhy.com') : info.who) + (wm.orderId ? ' · ' + wm.orderId : '') + ' · ' + when.toLocaleDateString('en-IN') + ' ' + when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const email = (meta.user && meta.user.email) || '';
-      screen('Loading ' + meta.title + '…', 'Licensed to ' + email + '. Please do not copy, share or take screenshots of it.', { spin: true });
+      const lic = meta.guest ? 'A free sheet from Learn With Why' : 'Licensed to ' + email;
+      screen('Loading ' + meta.title + '…', lic + '. Please do not copy, share or take screenshots of it.', { spin: true });
       const isEnded = () => r0.ended || r0.cancelled;
       const images = () => renderImages(stage, { pages: meta.pages, stamp, isEnded, fetchPage: n => api('/api/view/page?n=' + n), onDenied: closed });
       try {
@@ -189,7 +191,7 @@ export default function Viewer() {
       if (isEnded()) return;
       fit();
       const until = meta.expiresAt ? ', open until ' + dateTimeTz(meta.expiresAt, tzOf(meta)) : '';
-      screen(meta.title, 'Licensed to ' + email + until + '. Please do not copy, share or take screenshots of it.', { action: 'Open full screen', onAction: () => { goFull(); setVeil(v => ({ ...v, off: true })); }, back: true });
+      screen(meta.title, lic + until + '. Please do not copy, share or take screenshots of it.', { action: 'Open full screen', onAction: () => { goFull(); setVeil(v => ({ ...v, off: true })); }, back: true });
     })();
 
     /* ---- copy-discouraging: no menu, no drag, no copy/save/print keys, blur when the window is not in front.
@@ -333,7 +335,7 @@ export default function Viewer() {
         <button type="button" className="btn primary" id="close" onClick={back}>Close</button>
       </header>
       <main className="stage" id="stage" ref={stageRef} onScroll={onScroll} aria-label="Sheet pages" />
-      <footer className={'foot' + (chromeOn ? '' : ' hide')} id="foot"><span>Licensed to <b id="who">{head ? head.who : ''}</b></span><span>·</span><span id="sinceLine">{head ? head.line : ''}</span><span>·</span><span>Esc or Close to go back to the site</span></footer>
+      <footer className={'foot' + (chromeOn ? '' : ' hide')} id="foot"><span>{head && head.guest ? 'A free sheet from ' : 'Licensed to '}<b id="who">{head ? head.who : ''}</b></span><span>·</span><span id="sinceLine">{head ? head.line : ''}</span><span>·</span><span>Esc or Close to go back to the site</span></footer>
       <div className={'toast' + (toastMsg.show ? ' show' : '')} id="toast" role="status" aria-live="polite">{toastMsg.msg}</div>
     </>
   );
