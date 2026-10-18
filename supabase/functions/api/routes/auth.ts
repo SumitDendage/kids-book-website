@@ -47,6 +47,29 @@ function maskEmail(email: string): string {
   const visible = local.length <= 2 ? local[0] : local.slice(0, 2);
   return `${visible}***@${domain}`;
 }
+async function sendLoginCode(
+  email: string,
+  userId: string,
+  name: string,
+  code: string,
+) {
+  if (!mailReady()) {
+    return { ok: false as const, error: MAIL_OFF };
+  }
+
+  return await sendSensitive({
+    ...loginOtpEmail({
+      name: name || 'there',
+      code,
+      minutes: LOGIN_OTP_MINUTES,
+    }),
+    to: email,
+    template: 'login_otp',
+    userId,
+    relatedType: 'profile',
+    relatedId: userId,
+  });
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ipKey = (ctx: Ctx) => ctx.ip ?? '-';
