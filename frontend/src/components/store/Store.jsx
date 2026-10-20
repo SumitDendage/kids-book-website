@@ -34,8 +34,8 @@ export const matchesSearch = (it, words) => !words.length || (h => words.every(w
    Subscription, then classes and subjects. Behind it: the Learn With Why picture
    (public/shop/learn-with-why-wallpaper.webp). Each skill card shows its own corner of that
    picture (public/shop/cards/<section id>.webp); the sheet cards are see-through, each in its own colour. */
-function SideButton({ on, onClick, n, sub, children }) {
-  return <button type="button" className={'side-btn' + (sub ? ' side-sub' : '') + (on ? ' on' : '')} aria-pressed={on} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
+function SideButton({ on, onClick, n, sub, expanded, disabled, children }) {
+  return <button type="button" className={'side-btn' + (sub ? ' side-sub' : '') + (on ? ' on' : '')} aria-pressed={on} aria-expanded={expanded} disabled={disabled} onClick={onClick}><span className="side-lbl">{children}</span>{n != null ? <span className={'side-n' + (typeof n === 'string' ? ' soon' : '')}>{n}</span> : null}</button>;
 }
 
 const CARD_PICS = '/shop/cards/';
@@ -49,11 +49,10 @@ const soonIn = config => c => (config && config.classStatus && config.classStatu
    "vocab also add here also behind in classes"). Its sheets are Kindergarten sheets, so the
    Kindergarten plan opens them and the Kindergarten row still counts them. */
 const VOCAB = 'vocab';
-/* Vocabulary's own sections, one per topic that has sheets (Colours, Shapes, Sizes), as rows
-   under Vocabulary and as headed groups in its list (Sumit, Oct 16: "all the files add different
-   sections like there is zip of color, shapes, sizes") */
+/* All Vocabulary topics live under the Vocabulary parent. */
 const vocabParts = () => (KG_TOPICS.find(g => g.id === VOCAB) || { items: [] }).items
-  .map(([id, label]) => ({ id, label, list: topicSheets(id) })).filter(x => x.list.length);
+  .map(([id, label, pic]) => ({ id, label, pic, list: topicSheets(id) }));
+const VOCAB_PICS = import.meta.glob('../../assets/vocab/*.webp', { eager: true, import: 'default' });
 const isPart = id => typeof id === 'string' && id.startsWith(VOCAB + '-');
 const partLabel = id => (vocabParts().find(x => x.id === id) || { label: id }).label;
 /* "More sections": the sections staff made in Admin → Categories and the site's other topics, once
@@ -107,6 +106,8 @@ export default function Store() {
 
   const vocabIds = groupSheets(VOCAB).map(it => it.id);
   const parts = vocabParts();
+  const vocabExpanded = cls === VOCAB || isPart(cls);
+  const browseVocab = () => filter({ cls: VOCAB, view: 'all', subject: 'all', skill: null, q: '' });
   const extras = extraSections();
   const inClass = (it, c) => (c === 'all' || (c === VOCAB ? vocabIds.includes(it.id) : isPart(c) ? topicSheets(c).some(x => x.id === it.id) : isSec(c) ? ((secOf(c) || { list: [] }).list.includes(it)) : it.cls === c));
   /* the sheets a view, class and subject show (only what the server lists: hidden, draft and scheduled sheets stay out) */
@@ -148,9 +149,10 @@ export default function Store() {
   if (searching) title = 'Results for “' + q.trim() + '”' + (skill ? ' · ' + SKILL_NAME[skill] : view !== 'all' ? ' · ' + v.label : '') + (!skill && cls !== 'all' ? ' · ' + clsLabel(cls) : '') + (!skill && subject !== 'all' ? ' · ' + subjectById(subject).label : '');
   const showSkills = view === 'all' && cls === 'all' && subject === 'all' && list.length > 0 && !skill && !searching;
   const soon = !skill && cls !== 'all' && cls !== VOCAB && !isPart(cls) && !isSec(cls) && SOON_NOW(cls);
-  /* the Vocabulary list comes in its sections, each under its own heading */
-  const grouped = !skill && cls === VOCAB && shown.length > 0;
-  if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
+  /* The parent shows topics; worksheets only appear after choosing a topic. */
+  const grouped = !skill && cls === VOCAB;
+  if (grouped) { title = 'Vocabulary'; sub = parts.length + ' sub-sections · choose a topic to see its worksheets'; }
+  else if (soon) sub = 'New worksheets for ' + clsLabel(cls) + ' are on their way.';
   else if (searching) sub = shown.length ? (shown.length === 1 ? '1 sheet matches' : shown.length + ' sheets match') + ' · tap one to see it' : 'Nothing matches yet.';
   else if (showSkills) sub = SKILL_CATEGORIES.length + ' skill categories · ' + listedSheets().length + ' printable PDF sheets · click one to browse';
   else sub = shown.length + (shown.length === 1 ? ' sheet' : ' sheets') + ' · buy one PDF, or subscribe to a class to open them all';
@@ -181,8 +183,8 @@ export default function Store() {
           <div className="side-list" id="shopClasses"><SideButton on={cls === 'all'} n={countOf(view, 'all', subject)} onClick={() => filter({ cls: 'all', skill: null })}>All classes</SideButton>{CLASSES.map(c => {
             const row = <SideButton key={c.id} on={c.id === cls} n={SOON_NOW(c.id) ? 'Coming soon' : countOf(view, c.id, subject)} onClick={() => filter({ cls: c.id, skill: null })}>{c.label}</SideButton>;
             if (c.id !== 'kg') return row;
-            return [row, <SideButton key={VOCAB} on={cls === VOCAB} n={countOf(view, VOCAB, subject)} onClick={() => filter({ cls: VOCAB, skill: null })}>Vocabulary</SideButton>,
-              ...parts.map(x => <SideButton key={x.id} sub on={cls === x.id} n={countOf(view, x.id, subject)} onClick={() => filter({ cls: x.id, skill: null })}>{x.label}</SideButton>)];
+            return [row, <SideButton key={VOCAB} on={cls === VOCAB} expanded={vocabExpanded} n={countOf(view, VOCAB, subject)} onClick={() => cls === VOCAB ? filter({ cls: 'all', skill: null }) : browseVocab()}>Vocabulary {vocabExpanded ? '▾' : '▸'}</SideButton>,
+              ...(vocabExpanded ? parts.map(x => <SideButton key={x.id} sub on={cls === x.id} disabled={!x.list.length} n={x.list.length ? countOf(view, x.id, subject) : 'Coming soon'} onClick={() => filter({ cls: x.id, skill: null })}>{x.label}</SideButton>) : [])];
           })}</div>
           {extras.length ? <><p className="side-title">More sections</p>
             <div className="side-list" id="shopSections">{extras.map(x => <SideButton key={x.id} on={cls === SEC + x.id} n={countOf(view, SEC + x.id, subject)} onClick={() => filter({ cls: SEC + x.id, skill: null })}>{x.label}</SideButton>)}</div></> : null}
@@ -191,9 +193,9 @@ export default function Store() {
           <p className="side-note">Free sheets first. Subscribe to a class and open every sheet in it for as long as your plan runs.</p>
         </aside>
         <main className="shop-main">
-          <div className="shop-head"><h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
-          <div className={'shop-grid' + (showSkills ? ' skills' : '')} id="shopGrid">
-            {view === 'paid' && !skill && !soon && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} config={config} failed={failed} tz={tz} />}
+          <div className="shop-head">{isPart(cls) && <button type="button" className="btn btn-ghost" onClick={browseVocab}>← All Vocabulary topics</button>}<h3 id="shopTitle">{title}</h3><p id="shopSub">{sub}</p></div>
+          <div className={'shop-grid' + (showSkills || grouped ? ' skills' : '')} id="shopGrid">
+            {view === 'paid' && !skill && !soon && !grouped && <SubscribeBox cls={planCls(cls)} sub={access.activeSub(planCls(cls))} openCheckout={openCheckout} config={config} failed={failed} tz={tz} />}
             {soon ? <div className="shop-soon"><b>Coming soon</b><p>We are making {clsLabel(cls)} worksheets right now. Until then, Kindergarten has {listedSheets().filter(it => it.cls === 'kg').length} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => filter({ cls: 'kg', skill: null })}>See Kindergarten sheets →</button></div> : showSkills ? SKILL_CATEGORIES.map((c, n) => (
               <article key={c.id} className={'skill-card skill-' + c.id} style={{ '--n': n }}>
                 {/* each skill has its own corner of the Learn With Why picture (public/shop/cards/) */}
@@ -208,9 +210,18 @@ export default function Store() {
                   </div>
                 </div>
               </article>
-            )) : grouped ? parts.map(x => [x, shown.filter(it => x.list.some(y => y.id === it.id))]).filter(([, l]) => l.length).map(([x, l]) => [
-              <div key={'h-' + x.id} className="shop-group"><h4>{x.label}</h4><span>{l.length} {l.length === 1 ? 'sheet' : 'sheets'}</span></div>,
-              ...l.map((it, n) => <SheetCard key={x.id + '-' + it.id} it={it} n={n} store />)])
+            )) : grouped ? parts.map(x => (
+              <article key={x.id} className="skill-card">
+                <div className="skill-content">
+                  <img src={VOCAB_PICS['../../assets/vocab/' + x.pic + '.webp']} alt="" width="96" height="96" loading="lazy" style={{ objectFit: 'contain' }} />
+                  <h3 className="card-title">{x.label}</h3>
+                  <p>{x.list.length ? x.list.length + ' worksheets' : 'Coming soon'}</p>
+                  <button type="button" className="btn btn-primary" disabled={!x.list.length} onClick={() => filter({ cls: x.id, view: 'all', subject: 'all', skill: null, q: '' })}>
+                    {x.list.length ? 'Explore ' + x.label + ' →' : 'Coming soon'}
+                  </button>
+                </div>
+              </article>
+            ))
             : shown.length ? shown.map((it, n) => <SheetCard key={it.id} it={it} n={n} store />)
               : searching ? <div className="shop-none" id="shopNone" role="status"><b>No sheets match “{q.trim()}”</b><p>Try another word, or look in every class and subject.</p><button type="button" className="btn" onClick={() => { setShopFilter({ q: '', view: 'all', cls: 'all', subject: 'all', skill: null }); }}>Clear the search</button></div>
               : <p className="cart-empty">Nothing here yet. Try another class or subject.</p>}
