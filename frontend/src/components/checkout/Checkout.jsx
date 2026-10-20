@@ -350,7 +350,7 @@ export default function Checkout() {
 
   return (
     <div className={'shop' + (checkout.open ? ' open' : '')} id="checkout" aria-hidden={checkout.open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Secure checkout">
-      <div className="shop-shade" style={{ background: '#071018' }} />
+      <div className="shop-shade" aria-hidden="true" />
       <header className="shop-bar">
         <div><p className="eyebrow">Secure checkout</p><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
         <div className="shop-actions"><span className="co-lock">🔒 256-bit encrypted</span><button type="button" className="icon-btn" id="checkoutBack" aria-label="Back" onClick={closeCheckout}>✕</button></div>
