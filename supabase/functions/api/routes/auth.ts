@@ -476,48 +476,55 @@ async function login(ctx: Ctx) {
     });
   }
 
+  
   const textHash = reaccept ? await sha256Hex(agreement.text) : null;
-  let done: { profile: Profile; expiresAt: Date; keys: string[] };
+
+  // Keep the temporary Supabase session encrypted until the email OTP is verified.
+  const challengeId = crypto.randomUUID();
+  const code = generateLoginOtp();
+  const otpHash = await hashLoginOtp(challengeId, code);
+  const encryptedSession = await encryptLoginSession(s);
+
   try {
-    done = await tx(async (q) => {
-      const { expiresAt } = await openSession(q, ctx, { userId, sessionId: s.sessionId, remember, isStaff: !!staff });
-      const rows = await q<Profile[]>`
-        update profiles set failed_login_attempts = 0, locked_until = null, last_login_at = now(),
-          agreement_version = case when ${reaccept}::boolean then ${agreement.version}::text else agreement_version end,
-          agreement_accepted_at = case when ${reaccept}::boolean then now() else agreement_accepted_at end
-        where id = ${userId} returning *`;
-      if (reaccept) {
-        await q`
-          insert into agreement_acceptances (user_id, version, text_sha256, context, ip, user_agent)
-          values (${userId}, ${agreement.version}, ${textHash}, 'reaccept', ${ctx.ip}, ${ctx.ua || null})`;
-      }
-      await loginActivity(ctx, { userId, email, success: true, sessionId: s.sessionId }, q);
-      await analytics(q, ctx, { kind: 'login', userId, meta: staff ? { staff: true } : undefined });
-      const keys = staff ? (await q<{ id: string }[]>`select id from staff_permissions order by id`).map((r) => r.id) : [];
-      return { profile: rows[0], expiresAt, keys };
+    await tx(async (q) => {
+      await q`
+        insert into login_otp_challenges (
+          id, user_id, email, otp_hash, encrypted_session, remember,
+          is_staff, agreement_version, agreement_text_sha256,
+          agreement_reaccept, ip, ip_network, country, user_agent,
+          device_label, device_id_hash, expires_at
+        ) values (
+          ${challengeId}, ${userId}, ${email}, ${otpHash}, ${encryptedSession},
+          ${remember}, ${!!staff},
+          ${reaccept ? agreement.version : null},
+          ${textHash}, ${reaccept}, ${ctx.ip}, ${ctx.ipNetwork},
+          ${ctx.country}, ${(ctx.ua || '').slice(0, 400)},
+          ${(ctx.deviceLabel || '').slice(0, 80)}, ${ctx.deviceIdHash},
+          now() + make_interval(secs => ${LOGIN_OTP_CHALLENGE_TTL_SECONDS})
+        )
+      `;
     });
+
+    const sent = await sendLoginCode(email, userId, profile.name || 'there', code);
+    if (!sent.ok) {
+      await tx((q) => q`
+        delete from login_otp_challenges where id = ${challengeId}
+      `);
+      await endGrant();
+      throw new HttpError(503, MAIL_OFF, { code: 'mail_unavailable' });
+    }
   } catch (e) {
-    await endGrant();
+    await endGrant().catch(() => {});
     throw e;
   }
 
-  if (isCustomer) {
-    // sharing rules look at the new sign-in after the response; a rule problem never blocks sign-in
-    ctx.later(async () => {
-      try {
-        await evaluateRules(ctx, userId);
-      } catch (e) {
-        console.error('[auth] sharing rules not evaluated:', (e as Error)?.message ?? e);
-      }
-    });
-  }
   return {
-    user: publicUser(done.profile, staff, isCustomer ? settings.security.maxWarnings : undefined, settings.prints),
-    session: sessionBody(s, done.expiresAt),
-    staff: staffBody(staff, done.keys),
-    security: isCustomer ? await securityFor(userId) : null,
+    otpRequired: true,
+    challengeId,
+    email: maskEmail(email),
+    expiresIn: LOGIN_OTP_MINUTES * 60,
   };
-}
+
 
 // ── POST /api/auth/logout (alias /api/auth/signout) ──────────────────────────────────────
 async function endAppSession(ctx: Ctx, userId: string, sessionId: string) {
