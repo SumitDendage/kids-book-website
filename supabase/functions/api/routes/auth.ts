@@ -524,7 +524,7 @@ async function login(ctx: Ctx) {
     email: maskEmail(email),
     expiresIn: LOGIN_OTP_MINUTES * 60,
   };
-
+}
 
 // ── POST /api/auth/logout (alias /api/auth/signout) ──────────────────────────────────────
 async function endAppSession(ctx: Ctx, userId: string, sessionId: string) {
