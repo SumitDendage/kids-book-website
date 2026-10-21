@@ -15,3 +15,6 @@ import { register as adminOps } from './admin_ops.ts';
 
 for (const r of [publicRoutes, authRoutes, accountRoutes, shopRoutes, cartRoutes, paymentRoutes, accessRoutes,
   adminCatalogue, adminCommerce, adminPeople, adminSecurity, adminOps]) r(router);
+
+import { register as authEmailRoutes } from './auth_email.ts';
+authEmailRoutes(router);
