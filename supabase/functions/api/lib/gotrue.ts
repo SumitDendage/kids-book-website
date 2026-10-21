@@ -153,10 +153,3 @@ export async function getUser(accessToken: string): Promise<{ id: string; email:
 }
 
 export { decodeClaims };
-
-export async function requestEmailOtp(email: string, createUser: boolean, data: Record<string, unknown>, ip?: string | null) {
-  return call('/otp', { method: 'POST', headers: serverHeaders(ip), body: JSON.stringify({ email, create_user: createUser, data }) });
-}
-export async function verifyEmailOtp(email: string, token: string, ip?: string | null): Promise<AuthSession> {
-  return toSession(await call('/verify', { method: 'POST', headers: serverHeaders(ip), body: JSON.stringify({ email, token, type: 'email' }) }));
-}

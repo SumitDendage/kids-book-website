@@ -129,13 +129,7 @@ export async function api(method, path, body, store = customerTokens) {
 export const authApi = {
   /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
      service needed); ready means it can sign in at once */
-  signup: body => api('POST', '/api/auth/otp/request', { ...body, signup: true }),
-  requestOtp: body => api('POST', '/api/auth/otp/request', body),
-  verifyOtp: async body => {
-    const r = await api('POST', '/api/auth/otp/verify', body);
-    await sdkAuth.adoptSession(r.session);
-    return r;
-  },
+  signup: body => sdkAuth.signUp(body),
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
   logout: serverLogout,
@@ -147,7 +141,7 @@ export const authApi = {
   updateMe: body => api('PATCH', '/api/auth/me', body),
   verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
   verifySignupCode: sdkAuth.verifySignupCode,    /* { email, code }: the 6-digit code from the sign-up email */
-  resendVerification: body => api('POST', '/api/auth/otp/request', body), /* { email }: Supabase emails a new sign-up code */
+  resendVerification: sdkAuth.resendVerification, /* { email }: Supabase emails a new sign-up code */
   forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
   resetPassword: sdkAuth.resetPassword,             /* { token, password } */
   hasTokens: () => usable(customerTokens.get()),
