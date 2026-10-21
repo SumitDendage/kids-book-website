@@ -525,7 +525,235 @@ async function login(ctx: Ctx) {
     expiresIn: LOGIN_OTP_MINUTES * 60,
   };
 }
+// ── POST /api/auth/verify-login-otp ─────────────────────────────────────────
+async function verifyLoginOtp(ctx: Ctx) {
+  await rateLimit(ctx, 'auth_token', ipKey(ctx), 30, 900);
 
+  const b = await readJson(ctx.req);
+  const challengeId = str(b.challengeId).trim();
+  const code = str(b.code).trim();
+
+  if (!UUID_RE.test(challengeId) || !/^\d{6}$/.test(code)) {
+    throw new HttpError(400, 'Enter the 6-digit code from your email.', {
+      code: 'invalid_otp',
+    });
+  }
+
+  type Challenge = {
+    id: string;
+    user_id: string;
+    email: string;
+    otp_hash: string;
+    encrypted_session: string;
+    remember: boolean;
+    is_staff: boolean;
+    agreement_version: string | null;
+    agreement_text_sha256: string | null;
+    agreement_reaccept: boolean;
+    expires_at: Date;
+    consumed_at: Date | null;
+    attempts: number;
+  };
+
+  const challenge = await tx(async (q) => {
+    const rows = await q<Challenge[]>`
+      select id, user_id, email, otp_hash, encrypted_session, remember,
+        is_staff, agreement_version, agreement_text_sha256,
+        agreement_reaccept, expires_at, consumed_at, attempts
+      from login_otp_challenges
+      where id = ${challengeId}
+      for update
+    `;
+
+    if (!rows.length) return { error: 'invalid' as const };
+
+    const c = rows[0];
+
+    if (c.consumed_at || new Date(c.expires_at).getTime() <= Date.now()) {
+      return { error: 'expired' as const };
+    }
+
+    if (c.attempts >= LOGIN_OTP_MAX_ATTEMPTS) {
+      return { error: 'locked' as const };
+    }
+
+    const expectedHash = await hashLoginOtp(challengeId, code);
+
+    if (expectedHash !== c.otp_hash) {
+      await q`
+        update login_otp_challenges
+        set attempts = attempts + 1
+        where id = ${challengeId}
+      `;
+      return { error: 'wrong' as const };
+    }
+
+    await q`
+      update login_otp_challenges
+      set consumed_at = now()
+      where id = ${challengeId}
+    `;
+
+    return { challenge: c };
+  });
+
+  if ('error' in challenge) {
+    if (challenge.error === 'wrong') {
+      throw new HttpError(400, 'That code is incorrect. Check your email and try again.', {
+        code: 'invalid_otp',
+      });
+    }
+    if (challenge.error === 'locked') {
+      throw new HttpError(429, 'Too many incorrect codes. Sign in again to request a new code.', {
+        code: 'otp_attempts_exceeded',
+      });
+    }
+    throw new HttpError(400, 'That code has expired or was already used. Sign in again to get a new one.', {
+      code: 'otp_expired',
+    });
+  }
+
+  const c = challenge.challenge;
+  let s: AuthSession;
+
+  try {
+    s = await decryptLoginSession<AuthSession>(c.encrypted_session);
+  } catch {
+    throw new HttpError(503, 'Sign-in is temporarily unavailable. Please try again.', {
+      code: 'auth_unavailable',
+    });
+  }
+
+  if (
+    s.userId !== c.user_id ||
+    !UUID_RE.test(s.userId) ||
+    !UUID_RE.test(s.sessionId)
+  ) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(401, 'Please sign in again.', { code: 'signin' });
+  }
+
+  const acct = await loadAccount(c.user_id, null);
+  if (!acct || acct.profile.blocked_at || !acct.profile.email_verified_at) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(403, 'This account cannot sign in right now.', {
+      code: 'account_unavailable',
+    });
+  }
+
+  const { profile, staff } = acct;
+
+  if (!!staff !== c.is_staff) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(403, 'Please sign in again.', { code: 'signin' });
+  }
+
+  const settings = await getSettings();
+  const agreement = settings.agreement;
+
+  if (
+    c.agreement_reaccept &&
+    c.agreement_version !== agreement.version
+  ) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(409, 'The agreement has changed. Sign in again and accept the latest version.', {
+      code: 'agreement_updated',
+    });
+  }
+
+  let done: { profile: Profile; expiresAt: Date; keys: string[] };
+
+  try {
+    done = await tx(async (q) => {
+      const { expiresAt } = await openSession(q, ctx, {
+        userId: c.user_id,
+        sessionId: s.sessionId,
+        remember: c.remember,
+        isStaff: !!staff,
+      });
+
+      const rows = await q<Profile[]>`
+        update profiles
+        set failed_login_attempts = 0,
+            locked_until = null,
+            last_login_at = now(),
+            agreement_version = case
+              when ${c.agreement_reaccept}::boolean then ${c.agreement_version}::text
+              else agreement_version
+            end,
+            agreement_accepted_at = case
+              when ${c.agreement_reaccept}::boolean then now()
+              else agreement_accepted_at
+            end
+        where id = ${c.user_id}
+        returning *
+      `;
+
+      if (!rows.length) throw new Error('Profile missing after OTP verification');
+
+      if (c.agreement_reaccept) {
+        await q`
+          insert into agreement_acceptances
+            (user_id, version, text_sha256, context, ip, user_agent)
+          values (
+            ${c.user_id},
+            ${c.agreement_version},
+            ${c.agreement_text_sha256},
+            'reaccept',
+            ${ctx.ip},
+            ${ctx.ua || null}
+          )
+        `;
+      }
+
+      await loginActivity(ctx, {
+        userId: c.user_id,
+        email: c.email,
+        success: true,
+        sessionId: s.sessionId,
+      }, q);
+
+      await analytics(q, ctx, {
+        kind: 'login',
+        userId: c.user_id,
+        meta: staff ? { staff: true } : undefined,
+      });
+
+      const keys = staff
+        ? (await q<{ id: string }[]>`
+            select id from staff_permissions order by id
+          `).map((r) => r.id)
+        : [];
+
+      return { profile: rows[0], expiresAt, keys };
+    });
+  } catch (e) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw e;
+  }
+
+  if (!staff) {
+    ctx.later(async () => {
+      try {
+        await evaluateRules(ctx, c.user_id);
+      } catch (e) {
+        console.error('[auth] sharing rules not evaluated:', (e as Error)?.message ?? e);
+      }
+    });
+  }
+
+  return {
+    user: publicUser(
+      done.profile,
+      staff,
+      staff ? undefined : settings.security.maxWarnings,
+      settings.prints,
+    ),
+    session: sessionBody(s, done.expiresAt),
+    staff: staffBody(staff, done.keys),
+    security: staff ? null : await securityFor(c.user_id),
+  };
+}
 // ── POST /api/auth/logout (alias /api/auth/signout) ──────────────────────────────────────
 async function endAppSession(ctx: Ctx, userId: string, sessionId: string) {
   await tx(async (q) => {
@@ -750,6 +978,7 @@ export function register(r: Router) {
   r.post('/api/auth/resend-verification', resendVerification);
   r.post('/api/auth/login', login);
   r.post('/api/auth/signin', login);
+  r.post('/api/auth/verify-login-otp', verifyLoginOtp);
   r.post('/api/auth/logout', logout);
   r.post('/api/auth/signout', logout);
   r.get('/api/auth/me', me);
