@@ -66,7 +66,7 @@ export const refreshTokens = async () => {
    which keeps them fresh (a refresh keeps the same sign-in, so the record stays valid). */
 async function serverLogin(body) {
   const r = await api('POST', '/api/auth/login', body);
-  await sdkAuth.adoptSession(r.session);
+  if (r.session) await sdkAuth.adoptSession(r.session);
   return r;
 }
 async function serverLogout() {
@@ -132,6 +132,7 @@ export const authApi = {
   signup: body => sdkAuth.signUp(body),
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
+   verifyLoginOtp: body => api('POST', '/api/auth/verify-login-otp', body),
   logout: serverLogout,
   me: refreshTokens,                                             /* { user, staff, security } */
   /* a fresh pair from the refresh token → { session, user, staff, expiresAt } (401 when signed out) */
