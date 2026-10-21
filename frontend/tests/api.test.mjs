@@ -109,3 +109,31 @@ test('sign-out still forgets this browser when the server cannot be reached', as
   assert.deepEqual(await api.authApi.logout(), { ok: true });
   assert.equal(globalThis.__sdk.loggedOut, out + 1);
 });
+
+test('OTP request uses the server and never adopts a session', async t => {
+  const n = globalThis.__sdk.adopted.length;
+  t.mock.method(globalThis, 'fetch', async (url, opt) => {
+    assert.ok(url.endsWith('/api/auth/otp/request'));
+    assert.equal(JSON.parse(opt.body).email, 'parent@example.test');
+    assert.equal(JSON.parse(opt.body).password, undefined);
+    return Response.json({ ok: true, cooldown: 60 });
+  });
+  await api.authApi.requestOtp({ email: 'parent@example.test' });
+  assert.equal(globalThis.__sdk.adopted.length, n);
+});
+test('OTP verification adopts only the server-approved session', async t => {
+  const session = { accessToken: 'otp-access', refreshToken: 'otp-refresh' };
+  t.mock.method(globalThis, 'fetch', async (url, opt) => {
+    assert.ok(url.endsWith('/api/auth/otp/verify'));
+    assert.equal(JSON.parse(opt.body).code, '123456');
+    return Response.json({ session, user: { id: 'customer' } });
+  });
+  await api.authApi.verifyOtp({ email: 'parent@example.test', code: '123456' });
+  assert.deepEqual(globalThis.__sdk.adopted.at(-1), session);
+});
+test('expired OTP cannot adopt a session', async t => {
+  const n = globalThis.__sdk.adopted.length;
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'Invalid or expired', code: 'otp_invalid' }, { status: 400 }));
+  await assert.rejects(api.authApi.verifyOtp({ code: '123456' }), { code: 'otp_invalid' });
+  assert.equal(globalThis.__sdk.adopted.length, n);
+});

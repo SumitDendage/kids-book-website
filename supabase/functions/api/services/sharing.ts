@@ -348,16 +348,8 @@ async function evaluate(ctx: Ctx | null, userId: string): Promise<{ ids: number[
           if (!hit) return;
           const inc = await upsertIncident(sq, ctx, rule, userId, hit);
           ids.push(inc.id);
-          // a follow-up after a staff decision is never confirmed automatically: staff look at it
-          if (inc.created && rule.auto_confirm && !inc.followUp) {
-            await sq`
-              update security_incidents set status = 'confirmed', decided_at = now(),
-                decision_note = 'Confirmed automatically by the rule.'
-              where id = ${inc.id}`;
-            await auditAs(sq, ctx, null, { action: 'security.incident_confirm', targetType: 'security_incident', targetId: inc.id, detail: { userId, rule: rule.id, automatic: true } });
-            const w = await issueWarning(sq, ctx, { userId, incidentId: inc.id, reason: hit.summary, issuedBy: null });
-            if (w) warned = true;
-          }
+          // Signals require staff review; they never prove account sharing.
+
         });
       } catch (e) {
         console.error('[sharing] rule failed', rule.id, (e as Error)?.message ?? e);

@@ -547,7 +547,7 @@ type RuleRow = {
 };
 
 const ruleView = (r: RuleRow) => ({
-  id: r.id, name: r.name, description: r.description, enabled: r.enabled, autoConfirm: r.auto_confirm, auto_confirm: r.auto_confirm,
+  id: r.id, name: r.name, description: r.description, enabled: r.enabled, autoConfirm: false, auto_confirm: false,
   severity: r.severity, params: r.params ?? {}, limits: RULE_PARAMS[r.id] ?? null, updatedAt: ms(r.updated_at), updatedBy: r.updated_by,
 });
 
@@ -577,7 +577,7 @@ function parseRuleChange(id: string, b: Record<string, unknown>): RuleChange {
   const ac = b.autoConfirm !== undefined ? b.autoConfirm : b.auto_confirm;
   if (ac !== undefined) {
     if (typeof ac !== 'boolean') bad('autoConfirm', 'Auto-confirm is true or false.');
-    if (ac && id === 'manual_report') bad('autoConfirm', 'Staff reports are confirmed by the person reporting them.');
+    if (ac) bad('autoConfirm', 'Security incidents require staff review before a warning.');
     c.auto_confirm = ac as boolean;
   }
   if (b.severity !== undefined) {

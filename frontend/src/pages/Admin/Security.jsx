@@ -624,7 +624,7 @@ function RuleCard({ rule, canWrite }) {
         <>
           <div className="lw-switches">
             <label className="check"><input type="checkbox" checked={draft.enabled} onChange={e => set('enabled', e.target.checked)} data-field="rule-enabled" /> <span>Rule is on</span></label>
-            {!manual ? <label className="check"><input type="checkbox" checked={draft.autoConfirm} onChange={e => set('autoConfirm', e.target.checked)} data-field="rule-auto" /> <span>Confirm by itself (no staff check)</span></label> : null}
+            {!manual ? <label className="check"><input type="checkbox" disabled checked={false} onChange={e => set('autoConfirm', e.target.checked)} data-field="rule-auto" /> <span>Staff review required before warning</span></label> : null}
             <label className="check"><span>Concern level</span>
               <select value={draft.severity} onChange={e => set('severity', e.target.value)} aria-label="Concern level">{['low', 'medium', 'high'].map(s => <option key={s} value={s}>{SEVERITY[s][0]}</option>)}</select>
             </label>

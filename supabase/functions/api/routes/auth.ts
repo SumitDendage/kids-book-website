@@ -1,24 +1,24 @@
-// Customer and staff accounts: sign-up (the server makes the password and emails it once),
-// email confirmation, sign-in with lockout, sessions (Supabase Auth tokens + our app_sessions
-// row), profile edits, and password reset. Request and response shapes follow the old site.
+import { brandedEmail } from '../services/otp_email.ts';
+// Customers use Supabase email OTP; staff retain their existing password login.
+// Both paths register the same server-side session and enforce account restrictions.
 import type { Router } from '../lib/router.ts';
 import type { Ctx, Profile, StaffInfo } from '../lib/context.ts';
 import { tx } from '../lib/db.ts';
 import { HttpError, json, ms, readJson } from '../lib/http.ts';
 import { analytics, loginActivity, rateLimit, securityEvent } from '../lib/guard.ts';
-import { enqueue, kickOutbox, sendSensitive } from '../lib/mail.ts';
+import { enqueue, kickOutbox } from '../lib/mail.ts';
 import { mailReady } from '../lib/env.ts';
 import { getSettings } from '../lib/settings.ts';
 import {
-  adminCreateUser, adminDeleteUser, adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
-  type AuthSession,
+  adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
+  requestEmailOtp, verifyEmailOtp, type AuthSession,
 } from '../lib/gotrue.ts';
 import {
   BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, UNVERIFIED_MESSAGE, verifyAccessToken,
 } from '../lib/auth.ts';
-import { cleanName, generatePassword, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
-import { passwordChanged, resendVerification as resendVerificationMail, welcome } from '../services/emails.ts';
-import { endAllSessions, issueLinkToken, linkUrl, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
+import { cleanName, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
+import { passwordChanged } from '../services/emails.ts';
+import { endAllSessions, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
 import { evaluateRules, securityStatus, type SecurityStatus } from '../services/sharing.ts';
 import { ROLE_LOCKED, roleFromInput } from '../services/entitlements.ts';
 const BAD_LOGIN = 'We could not match that email and password. New here? Sign up instead.';
@@ -71,111 +71,6 @@ async function mailLimits(ctx: Ctx, email: string) {
   await rateLimit(ctx, 'mail_email', email, 3, 3600);
 }
 
-// ── POST /api/auth/signup ────────────────────────────────────────────────────────────────
-async function signup(ctx: Ctx) {
-  const b = await readJson(ctx.req);
-  const settings = await getSettings();
-  const agreement = settings.agreement;
-  const name = cleanName(b.name);
-  const email = normEmail(b.email);
-  const errors: Record<string, string> = {};
-  if (!name) errors.name = 'Tell us your name.';
-  else if (name.length > 80) errors.name = 'Keep the name under 80 characters.';
-  if (!validEmail(email)) errors.email = 'Enter a valid email address.';
-  // the account type (Parent, Teacher or Organization) may be chosen here or once later
-  let role: string | null = null;
-  if (b.role !== undefined) {
-    const r = roleFromInput(b.role);
-    if (r === undefined) errors.role = 'Unknown role.';
-    else role = r;
-  }
-  const versionSent = b.agreementVersion == null || b.agreementVersion === '' ? null : str(b.agreementVersion).slice(0, 40);
-  if (b.agreement !== true) errors.agreement = AGREEMENT_NEEDED;
-  else if (versionSent !== null && versionSent !== agreement.version) errors.agreement = 'The agreement was updated. Please read it again and accept it.';
-  if (Object.keys(errors).length) {
-    const extra = errors.agreement ? { code: 'agreement_required', agreement: { version: agreement.version, text: agreement.text } } : {};
-    throw new HttpError(400, Object.values(errors)[0], { errors, ...extra });
-  }
-  const timeZone = typeof b.timeZone === 'string' && isTimeZone(b.timeZone) ? b.timeZone : null;
-
-  await rateLimit(ctx, 'signup_ip', ipKey(ctx), 20, 3600);
-  await rateLimit(ctx, 'signup_email', email, 3, 3600);
-  if (!mailReady()) {
-    throw new HttpError(503, 'Sign-up is paused because the server cannot send email yet. Please try again later.', { code: 'mail_unavailable' });
-  }
-  const existing = await tx((q) => q`select 1 from profiles where email = ${email}`);
-  if (existing.length) throw emailTaken();
-
-  // The password exists only in this request and in the welcome email; Supabase Auth hashes it.
-  const password = generatePassword();
-  let userId: string;
-  try {
-    userId = (await adminCreateUser({ email, password, name, via: 'signup', confirmed: false })).id;
-  } catch (e) {
-    if (e instanceof AuthApiError) {
-      if (['email_exists', 'user_already_exists'].includes(e.code) || /already (been )?(registered|exists)/i.test(e.message)) throw emailTaken();
-      if (e.status === 400 || e.status === 422) {
-        throw new HttpError(400, 'Enter a valid email address.', { errors: { email: 'Enter a valid email address.' } });
-      }
-      console.error('[auth] sign-up refused by Supabase Auth:', e.status, e.code);
-      throw new HttpError(502, 'We could not create your account just now. Please try again in a few minutes.', { code: 'signup_failed' });
-    }
-    throw e;
-  }
-  if (!UUID_RE.test(userId)) throw new HttpError(502, 'We could not create your account just now. Please try again in a few minutes.', { code: 'signup_failed' });
-
-  const undo = async (why: string) => {
-    try {
-      await adminDeleteUser(userId);
-    } catch (err) {
-      // The account stays unconfirmed; "Send the email again" or Forgot password can recover it.
-      console.error('[auth] sign-up could not be undone after', why, (err as Error)?.message ?? err);
-    }
-  };
-
-  const hours = clampInt(settings.auth_links.verifyHours, 1, 24 * 30);
-  let token: string;
-  try {
-    const textHash = await sha256Hex(agreement.text);
-    token = await tx(async (q) => {
-      const rows = await q`
-        update profiles set name = ${name}, role = ${role}, time_zone = coalesce(${timeZone}::text, time_zone),
-          agreement_version = ${agreement.version}, agreement_accepted_at = now()
-        where id = ${userId} returning id`;
-      if (!rows.length) throw new Error('profile row missing after sign-up');
-      await q`
-        insert into agreement_acceptances (user_id, version, text_sha256, context, ip, user_agent)
-        values (${userId}, ${agreement.version}, ${textHash}, 'signup', ${ctx.ip}, ${ctx.ua || null})`;
-      return await issueLinkToken(q, ctx, userId, 'verify_email', hours * 60);
-    });
-  } catch (e) {
-    await undo('a database error');
-    throw e;
-  }
-
-  const mail = welcome({ name, email, password, verifyUrl: linkUrl('verify', token), hours });
-  const sent = await sendSensitive({ ...mail, to: email, template: 'welcome', userId, relatedType: 'profile', relatedId: userId })
-    .catch((e) => ({ ok: false as const, error: String((e as Error)?.message ?? e) }));
-  if (!sent.ok) {
-    // nobody can sign in to an account whose password never arrived: take it back
-    console.error('[auth] welcome email not sent, sign-up undone:', sent.error);
-    await undo('a failed welcome email');
-    throw new HttpError(502, 'We could not send your welcome email just now, so the account was not created. Please try again in a few minutes.', { code: 'mail_failed' });
-  }
-  await tx(async (q) => {
-    await analytics(q, ctx, { kind: 'signup', userId });
-    await securityEvent(ctx, userId, 'signup', { emailDelivered: true }, q);
-  }).catch((e) => console.error('[auth] sign-up trail not saved:', (e as Error)?.message ?? e));
-
-  return json(201, {
-    ok: true,
-    verificationRequired: true,
-    passwordEmailed: true,
-    email,
-    message: `Account created! We have emailed your password to ${email}. Open that email and press Accept & Continue to confirm your address, then sign in here.`,
-  });
-}
-
 // ── POST /api/auth/verify-email ──────────────────────────────────────────────────────────
 async function verifyEmail(ctx: Ctx) {
   await rateLimit(ctx, 'auth_token', ipKey(ctx), 30, 900);
@@ -222,41 +117,8 @@ async function verifyEmail(ctx: Ctx) {
     verified: true,
     alreadyVerified: already,
     email: out.email,
-    message: already ? 'Your email is already confirmed. Sign in with your password.' : 'Email confirmed! Sign in with the password from your welcome email.',
+    message: 'Email confirmed. Request an email code to sign in.',
   };
-}
-
-// ── POST /api/auth/resend-verification ───────────────────────────────────────────────────
-async function resendVerification(ctx: Ctx) {
-  const b = await readJson(ctx.req);
-  const email = normEmail(b.email);
-  if (!validEmail(email)) throw new HttpError(400, 'Enter a valid email address.', { errors: { email: 'Enter a valid email address.' } });
-  await mailLimits(ctx, email);
-  if (!mailReady()) throw new HttpError(503, MAIL_OFF, { code: 'mail_unavailable' });
-  // The same answer, at the same speed, whether or not the address has an account.
-  ctx.later(() => resendWork(ctx, email));
-  return { ok: true, message: `If ${email} has an account that still needs confirming, a new email with a fresh password and confirmation link is on its way.` };
-}
-
-async function resendWork(ctx: Ctx, email: string) {
-  const rows = await tx((q) => q<{ id: string; name: string; email: string; email_verified_at: Date | null; blocked_at: Date | null }[]>`
-    select id, name, email, email_verified_at, blocked_at from profiles where email = ${email}`);
-  const p = rows[0];
-  if (!p || p.email_verified_at || p.blocked_at) return;
-  const settings = await getSettings();
-  const hours = clampInt(settings.auth_links.verifyHours, 1, 24 * 30);
-  // a fresh password: the old one may never have arrived, and it stops working now
-  const password = generatePassword();
-  await adminUpdateUser(p.id, { password });
-  const token = await tx(async (q) => {
-    await q`update profiles set failed_login_attempts = 0, locked_until = null where id = ${p.id}`;
-    const t = await issueLinkToken(q, ctx, p.id, 'verify_email', hours * 60);
-    await securityEvent(ctx, p.id, 'verification_resent', null, q);
-    return t;
-  });
-  const mail = resendVerificationMail({ name: p.name || 'there', password, verifyUrl: linkUrl('verify', token), hours });
-  const r = await sendSensitive({ ...mail, to: p.email, template: 'resend_verification', userId: p.id, relatedType: 'profile', relatedId: p.id });
-  if (!r.ok) console.error('[auth] verification email not sent:', r.error);
 }
 
 // ── POST /api/auth/login (alias /api/auth/signin) ────────────────────────────────────────
@@ -289,6 +151,7 @@ async function login(ctx: Ctx) {
   if (password.length > 128) throw badLogin();
   const remember = truthy(b.remember);
   const wantStaff = b.staff === true;
+  if (!wantStaff) throw new HttpError(400, 'Use an email code to sign in.', { code: 'otp_required' });
 
   try {
     await rateLimit(ctx, 'login_ip', ipKey(ctx), 100, 900);
@@ -390,7 +253,14 @@ async function login(ctx: Ctx) {
     throw new HttpError(503, 'Sign-in is briefly unavailable. Please try again in a minute.', { code: 'auth_unavailable' });
   }
 
-  const s = g.s;
+  return finishLogin(ctx, b, g.s);
+}
+async function finishLogin(ctx: Ctx, b: Record<string, unknown>, s: AuthSession) {
+  const userId = s.userId, email = normEmail(b.email);
+  const settings = await getSettings();
+  const remember = truthy(b.remember), wantStaff = b.staff === true;
+  const fail = (reason: string) => loginActivity(ctx, { userId, email, success: false, reason });
+  const resetCounters = () => tx(q => q`update profiles set failed_login_attempts = 0, locked_until = null where id = ${userId}`);
   const endGrant = () => logoutSession(s.accessToken);
   const acct = await loadAccount(userId, null);
   if (!acct || (s.userId && s.userId !== userId) || !UUID_RE.test(s.sessionId)) {
@@ -692,9 +562,11 @@ async function resetPassword(ctx: Ctx) {
 }
 
 export function register(r: Router) {
-  r.post('/api/auth/signup', signup);
+  r.post('/api/auth/signup', requestOtp);
+  r.post('/api/auth/otp/request', requestOtp);
+  r.post('/api/auth/otp/verify', verifyOtp);
   r.post('/api/auth/verify-email', verifyEmail);
-  r.post('/api/auth/resend-verification', resendVerification);
+  r.post('/api/auth/resend-verification', requestOtp);
   r.post('/api/auth/login', login);
   r.post('/api/auth/signin', login);
   r.post('/api/auth/logout', logout);
@@ -704,4 +576,53 @@ export function register(r: Router) {
   r.post('/api/auth/refresh-token', refresh);
   r.post('/api/auth/forgot-password', forgotPassword);
   r.post('/api/auth/reset-password', resetPassword);
+}
+
+async function requestOtp(ctx: Ctx) {
+  const b = await readJson(ctx.req), email = normEmail(b.email);
+  const signup = b.signup === true || ctx.path === '/api/auth/signup';
+  if (!validEmail(email)) throw new HttpError(400, 'Enter a valid email address.');
+  if (signup && (!cleanName(b.name) || !['parent','teacher'].includes(str(b.role)) || b.agreement !== true)) throw new HttpError(400, 'Enter your name, choose Parent or Teacher and accept the rules.');
+  await rateLimit(ctx, 'otp_ip', ipKey(ctx), 20, 3600);
+  await rateLimit(ctx, 'otp_email', email, 1, 60);
+  await rateLimit(ctx, 'otp_hour', email, 6, 3600);
+  try { await requestEmailOtp(email, signup, signup ? { name: cleanName(b.name).slice(0,80) } : {}, ctx.ip); }
+  catch (e) {
+    if (!(e instanceof AuthApiError) || !['otp_disabled','user_not_found','signup_disabled','user_already_exists'].includes(e.code)) {
+      if (e instanceof AuthApiError && e.status === 429) throw new HttpError(429, 'Please wait before requesting another code.');
+      throw new HttpError(503, 'Email is temporarily unavailable. Please try again shortly.');
+    }
+  }
+  return { ok: true, email, cooldown: 60, message: 'If this address can sign in, a code is on its way. Check your inbox and spam folder.' };
+}
+async function verifyOtp(ctx: Ctx) {
+  const b = await readJson(ctx.req), email = normEmail(b.email), token = str(b.code).trim();
+  if (!validEmail(email) || !/^\d{6}$/.test(token)) throw new HttpError(400, 'Enter your email and six-digit code.');
+  const settings = await getSettings();
+  if (b.agreement !== true || b.agreementVersion !== settings.agreement.version) throw new HttpError(400, 'Accept the current account rules.', { code: 'agreement_required', agreement: settings.agreement });
+  if (b.signup === true && (!cleanName(b.name) || !['parent','teacher'].includes(str(b.role)))) throw new HttpError(400, 'Enter your name and account type.');
+  await rateLimit(ctx, 'otp_verify_ip', ipKey(ctx), 30, 900);
+  await rateLimit(ctx, 'otp_verify_email', email, 10, 900);
+  let s: AuthSession;
+  try { s = await verifyEmailOtp(email, token, ctx.ip); }
+  catch (e) {
+    await loginActivity(ctx, { userId: null, email, success: false, reason: 'otp_invalid' });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(400, 'That code is invalid or expired. Use the newest email or request another code.', { code: 'otp_invalid' });
+  }
+  try {
+    if (!s.emailConfirmed) throw new HttpError(403, 'Email verification is required.');
+    await tx(async q => {
+      const p = (await q<Profile[]>`select * from profiles where id = ${s.userId} for update`)[0];
+      if (!p || p.blocked_at) throw suspended();
+      if (!p.last_login_at && b.signup === true) await q`update profiles set name = ${cleanName(b.name).slice(0,80)}, role = coalesce(role, ${str(b.role)}) where id = ${s.userId}`;
+    });
+    const result = await finishLogin(ctx, b, s);
+    await tx(async q => {
+      const p = result.user;
+      const text = `Hello ${p.name || 'there'}, your Learn With Why account is ready. Registered email: ${p.email}. Account type: ${p.role || 'customer'}. Open My Account for your learning materials. Never share your login OTP.`;
+      await enqueue(q, { to: p.email, userId: p.id, template: 'otp_welcome', dedupeKey: `otp_welcome:${p.id}`, subject: 'Welcome to Learn With Why!', text, html: brandedEmail('Welcome to Learn With Why!', text) });
+    });
+    kickOutbox(ctx); return result;
+  } catch (e) { await logoutSession(s.accessToken); throw e; }
 }
