@@ -172,7 +172,7 @@ function ListDialog({ s, opts, onClose, onDone }) {
         <div className="field"><label htmlFor="hsKind">What it shows</label><select id="hsKind" value={kind} disabled={!!s.builtin} onChange={e => setKind(e.target.value)}>{KINDS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
           <small>{kind === 'curated' ? 'You pick every sheet.' : 'Fills itself, or switch it to hand-picked after adding.'}</small></div>
         {FILTERED.includes(kind) ? <div className="field"><label htmlFor="hsFilter">Which one</label><select id="hsFilter" name="filter" defaultValue={s.filter || ''} aria-invalid={!!errs.filter}><option value="">Pick…</option>{(opts[kind] || []).map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select>{f1('filter')}</div> : null}
-        <div className="field"><label htmlFor="hsMax">Sheets shown</label><input id="hsMax" name="maxItems" type="number" min="1" max="48" defaultValue={s.maxItems || 12} />{f1('maxItems')}</div>
+        <div className="field"><label htmlFor="hsMax">Sheets shown</label><input id="hsMax" name="maxItems" type="number" min="1" max="200" defaultValue={s.maxItems || 12} />{f1('maxItems')}</div>
         {kind === 'bestsellers' ? <div className="field"><label htmlFor="hsDays">Sales from the last (days)</label><input id="hsDays" name="autoDays" type="number" min="1" max="3650" defaultValue={s.autoDays || 90} />{f1('autoDays')}</div> : null}
       </div>
     </Modal>

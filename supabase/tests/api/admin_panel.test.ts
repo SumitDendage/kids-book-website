@@ -181,6 +181,11 @@ test('lists: headings, visibility and order change; built-in ones cannot change 
   assertEquals((await h.call('PUT', '/api/admin/home-sections/featured', { token: admin.token, body: { mode: 'auto' } })).status, 400);
   assertEquals((await h.call('PUT', '/api/admin/home-sections/new', { token: admin.token, body: { kind: 'free' } })).body.code, 'builtin');
   assertEquals((await h.call('DELETE', '/api/admin/home-sections/new', { token: admin.token })).body.code, 'builtin');
+  // the built-in shop lists show every labelled sheet (up to 200), so no "New" sheet drops out
+  const all = (await h.call('GET', '/api/admin/home-sections', { token: admin.token })).body.sections as Any[];
+  assert(all.filter((s) => s.builtin && s.id !== 'picked').every((s) => s.maxItems === 200), 'built-in lists hold up to 200');
+  assertEquals((await h.call('PUT', '/api/admin/home-sections/new', { token: admin.token, body: { maxItems: 201 } })).status, 400);
+  assertStatus(await h.call('PUT', '/api/admin/home-sections/new', { token: admin.token, body: { maxItems: 200 } }), 200);
 });
 
 test('lists: staff add automatic rows (class, subject, section, free, discounted) and delete them', async () => {

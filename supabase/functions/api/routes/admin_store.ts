@@ -292,7 +292,7 @@ function parseHome(b: Record<string, unknown>): HomeIn {
     else { const t = cleanText(b.subtitle ?? '', 161); if (t.length > 160) errors.subtitle = 'Keep the line under the heading under 160 characters.'; else set.subtitle = t; }
   }
   if (b.placement !== undefined) { if (b.placement === 'home' || b.placement === 'shop') set.placement = b.placement; else errors.placement = 'A list shows on the home page or in the shop.'; }
-  if (b.maxItems !== undefined) { const n = intIn(b.maxItems, 1, 48); if (n === null) errors.maxItems = 'Show from 1 to 48 sheets.'; else set.max_items = n; }
+  if (b.maxItems !== undefined) { const n = intIn(b.maxItems, 1, 200); if (n === null) errors.maxItems = 'Show from 1 to 200 sheets.'; else set.max_items = n; }
   if (b.autoDays !== undefined) { const n = intIn(b.autoDays, 1, 3650); if (n === null) errors.autoDays = 'Count sales from 1 to 3650 days back.'; else set.auto_days = n; }
   if (b.visible !== undefined) { if (typeof b.visible !== 'boolean') errors.visible = 'visible is true or false.'; else set.visible = b.visible; }
   if (b.sort !== undefined) { const n = intIn(b.sort, -100000, 100000); if (n === null) errors.sort = 'Order is a whole number.'; else set.sort = n; }
