@@ -435,7 +435,7 @@ test('fake.route adds and overrides endpoints', async () => {
 });
 
 test('h.login goes through /api/auth/login (needs routes/auth.ts)', async () => {
-  const c = await h.customer();
+  const c = await h.staff('support');
   const r = await h.login(c.email, c.password);
   assert(r.status === 200, `login: ${r.status} ${JSON.stringify(r.body)}`);
   assert(r.token && r.refreshToken, 'tokens in body.session');

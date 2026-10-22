@@ -89,6 +89,10 @@ export type Harness = {
   /** POST /api/auth/login (the real route); token/refreshToken come from body.session. */
   login(email: string, password: string, o?: { remember?: boolean; staff?: boolean; agreement?: boolean; ip?: string; device?: string })
     : Promise<LoginResult>;
+  /** The website's code sign-in: Supabase Auth's POST /otp and /verify on the fake (with
+   *  createUser, an unknown address gets an account), then POST /api/auth/otp/session. */
+  otpLogin(email: string, o?: { createUser?: boolean; name?: string; agreement?: boolean; remember?: boolean; ip?: string; device?: string; code?: string })
+    : Promise<LoginResult & { sent: number; verified: number }>;
   /** Merges over the test env (undefined removes a name) and clears the env/auth/settings caches. */
   setEnv(vars: Record<string, string | undefined>): void;
   /** Back to the env the harness started with. */
@@ -385,6 +389,21 @@ export async function startHarness(): Promise<Harness> {
       if (o.agreement !== undefined) body.agreement = o.agreement;
       const r = await call('POST', '/api/auth/login', { body, ip: o.ip, device: o.device });
       return { status: r.status, body: r.body, text: r.text, token: r.body?.session?.accessToken, refreshToken: r.body?.session?.refreshToken };
+    },
+    async otpLogin(email, o = {}) {
+      const headers = { apikey: publishableKey, 'Content-Type': 'application/json' };
+      fake.auth.forgetOtp(email);
+      const sent = await fetch(`${fake.url}/auth/v1/otp`, { method: 'POST', headers,
+        body: JSON.stringify({ email, create_user: o.createUser ?? false, data: o.name ? { name: o.name } : {} }) });
+      await sent.body?.cancel();
+      const code = o.code ?? fake.auth.lastOtp(email) ?? '000000';
+      const v = await fetch(`${fake.url}/auth/v1/verify`, { method: 'POST', headers, body: JSON.stringify({ type: 'email', email, token: code }) });
+      const vb = await v.json();
+      if (!v.ok) return { status: v.status, body: vb, text: JSON.stringify(vb), token: undefined, refreshToken: undefined, sent: sent.status, verified: v.status };
+      const body: Record<string, unknown> = { refreshToken: vb.refresh_token, remember: o.remember ?? false };
+      if (o.agreement !== undefined) body.agreement = o.agreement;
+      const r = await call('POST', '/api/auth/otp/session', { body, token: vb.access_token, ip: o.ip, device: o.device });
+      return { status: r.status, body: r.body, text: r.text, token: r.body?.session?.accessToken, refreshToken: r.body?.session?.refreshToken, sent: sent.status, verified: v.status };
     },
     setEnv(vars) {
       for (const [k, v] of Object.entries(vars)) {

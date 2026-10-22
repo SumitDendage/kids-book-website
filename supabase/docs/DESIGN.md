@@ -121,24 +121,22 @@ All paths are under the function, e.g. `https://<ref>.supabase.co/functions/v1/a
 router sees `/api/auth/login`.
 
 ### 4.A Auth (`routes/auth.ts`, `services/accounts.ts`)
-- `POST /api/auth/signup {name, email, role?, agreement: true, agreementVersion?}` — the customer does
-  not choose a password. Validate (old messages). Require `agreement === true` (400
-  `errors.agreement`, code `agreement_required`). If email is not configured (`mailReady()` false
-  and no test transport) → 503 `mail_unavailable` before creating anything. Generate the password
-  (`generatePassword()`), `adminCreateUser({confirmed:false, via:'signup'})` (profile row is created
-  by trigger), record `agreement_acceptances` (version + sha256 of `settings.agreement.text`, context
-  `signup`, ip, ua) and set `profiles.agreement_version/accepted_at`, `time_zone` if a valid
-  `timeZone` was sent, create a `verify_email` token (store sha256 only; link
-  `${SITE_URL}/?verify=<token>` — check what the old frontend reads), send `welcome` via
-  `sendSensitive`. If the send fails → `adminDeleteUser` and 502 `mail_failed` ("We could not send
-  the email …"). Existing email → keep the old behaviour. Response: old shape plus
-  `passwordEmailed: true`. Rate limits: 20/h per IP, 3/h per email. Analytics `signup`.
-- `POST /api/auth/verify-email {token}` → profile verified/active, `adminUpdateUser({emailConfirm:true})`,
-  token used. Old response shape.
-- `POST /api/auth/resend-verification {email}` → neutral response always; for an unverified account
-  generate a **new** password (`adminUpdateUser`), new token, `resendVerification` email. 3/h per
-  email, 20/h per IP.
-- `POST /api/auth/login` (alias `/api/auth/signin`) `{email, password, remember, agreement?, staff?}`:
+- Customers sign up and sign in with a **6-digit code** emailed by Supabase Auth (October 2026; no
+  password, no link). The website calls `signInWithOtp({ email, options: { shouldCreateUser } })`
+  (true on Sign up, with `data: { name, timeZone }`; false on Sign in) and then
+  `verifyOtp({ email, token, type: 'email' })`. Supabase Auth makes, stores (hashed), expires and
+  rate-limits the code; nothing here generates or keeps one. The old `signup`, `verify-email` and
+  `resend-verification` routes are gone.
+- `POST /api/auth/otp/session {refreshToken, remember?, agreement?}` with the code session's access
+  token as bearer → opens the app session. The token's `amr` must show a code sign-in (`otp`,
+  `magiclink` or `email/signup`) less than 15 minutes old, else 401 `otp_required`; a token that
+  already has an app session → 409 `already_signed_in`. Sets `profiles.email_verified_at`, then the
+  same checks and response as `login` (blocked, staff, agreement). On `agreement_required` the code
+  session is kept, so the customer ticks the rules and sends the same call with `agreement: true`
+  (no new code). 60/15 min per IP. The account type is set afterwards with `PATCH /api/auth/me`
+  (customer types only, never staff roles).
+- `POST /api/auth/login` (alias `/api/auth/signin`) `{email, password, remember, agreement?, staff?}`, **staff only**
+  since October 2026 (a customer gets 403 `otp_required`):
   lockout from `settings.login` (failed attempts → `locked_until`, old 423/429 behaviour — check the
   map), `passwordGrant` → on success load profile: blocked → end the new GoTrue session
   (`logoutSession`) and 403 `account_suspended`; unverified → logout + 403 `email_unverified`;

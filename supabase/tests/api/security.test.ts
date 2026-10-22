@@ -294,9 +294,9 @@ test('SHARING-2 a decided incident keeps its evidence; bigger activity after the
 
 test('SHARING-3 signing in on several devices and opening only free sheets opens no "paid sheets" incident', async () => {
   const c = await h.customer({ ip: '10.63.1.10' });   // parent's laptop at home
-  const phone = await h.login(c.email, c.password, { ip: '10.63.2.20', device: 'sh3-phone-device-0001' });
+  const phone = await h.otpLogin(c.email, { ip: '10.63.2.20', device: 'sh3-phone-device-0001' });
   assertStatus({ status: phone.status, text: phone.text }, 200);
-  const tablet = await h.login(c.email, c.password, { ip: '10.63.3.11', device: 'sh3-tablet-device-001' });
+  const tablet = await h.otpLogin(c.email, { ip: '10.63.3.11', device: 'sh3-tablet-device-001' });
   assertStatus({ status: tablet.status, text: tablet.text }, 200);
   assertStatus(await h.call('POST', '/api/access/az-A', { token: tablet.token, ip: '10.63.3.11', device: 'sh3-tablet-device-001' }), 200);
   assertStatus(await h.call('POST', '/api/access/az-A', { token: phone.token, ip: '10.63.2.20', device: 'sh3-phone-device-0001' }), 200);

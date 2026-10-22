@@ -36,3 +36,12 @@
 #content .auth-card, #content .auth-card *, #content .auth-card *::placeholder { text-shadow: none !important; }
 #content .auth-card { background: rgba(var(--card), 0.86); }
 #content .auth-card .field input, #content .auth-card .field textarea { background: #fff; }
+
+/* Sign up: "I am a" Parent / Teacher / Organization (code sign-in, Oct 2026) */
+#content .auth-card .field-label { font-size: var(--fs-eyebrow); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+#content .auth-card .role-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+#content .auth-card .role-opt { flex: 1 1 0; min-width: 96px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid rgba(28, 21, 48, 0.22); background: rgba(255, 255, 255, 0.82); color: var(--ink-auth); font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: border-color var(--d-fast), background var(--d-fast); }
+#content .auth-card .role-opt:hover { background: #fff; }
+#content .auth-card .role-opt.on { border-color: rgba(91, 47, 153, 0.85); background: #fff; box-shadow: inset 0 0 0 1px rgba(91, 47, 153, 0.85); }
+#content .auth-card .role-opt:focus-visible { outline: 2px solid rgba(91, 47, 153, 0.7); outline-offset: 2px; }
+#content .auth-card #authSwitch button[disabled] { opacity: 0.55; cursor: default; }

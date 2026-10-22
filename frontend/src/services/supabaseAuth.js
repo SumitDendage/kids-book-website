@@ -12,8 +12,13 @@ export const snapshot = () => session ? {
   userId: session.user.id,
 } : null;
 export const isRecovery = () => recovery;
+/* While a checked code's session is being made a sign-in of this site, the rest of the page is not
+   told about it yet (it would ask our server about a sign-in the server has not opened). */
+let holdEvents = false;
+export const holdAuthEvents = on => { holdEvents = !!on; };
 supabase.auth.onAuthStateChange((event, next) => {
   session = next;
+  if (holdEvents) return;
   if (event === 'PASSWORD_RECOVERY') recovery = true;
   if (event === 'SIGNED_OUT') recovery = false;
   // Never invoke SDK methods inside its synchronous auth callback (lock re-entry).
@@ -68,9 +73,7 @@ export async function login({ email, password }) {
   session = data.session;
   return { user: userView(data.user), session: snapshot() };
 }
-/* Sign-up straight with Supabase Auth: the customer picks the password, so no email service is
-   needed. With the project's "Confirm email" switch on, Supabase emails a 6-digit code and the
-   account only opens once verifySignupCode accepts it; with it off the account is ready at once. */
+/* Staff sign-up (/admin and /developer) with a chosen password. Customers use sendCode below. */
 export async function signUp({ name, email, password, timeZone }) {
   const { data, error } = await supabase.auth.signUp({
     email, password,
@@ -134,25 +137,49 @@ export async function resetPassword({ password }) {
   await logout();
   return { message: 'Password updated. Sign in with your new password.' };
 }
-/* The code from the sign-up email ({{ .Token }} in Supabase's "Confirm signup" template) confirms
-   the address; only then is the account usable. The real sign-in goes through our server next. */
-export async function verifySignupCode({ email, code }) {
-  const token = String(code || '').replace(/\s+/g, '');
-  if (!/^\d{6,10}$/.test(token)) {
-    throw Object.assign(new Error('Enter the code from the email. It is 6 numbers.'), { status: 400, code: 'otp_format', body: {} });
-  }
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+/* Customers sign up and sign in with a 6-digit code that Supabase Auth emails (no links, no
+   passwords). Supabase Auth makes, hashes, expires and rate-limits the code; this page never sees
+   it until the customer types it. shouldCreateUser is only true on Sign up, so Sign in never makes
+   an account. The record Supabase Auth makes before the code is checked opens nothing on this site. */
+const fail = (message, status, code) => Object.assign(new Error(message), { status, code, body: {} });
+export async function sendCode({ email, signup = false, name, timeZone }) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: !!signup, ...(signup ? { data: { name, ...(timeZone ? { timeZone } : {}) } } : {}) },
+  });
   if (error) {
-    if (error.code === 'otp_expired' || /expired|invalid/i.test(error.message)) {
-      throw Object.assign(new Error('That code is wrong or too old. Check the newest email, or send a new code.'), { status: 400, code: 'otp_invalid', body: {} });
+    if (error.code === 'otp_disabled' || error.code === 'signup_disabled' || /signups not allowed/i.test(error.message)) {
+      throw fail('There is no account with this email yet. Sign up first.', 404, 'no_account');
+    }
+    if (error.status === 429 || error.code === 'over_email_send_rate_limit' || /after \d+ seconds|rate limit/i.test(error.message)) {
+      throw fail('Please wait a minute before asking for a new code.', 429, 'otp_cooldown');
     }
     authError(error);
   }
-  if (data && data.session) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-  return { ok: true };
+  return { email };
+}
+/* The right code opens a Supabase Auth session here; our server then makes it a sign-in of this
+   site (POST /api/auth/otp/session). A wrong or old code opens nothing. */
+export async function verifyCode({ email, code }) {
+  const token = String(code || '').replace(/\s+/g, '');
+  if (!/^\d{6,10}$/.test(token)) throw fail('Type the 6 numbers from the email.', 400, 'otp_format');
+  holdEvents = true;
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  if (error || !data || !data.session) holdEvents = false;
+  if (error) {
+    if (error.status === 429) throw fail('Too many tries. Please wait a few minutes, then send a new code.', 429, 'otp_attempts');
+    if (error.code === 'user_banned') throw fail('This account is suspended. If you think this is a mistake, please write to us.', 403, 'account_suspended');
+    if (error.code === 'otp_expired' || /expired|invalid/i.test(error.message)) {
+      throw fail('That code is wrong or has expired. Check the newest email, or send a new code.', 400, 'otp_invalid');
+    }
+    authError(error);
+  }
+  if (!data || !data.session) throw fail('Sign-in is briefly unavailable. Please try again in a minute.', 503, 'auth_unavailable');
+  session = data.session;
+  return { refreshToken: data.session.refresh_token };
 }
 export async function resendVerification({ email }) {
   const { error } = await supabase.auth.resend({ type: 'signup', email });
   authError(error);
-  return { message: 'A new code is on its way to ' + email + '. Use the newest one.' };
+  return { message: 'A confirmation email is on its way to ' + email + '.' };
 }

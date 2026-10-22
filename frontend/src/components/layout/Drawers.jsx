@@ -298,7 +298,7 @@ function DevicesTab({ tz, open }) {
           {d.blocked ? <span className="pill acct-stopped">Stopped</span> : null}
         </div>
       ))}
-      <p className="cart-empty acct-fine">See a device you do not know? Sign it out here, then choose a new password with Forgot password on the sign-in card.</p>
+      <p className="cart-empty acct-fine">See a device you do not know? Sign it out here. Every sign-in needs a new code from your email, so nobody can come back in without it.</p>
     </>
   );
 }

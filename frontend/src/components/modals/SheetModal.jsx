@@ -14,7 +14,7 @@ const tzOf = access => (access && access.session && access.session.timeZone) || 
 function AccountPopup({ id }) {
   const { closeModal, requireSignIn } = useSite();
   const it = sheetOf(id);
-  const go = view => requireSignIn(id ? { do: 'sheet', id } : { do: 'shop' }, view === 'signup' ? 'Create your free account. We will email you a password, then sign in and your sheet will be waiting for you.' : 'Sign in and your sheet will be waiting for you.', view);
+  const go = view => requireSignIn(id ? { do: 'sheet', id } : { do: 'shop' }, view === 'signup' ? 'Create your free account. We will email you a 6-digit code, and your sheet will be waiting for you.' : 'Sign in and your sheet will be waiting for you.', view);
   return (
     <>
       <button type="button" className="icon-btn close-x" aria-label="Close" onClick={closeModal}>✕</button>

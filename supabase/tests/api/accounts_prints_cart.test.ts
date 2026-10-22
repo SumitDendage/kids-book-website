@@ -133,7 +133,7 @@ test('account type: Parent, Teacher and Organization are each chosen once, then 
     // me, sign-in and refresh all carry the type and its prints
     const m = await me(c);
     assertEquals([m.body.user.role, m.body.user.accountType, m.body.user.printsPerSheet], [stored, type, prints]);
-    const login = await h.login(c.email, c.password);
+    const login = await h.otpLogin(c.email);
     assertStatus(login, 200);
     assertEquals([login.body.user.role, login.body.user.accountType, login.body.user.printsPerSheet], [stored, type, prints]);
     const ref = await h.call('POST', '/api/auth/refresh-token', { body: { refreshToken: login.refreshToken } });
@@ -159,14 +159,17 @@ test('account type: Parent, Teacher and Organization are each chosen once, then 
   assertEquals(await roleOf(u.id), null);
 });
 
-test('account type: chosen at sign-up (Organization is stored as school); an unknown one is refused', async () => {
+test('account type: chosen at code sign-up (Organization is stored as school); a role in the Auth data is ignored', async () => {
   const email = `org.${crypto.randomUUID().slice(0, 8)}@test.local`;
-  const r = await h.call('POST', '/api/auth/signup', { body: { name: 'Green School', email, agreement: true, role: 'organization' } });
-  assertStatus(r, 201);
+  // whatever the sign-up sends to Supabase Auth, the profile role only comes from PATCH /api/auth/me
+  const s = await h.otpLogin(email, { createUser: true, name: 'Green School', agreement: true });
+  assertStatus(s, 200);
+  assertEquals((await h.sql`select role from profiles where email = ${email}`)[0].role, null);
+  const r = await h.call('PATCH', '/api/auth/me', { token: s.token, body: { role: 'organization' } });
+  assertStatus(r, 200);
   assertEquals((await h.sql`select role from profiles where email = ${email}`)[0].role, 'school');
-  const bad = await h.call('POST', '/api/auth/signup', { body: { name: 'X', email: `x.${crypto.randomUUID().slice(0, 8)}@test.local`, agreement: true, role: 'pirate' } });
+  const bad = await h.call('PATCH', '/api/auth/me', { token: s.token, body: { role: 'admin' } });
   assertStatus(bad, 400);
-  assertEquals(bad.body.errors.role, 'Unknown role.');
 });
 
 test('account type: staff with customers.write change it in Admin → Customers (audited); others cannot', async () => {

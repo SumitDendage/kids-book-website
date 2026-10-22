@@ -1,29 +1,30 @@
-// Customer and staff accounts: sign-up (the server makes the password and emails it once),
-// email confirmation, sign-in with lockout, sessions (Supabase Auth tokens + our app_sessions
-// row), profile edits, and password reset. Request and response shapes follow the old site.
+// Customer and staff accounts. Customers sign up and sign in with a 6-digit code emailed by
+// Supabase Auth (otp/send, otp/verify); staff sign in with a password, with lockout. Sessions
+// (Supabase Auth tokens + our app_sessions row), profile edits, and staff password reset. Request and response shapes follow the old site.
 import type { Router } from '../lib/router.ts';
 import type { Ctx, Profile, StaffInfo } from '../lib/context.ts';
 import { tx } from '../lib/db.ts';
-import { HttpError, json, ms, readJson } from '../lib/http.ts';
+import { HttpError, ms, readJson } from '../lib/http.ts';
 import { analytics, loginActivity, rateLimit, securityEvent } from '../lib/guard.ts';
-import { enqueue, kickOutbox, sendSensitive } from '../lib/mail.ts';
+import { enqueue, kickOutbox } from '../lib/mail.ts';
 import { mailReady } from '../lib/env.ts';
 import { getSettings } from '../lib/settings.ts';
 import {
-  adminCreateUser, adminDeleteUser, adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
+  adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
+  decodeClaims,
   type AuthSession,
 } from '../lib/gotrue.ts';
 import {
   BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, UNVERIFIED_MESSAGE, verifyAccessToken,
 } from '../lib/auth.ts';
-import { cleanName, generatePassword, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
-import { passwordChanged, resendVerification as resendVerificationMail, welcome } from '../services/emails.ts';
-import { endAllSessions, issueLinkToken, linkUrl, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
+import { cleanName, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
+import { passwordChanged } from '../services/emails.ts';
+import { endAllSessions, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
 import { evaluateRules, securityStatus, type SecurityStatus } from '../services/sharing.ts';
 import { ROLE_LOCKED, roleFromInput } from '../services/entitlements.ts';
+const OTP_REQUIRED = 'Customers sign in with a 6-digit code sent to their email.';
 const BAD_LOGIN = 'We could not match that email and password. New here? Sign up instead.';
 const SESSION_BLOCKED = 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.';
-const AGREEMENT_NEEDED = 'Please accept the agreement: your account is personal and must not be shared.';
 const MAIL_OFF = 'The server cannot send email yet. Please try again later.';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -31,9 +32,6 @@ const ipKey = (ctx: Ctx) => ctx.ip ?? '-';
 const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(n) ? n : min)));
 const signIn = () => new HttpError(401, SIGN_IN, { code: 'signin' });
 const badLogin = () => new HttpError(401, BAD_LOGIN, { code: 'bad_credentials' });
-const emailTaken = () => new HttpError(409, 'That email already has an account. Sign in instead, or use Forgot password.', {
-  code: 'email_taken', errors: { email: 'That email already has an account.' },
-});
 const unverified = (email: string) => new HttpError(403, `Please confirm your email first: open the email we sent to ${email} and press Accept & Continue.`, { code: 'email_unverified', email });
 const suspended = () => new HttpError(403, BLOCKED_MESSAGE, { code: 'account_suspended' });
 const truthy = (v: unknown) => v === true || v === 1 || v === 'true' || v === '1' || v === 'on';
@@ -69,194 +67,6 @@ function staffBody(staff: StaffInfo | null, keys: string[]) {
 async function mailLimits(ctx: Ctx, email: string) {
   await rateLimit(ctx, 'mail_ip', ipKey(ctx), 20, 3600);
   await rateLimit(ctx, 'mail_email', email, 3, 3600);
-}
-
-// ── POST /api/auth/signup ────────────────────────────────────────────────────────────────
-async function signup(ctx: Ctx) {
-  const b = await readJson(ctx.req);
-  const settings = await getSettings();
-  const agreement = settings.agreement;
-  const name = cleanName(b.name);
-  const email = normEmail(b.email);
-  const errors: Record<string, string> = {};
-  if (!name) errors.name = 'Tell us your name.';
-  else if (name.length > 80) errors.name = 'Keep the name under 80 characters.';
-  if (!validEmail(email)) errors.email = 'Enter a valid email address.';
-  // the account type (Parent, Teacher or Organization) may be chosen here or once later
-  let role: string | null = null;
-  if (b.role !== undefined) {
-    const r = roleFromInput(b.role);
-    if (r === undefined) errors.role = 'Unknown role.';
-    else role = r;
-  }
-  const versionSent = b.agreementVersion == null || b.agreementVersion === '' ? null : str(b.agreementVersion).slice(0, 40);
-  if (b.agreement !== true) errors.agreement = AGREEMENT_NEEDED;
-  else if (versionSent !== null && versionSent !== agreement.version) errors.agreement = 'The agreement was updated. Please read it again and accept it.';
-  if (Object.keys(errors).length) {
-    const extra = errors.agreement ? { code: 'agreement_required', agreement: { version: agreement.version, text: agreement.text } } : {};
-    throw new HttpError(400, Object.values(errors)[0], { errors, ...extra });
-  }
-  const timeZone = typeof b.timeZone === 'string' && isTimeZone(b.timeZone) ? b.timeZone : null;
-
-  await rateLimit(ctx, 'signup_ip', ipKey(ctx), 20, 3600);
-  await rateLimit(ctx, 'signup_email', email, 3, 3600);
-  if (!mailReady()) {
-    throw new HttpError(503, 'Sign-up is paused because the server cannot send email yet. Please try again later.', { code: 'mail_unavailable' });
-  }
-  const existing = await tx((q) => q`select 1 from profiles where email = ${email}`);
-  if (existing.length) throw emailTaken();
-
-  // The password exists only in this request and in the welcome email; Supabase Auth hashes it.
-  const password = generatePassword();
-  let userId: string;
-  try {
-    userId = (await adminCreateUser({ email, password, name, via: 'signup', confirmed: false })).id;
-  } catch (e) {
-    if (e instanceof AuthApiError) {
-      if (['email_exists', 'user_already_exists'].includes(e.code) || /already (been )?(registered|exists)/i.test(e.message)) throw emailTaken();
-      if (e.status === 400 || e.status === 422) {
-        throw new HttpError(400, 'Enter a valid email address.', { errors: { email: 'Enter a valid email address.' } });
-      }
-      console.error('[auth] sign-up refused by Supabase Auth:', e.status, e.code);
-      throw new HttpError(502, 'We could not create your account just now. Please try again in a few minutes.', { code: 'signup_failed' });
-    }
-    throw e;
-  }
-  if (!UUID_RE.test(userId)) throw new HttpError(502, 'We could not create your account just now. Please try again in a few minutes.', { code: 'signup_failed' });
-
-  const undo = async (why: string) => {
-    try {
-      await adminDeleteUser(userId);
-    } catch (err) {
-      // The account stays unconfirmed; "Send the email again" or Forgot password can recover it.
-      console.error('[auth] sign-up could not be undone after', why, (err as Error)?.message ?? err);
-    }
-  };
-
-  const hours = clampInt(settings.auth_links.verifyHours, 1, 24 * 30);
-  let token: string;
-  try {
-    const textHash = await sha256Hex(agreement.text);
-    token = await tx(async (q) => {
-      const rows = await q`
-        update profiles set name = ${name}, role = ${role}, time_zone = coalesce(${timeZone}::text, time_zone),
-          agreement_version = ${agreement.version}, agreement_accepted_at = now()
-        where id = ${userId} returning id`;
-      if (!rows.length) throw new Error('profile row missing after sign-up');
-      await q`
-        insert into agreement_acceptances (user_id, version, text_sha256, context, ip, user_agent)
-        values (${userId}, ${agreement.version}, ${textHash}, 'signup', ${ctx.ip}, ${ctx.ua || null})`;
-      return await issueLinkToken(q, ctx, userId, 'verify_email', hours * 60);
-    });
-  } catch (e) {
-    await undo('a database error');
-    throw e;
-  }
-
-  const mail = welcome({ name, email, password, verifyUrl: linkUrl('verify', token), hours });
-  const sent = await sendSensitive({ ...mail, to: email, template: 'welcome', userId, relatedType: 'profile', relatedId: userId })
-    .catch((e) => ({ ok: false as const, error: String((e as Error)?.message ?? e) }));
-  if (!sent.ok) {
-    // nobody can sign in to an account whose password never arrived: take it back
-    console.error('[auth] welcome email not sent, sign-up undone:', sent.error);
-    await undo('a failed welcome email');
-    throw new HttpError(502, 'We could not send your welcome email just now, so the account was not created. Please try again in a few minutes.', { code: 'mail_failed' });
-  }
-  await tx(async (q) => {
-    await analytics(q, ctx, { kind: 'signup', userId });
-    await securityEvent(ctx, userId, 'signup', { emailDelivered: true }, q);
-  }).catch((e) => console.error('[auth] sign-up trail not saved:', (e as Error)?.message ?? e));
-
-  return json(201, {
-    ok: true,
-    verificationRequired: true,
-    passwordEmailed: true,
-    email,
-    message: `Account created! We have emailed your password to ${email}. Open that email and press Accept & Continue to confirm your address, then sign in here.`,
-  });
-}
-
-// ── POST /api/auth/verify-email ──────────────────────────────────────────────────────────
-async function verifyEmail(ctx: Ctx) {
-  await rateLimit(ctx, 'auth_token', ipKey(ctx), 30, 900);
-  const b = await readJson(ctx.req);
-  const token = str(b.token);
-  const invalid = () => new HttpError(400, 'This confirmation link is not valid. Sign in to get a new one sent to you.', { code: 'token_invalid' });
-  if (!LINK_TOKEN_RE.test(token)) throw invalid();
-  const hash = await sha256Hex(token);
-  type Out = { error: 'invalid' } | { error: 'expired'; email: string } | { already: true; email: string } | { verified: true; email: string; userId: string };
-  const out = await tx<Out>(async (q) => {
-    const t = await q<{ id: number; user_id: string; used_at: Date | null; expired: boolean }[]>`
-      select id, user_id, used_at, expires_at <= now() as expired from auth_tokens
-      where token_hash = ${hash} and purpose = 'verify_email' for update`;
-    if (!t.length) return { error: 'invalid' };
-    // read the account after the lock, so a second click that waited sees it confirmed
-    const p = await q<{ email: string; email_verified_at: Date | null }[]>`
-      select email, email_verified_at from profiles where id = ${t[0].user_id}`;
-    if (!p.length) return { error: 'invalid' };
-    if (p[0].email_verified_at) return { already: true, email: p[0].email };
-    if (t[0].used_at) return { error: 'invalid' };
-    if (t[0].expired) return { error: 'expired', email: p[0].email };
-    await q`update auth_tokens set used_at = now() where user_id = ${t[0].user_id} and purpose = 'verify_email' and used_at is null`;
-    await q`update profiles set email_verified_at = now(), status = 'active' where id = ${t[0].user_id}`;
-    await securityEvent(ctx, t[0].user_id, 'email_verified', null, q);
-    return { verified: true, email: p[0].email, userId: t[0].user_id };
-  });
-  if ('error' in out) {
-    if (out.error === 'expired') {
-      throw new HttpError(400, 'This confirmation link has expired. Sign in and choose "Send the email again" to get a new one.', { code: 'token_expired', email: out.email });
-    }
-    throw invalid();
-  }
-  if ('verified' in out) {
-    // Supabase Auth must agree that the address is confirmed; sign-in repairs it if this fails.
-    try {
-      await adminUpdateUser(out.userId, { emailConfirm: true });
-    } catch (e) {
-      console.error('[auth] could not mark the email confirmed in Supabase Auth:', (e as Error)?.message ?? e);
-    }
-  }
-  const already = 'already' in out;
-  return {
-    ok: true,
-    verified: true,
-    alreadyVerified: already,
-    email: out.email,
-    message: already ? 'Your email is already confirmed. Sign in with your password.' : 'Email confirmed! Sign in with the password from your welcome email.',
-  };
-}
-
-// ── POST /api/auth/resend-verification ───────────────────────────────────────────────────
-async function resendVerification(ctx: Ctx) {
-  const b = await readJson(ctx.req);
-  const email = normEmail(b.email);
-  if (!validEmail(email)) throw new HttpError(400, 'Enter a valid email address.', { errors: { email: 'Enter a valid email address.' } });
-  await mailLimits(ctx, email);
-  if (!mailReady()) throw new HttpError(503, MAIL_OFF, { code: 'mail_unavailable' });
-  // The same answer, at the same speed, whether or not the address has an account.
-  ctx.later(() => resendWork(ctx, email));
-  return { ok: true, message: `If ${email} has an account that still needs confirming, a new email with a fresh password and confirmation link is on its way.` };
-}
-
-async function resendWork(ctx: Ctx, email: string) {
-  const rows = await tx((q) => q<{ id: string; name: string; email: string; email_verified_at: Date | null; blocked_at: Date | null }[]>`
-    select id, name, email, email_verified_at, blocked_at from profiles where email = ${email}`);
-  const p = rows[0];
-  if (!p || p.email_verified_at || p.blocked_at) return;
-  const settings = await getSettings();
-  const hours = clampInt(settings.auth_links.verifyHours, 1, 24 * 30);
-  // a fresh password: the old one may never have arrived, and it stops working now
-  const password = generatePassword();
-  await adminUpdateUser(p.id, { password });
-  const token = await tx(async (q) => {
-    await q`update profiles set failed_login_attempts = 0, locked_until = null where id = ${p.id}`;
-    const t = await issueLinkToken(q, ctx, p.id, 'verify_email', hours * 60);
-    await securityEvent(ctx, p.id, 'verification_resent', null, q);
-    return t;
-  });
-  const mail = resendVerificationMail({ name: p.name || 'there', password, verifyUrl: linkUrl('verify', token), hours });
-  const r = await sendSensitive({ ...mail, to: p.email, template: 'resend_verification', userId: p.id, relatedType: 'profile', relatedId: p.id });
-  if (!r.ok) console.error('[auth] verification email not sent:', r.error);
 }
 
 // ── POST /api/auth/login (alias /api/auth/signin) ────────────────────────────────────────
@@ -390,7 +200,17 @@ async function login(ctx: Ctx) {
     throw new HttpError(503, 'Sign-in is briefly unavailable. Please try again in a minute.', { code: 'auth_unavailable' });
   }
 
-  const s = g.s;
+  return finishSignIn(ctx, g.s, { userId, email, remember, wantStaff, agreement: b.agreement === true, staffOnly: true, fail, resetCounters });
+}
+
+/** The end of every sign-in, once Supabase Auth has opened session `s` for `userId`: the account
+ *  checks (blocked, confirmed, staff, agreement), then our app_sessions row and the response. */
+async function finishSignIn(ctx: Ctx, s: AuthSession, o: {
+  userId: string; email: string; remember: boolean; wantStaff: boolean; agreement: boolean; staffOnly: boolean; keepGrantForAgreement?: boolean;
+  fail: (reason: string) => Promise<unknown>; resetCounters: () => Promise<unknown>;
+}) {
+  const { userId, email, remember, wantStaff, fail, resetCounters } = o;
+  const settings = await getSettings();
   const endGrant = () => logoutSession(s.accessToken);
   const acct = await loadAccount(userId, null);
   if (!acct || (s.userId && s.userId !== userId) || !UUID_RE.test(s.sessionId)) {
@@ -411,6 +231,12 @@ async function login(ctx: Ctx) {
     await fail('email_unverified');
     throw unverified(email);
   }
+  if (o.staffOnly && !staff) {
+    await endGrant();
+    await resetCounters();
+    await fail('otp_required');
+    throw new HttpError(403, OTP_REQUIRED, { code: 'otp_required' });
+  }
   if (wantStaff && !staff) {
     await endGrant();
     await resetCounters();
@@ -421,8 +247,9 @@ async function login(ctx: Ctx) {
   const isCustomer = !staff;
   const agreement = settings.agreement;
   const reaccept = isCustomer && profile.agreement_version !== agreement.version;
-  if (reaccept && b.agreement !== true) {
-    await endGrant();
+  if (reaccept && !o.agreement) {
+    // a code sign-in keeps its session so the customer can tick the agreement without a new code
+    if (!o.keepGrantForAgreement) await endGrant();
     await resetCounters();
     await fail('agreement_required');
     throw new HttpError(403, 'Please read and accept the account agreement to continue.', {
@@ -471,6 +298,46 @@ async function login(ctx: Ctx) {
     staff: staffBody(staff, done.keys),
     security: isCustomer ? await securityFor(userId) : null,
   };
+}
+
+// ── POST /api/auth/otp/session ───────────────────────────────────────────────────────────
+// Customers sign up and sign in with a 6-digit code: the website asks Supabase Auth for it
+// (signInWithOtp) and checks it there (verifyOtp, which confirms the address). Supabase Auth makes,
+// hashes, expires and rate-limits the code. The fresh session then comes here, as the bearer token
+// plus its refresh token, and becomes a sign-in of this site (our checks + an app_sessions row).
+const OTP_FRESH_MS = 15 * 60_000;
+const OTP_METHODS = new Set(['otp', 'magiclink', 'email/signup']);
+
+async function otpSession(ctx: Ctx) {
+  await rateLimit(ctx, 'otp_session_ip', ipKey(ctx), 60, 900);
+  const token = bearer(ctx);
+  const claims = token ? await verifyAccessToken(token) : null;
+  if (!token || !claims) throw signIn();
+  const b = await readJson(ctx.req);
+  const refreshToken = str(b.refreshToken).trim();
+  if (!refreshToken || refreshToken.length > 1024 || /\s/.test(refreshToken)) throw signIn();
+  // only a session that an emailed code opened a moment ago (not a password or an old session)
+  const payload = decodeClaims(token);
+  const amr = Array.isArray(payload.amr) ? payload.amr as { method?: string; timestamp?: number }[] : [];
+  const byCode = amr.some((m) => OTP_METHODS.has(String(m?.method)) && Number(m?.timestamp) * 1000 > Date.now() - OTP_FRESH_MS);
+  if (!byCode) throw new HttpError(401, 'Please sign in with the code from your email.', { code: 'otp_required' });
+
+  const userId = claims.sub;
+  const known = await tx((q) => q<{ id: string }[]>`select id from app_sessions where id = ${claims.sessionId}`);
+  if (known.length) throw new HttpError(409, 'This sign-in is already open.', { code: 'already_signed_in' });
+  const found = await tx((q) => q<{ email: string }[]>`
+    update profiles set email_verified_at = coalesce(email_verified_at, now()) where id = ${userId} returning email`);
+  if (!found.length) throw signIn();
+  const email = found[0].email;
+  const s: AuthSession = {
+    accessToken: token, refreshToken, expiresAt: claims.exp, expiresIn: Math.max(0, Math.round((claims.exp - Date.now()) / 1000)),
+    userId, sessionId: claims.sessionId, emailConfirmed: true,
+  };
+  return finishSignIn(ctx, s, {
+    userId, email, remember: b.remember === undefined ? true : truthy(b.remember), wantStaff: false,
+    agreement: b.agreement === true, staffOnly: false, keepGrantForAgreement: true,
+    fail: (reason: string) => loginActivity(ctx, { userId, email, success: false, reason }), resetCounters: () => Promise.resolve(),
+  });
 }
 
 // ── POST /api/auth/logout (alias /api/auth/signout) ──────────────────────────────────────
@@ -692,9 +559,7 @@ async function resetPassword(ctx: Ctx) {
 }
 
 export function register(r: Router) {
-  r.post('/api/auth/signup', signup);
-  r.post('/api/auth/verify-email', verifyEmail);
-  r.post('/api/auth/resend-verification', resendVerification);
+  r.post('/api/auth/otp/session', otpSession);
   r.post('/api/auth/login', login);
   r.post('/api/auth/signin', login);
   r.post('/api/auth/logout', logout);

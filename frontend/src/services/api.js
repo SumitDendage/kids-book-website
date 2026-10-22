@@ -69,6 +69,25 @@ async function serverLogin(body) {
   await sdkAuth.adoptSession(r.session);
   return r;
 }
+/* the checked code's Supabase session becomes our sign-in; anything but agreement_required ends it */
+async function otpSession({ refreshToken, agreement, remember = true }) {
+  let r;
+  try {
+    r = await api('POST', '/api/auth/otp/session', { refreshToken, remember, ...(agreement ? { agreement: true } : {}) });
+    await sdkAuth.adoptSession(r.session);
+  } catch (err) {
+    if (err.code === 'agreement_required') throw err;   /* the session waits for the tick */
+    await cancelCode();
+    throw err;
+  }
+  sdkAuth.holdAuthEvents(false);
+  return r;
+}
+/* a checked code that was not used (the customer went back): this browser forgets its session */
+async function cancelCode() {
+  await sdkAuth.logout().catch(() => {});
+  sdkAuth.holdAuthEvents(false);
+}
 async function serverLogout() {
   try { if (usable(sdkAuth.snapshot())) await api('POST', '/api/auth/logout'); }
   catch (_) { /* already ended or offline: this browser still forgets it below */ }
@@ -127,23 +146,32 @@ export async function api(method, path, body, store = customerTokens) {
 
 /* Sign-up, sign-in, sign-out and the account go through our server; the Supabase client keeps the tokens fresh and runs the password-reset link. */
 export const authApi = {
-  /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
-     service needed); ready means it can sign in at once */
+  /* Customers: a 6-digit code by email for Sign up and Sign in (Supabase Auth sends and checks
+     it), then our server opens the sign-in → { user, session, staff, security }. A
+     403 { code: 'agreement_required', agreement } keeps the checked code's session: send again
+     with agreement: true. Any other failure drops it. */
+  sendCode: sdkAuth.sendCode,                                    /* { email, signup?, name?, timeZone? } */
+  verifyCode: async ({ email, code, agreement, remember = true }) => {
+    const { refreshToken } = await sdkAuth.verifyCode({ email, code });
+    try { return await otpSession({ refreshToken, agreement, remember }); }
+    catch (err) { if (err.code === 'agreement_required') err.refreshToken = refreshToken; throw err; }
+  },
+  otpSession,
+  cancelCode,
+  /* staff: { name, email, password, timeZone } → { email, ready } (Supabase Auth makes the account) */
   signup: body => sdkAuth.signUp(body),
-  /* { email, password, remember, agreement? } → { user, session, staff, security } */
+  /* staff: { email, password, remember, staff } → { user, session, staff, security } */
   login: serverLogin,
-  logout: serverLogout,
+  logout: serverLogout,                                          /* our server, then supabase.auth.signOut() */
   me: refreshTokens,                                             /* { user, staff, security } */
   /* a fresh pair from the refresh token → { session, user, staff, expiresAt } (401 when signed out) */
   refresh: () => refreshTokens(customerTokens),
   /* { role?, name?, timeZone? }. The account type (role) is set once: a second, different one is
-     409 { code: 'role_locked' } and only staff can change it */
+     409 { code: 'role_locked' } and only staff can change it. Staff roles are never set here. */
   updateMe: body => api('PATCH', '/api/auth/me', body),
-  verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
-  verifySignupCode: sdkAuth.verifySignupCode,    /* { email, code }: the 6-digit code from the sign-up email */
-  resendVerification: sdkAuth.resendVerification, /* { email }: Supabase emails a new sign-up code */
-  forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
-  resetPassword: sdkAuth.resetPassword,             /* { token, password } */
+  resendVerification: sdkAuth.resendVerification, /* staff sign-up: Supabase emails the confirmation again */
+  forgotPassword: sdkAuth.forgotPassword,           /* staff: { email }: a reset link is emailed */
+  resetPassword: sdkAuth.resetPassword,             /* staff: { password } after the reset link */
   hasTokens: () => usable(customerTokens.get()),
 };
 
