@@ -17,12 +17,17 @@ import { classById, printsText } from '../../data/content.js';
 const COPY = {
   signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, and choose a password.', submit: 'Create my account →' },
   signin: { title: 'Welcome back.', sub: 'Sign in to open your worksheets, plans and orders.', submit: 'Sign in →' },
+   loginOtp: {
+  title: 'Check your email.',
+  sub: 'Enter the 6-digit code we sent you to finish signing in.',
+  submit: 'Verify and sign in →'
+},
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will email you a link to choose a new password.', submit: 'Send reset link →' },
   reset: { title: 'Create a new password.', sub: 'Eight characters or more, with a number and a capital letter.', submit: 'Save new password →' },
   verify: { title: 'Check your email.', sub: 'We sent a 6-digit code to your email. Type it here to finish making your account.', submit: 'Confirm and create account →' },
   agree: { title: 'One more step.', sub: 'Our account rules have changed. Please read them and tick the box to sign in.', submit: 'Accept and sign in →' },
 };
-const TAB_OF = { signup: 'signup', verify: 'signup', signin: 'signin', forgot: 'signin', reset: 'signin', agree: 'signin' };
+const TAB_OF = { signup: 'signup', loginOtp: 'signin', verify: 'signup', signin: 'signin', forgot: 'signin', reset: 'signin', agree: 'signin' };
 const EMPTY = { name: '', email: '', pass: '', confirm: '', code: '' };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (_) { return undefined; } };
 
@@ -59,6 +64,7 @@ export default function AuthCard() {
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
   const [f, setF] = useState(EMPTY);
+   const [loginChallenge, setLoginChallenge] = useState(null);
   const remember = true;
   const [agreed, setAgreed] = useState(false);
   const [rules, setRules] = useState({ agreement: DEFAULT_AGREEMENT });
@@ -72,7 +78,7 @@ export default function AuthCard() {
   /* a new view clears the field errors (and the alert, in the store) and fills in the email it was given */
   useEffect(() => {
     setErrs({});
-    if (auth.email) setF(x => ({ ...x, email: auth.email }));
+    if (auth.email) setF(x => ({ ...x, email: auth.email, code: '' }));
     if (auth.view === 'agree' || auth.view === 'signup') setAgreed(false);
   }, [auth.nonce, auth.email, auth.view]);
   /* signed in: the form is emptied */
@@ -101,6 +107,18 @@ export default function AuthCard() {
       if (code === 'account_suspended') { markAccountBlocked(email); navigate('/account-blocked'); setAuthAlert({ type: 'err', msg: friendly(err) }); return; }
       throw err;
     }
+     if (r.otpRequired) {
+  setLoginChallenge({
+    challengeId: r.challengeId,
+    email: r.email
+  });
+  setAuthView('loginOtp', null, { email });
+  setTimeout(() => setAuthAlert({
+    type: 'ok',
+    msg: 'We sent a 6-digit login code to ' + r.email + '. Check your inbox and Spam folder.'
+  }), 0);
+  return;
+}
     write('lww_seen', true);
     const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];
     await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
@@ -164,7 +182,27 @@ export default function AuthCard() {
         if (pass) { await signInWith(email, pass, { agreement: true }); return; }
         setAuthView('signin', null, { email });
         setTimeout(() => setAuthAlert({ type: 'ok', msg: 'Your email is confirmed and your account is ready. Sign in with your password.' }), 0);
+               } else if (view === 'loginOtp') {
+        const code = f.code.replace(/\s+/g, '');
+        const b = bad('auCode', /^\d{6}$/.test(code) ? '' : 'Enter the 6-digit code from your email.');
+        setErrs(errors);
+        if (b) return;
+        if (!loginChallenge?.challengeId) {
+          setAuthView('signin', null, { email });
+          setAuthAlert({ type: 'err', msg: 'Your login code has expired. Please sign in again.' });
+          return;
+        }
+        busyOn(true);
+        const r = await authApi.verifyLoginOtp({
+          challengeId: loginChallenge.challengeId,
+          code
+        });
+        setLoginChallenge(null);
+        write('lww_seen', true);
+        const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];
+        await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
       } else if (view === 'signin') {
+         
         const b = bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | bad('auPass', pass ? '' : 'Enter your password.');
         setErrs(errors); if (b) return;
         busyOn(true);
@@ -205,6 +243,7 @@ export default function AuthCard() {
     signup: <>Already have an account? <Link to="signin">Sign in</Link> &nbsp;·&nbsp; <Link to="forgot">Forgot password?</Link></>,
     signin: <>New here? <Link to="signup">Sign up</Link></>,
     forgot: <>Remembered it? <Link to="signin">Sign in</Link></>,
+   loginOtp: <Link to="signin">Back to sign in</Link>,
     reset: <Link to="signin">Back to sign in</Link>,
     verify: <>Wrong email? <Link to="signup">Start again</Link> &nbsp;·&nbsp; <button type="button" className="link" onClick={() => resendWelcome(f.email.trim().toLowerCase())}>Send a new code</button></>,
     agree: <Link to="signin">Back to sign in</Link>,
@@ -225,7 +264,7 @@ export default function AuthCard() {
           {view === 'agree' ? <p className="auth-note">Signing in as <b>{f.email}</b></p> : null}
           <Field id="auName" label="Your name" show={shows('signup')} error={errs.auName}><input id="auName" type="text" autoComplete="name" placeholder="Your name" maxLength={80} value={f.name} onChange={set('name')} /></Field>
           <Field id="auEmail" label="Email address" show={shows('signup signin forgot verify')} error={errs.auEmail}><input id="auEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} /></Field>
-          <Field id="auCode" label="6-digit code" show={shows('verify')} error={errs.auCode}><input id="auCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" placeholder="123456" maxLength={10} value={f.code} onChange={e => setF(x => ({ ...x, code: e.target.value.replace(/[^0-9]/g, '') }))} /></Field>
+          <Field id="auCode" label="6-digit code" show={shows('verify loginOtp')} error={errs.auCode}><input id="auCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" placeholder="123456" maxLength={10} value={f.code} onChange={e => setF(x => ({ ...x, code: e.target.value.replace(/[^0-9]/g, '') }))} /></Field>
           <Field id="auPass" label={view === 'reset' ? 'New password' : 'Password'} show={shows('signup signin reset')} error={errs.auPass}>
             <div className="pw-wrap"><input id="auPass" type={showPass ? 'text' : 'password'} autoComplete={view === 'signin' ? 'current-password' : 'new-password'} placeholder={view === 'signin' ? 'Your password' : 'At least 8 characters'} maxLength={128} value={f.pass} onChange={set('pass')} /><button type="button" className="pw-toggle" id="pwToggle" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(v => !v)}>{showPass ? 'HIDE' : 'SHOW'}</button></div>
           </Field>
