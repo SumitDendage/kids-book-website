@@ -122,7 +122,7 @@ test('worksheet field validation', async () => {
   const clear = await h.call('PUT', '/api/admin/worksheets/az-I', { token: admin.token, body: { accessDays: null, stock: null } });
   assertStatus(clear, 200);
   assertEquals([clear.body.worksheet.accessDays, clear.body.worksheet.effectiveAccessDays, clear.body.worksheet.stock], [null, 1, null]);
-  assertEquals(clear.body.worksheet.effectiveAccessHours, 24, 'the shop setting: 24 hours');
+  assertEquals(clear.body.worksheet.effectiveAccessHours, 1, 'the shop setting: 1 hour');
 });
 
 // ── create → upload → publish ────────────────────────────────────────────────────────────

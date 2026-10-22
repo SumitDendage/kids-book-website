@@ -258,7 +258,7 @@ test('settings: prints per account type are validated; /api/config, sign-in and 
 test('customer text: how long a sheet stays open, printing and account types', async () => {
   const faq = (await h.call('GET', '/api/faq')).body.faq as { question: string; answer: string }[];
   assertEquals(faq.find((f) => f.question === 'How long can I open a sheet I bought?')!.answer,
-    'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+    'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
   const printing = faq.find((f) => f.question === 'How many times can I print a sheet?')!;
   assert(printing.answer.includes('2 with a Parent account, 4 with a Teacher account and 300 with an Organization account'), printing.answer);
   assert(faq.some((f) => f.question === 'Which account type should I choose?'));
@@ -442,7 +442,7 @@ test('cart: add, list, remove and empty; free, unknown, draft and owned sheets a
   assertEquals(typeof addedAt, 'number');
   assertEquals(item, {
     worksheet: 'az-C', title: 'Alphabet C — tracing sheet', priceInr: 19, wasPriceInr: null, cls: 'kg', subject: 'English',
-    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 1, accessHours: 24, problem: null, note: null,
+    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 1, accessHours: 1, problem: null, note: null,
   });
   assertEquals((await addToCart(c, 'az-C')).body.count, 1, 'adding twice is harmless');
   const two = await addToCart(c, ' az-D ');
