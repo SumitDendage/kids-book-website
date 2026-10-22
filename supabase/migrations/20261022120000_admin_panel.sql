@@ -103,7 +103,7 @@ create table if not exists public.home_sections (
   subtitle text not null default '' check (char_length(subtitle) <= 160),
   -- home: a row on the home page · shop: a list in the shop's Browse menu
   placement text not null default 'home' check (placement in ('home', 'shop')),
-  max_items integer not null default 12 check (max_items between 1 and 48),
+  max_items integer not null default 12 check (max_items between 1 and 200),
   -- best sellers worked out from paid orders of the last this many days
   auto_days integer not null default 90 check (auto_days between 1 and 3650),
   -- the built-in lists mirror a product label (tag); null for lists staff add
@@ -141,7 +141,7 @@ insert into public.home_sections (id, kind, mode, title, subtitle, placement, la
   ('recommended', 'curated', 'manual', 'Recommended', '', 'shop', 'recommended', 60, true)
 on conflict do nothing;
 -- the built-in lists hold every sheet; the API shows as many as max_items says
-update public.home_sections set max_items = 48 where builtin and id <> 'picked';
+update public.home_sections set max_items = 200 where builtin and id <> 'picked';
 
 -- today's labels become the lists' contents, in the sheets' display order
 insert into public.home_section_items (section_id, product_id, sort)
