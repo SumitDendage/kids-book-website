@@ -66,6 +66,9 @@ export const refreshTokens = async () => {
    which keeps them fresh (a refresh keeps the same sign-in, so the record stays valid). */
 async function serverLogin(body) {
   const r = await api('POST', '/api/auth/login', body);
+
+  if (r.otpRequired) return r;
+
   await sdkAuth.adoptSession(r.session);
   return r;
 }
