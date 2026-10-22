@@ -127,12 +127,16 @@ export async function api(method, path, body, store = customerTokens) {
   if (r.status === 403) report(store, err);
   throw err;
 }
-
+async function serverVerifyLoginOtp(body) {
+  const r = await api('POST', '/api/auth/verify-login-otp', body);
+  await sdkAuth.adoptSession(r.session);
+  return r;
+}
 /* Sign-up, sign-in, sign-out and the account go through our server; the Supabase client keeps the tokens fresh and runs the password-reset link. */
 export const authApi = {
   /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
      service needed); ready means it can sign in at once */
-  signup: body => sdkAuth.signUp(body),
+  signup: body => sdkAuth.signUp(body),verifyLoginOtp: serverVerifyLoginOtp,
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
   logout: serverLogout,
