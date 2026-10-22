@@ -1,8 +1,8 @@
-name: Upload the server to Supabase (once)
+
+name: Deploy server to Supabase
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/deploy-server-once.yml']
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -10,7 +10,11 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/login-email-otp-security-alerts
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+
       - run: supabase functions deploy api --project-ref liaqgyskuhnxmlvmrnrl --no-verify-jwt --use-api
