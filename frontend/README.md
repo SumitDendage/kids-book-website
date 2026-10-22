@@ -1,115 +1,84 @@
-# Learn With Why — React (Vite) version
+# Learn With Why: website
 
-> Supabase migration in progress: see [integration status](../INTEGRATION-STATUS.md)
-> for current configuration, tested behavior and backend blockers. That document
-> supersedes the legacy backend/environment instructions below.
+The customer website, the staff panels and the protected worksheet viewer for
+[www.learnwithwhy.com](https://www.learnwithwhy.com), built with **React 19** and **Vite 8**.
 
-The same website as the original plain-HTML site, rebuilt with React and Vite. The
-design, words, animations and features are unchanged; only the way the code is
-organised is new. This folder used to be called `react-app`; it is `frontend` now.
-The old plain-HTML copy is kept in `legacy/old-static-site` for reference only and
-is not served any more.
+The website is static files only. It talks directly to the Supabase server (see
+[`../supabase`](../supabase/README.md)) from the visitor's browser, so plain web hosting is enough.
 
-## What you need
+## Requirements
 
-- Node.js 22.13 or newer — https://nodejs.org (the website alone builds on Node 20.19+ or 22.12+, but the backend, `npm start` in the `backend` folder, needs 22.13+ for its built-in SQLite)
+- [Node.js](https://nodejs.org) 22.12 or newer (20.19 also works)
 
-## Run it on your computer (Windows)
+## Commands
 
-1. Open the `frontend` folder (inside `kids-book-website`) in File Explorer.
-2. Click the address bar, type `cmd`, press Enter. A black window opens in that folder.
-3. Type these, pressing Enter after each:
-
-   ```
-   npm install
-   npm run dev
-   ```
-
-4. Open http://localhost:5173 in your browser.
-
-Sign-in, the shop, checkout and the sheet viewer talk to the Node backend
-(http://127.0.0.1:4173), which lives in the `backend` folder next to this one.
-The `backend` and `database` folders are not on GitHub: they are kept only on
-your computer and the server (a fresh copy comes from `backend-and-database.zip`,
-see "Moving to the new folders" in the main README). Start the backend in a
-second window opened in the `backend` folder, or open a second window here and
-type `cd ..\backend` first. Then type:
-
-```
-npm install
-if not exist .env copy .env.example .env
-npm start
+```bash
+npm install        # once, and after dependencies change
+npm run dev        # development site at http://localhost:5173 with instant reload
+npm run build      # production build in dist/
+npm run preview    # serve the production build locally
+npm test           # unit tests (tests/*.test.mjs)
+npm run check:supabase   # check the configured Supabase address and public key answer
 ```
 
-The backend needs PostgreSQL running and its own settings file: the `if not exist`
-line makes `backend\.env` the first time; before the first `npm start`, type
-`notepad .env`, fill in `DATABASE_URL` and save (see `backend\README.md`). The
-React dev server then forwards every `/api/...` call to it. Without the backend
-the pages still open, but anything that needs the server fails: sign-in shows
-"Request failed (502)", checkout shows "Pricing service unavailable" and the
-viewer shows "Could not open the sheet".
+The development site uses the **live** server, with real accounts and orders. To sign in from
+`localhost`, the server's `ALLOWED_ORIGINS` secret must include `http://localhost:5173`
+(see [SETUP.md step 3](../supabase/docs/SETUP.md#3-the-website-address)).
 
-## Build the files for Hostinger
+## Configuration
 
-In the `frontend` folder:
+Settings are read from `.env.production` (used by builds) and an optional `.env.local`. Copy
+[`.env.example`](.env.example) to start.
 
-```
-npm run build
-```
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | The Supabase project address |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | The project's **publishable** key (starts with `sb_publishable_`) |
+| `VITE_API_BASE_URL` | Optional: another API address, for a local test server |
+| `VITE_DEV_API_PROXY` | Optional: where `npm run dev` forwards `/api` when `VITE_API_BASE_URL` is `/` |
 
-This creates the `frontend\dist` folder. Upload **everything inside
-`frontend\dist`** (including the hidden `.htaccess` file) into `public_html` on
-Hostinger. `npm run preview` shows the built site locally first.
+> **Never put a secret in a `VITE_` variable.** Everything starting with `VITE_` is copied into the
+> JavaScript every visitor downloads. Payment, email and database secrets belong only in
+> Supabase → Edge Functions → Secrets.
 
-The `.htaccess` file makes `/admin`, `/developer` and any other page address
-open the site, keeps images and fonts working, and sends `/viewer` to the
-sheet viewer.
+## Deployment
 
-Hostinger's file hosting only serves these files; it cannot run the backend.
-The backend must run on Node hosting on the **same domain**, so that `/api`
-reaches it.
+Merging into `main` publishes the site automatically: GitHub Actions tests and builds it and
+Hostinger picks up the new build (see the main [README](../README.md#deployment)). To deploy by hand,
+upload everything inside `dist/`, including the hidden `.htaccess`, to the website's `public_html`.
 
-The backend also serves this `frontend\dist` folder itself: after `npm start`
-in `backend`, open http://127.0.0.1:4173 (Ctrl+F5) to see the built site. Until
-you have run `npm run build` here, every page there says "Not found: the website
-is not built yet" and the server window says how to build it. Run
-`npm run build` again after every change to the website.
+`public/.htaccess` makes `/admin`, `/developer` and every other page address open the site, sends
+`/viewer` to the worksheet viewer and sets caching and file types.
 
-## Settings
+## Project layout
 
-Copy `.env.example` to `.env.local` (in the `frontend` folder) if you need to
-change anything:
+| Folder | Contents |
+|---|---|
+| `src/components` | Page sections: home chapters, sheets and vocabulary board, store, checkout, account, security notices, AI helper |
+| `src/pages` | `Admin/` and `Developer/` panels, `Portal/` (staff sign-in), `Viewer/`, `AccountBlocked/` |
+| `src/layouts` | `SiteLayout`, which holds every chapter and overlay |
+| `src/context` | Shared state: the signed-in customer, security status, popups and toasts |
+| `src/services` | The API client (`api.js`), Supabase sign-in (`supabaseAuth.js`), checkout, FAQ search, the 960-frame scroll engine, walking animals and scenery, viewer drawing |
+| `src/hooks` | Scroll input, the fox-and-rabbit preview, My Worksheets |
+| `src/data` | Site text, classes, catalogue, prices, plans and the FAQ answers (`faq.json`) |
+| `src/styles` | Stylesheets, loaded in file-number order |
+| `src/assets` | Logo, animal sprites and the vocabulary board picture |
+| `public` | Landscape frames, sheet thumbnails, fonts, `.htaccess`, SEO files |
+| `tests` | Unit tests for the API client, sign-in and FAQ search |
 
-- `VITE_API_BASE_URL` — leave empty. The backend only accepts calls from its own
-  domain, so the website and `/api` must be served from the same domain. Setting
-  it to another address only works once the backend allows cross-origin requests
-  (CORS with credentials and a cross-site session cookie).
-- `VITE_DEV_API_PROXY` — where `npm run dev` finds the backend.
+## Editing content
 
-Never put secret keys (Razorpay secret, admin key, database passwords) in `.env.local`
-for this app: everything starting with `VITE_` ends up inside the public website.
-Secrets belong only in the backend's own `backend/.env` (made by copying
-`backend/.env.example`; like the whole backend, it never goes to GitHub).
+Most customer-facing text lives in `src/data/`:
 
-One exception to watch: staff paste `ADMIN_KEY` into Admin → Settings → Server
-connection. It is kept as plain text in that browser's storage and is included in
-every Export / Download backup file, so only save it on a trusted computer and
-never share backup files.
+| File | What it controls |
+|---|---|
+| `content.js` | Menu, classes, subjects, home text, account types, plan names, testimonials, the "Today's why" questions |
+| `catalogue.js` | The sheet shelf, the Kindergarten sections and the built-in free list |
+| `checkout.js` | The ways to pay shown at checkout |
+| `faq.json` | The answers used by the Ask AI helper |
 
-## Where things are
+Prices, access time, plans and which sheets are on sale come from the server and are managed in
+**Admin → Products** and **Admin → Settings**; the values in `src/data` are only fallbacks.
 
-| Folder | What is in it |
-| --- | --- |
-| `src/components` | The pieces of the page: navbar, chapters, sheet cards, store, checkout, modals, dashboard parts |
-| `src/pages` | The staff pages (`Admin/`, `Developer/`, `Portal/`) and the sheet `Viewer/` |
-| `src/layouts` | The site layout that holds every chapter and overlay |
-| `src/context` | Shared state: who is signed in, which popup is open, toasts |
-| `src/services` | Talking to the server (`api.js`), the 960-frame scroll animation, the viewer drawing |
-| `src/hooks` | Reusable behaviour: scroll input, the fox-and-rabbit preview, My Worksheets |
-| `src/data` | The words, classes, sheets and prices shown on the site |
-| `src/styles` | The original CSS, split into files but not changed |
-| `src/utils` | Small helpers shared by the site, the staff panels and the viewer (`format.js`) |
-| `public` | Fonts, the 960 landscape frames, the 50 preview frames, sheet pictures, SEO files, `.htaccess` |
-
-The private PDFs in `backend/protected` are **not** in this app on purpose: they
-are only ever sent by the backend to a signed-in customer who owns the sheet.
+Worksheet PDFs are never stored here. They live in the server's private storage and are only sent,
+watermarked, to someone allowed to open them.

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /frames-webp/
-Sitemap: https://learnwithwhy.in/sitemap.xml
+Sitemap: https://www.learnwithwhy.com/sitemap.xml

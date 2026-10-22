@@ -1,13 +1,15 @@
-# Learn With Why: the Supabase backend
+# Learn With Why: server
 
-Everything the website needs on the server side, for the Supabase project **"SumitDendage's Project"**
-(`liaqgyskuhnxmlvmrnrl`, Mumbai region): Supabase Auth for passwords, PostgreSQL with row-level security,
-private storage for the worksheet PDFs, and one Edge Function, `api`, that serves every `/api/*` route the
-website calls.
+The server side of [www.learnwithwhy.com](https://www.learnwithwhy.com), running on Supabase in the
+project **"SumitDendage's Project"** (`liaqgyskuhnxmlvmrnrl`, Mumbai region):
 
-**Owner: start with [docs/SETUP.md](docs/SETUP.md)**, then read [docs/MISSING-CONFIG.md](docs/MISSING-CONFIG.md)
-for what is still missing. This folder is kept off GitHub on purpose (like `backend/` and `database/`); it
-reaches you as `supabase-backend.zip`.
+- **Supabase Auth** for customer and staff sign-in, with email confirmation by 6-digit code
+- **PostgreSQL** with row-level security on every table
+- **Private storage** for the worksheet PDFs
+- **One Edge Function, `api`**, that serves every `/api/*` route the website calls
+
+New to this folder? Start with [docs/SETUP.md](docs/SETUP.md), then see
+[docs/MISSING-CONFIG.md](docs/MISSING-CONFIG.md) for what is still open.
 
 ## What is in this folder
 
@@ -28,9 +30,11 @@ reaches you as `supabase-backend.zip`.
 
 - The website (Hostinger, plain files) calls `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/...`
   with a bearer token. Its central adapter is `frontend/src/services/api.js`.
-- Passwords live only in Supabase Auth. Sign-up generates the password on the server and emails it;
-  nothing logs or stores it. Each sign-in also gets an `app_sessions` row, so staff can end or block one
-  session without touching the others.
+- Passwords live only in Supabase Auth. Customers choose their own password at sign-up and confirm the
+  email with a 6-digit code; the real sign-in then goes through `/api/auth/login`. Each sign-in gets an
+  `app_sessions` row, so staff can end or block one session without touching the others.
+- Free sheets open without an account through a short-lived, view-only guest token, stamped as a free
+  copy; paid sheets always need a signed-in customer with access.
 - The API talks to Postgres as the role `lww_api`, which has only the grants it needs. Customers and
   the browser never get direct table access: row-level security is on for every table and most tables
   have no policy at all, which means "no access" for the public keys.
