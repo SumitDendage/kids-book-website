@@ -200,6 +200,37 @@ function rawDiscount(priceInr: number, classPct: number, planPct: number, coupon
   return Math.min(priceInr, Math.max(0, d));
 }
 
+/** Each line's whole discount (class, plan, then the coupon) in rupees, unrounded. The coupon works
+ *  only on its eligible lines: a percentage of what is left on each, or a fixed amount shared out in
+ *  proportion to what is left (never more than that); then the coupon's largest discount caps it. */
+function lineDiscounts(items: Item[], c: CouponRow | null): number[] {
+  const pre = items.map((it) => rawDiscount(it.priceInr, it.classPct, it.planPct, 0));
+  if (!c) return pre;
+  const left = items.map((it, i) => Math.max(0, it.priceInr - pre[i]));
+  const ok = items.map((it) => couponFits(c, it));
+  let off = items.map((_, i) => (ok[i] && c.kind === 'percent' ? left[i] * clampNum(c.pct ?? 0, 0, 100) / 100 : 0));
+  if (c.kind === 'fixed') {
+    const pool = left.reduce((n, x, i) => n + (ok[i] ? x : 0), 0);
+    const amount = Math.min(Math.max(0, c.amount_inr ?? 0), pool);
+    off = items.map((_, i) => (ok[i] && pool > 0 ? amount * left[i] / pool : 0));
+  }
+  const total = off.reduce((n, x) => n + x, 0);
+  if (c.max_discount_inr !== null && c.max_discount_inr > 0 && total > c.max_discount_inr) {
+    const k = c.max_discount_inr / total;
+    off = off.map((x) => x * k);
+  }
+  return items.map((it, i) => Math.min(it.priceInr, pre[i] + off[i]));
+}
+
+/** Does the coupon work on this line? With chosen products or categories, only on those sheets;
+ *  otherwise on every line (the kind and class rules are checked for the whole order). */
+function couponFits(c: CouponRow, it: Item): boolean {
+  if (!c.product_ids.length && !c.section_ids.length) return true;
+  if (it.kind !== 'worksheet') return false;
+  if (c.class_id && it.classId !== c.class_id) return false;
+  return (!!it.productId && c.product_ids.includes(it.productId)) || (!!it.section && c.section_ids.includes(it.section));
+}
+
 type Priced = {
   currency: string; rate: number; base: number; tax: number; fee: number; total: number;
   totalInr: number; amountMinor: number; discountInr: number; priceLines: PriceLine[];
@@ -263,20 +294,21 @@ type Item = {
   planPct: number;
   accessDays: number | null;
   accessHours: number | null;
+  section?: string | null;       // worksheets: the website section it sits in (coupon categories)
   problem: SaleProblem | null;   // set when it exists but cannot be sold right now
 };
 
 type ProductSaleRow = {
   id: string; title: string; class_id: string; price_inr: number; status: string; pdf_path: string | null;
   stock: number | null; access_days: number | null; class_name: string; class_status: string; class_pct: number;
-  scheduled: boolean;
+  scheduled: boolean; section: string | null;
 };
 
 /** A sheet as a thing to buy; null when it does not exist for customers (unknown, draft, hidden class). */
 async function worksheetItem(q: Tx, s: Settings, id: string): Promise<Item | null> {
   if (!PRODUCT_RE.test(id)) return null;
   const r = await q<ProductSaleRow[]>`
-    select p.id, p.title, p.class_id, p.price_inr, p.status, p.pdf_path, p.stock, p.access_days,
+    select p.id, p.title, p.class_id, p.price_inr, p.status, p.pdf_path, p.stock, p.access_days, p.section,
            c.name as class_name, c.status as class_status, c.discount_pct::float8 as class_pct,
            coalesce(p.publish_at > now(), false) as scheduled
     from products p join classes c on c.id = p.class_id
@@ -291,7 +323,7 @@ async function worksheetItem(q: Tx, s: Settings, id: string): Promise<Item | nul
   return {
     kind: 'worksheet', productId: p.id, classId: p.class_id, className: p.class_name, planId: null, planLabel: null,
     planRegions: [], months: null, title: p.title, priceInr: p.price_inr, classPct: Number(p.class_pct) || 0, planPct: 0,
-    accessDays: accessDaysFor(s, p.access_days), accessHours: accessHoursFor(s, p.access_days), problem,
+    accessDays: accessDaysFor(s, p.access_days), accessHours: accessHoursFor(s, p.access_days), section: p.section, problem,
   };
 }
 
@@ -325,7 +357,8 @@ async function regionMessage(q: Tx, item: Item, region: 'IN' | 'INTL', countryNa
 // ── coupons ──────────────────────────────────────────────────────────────────────────────
 
 type CouponRow = {
-  code: string; pct: number; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
+  code: string; pct: number | null; kind: 'percent' | 'fixed'; amount_inr: number | null; min_order_inr: number;
+  max_discount_inr: number | null; product_ids: string[]; section_ids: string[]; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
   active: boolean; started: boolean; ended: boolean; class_name: string | null;
 };
 
@@ -333,13 +366,15 @@ async function loadCoupon(q: Tx, code: string, lock: boolean): Promise<CouponRow
   if (!COUPON_RE.test(code)) return null;
   const rows = lock
     ? await q<CouponRow[]>`
-        select c.code::text as code, c.pct::float8 as pct, c.max_uses, c.per_user_limit, c.applies_to, c.class_id, c.active,
+        select c.code::text as code, c.pct::float8 as pct, c.kind, c.amount_inr::float8 as amount_inr,
+               c.min_order_inr::float8 as min_order_inr, c.max_discount_inr::float8 as max_discount_inr, c.product_ids, c.section_ids, c.max_uses, c.per_user_limit, c.applies_to, c.class_id, c.active,
                (c.valid_from is null or c.valid_from <= now()) as started,
                (c.valid_until is not null and c.valid_until <= now()) as ended,
                (select name from classes where id = c.class_id) as class_name
         from coupons c where c.code = ${code}::citext for update`
     : await q<CouponRow[]>`
-        select c.code::text as code, c.pct::float8 as pct, c.max_uses, c.per_user_limit, c.applies_to, c.class_id, c.active,
+        select c.code::text as code, c.pct::float8 as pct, c.kind, c.amount_inr::float8 as amount_inr,
+               c.min_order_inr::float8 as min_order_inr, c.max_discount_inr::float8 as max_discount_inr, c.product_ids, c.section_ids, c.max_uses, c.per_user_limit, c.applies_to, c.class_id, c.active,
                (c.valid_from is null or c.valid_from <= now()) as started,
                (c.valid_until is not null and c.valid_until <= now()) as ended,
                (select name from classes where id = c.class_id) as class_name
@@ -347,11 +382,17 @@ async function loadCoupon(q: Tx, code: string, lock: boolean): Promise<CouponRow
   return rows[0] ?? null;
 }
 
-/** Why this coupon cannot be used on these items now (active, dates, kind, class), or null. */
+/** Why this coupon cannot be used on these items now (active, dates, kind, class, chosen products or
+ *  categories, minimum order), or null. */
 function couponRuleProblem(c: CouponRow, items: Item[]): string | null {
   if (!c.active) return 'That code is not valid.';
   if (!c.started) return 'That code is not valid yet.';
   if (c.ended) return 'That code has expired.';
+  const subtotal = items.reduce((n, it) => n + it.priceInr - rawDiscount(it.priceInr, it.classPct, it.planPct, 0), 0);
+  if (c.min_order_inr > 0 && subtotal + 1e-9 < c.min_order_inr) return `That code needs an order of at least ₹${c.min_order_inr}.`;
+  if (c.product_ids.length || c.section_ids.length) {
+    return items.some((it) => couponFits(c, it)) ? null : 'That code does not work on these sheets.';
+  }
   for (const it of items) {
     if (c.applies_to === 'worksheet' && it.kind !== 'worksheet') return 'That code is only for single sheets.';
     if (c.applies_to === 'class' && it.kind !== 'class') return 'That code is only for class plans.';
@@ -557,8 +598,9 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
   // one order: each line's discount on its own price, then one total with one tax and one fee
   // (revalidateQuote works the total out again the same way)
   let listInr = 0, discount = 0;
-  const lines: QuoteLine[] = items.map((it) => {
-    const d = rawDiscount(it.priceInr, it.classPct, it.planPct, coupon?.pct ?? 0);
+  const ds = lineDiscounts(items, coupon);
+  const lines: QuoteLine[] = items.map((it, i) => {
+    const d = ds[i];
     listInr += it.priceInr;
     discount += d;
     return {
@@ -601,7 +643,9 @@ export async function buildQuote(q: Tx, ctx: Ctx, body: Record<string, unknown>)
     const payload = {
       rate, discountInr: priced.discountInr, methods, lines,
       priceLines: priced.priceLines, address, title, countryName: country.name, region,
-      couponPct: coupon?.pct ?? 0,
+      couponPct: coupon?.kind === 'percent' ? coupon.pct ?? 0 : 0,
+      couponKind: coupon?.kind ?? null,
+      couponAmountInr: coupon?.kind === 'fixed' ? coupon.amount_inr : null,
     };
     const rows = await q<{ id: string; expires_at: Date }[]>`
       insert into quotes (expires_at, kind, product_id, class_id, plan_id, coupon_code, country, currency,
@@ -770,21 +814,22 @@ export async function revalidateQuote(q: Tx, quote: StoredQuote, userId: string)
   }
 
   // 3. the coupon: same rules as the quote, plus how often it has been used
-  let couponPct = 0;
+  let coupon: CouponRow | null = null;
   if (quote.couponCode) {
     const c = await loadCoupon(q, quote.couponCode, true);
     if (!c) throw couponInvalid('That code is not valid any more.');
     const why = couponRuleProblem(c, items) ?? await couponUsageProblem(q, c, userId);
     if (why) throw couponInvalid(why);
-    couponPct = c.pct;
+    coupon = c;
   }
 
   // 4. the same total, worked out again from today's prices and settings
   const rate = rateFor(s, quote.currency);
   if (!rate || Math.abs(rate - quote.rate) > 1e-9) throw priceChanged();
   let listInr = 0, discount = 0;
+  const ds = lineDiscounts(items, coupon);
   items.forEach((it, i) => {
-    const d = rawDiscount(it.priceInr, it.classPct, it.planPct, couponPct);
+    const d = ds[i];
     if (roundMoney(d, 'INR') !== quote.lines[i].discountInr) throw priceChanged();
     listInr += it.priceInr;
     discount += d;

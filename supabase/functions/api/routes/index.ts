@@ -12,6 +12,7 @@ import { register as adminCommerce } from './admin_commerce.ts';
 import { register as adminPeople } from './admin_people.ts';
 import { register as adminSecurity } from './admin_security.ts';
 import { register as adminOps } from './admin_ops.ts';
+import { register as adminStore } from './admin_store.ts';
 
 for (const r of [publicRoutes, authRoutes, accountRoutes, shopRoutes, cartRoutes, paymentRoutes, accessRoutes,
-  adminCatalogue, adminCommerce, adminPeople, adminSecurity, adminOps]) r(router);
+  adminCatalogue, adminCommerce, adminPeople, adminSecurity, adminOps, adminStore]) r(router);
