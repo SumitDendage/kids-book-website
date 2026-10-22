@@ -7,16 +7,23 @@ import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, plural, problem, fieldErrors } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 
-const CLASS_STATUS = [['available', 'Open'], ['coming_soon', 'Coming soon'], ['hidden', 'Hidden']];
+import { ClassesPanel, SubjectsPanel, SessionsPanel } from './Taxonomy.jsx';
 
-/* Categories: the classes (open, coming soon or hidden on the website) and the sections a sheet can be
-   put in. The website's own sections (Alphabet, Vocabulary …) can be renamed, reordered or hidden;
+const TABS = [['sections', 'Sections'], ['classes', 'Classes'], ['subjects', 'Subjects'], ['sessions', 'Academic sessions']];
+let keepTab = 'sections';
+
+/* Categories: the website sections a sheet can be put in, the classes (open, coming soon or hidden on the
+   website), subjects and academic sessions. The website's own sections (Alphabet, Vocabulary …) can be renamed, reordered or hidden;
    sections added here show in the shop under "More sections" once a sheet is in them. */
 export default function Categories() {
   const { can, toast } = useDash();
   const canWrite = can('catalogue.write');
   const secQ = useStaffGet('/api/admin/sections', { keep: true });
   const clsQ = useStaffGet('/api/admin/classes', { keep: true });
+  const subQ = useStaffGet('/api/admin/subjects', { keep: true });
+  const sesQ = useStaffGet('/api/admin/sessions', { keep: true });
+  const [tab, setTab] = useState(keepTab);
+  const setTabK = t => { keepTab = t; setTab(t); };
   const [edit, setEdit] = useState(null);   /* a section, or {} for a new one */
   const [del, setDel] = useState(null);
   const [busy, setBusy] = useState('');
@@ -26,12 +33,6 @@ export default function Categories() {
   const saveRow = async (x, patch, msg) => {
     setBusy(x.id);
     try { const r = await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(x.id), patch); secQ.setData(d => ({ ...(d || {}), sections: r.sections })); if (msg) toast(msg); }
-    catch (e) { toast(problem(e)); }
-    setBusy('');
-  };
-  const setClass = async (c, status) => {
-    setBusy('class:' + c.id);
-    try { const r = await staffApi('PUT', '/api/admin/classes', { classes: [{ id: c.id, status }] }); clsQ.setData(d => ({ ...(d || {}), classes: r.classes })); toast(c.name + ': ' + CLASS_STATUS.find(x => x[0] === status)[1] + ' on the website.'); }
     catch (e) { toast(problem(e)); }
     setBusy('');
   };
@@ -57,17 +58,13 @@ export default function Categories() {
   return (
     <Guard state={secQ} rows={8}>
       {secQ.error ? <ErrorNote error={secQ.error} onRetry={secQ.reload} compact /> : null}
-      <section className="panel">
-        <p className="eyebrow">Classes</p>
-        <p className="auth-sub">Open a class to show its sheets on the website. Coming soon shows the class with a "Coming soon" note.</p>
-        <div className="sec-list">{classes.map(c => (
-          <div key={c.id} className="sec-row">
-            <div className="sec-name"><b>{c.name}</b><small>{plural(c.products || 0, 'sheet')}</small></div>
-            <span />
-            <span />
-            {canWrite ? <select aria-label={c.name + ' on the website'} value={c.status} disabled={busy === 'class:' + c.id} onChange={e => setClass(c, e.target.value)}>{CLASS_STATUS.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select> : <Pill>{(CLASS_STATUS.find(x => x[0] === c.status) || [])[1]}</Pill>}
-          </div>))}</div>
-      </section>
+      <div className="tabs-s" role="tablist" aria-label="Categories">
+        {TABS.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTabK(id)}>{label}</button>)}
+      </div>
+      {tab === 'classes' ? <ClassesPanel clsQ={clsQ} /> : null}
+      {tab === 'subjects' ? <SubjectsPanel subQ={subQ} /> : null}
+      {tab === 'sessions' ? <SessionsPanel sesQ={sesQ} /> : null}
+      {tab === 'sections' ? <>
       <section className="panel">
         <div className="row-between"><div><p className="eyebrow">Your sections</p><p className="auth-sub">Sections you add show in the shop under "More sections" once a sheet is in them. Pick the section on a sheet in Products.</p></div>
           {canWrite ? <button type="button" className="btn btn-primary" onClick={() => setEdit({})}><Icon id="plus" />Add section</button> : null}</div>
@@ -78,6 +75,7 @@ export default function Categories() {
         <p className="auth-sub">These are drawn by the website's own pages (Alphabet, Vocabulary and the Kindergarten topics). You can rename, reorder or hide them.</p>
         {[...groups.entries()].map(([g, l]) => <div key={g}><p className="sec-group">{g}</p><div className="sec-list">{l.map(row)}</div></div>)}
       </section>
+      </> : null}
       {edit ? <SectionDialog section={edit} classes={classes} onClose={() => setEdit(null)} onDone={(r, isNew) => { secQ.setData(d => ({ ...(d || {}), sections: r.sections })); setEdit(null); toast(isNew ? 'Section added.' : 'Saved.'); }} /> : null}
       {del ? <DeleteSection section={del} onClose={() => setDel(null)} onDone={r => { secQ.setData(d => ({ ...(d || {}), sections: r.sections })); setDel(null); toast('Section deleted.'); }} /> : null}
     </Guard>

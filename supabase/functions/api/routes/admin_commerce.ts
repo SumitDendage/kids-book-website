@@ -25,6 +25,7 @@ const PRODUCT_RE = /^[A-Za-z0-9][A-Za-z0-9-]{1,63}$/;
 const CLASS_RE = /^[a-z0-9]{1,12}$/;
 const PLAN_RE = /^[a-z0-9]{1,8}$/;
 const COUPON_RE = /^[A-Za-z0-9_-]{3,32}$/;
+const SECTION_RE = /^[a-z0-9-]{1,60}$/;
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const ORDER_STATUSES = ['created', 'paid', 'failed', 'cancelled', 'refunded', 'expired'] as const;
 const PROVIDER_LABEL: Record<string, string> = { razorpay: 'Razorpay', stripe: 'Stripe', paypal: 'PayPal' };
@@ -722,14 +723,16 @@ const planView = (p: PlanRow) => ({
 const oldPlans = (rows: PlanRow[]) => Object.fromEntries(rows.map((p) => [p.id, { label: p.label, months: p.months, price: p.price_inr }]));
 
 type CouponRow = {
-  code: string; pct: number; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
+  code: string; pct: number | null; kind: 'percent' | 'fixed'; amount_inr: number | null; min_order_inr: number;
+  max_discount_inr: number | null; product_ids: string[]; section_ids: string[]; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
   valid_from: Date | null; valid_until: Date | null; active: boolean; note: string | null; created_at: Date;
   updated_at: Date; created_by: string | null; uses: number;
 };
 
 async function loadCoupons(q: Tx, code?: string): Promise<CouponRow[]> {
   return await q<CouponRow[]>`
-    select c.code::text as code, c.pct::float8 as pct, c.max_uses, c.per_user_limit, c.applies_to, c.class_id,
+    select c.code::text as code, c.pct::float8 as pct, c.kind, c.amount_inr::float8 as amount_inr,
+           c.min_order_inr::float8 as min_order_inr, c.max_discount_inr::float8 as max_discount_inr, c.product_ids, c.section_ids, c.max_uses, c.per_user_limit, c.applies_to, c.class_id,
            c.valid_from, c.valid_until, c.active, c.note, c.created_at, c.updated_at, c.created_by,
            (select count(*) from (
               select r.order_id from coupon_redemptions r where r.coupon_code = c.code
@@ -745,11 +748,15 @@ const couponView = (c: CouponRow) => ({
   perUserLimit: c.per_user_limit, appliesTo: c.applies_to, cls: c.class_id, classId: c.class_id,
   validFrom: ms(c.valid_from), validUntil: ms(c.valid_until), note: c.note,
   usedUp: c.max_uses > 0 && c.uses >= c.max_uses, created: ms(c.created_at), updated: ms(c.updated_at), createdBy: c.created_by,
+  // percent: pct % off · fixed: amountInr rupees off the order
+  kind: c.kind, amountInr: c.amount_inr, minOrderInr: c.min_order_inr, maxDiscountInr: c.max_discount_inr,
+  productIds: c.product_ids, sectionIds: c.section_ids,
 });
 const oldCoupons = (rows: CouponRow[]) => Object.fromEntries(rows.map((c) => [c.code.toUpperCase(), { pct: c.pct, max: c.max_uses, uses: c.uses, active: c.active }]));
 
 type CouponFields = {
-  pct: number; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
+  kind: 'percent' | 'fixed'; pct: number | null; amount_inr: number | null; min_order_inr: number; max_discount_inr: number | null;
+  product_ids: string[]; section_ids: string[]; max_uses: number; per_user_limit: number; applies_to: string; class_id: string | null;
   valid_from: Date | null; valid_until: Date | null; active: boolean; note: string | null;
 };
 
@@ -790,6 +797,31 @@ function parseCoupon(b: Record<string, unknown>, field = (f: string) => f): Part
     if (typeof b.active !== 'boolean') errors[field('active')] = 'active is true or false.';
     else set.active = b.active;
   }
+  if (b.kind !== undefined) {
+    if (b.kind !== 'percent' && b.kind !== 'fixed') errors[field('kind')] = 'A coupon takes a percentage or a fixed amount off.';
+    else set.kind = b.kind;
+  }
+  const money = (key: string, min: number, max: number, gt: boolean, nullable: boolean, msg: string) => {
+    const raw = b[key];
+    if (raw === undefined) return undefined;
+    if (raw === null || raw === '') { if (nullable) return null; errors[field(key)] = msg; return undefined; }
+    const n = typeof raw === 'string' ? Number(raw.trim()) : raw;
+    if (!numOk(n, min, max, 2, gt)) { errors[field(key)] = msg; return undefined; }
+    return n as number;
+  };
+  const amount = money('amountInr', 0, 100000, true, false, 'The amount off is in rupees, above 0 and at most 100000.');
+  if (amount !== undefined && amount !== null) set.amount_inr = amount;
+  const min = money('minOrderInr', 0, 1_000_000, false, true, 'The minimum order is in rupees, 0 or more.');
+  if (min !== undefined) set.min_order_inr = min ?? 0;
+  const cap = money('maxDiscountInr', 0, 1_000_000, true, true, 'The largest discount is in rupees, above 0 (empty = no cap).');
+  if (cap !== undefined) set.max_discount_inr = cap;
+  for (const [key, col, re, most, label] of [['productIds', 'product_ids', PRODUCT_RE, 200, 'products'], ['sectionIds', 'section_ids', SECTION_RE, 100, 'categories']] as const) {
+    const raw = b[key];
+    if (raw === undefined) continue;
+    const list = Array.isArray(raw) ? raw : raw === null ? [] : null;
+    if (!list || list.length > most || !list.every((x) => typeof x === 'string' && re.test(x))) errors[field(key)] = `Pick up to ${most} ${label} from the list.`;
+    else set[col] = [...new Set(list as string[])];
+  }
   if (b.note !== undefined) {
     if (b.note !== null && typeof b.note !== 'string') errors[field('note')] = 'The note must be text.';
     else if (typeof b.note === 'string' && b.note.length > 200) errors[field('note')] = 'Keep the note under 200 characters.';
@@ -811,11 +843,45 @@ async function checkCoupon(q: Tx, c: CouponFields, field = (f: string) => f) {
     throw invalid({ [field('validUntil')]: 'The end must be after the start.' });
   }
   if (c.class_id && !(await q`select 1 from classes where id = ${c.class_id}`).length) throw invalid({ [field('cls')]: 'Unknown class.' });
+  if (c.kind === 'percent' && !(c.pct! > 0 && c.pct! <= 100)) throw invalid({ [field('pct')]: 'The discount is a percentage above 0 and at most 100.' });
+  if (c.kind === 'fixed' && !(c.amount_inr! > 0)) throw invalid({ [field('amountInr')]: 'The amount off is in rupees, above 0 and at most 100000.' });
+  if ((c.product_ids.length || c.section_ids.length) && c.applies_to === 'class') {
+    throw invalid({ [field('appliesTo')]: 'A coupon for chosen products or categories works on single sheets, not class plans.' });
+  }
+  if (c.product_ids.length) {
+    const n = (await q<{ n: number }[]>`select count(*)::int as n from products where id = any(${c.product_ids}::text[])`)[0].n;
+    if (n !== c.product_ids.length) throw invalid({ [field('productIds')]: 'Some of those products do not exist.' });
+  }
+  if (c.section_ids.length) {
+    const n = (await q<{ n: number }[]>`select count(*)::int as n from sections where id = any(${c.section_ids}::text[])`)[0].n;
+    if (n !== c.section_ids.length) throw invalid({ [field('sectionIds')]: 'Some of those categories do not exist.' });
+  }
+}
+
+/** The coupon's kind and value after a change: sending pct makes it a percentage coupon, sending
+ *  amountInr a fixed-amount one (unless kind says otherwise); the other value is cleared. */
+function couponValue(set: Partial<CouponFields>, cur: Pick<CouponFields, 'kind' | 'pct' | 'amount_inr'> | null) {
+  const kind = set.kind ?? (set.pct !== undefined ? 'percent' : set.amount_inr !== undefined ? 'fixed' : cur?.kind ?? 'percent');
+  return kind === 'percent'
+    ? { kind, pct: set.pct ?? (cur?.kind === 'percent' ? cur.pct : null), amount_inr: null }
+    : { kind, pct: null, amount_inr: set.amount_inr ?? (cur?.kind === 'fixed' ? cur.amount_inr : null) };
+}
+
+/** A whole new coupon from the fields sent (missing ones take their defaults). */
+function newCoupon(set: Partial<CouponFields>): CouponFields {
+  return {
+    ...couponValue(set, null), min_order_inr: set.min_order_inr ?? 0, max_discount_inr: set.max_discount_inr ?? null,
+    product_ids: set.product_ids ?? [], section_ids: set.section_ids ?? [],
+    max_uses: set.max_uses ?? 0, per_user_limit: set.per_user_limit ?? 0, applies_to: set.applies_to ?? 'all',
+    class_id: set.class_id ?? null, valid_from: set.valid_from ?? null, valid_until: set.valid_until ?? null,
+    active: set.active ?? true, note: set.note ?? null,
+  };
 }
 
 function couponSnapshot(c: Partial<CouponFields>) {
   return {
-    pct: c.pct, maxUses: c.max_uses, perUserLimit: c.per_user_limit, appliesTo: c.applies_to, cls: c.class_id,
+    kind: c.kind, pct: c.pct, amountInr: c.amount_inr, minOrderInr: c.min_order_inr, maxDiscountInr: c.max_discount_inr,
+    productIds: c.product_ids, sectionIds: c.section_ids, maxUses: c.max_uses, perUserLimit: c.per_user_limit, appliesTo: c.applies_to, cls: c.class_id,
     validFrom: iso(c.valid_from ?? null), validUntil: iso(c.valid_until ?? null), active: c.active, note: c.note,
   };
 }
@@ -823,8 +889,10 @@ function couponSnapshot(c: Partial<CouponFields>) {
 async function insertCoupon(q: Tx, ctx: Ctx, code: string, v: CouponFields) {
   try {
     await q`
-      insert into coupons (code, pct, max_uses, per_user_limit, applies_to, class_id, valid_from, valid_until, active, note, created_by)
-      values (${code}, ${v.pct}, ${v.max_uses}, ${v.per_user_limit}, ${v.applies_to}, ${v.class_id}, ${v.valid_from},
+      insert into coupons (code, kind, pct, amount_inr, min_order_inr, max_discount_inr, product_ids, section_ids,
+                           max_uses, per_user_limit, applies_to, class_id, valid_from, valid_until, active, note, created_by)
+      values (${code}, ${v.kind}, ${v.pct}, ${v.amount_inr}, ${v.min_order_inr}, ${v.max_discount_inr}, ${v.product_ids}::text[],
+              ${v.section_ids}::text[], ${v.max_uses}, ${v.per_user_limit}, ${v.applies_to}, ${v.class_id}, ${v.valid_from},
               ${v.valid_until}, ${v.active}, ${v.note}, ${ctx.user!.id})`;
   } catch (e) {
     if (isUnique(e, 'coupons_pkey')) throw new HttpError(409, 'That code already exists.', { code: 'coupon_exists', errors: { code: 'That code already exists.' } });
@@ -835,7 +903,11 @@ async function insertCoupon(q: Tx, ctx: Ctx, code: string, v: CouponFields) {
 
 async function updateCoupon(q: Tx, ctx: Ctx, cur: CouponRow, set: Partial<CouponFields>, field = (f: string) => f) {
   const next: CouponFields = {
-    pct: set.pct ?? cur.pct, max_uses: set.max_uses ?? cur.max_uses, per_user_limit: set.per_user_limit ?? cur.per_user_limit,
+    ...couponValue(set, cur),
+    min_order_inr: set.min_order_inr ?? cur.min_order_inr,
+    max_discount_inr: set.max_discount_inr !== undefined ? set.max_discount_inr : cur.max_discount_inr,
+    product_ids: set.product_ids ?? cur.product_ids, section_ids: set.section_ids ?? cur.section_ids,
+    max_uses: set.max_uses ?? cur.max_uses, per_user_limit: set.per_user_limit ?? cur.per_user_limit,
     applies_to: set.applies_to ?? cur.applies_to, class_id: set.class_id !== undefined ? set.class_id : cur.class_id,
     valid_from: set.valid_from !== undefined ? set.valid_from : cur.valid_from,
     valid_until: set.valid_until !== undefined ? set.valid_until : cur.valid_until,
@@ -847,7 +919,9 @@ async function updateCoupon(q: Tx, ctx: Ctx, cur: CouponRow, set: Partial<Coupon
   for (const k of Object.keys(a) as (keyof typeof a)[]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(bf[k] ?? null)) { before[k] = bf[k] ?? null; after[k] = a[k] ?? null; }
   if (!Object.keys(after).length) return;
   await q`
-    update coupons set pct = ${next.pct}, max_uses = ${next.max_uses}, per_user_limit = ${next.per_user_limit},
+    update coupons set kind = ${next.kind}, pct = ${next.pct}, amount_inr = ${next.amount_inr}, min_order_inr = ${next.min_order_inr},
+      max_discount_inr = ${next.max_discount_inr}, product_ids = ${next.product_ids}::text[], section_ids = ${next.section_ids}::text[],
+      max_uses = ${next.max_uses}, per_user_limit = ${next.per_user_limit},
       applies_to = ${next.applies_to}, class_id = ${next.class_id}, valid_from = ${next.valid_from},
       valid_until = ${next.valid_until}, active = ${next.active}, note = ${next.note}
     where code = ${cur.code}::citext`;
@@ -881,12 +955,9 @@ async function createCoupon(ctx: Ctx) {
   const b = await readJson(ctx.req, 8 * 1024);
   const code = couponCode(b.code);
   const set = parseCoupon(b);
-  if (set.pct === undefined) throw invalid({ pct: 'The discount is a percentage above 0 and at most 100.' });
-  const v: CouponFields = {
-    pct: set.pct, max_uses: set.max_uses ?? 0, per_user_limit: set.per_user_limit ?? 0, applies_to: set.applies_to ?? 'all',
-    class_id: set.class_id ?? null, valid_from: set.valid_from ?? null, valid_until: set.valid_until ?? null,
-    active: set.active ?? true, note: set.note ?? null,
-  };
+  const v = newCoupon(set);
+  if (v.kind === 'percent' && set.pct === undefined) throw invalid({ pct: 'The discount is a percentage above 0 and at most 100.' });
+  if (v.kind === 'fixed' && set.amount_inr === undefined) throw invalid({ amountInr: 'The amount off is in rupees, above 0 and at most 100000.' });
   const row = await tx(async (q) => {
     await checkCoupon(q, v);
     await insertCoupon(q, ctx, code, v);
@@ -979,11 +1050,7 @@ async function putCouponsBulk(ctx: Ctx) {
         if (cur) {
           await updateCoupon(q, ctx, cur, set);
         } else {
-          const v: CouponFields = {
-            pct: set.pct!, max_uses: set.max_uses ?? 0, per_user_limit: set.per_user_limit ?? 0, applies_to: set.applies_to ?? 'all',
-            class_id: set.class_id ?? null, valid_from: set.valid_from ?? null, valid_until: set.valid_until ?? null,
-            active: set.active ?? true, note: set.note ?? null,
-          };
+          const v = newCoupon(set);
           await checkCoupon(q, v);
           await insertCoupon(q, ctx, code, v);
         }
