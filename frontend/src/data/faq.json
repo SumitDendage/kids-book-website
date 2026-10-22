@@ -1124,7 +1124,7 @@
 },
 {
 "q": "How many times can I print a worksheet?",
-"a": "Each sheet you can open comes with its own prints, set by the account type you choose after signing up: Parent 2 prints, Teacher 4 prints, Organization 300 prints. The viewer shows how many prints are left on each sheet.",
+"a": "Each sheet you can open comes with its own prints, set by the account type you choose after signing up: Parent 2 prints, Teacher 3 prints, Organization 300 prints. The viewer shows how many prints are left on each sheet.",
 "alt": [
 "Do parents get two prints and teachers four?"
 ],
