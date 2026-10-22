@@ -161,7 +161,7 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   const free = await chat('Which sheets are FREE?');
   assertStatus(free, 200);
   assertEquals(free.body.source, 'faq');
-  assertMatch(free.body.reply, /^Eight sheets are free to try/);
+  assertMatch(free.body.reply, /^Free sheets to try in every section/);
 
   const days = await chat('how long does my access last after I buy?');
   assertEquals(days.body.reply, 'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');

@@ -77,11 +77,12 @@ export const ABOUT = {
 };
 /* The free A to Z demo sheets (Kindergarten): the "Say it" picture on each one. */
 export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'elephant', F: 'fish', G: 'grapes', H: 'house', I: 'igloo', J: 'jam', K: 'kite', L: 'lion', M: 'monkey', N: 'nest', O: 'orange', P: 'parrot', Q: 'quilt', R: 'rabbit', S: 'snake', T: 'tiger', U: 'umbrella', V: 'van', W: 'whale', X: 'x-ray', Y: 'yak', Z: 'zebra' };
-/* Eight printable PDFs are free: the Alphabet A and B tracing sheets (Sumit, Oct 6), and the
-   first three Colours and first three Shapes sheets in Vocabulary (Sumit, Oct 7).
+/* Free sheets per section (Sumit, Oct 22): Colour A to Z 3, Matching 2, Uppercase & Lowercase 2,
+   Sounds 2, Sounds Exercise 2, Missing letters 2, and Colours, Shapes, Sizes and Animals 3 each;
+   Alphabet A and B tracing stay free (not on his list).
    Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
    FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
-export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2', 'vs-3'], SHEET_PRICE = 19;
+export const FREE_PDFS = ['az-A', 'az-B', 'cl-A', 'cl-B', 'cl-C', 'mt-AE', 'mt-FJ', 'sp-AE', 'sp-FJ', 'sd-A', 'sd-B', 'bx-1', 'ex-1', 'vc-1', 'vc-2', 'vc-3', 'ms-U1', 'ms-L1', 'vs-1', 'vs-2', 'vs-3', 'vz-1', 'vz-2', 'vz-3', 'va-1', 'va-2', 'va-3'], SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
