@@ -268,6 +268,9 @@ export default function Checkout() {
   const cls = item ? classById(item.cls) : subCls ? classById(subCls) : null;
   const q = quote, addrOk = !!(q && q.valid);
   const planNow = plans.find(x => x.id === plan);
+  /* buying one sheet or a cart: the class plans are offered too (Sumit, Oct 22) */
+  const offerCls = !subCls ? classById((item && item.cls) || 'kg') || classById('kg') : null;
+  const subOffer = offerCls ? serverPlans(config, addr.country, offerCls.id) : [];
   const hours = hoursOf(q) || hoursOf(item) || hoursOf(config);
   const off = q && q.discountInr ? (q.currency === 'INR' ? '₹' + q.discountInr : fmtCur(Math.round(q.discountInr * q.rate * 100) / 100, q.currency)) : '';
   const accessNote = q ? accessNoteOf(q, tz) : '';
@@ -317,6 +320,12 @@ export default function Checkout() {
             <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coPlanHead">Choose your plan</h3><p>{(C.code === 'IN' ? 'India: ' : '') + monthsText(plans)} · every sheet in {cls.label}</p></div></header>
             <div className="method-grid plan-grid" role="radiogroup" aria-label="Class plan">
               {plans.map(x => <label key={x.id} className={'method' + (x.id === plan ? ' on' : '')}><input type="radio" name="plan" value={x.id} checked={x.id === plan} onChange={() => pickPlan(x.id)} /><span className="txt"><b>{x.label}</b><small>{money(x.price)}{x.note ? ' · ' + x.note : ''}</small></span><span className="ring" /></label>)}
+            </div>
+          </section>}
+          {!subCls && subOffer.length > 0 && <section className="panel co-card co-plans co-sub-offer" aria-labelledby="coSubHead">
+            <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coSubHead">Or subscribe to {offerCls.label}</h3><p>{(C.code === 'IN' ? 'India: ' : '') + monthsText(subOffer)} · every sheet in {offerCls.label}</p></div></header>
+            <div className="method-grid plan-grid" aria-label="Subscription plans">
+              {subOffer.map(x => <button key={x.id} type="button" className="method" onClick={() => site.openCheckout({ cls: offerCls.id, plan: x.id })}><span className="txt"><b>{x.label}</b><small>{money(x.price)}{x.note ? ' · ' + x.note : ''}</small></span></button>)}
             </div>
           </section>}
           <section className={'panel co-card' + (addrOk ? ' done' : '')} data-step="1" aria-labelledby="coStep1">
