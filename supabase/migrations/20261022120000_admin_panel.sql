@@ -174,6 +174,7 @@ $$;
 create trigger home_section_items_tags after insert or delete on public.home_section_items
   for each row execute function private.home_items_to_tags();
 
+-- a label ticked: the sheet joins the end of that list
 create or replace function private.product_tags_to_home()
 returns trigger
 language plpgsql
@@ -188,14 +189,39 @@ begin
   from public.home_sections h
   where h.label_tag is not null and h.label_tag = any (new.tags)
   on conflict do nothing;
-  delete from public.home_section_items i
-  using public.home_sections h
-  where i.section_id = h.id and i.product_id = new.id and h.label_tag is not null and not (h.label_tag = any (new.tags));
   return null;
 end;
 $$;
 create trigger products_tags_home after insert or update of tags on public.products
   for each row execute function private.product_tags_to_home();
+
+-- a label taken off: the sheet leaves that list (split into a trigger and a SQL helper because the
+-- Supabase SQL endpoint would not accept the removal written inside the trigger function)
+create or replace function private.home_items_drop(p_product text, p_tags text[])
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from public.home_section_items
+  where product_id = p_product
+    and section_id in (select h.id from public.home_sections h where h.label_tag is not null and not (h.label_tag = any (p_tags)));
+$$;
+create or replace function private.product_tags_off_home()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if pg_trigger_depth() > 1 then return null; end if;
+  if new.tags is not distinct from old.tags then return null; end if;
+  perform private.home_items_drop(new.id, new.tags);
+  return null;
+end;
+$$;
+create trigger products_tags_home_off after update of tags on public.products
+  for each row execute function private.product_tags_off_home();
 
 -- ── 5. coupons ───────────────────────────────────────────────────────────────────────────────
 
@@ -237,4 +263,4 @@ create policy home_section_items_public_read on public.home_section_items for se
   using (exists (select 1 from public.home_sections h where h.id = section_id and h.visible)
          and exists (select 1 from public.products p where p.id = product_id));
 
-revoke all on function private.home_items_to_tags(), private.product_tags_to_home() from public;
+revoke all on function private.home_items_to_tags(), private.product_tags_to_home(), private.product_tags_off_home(), private.home_items_drop(text, text[]) from public;
