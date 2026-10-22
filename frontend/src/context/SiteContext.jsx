@@ -7,7 +7,7 @@ import {
   authApi, cartApi, catalogueApi, customerTokens, signedOutHere, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
 } from '../services/api.js';
 import { loadSession, rememberSession, storeSession, read, write } from '../services/storage.js';
-import { applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
+import { applyServerCatalogue, sheetOf, shopViews } from '../data/catalogue.js';
 import { WHYS, classById, planOf, accountTypeOf, DEFAULT_PRINTS, printsTableOf } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
 import { getCoConfig, loadCoConfig, initialAddress } from '../services/checkout.js';
@@ -137,7 +137,7 @@ export function makeAccess(session, ent, skew = 0) {
      spot); a paid sheet opens with a running class plan or its own live purchase. The server decides;
      this paints buttons. */
   const canOpen = it => (it.price === 0 ? true : !!(activeSub(it.cls) || itemEnt(it.id)));
-  return { session, ent: all, live, now, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
+  return { session, ent: all, live, now, skew: Number(skew) || 0, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
 }
 
 const PAY_LABEL = { razorpay: 'Razorpay', stripe: 'Stripe', paypal: 'PayPal' };
@@ -300,7 +300,7 @@ export function SiteProvider({ children }) {
       if (!force && Date.now() - catalogueAt < 60_000) return Promise.resolve(false);
       catalogueBusy = catalogueApi.worksheets().then(r => {
         catalogueAt = Date.now();
-        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes });
+        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes, homeSections: r.homeSections });
         a.rerenderAll();
         return true;
       }).finally(() => { catalogueBusy = null; });
@@ -309,7 +309,7 @@ export function SiteProvider({ children }) {
     a.openShop = view => {
       setDrawer(null); a.closeModal();
       a.reloadCatalogue().catch(() => {});
-      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
+      setShop(s => (view && shopViews().some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
     /* token: the one from a password-reset link, kept while the reset form is showing;
@@ -507,8 +507,8 @@ export function SiteProvider({ children }) {
     a.renewPlan = (cls, plan) => { a.closeNotice(); a.openCheckout({ cls, plan: plan || 'm3', again: true }); };
     /* the time on a sheet bought on its own ran out: say when, and offer to buy access again */
     const endedNotice = (it, endedAt) => a.showNotice({
-      kind: 'expired', title: 'Your access has ended',
-      text: 'Your access to ' + it.title + (endedAt ? ' ended on ' + dateTimeTz(endedAt, tz()) : ' has ended') + '. You can buy access again to keep opening it.',
+      kind: 'expired', title: 'Your access has expired',
+      text: 'Your access to ' + it.title + (endedAt ? ' expired on ' + dateTimeTz(endedAt, tz()) : ' has expired') + '. You can buy access again to keep opening it.',
       actions: [{ label: 'Buy Access Again', primary: true, run: () => a.buyAgain(it.id) }, { label: 'Not now' }],
     });
     /* Open a sheet in the protected viewer (new tab, full screen). Paid sheets need sign-in; a free

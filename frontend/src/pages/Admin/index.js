@@ -2,6 +2,7 @@
 import Overview from './Overview.jsx';
 import Products from './Products.jsx';
 import Categories from './Categories.jsx';
+import Homepage from './Homepage.jsx';
 import Orders from './Orders.jsx';
 import Customers from './Customers.jsx';
 import Security from './Security.jsx';
@@ -13,4 +14,4 @@ import Roles from './Roles.jsx';
 import Settings from './Settings.jsx';
 import AuditLogs from './AuditLogs.jsx';
 
-export const ADMIN = { overview: Overview, products: Products, categories: Categories, orders: Orders, customers: Customers, security: Security, messages: Messages, analytics: Analytics, coupons: Coupons, content: Content, roles: Roles, settings: Settings, audit: AuditLogs };
+export const ADMIN = { overview: Overview, products: Products, categories: Categories, homepage: Homepage, orders: Orders, customers: Customers, security: Security, messages: Messages, analytics: Analytics, coupons: Coupons, content: Content, roles: Roles, settings: Settings, audit: AuditLogs };

@@ -15,7 +15,7 @@ type Any = any;
 const IN_ADDR = { country: 'IN', line1: '12 MG Road', city: 'Pune', state: 'Maharashtra', postal: '411001' };
 const US_ADDR = { country: 'US', line1: '1 Market Street', city: 'San Francisco' };
 const LOCKED = 'Your account type is already set. Write to us if it needs changing.';
-const DEFAULT_PRINTS = { parent: 2, teacher: 4, organization: 300 };
+const DEFAULT_PRINTS = { parent: 2, teacher: 3, organization: 300 };
 
 // sheets used here (kg, ₹19 each; az-A and az-B are free)
 for (const id of ['az-A', 'az-B', 'az-C', 'az-D', 'az-E', 'az-F', 'az-G', 'az-H', 'az-I', 'az-J', 'az-K', 'az-W', 'az-X', 'az-Y', 'az-Z']) {
@@ -100,7 +100,7 @@ async function opensAll(c: TestUser, worksheets: string[], orderId: string) {
 test('account type: Parent, Teacher and Organization are each chosen once, then locked', async () => {
   const cases: [string, string, string, number][] = [
     ['parent', 'parent', 'parent', 2],
-    ['teacher', 'teacher', 'teacher', 4],
+    ['teacher', 'teacher', 'teacher', 3],
     ['organization', 'school', 'organization', 300],
   ];
   for (const [sent, stored, type, prints] of cases) {
@@ -147,7 +147,7 @@ test('account type: Parent, Teacher and Organization are each chosen once, then 
   const t = await fresh();
   const tutor = await setRole(t, 'Tutor');
   assertStatus(tutor, 200);
-  assertEquals([tutor.body.user.role, tutor.body.user.accountType, tutor.body.user.printsPerSheet], ['tutor', 'teacher', 4]);
+  assertEquals([tutor.body.user.role, tutor.body.user.accountType, tutor.body.user.printsPerSheet], ['tutor', 'teacher', 3]);
   const o = await fresh();
   assertEquals((await setRole(o, 'organisation')).body.user.role, 'school');
   const u = await fresh();
@@ -258,15 +258,15 @@ test('settings: prints per account type are validated; /api/config, sign-in and 
 test('customer text: how long a sheet stays open, printing and account types', async () => {
   const faq = (await h.call('GET', '/api/faq')).body.faq as { question: string; answer: string }[];
   assertEquals(faq.find((f) => f.question === 'How long can I open a sheet I bought?')!.answer,
-    'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+    'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
   const printing = faq.find((f) => f.question === 'How many times can I print a sheet?')!;
-  assert(printing.answer.includes('2 with a Parent account, 4 with a Teacher account and 300 with an Organization account'), printing.answer);
+  assert(printing.answer.includes('2 with a Parent account, 3 with a Teacher account and 300 with an Organization account'), printing.answer);
   assert(faq.some((f) => f.question === 'Which account type should I choose?'));
   assert(!faq.some((f) => /view only|view-only|—/i.test(f.question + f.answer) && /print/i.test(f.answer)), 'no long dash or "view only" in printing answers');
   const chat = await h.call('POST', '/api/ai/chat', { body: { message: 'How many times can I print a worksheet?', history: [] } });
   assertStatus(chat, 200);
   assertEquals(chat.body.question, 'How many times can I print a sheet?');
-  assert(chat.body.reply.includes('4 with a Teacher account'));
+  assert(chat.body.reply.includes('3 with a Teacher account'));
 });
 
 // ── the print allowance ──────────────────────────────────────────────────────────────────
@@ -293,20 +293,20 @@ test('prints: the account type sets the allowance on free, bought, plan and gran
   const again = await open(parent, 'az-A');
   assertStatus(again, 200, 'used-up prints never stop the sheet opening');
   assertEquals(again.body.printsLeft, 0);
-  // staff make the account a Teacher: the same record now has 4, less the 2 used
+  // staff make the account a Teacher: the same record now has 3, less the 2 used
   assertStatus(await h.call('PUT', `/api/admin/users/${parent.id}`, { token: owner.token, body: { accountType: 'teacher' } }), 200);
   const teacherNow = await open(parent, 'az-A');
-  assertEquals([teacherNow.body.printLimit, teacherNow.body.printsLeft], [4, 2]);
+  assertEquals([teacherNow.body.printLimit, teacherNow.body.printsLeft], [3, 1]);
 
-  // bought sheet, Teacher: 4
+  // bought sheet, Teacher: 3
   const teacher = await customerAs('teacher');
   const bought = await paidByRazorpay(teacher, ['az-C', 'az-D']);
   const b = await open(teacher, 'az-C');
   assertEquals([b.body.entitlement.kind, b.body.entitlement.order], ['paid', bought.orderId]);
-  assertEquals([b.body.printLimit, b.body.printsLeft], [4, 4]);
-  assertEquals((await printOnce(teacher, b.body.token)).body.printsLeft, 3);
-  // the other sheet of the same order has its own 4
-  assertEquals((await open(teacher, 'az-D')).body.printsLeft, 4);
+  assertEquals([b.body.printLimit, b.body.printsLeft], [3, 3]);
+  assertEquals((await printOnce(teacher, b.body.token)).body.printsLeft, 2);
+  // the other sheet of the same order has its own 3
+  assertEquals((await open(teacher, 'az-D')).body.printsLeft, 3);
 
   // granted sheet, Organization: 300
   const org = await customerAs('school');
@@ -384,7 +384,7 @@ test('prints: print rule "sheet" uses the sheet\'s own number for everyone (0 = 
     assertStatus(put, 200);
     assertEquals((await h.sql`select print_rule from products where id = 'az-I'`)[0].print_rule, 'account');
     const back = await open(teacher, 'az-I');
-    assertEquals([back.body.printRule, back.body.printLimit, back.body.printsLeft], ['account', 4, 2]);
+    assertEquals([back.body.printRule, back.body.printLimit, back.body.printsLeft], ['account', 3, 1]);
   } finally {
     await h.sql`update products set print_rule = 'account', print_limit = 0 where id = 'az-I'`;
   }
@@ -442,7 +442,7 @@ test('cart: add, list, remove and empty; free, unknown, draft and owned sheets a
   assertEquals(typeof addedAt, 'number');
   assertEquals(item, {
     worksheet: 'az-C', title: 'Alphabet C — tracing sheet', priceInr: 19, wasPriceInr: null, cls: 'kg', subject: 'English',
-    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 1, accessHours: 24, problem: null, note: null,
+    thumb: '/sheets/a-to-z/thumb/C.jpg', accessDays: 1, accessHours: 1, problem: null, note: null,
   });
   assertEquals((await addToCart(c, 'az-C')).body.count, 1, 'adding twice is harmless');
   const two = await addToCart(c, ' az-D ');

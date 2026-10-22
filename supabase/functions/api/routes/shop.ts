@@ -9,6 +9,8 @@ import { optionalUser, requireUser } from '../lib/auth.ts';
 import { rateLimit } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
 import { accessDaysFor, accessHoursFor, buildQuote } from '../services/pricing.ts';
+import { loadHomeSections, publicSection, resolveSection } from '../services/home.ts';
+import { COVERS, publicUrl } from '../lib/storage.ts';
 import { entStatus, type PrintRule, pubEntitlement, sheetPrints, type EntRow } from '../services/entitlements.ts';
 
 const ms = (d: Date | string | null | undefined) => (d == null ? null : new Date(d).getTime());
@@ -23,20 +25,24 @@ type ListRow = {
   review_avg: number | null; review_count: number; print_limit: number; download_limit: number; stock: number | null;
   access_days: number | null; landscape: boolean; tags: string[]; has_pdf: boolean; class_status: string;
   print_rule: PrintRule; sort: number; created_at: Date;
+  short_description: string; language: string; age_group: string | null; gallery: string[];
+  seo_title: string | null; seo_description: string | null; sessions: string[];
 };
 
 type SectionRow = { id: string; label: string; group_id: string | null; group_label: string | null; class_id: string; description: string; sort: number; builtin: boolean };
 
 async function catalogue(_ctx: Ctx) {
   const s = await getSettings();
-  const { rows, classes, plans, sections } = await tx(async (q) => {
+  const { rows, classes, plans, sections, subjects, sessions, home } = await tx(async (q) => {
     // one call tells which PDFs are uploaded (never the storage paths themselves)
     const rows = await q<ListRow[]>`
       select p.id, p.title, p.description, p.class_id, p.subject, p.group_id, p.section, p.section_label, p.pages,
              p.price_inr, p.was_price_inr, p.thumb_url, p.audience, p.rating::float8 as rating, p.rating_count,
              p.review_avg::float8 as review_avg, p.review_count, p.print_limit, p.print_rule, p.download_limit, p.stock,
              p.access_days, p.landscape, p.tags, coalesce(f.has_pdf, false) as has_pdf, c.status as class_status,
-             p.sort, p.created_at
+             p.sort, p.created_at, p.short_description, p.language, p.age_group, p.gallery, p.seo_title, p.seo_description,
+             coalesce((select array_agg(ps.session_id order by ps.session_id) from product_sessions ps
+                       join academic_sessions a on a.id = ps.session_id and a.active where ps.product_id = p.id), '{}') as sessions
       from products p
       join classes c on c.id = p.class_id
       left join private.product_file_status() f on f.product_id = p.id
@@ -49,7 +55,13 @@ async function catalogue(_ctx: Ctx) {
     // the website's sections and the ones staff made in Admin → Categories (visible ones only)
     const sections = await q<SectionRow[]>`
       select id, label, group_id, group_label, class_id, description, sort, builtin from sections where visible order by sort, id`;
-    return { rows, classes, plans, sections };
+    const subjects = await q<{ id: string; name: string; sort: number }[]>`select id, name, sort from subjects where active order by sort, name`;
+    const sessions = await q<{ id: string; label: string; starts_on: string | null; ends_on: string | null; is_current: boolean }[]>`
+      select id, label, starts_on::text as starts_on, ends_on::text as ends_on, is_current from academic_sessions where active order by sort, id`;
+    // the home page rows and the shop's lists, each with its sheets in order (Admin → Homepage)
+    const home = [];
+    for (const h of await loadHomeSections(q, true)) home.push(publicSection(h, await resolveSection(q, h)));
+    return { rows, classes, plans, sections, subjects, sessions, home };
   });
   const worksheets = rows.map((w) => {
     const soldOut = w.stock !== null && w.stock <= 0;
@@ -91,6 +103,13 @@ async function catalogue(_ctx: Ctx) {
       // display order (Admin → Products) and when it was added
       sort: w.sort,
       created: ms(w.created_at),
+      shortDescription: w.short_description,
+      language: w.language,
+      ageGroup: w.age_group,
+      gallery: w.gallery.map((g) => publicUrl(COVERS, g)),
+      seoTitle: w.seo_title,
+      seoDescription: w.seo_description,
+      sessions: w.sessions,
     };
   });
   return json(200, {
@@ -104,6 +123,9 @@ async function catalogue(_ctx: Ctx) {
       id: x.id, label: x.label, group: x.group_id, groupLabel: x.group_label, cls: x.class_id,
       description: x.description, sort: x.sort, builtin: x.builtin,
     })),
+    subjects: subjects.map((x) => ({ id: x.id, name: x.name, label: x.name })),
+    sessions: sessions.map((x) => ({ id: x.id, label: x.label, startsOn: x.starts_on, endsOn: x.ends_on, current: x.is_current })),
+    homeSections: home,
     accessDays: accessDaysFor(s, null),
     accessHours: accessHoursFor(s, null),
   }, { 'Cache-Control': 'no-cache' });

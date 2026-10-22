@@ -3,6 +3,7 @@
 .ws-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .ws-head .aside { max-width: 260px; font-size: var(--fs-small); color: var(--fg-muted); line-height: 1.6; text-align: right; }
 @media (max-width: 760px) { .ws-head { flex-direction: column; align-items: flex-start; } .ws-head .aside { text-align: left; } }
+.ws-head .ws-sub { margin: 4px 0 0; font-size: var(--fs-small); color: var(--fg-muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .chip { padding: 8px 14px; border-radius: var(--r-pill); border: 1px solid var(--glass-border); background: rgba(6,14,22,0.35); color: var(--fg-muted); font-size: var(--fs-small); font-weight: 600; cursor: pointer; backdrop-filter: blur(10px); transition: background var(--d-base), color var(--d-base), transform var(--d-fast) var(--ease); }
 .chip:hover { color: #fff; transform: translateY(-1px); }

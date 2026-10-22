@@ -68,7 +68,7 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
 /* "Upload new book" / "Edit book": cover and PDF, page pictures, details, category, price, access
    and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its PDF is
    uploaded. */
-export default function ProductStudio({ sheet, all, classes, sections, onSaved, onClose }) {
+export default function ProductStudio({ sheet, all, classes, sections, subjectList, sessionList, onSaved, onClose }) {
   const { toast, can, setEditing } = useDash();
   const it = sheet || {};
   const isNew = !sheet;
@@ -99,9 +99,19 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
   const [when, setWhen] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
   const [labels, setLabels] = useState(() => new Set((it.tags || []).filter(t => LABELS.some(([x]) => x === t) || t === HOME_TAG)));
   const toggleLabel = t => setLabels(cur => { const n = new Set(cur); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  /* academic sessions it belongs to (Categories → Academic sessions) */
+  const [sess, setSess] = useState(() => new Set(it.sessions || (isNew ? (sessionList || []).filter(x => x.current).map(x => x.id) : [])));
+  const toggleSess = id => setSess(cur => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  /* live preview of the shop card */
+  const [look, setLook] = useState({ title: it.title || '', short: it.shortDescription || '' });
 
   /* the subjects and shelf topics already in the shop, to pick from */
-  const subjects = useMemo(() => [...new Set((all || []).map(s => s.subject).filter(Boolean))].sort(), [all]);
+  /* subjects come from Categories → Subjects; the sheets' own subjects if that list could not load */
+  const subjects = useMemo(() => {
+    const list = subjectList && subjectList.length ? subjectList.filter(x => x.active).map(x => x.name) : [...new Set((all || []).map(s => s.subject).filter(Boolean))];
+    if (it.subject && !list.includes(it.subject)) list.push(it.subject);
+    return list;
+  }, [subjectList, all, it.subject]);
   const topics = useMemo(() => {
     const m = new Map();
     (all || []).forEach(s => { if (s.section) { const k = (s.group || '') + '|' + s.section; if (!m.has(k)) m.set(k, { group: s.group || '', section: s.section, label: s.sectionLabel || s.section, cls: s.cls }); } });
@@ -143,7 +153,14 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
       /* the free words people search by, plus the labels ticked above */
       tags: [...new Set(String(f.get('tags') || '').split(/[,\s]+/).map(t => t.trim().toLowerCase()).filter(t => t && !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
       sort: n('sort') ?? 0,
+      shortDescription: String(f.get('shortDescription') || '').trim(),
+      sku: String(f.get('sku') || '').trim() || null,
+      language: String(f.get('language') || '').trim() || 'English',
+      ageGroup: String(f.get('ageGroup') || '').trim() || null,
+      seoTitle: String(f.get('seoTitle') || '').trim() || null,
+      seoDescription: String(f.get('seoDescription') || '').trim() || null,
     };
+    if (sessionList) body.sessions = [...sess];
     const t = sectionGroups.flatMap(([, l]) => l).find(x => x.group + '|' + x.section === f.get('topic'));
     if (t) { body.group = t.group || null; body.section = t.section; body.sectionLabel = t.label; }
     else if (f.get('topic') === '') { body.group = null; body.section = null; body.sectionLabel = null; }
@@ -213,6 +230,13 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
     }
   };
 
+  /* a copy as a new draft (no PDF, labels, pictures or SKU), opened for editing */
+  const duplicate = async () => {
+    setBusy('Making a copy…'); setErr(null);
+    try { const ws = (await staffApi('POST', '/api/admin/worksheets/' + encodeURIComponent(it.id) + '/duplicate')).worksheet; setBusy(''); onSaved(ws); toast('Copied as a draft. Add its PDF before publishing.'); setEditing(ws.id); }
+    catch (x) { setBusy(''); setErr(problem(x)); }
+  };
+
   const hasPdf = !!it.available || !!pdf;
   const status = it.status || 'draft';
   const rating = it.reviewCount ? it.reviewAvg : it.rating;
@@ -245,27 +269,44 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
             <div className="drop off"><div className="drop-preview" style={it.thumb ? { backgroundImage: 'url("' + it.thumb + '")' } : undefined}>{it.thumb ? null : <b>No cover picture</b>}</div></div>
             <p className="auth-sub">{it.available ? 'PDF attached, ' + size(it.pdfBytes) + '.' : 'No PDF yet.'} Your role cannot upload files.</p>
           </>}
+          {!isNew ? <Gallery sheet={it} canUpload={canUpload} canWrite={canWrite} busy={!!busy} onSaved={onSaved} toast={toast} /> : null}
+          <div className="field"><label>Card preview</label>
+            <div className="card-look" aria-label="How the card looks in the shop">
+              <div className="card-look-cover" style={(cover ? cover.url : it.thumb) ? { backgroundImage: 'url("' + (cover ? cover.url : it.thumb) + '")' } : undefined} />
+              <b>{look.title || 'Title'}</b><small>{look.short || it.description || 'Short description'}</small>
+              <span className="card-look-price">{free ? 'Free' : finalPrice != null ? '₹' + finalPrice : ''}{!free && origPrice > finalPrice ? <s>₹{origPrice}</s> : null}</span>
+            </div></div>
           {!isNew ? <div className="field"><label>Rating from reviews</label><p className="rate-read"><span className="stars">{'★'.repeat(Math.round(rating || 0))}<i>{'★'.repeat(5 - Math.round(rating || 0))}</i></span> {ratingCount ? (Math.round((rating || 0) * 10) / 10) + ' from ' + plural(ratingCount, 'review') : 'No reviews yet'}</p></div> : null}
         </div>
         <div className="studio-main">
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Book details</legend>
-            <div className="field"><label htmlFor="psTitle">Title</label><input id="psTitle" name="title" defaultValue={v('title')} placeholder="e.g. Alphabet explorers" maxLength={200} required aria-invalid={!!errs.title} />{err1('title')}</div>
+            <div className="field"><label htmlFor="psTitle">Title</label><input id="psTitle" name="title" defaultValue={v('title')} onChange={e => setLook(l => ({ ...l, title: e.target.value }))} placeholder="e.g. Alphabet explorers" maxLength={200} required aria-invalid={!!errs.title} />{err1('title')}</div>
+            <div className="field"><label htmlFor="psShort">Short description</label><input id="psShort" name="shortDescription" defaultValue={v('shortDescription')} onChange={e => setLook(l => ({ ...l, short: e.target.value }))} placeholder="One line for the card, e.g. Trace and say A to Z" maxLength={300} />{err1('shortDescription')}</div>
             <div className="field"><label htmlFor="psDesc">Description</label><textarea id="psDesc" name="description" placeholder="One or two lines parents will read on the card" defaultValue={v('description')} maxLength={2000} />{err1('description')}</div>
             <div className="grid-3">
               <div className="field"><label htmlFor="psPages">Pages</label><input id="psPages" name="pages" type="number" min="1" max="500" defaultValue={it.pages || 1} /><small>Counted from the PDF when you upload it.</small>{err1('pages')}</div>
               <div className="field"><label htmlFor="psTags">Tags</label><input id="psTags" name="tags" defaultValue={(it.tags || []).join(', ')} placeholder="e.g. best, new" />{err1('tags')}</div>
               <label className="check"><input type="checkbox" name="landscape" defaultChecked={!!it.landscape} />Pages are landscape</label>
             </div>
+            <div className="grid-3">
+              <div className="field"><label htmlFor="psLang">Language</label><input id="psLang" name="language" defaultValue={it.language || 'English'} maxLength={40} />{err1('language')}</div>
+              <div className="field"><label htmlFor="psAge">Age group</label><input id="psAge" name="ageGroup" defaultValue={v('ageGroup')} placeholder="e.g. 4 to 6 years" maxLength={40} />{err1('ageGroup')}</div>
+              <div className="field"><label htmlFor="psSku">SKU (optional)</label><input id="psSku" name="sku" defaultValue={v('sku')} placeholder="e.g. KG-ENG-001" maxLength={40} /><small>Your own product code. Never shown to customers.</small>{err1('sku')}</div>
+            </div>
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Category</legend>
             <div className="grid-3">
               <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" name="cls" defaultValue={it.cls || (classes[0] && classes[0].id) || 'kg'}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}</select>{err1('cls')}</div>
-              <div className="field"><label htmlFor="psSubj">Subject</label><input id="psSubj" name="subject" list="psSubjects" defaultValue={v('subject') || (isNew ? subjects[0] || '' : '')} maxLength={40} aria-invalid={!!errs.subject} /><datalist id="psSubjects">{subjects.map(s => <option key={s} value={s} />)}</datalist>{err1('subject')}</div>
+              <div className="field"><label htmlFor="psSubj">Subject</label><select id="psSubj" name="subject" defaultValue={v('subject') || (isNew ? subjects[0] || '' : '')} aria-invalid={!!errs.subject}>{subjects.map(s => <option key={s} value={s}>{s}</option>)}</select><small>Add subjects in Categories.</small>{err1('subject')}</div>
               <div className="field"><label htmlFor="psTopic">Website section</label><select id="psTopic" name="topic" defaultValue={topicValue}><option value="">None (the class shelf only)</option>
                 {sectionGroups.map(([g, l]) => <optgroup key={g} label={g}>{l.map(t => <option key={t.group + '|' + t.section} value={t.group + '|' + t.section}>{t.label}{t.visible === false ? ' (hidden)' : ''}</option>)}</optgroup>)}</select>
                 <small>Where it shows on the website. Add or rename sections in Categories.</small>{err1('section')}</div>
               <div className="field"><label htmlFor="psFor">For</label><select id="psFor" name="audience" defaultValue={it.audience || ''}><option value="">Everyone</option><option value="both">Parents and teachers</option><option value="parent">Parents</option><option value="teacher">Teachers</option></select></div>
             </div>
+            {sessionList && sessionList.length ? <div className="field"><label>Academic sessions</label>
+              <div className="label-picks" role="group" aria-label="Academic sessions">
+                {sessionList.filter(x => x.active || sess.has(x.id)).map(x => <label key={x.id} className={'check pick' + (sess.has(x.id) ? ' on' : '')}><input type="checkbox" checked={sess.has(x.id)} onChange={() => toggleSess(x.id)} />{x.label}{x.current ? ' (current)' : ''}</label>)}
+              </div><small>Which school years this sheet is for. Add sessions in Categories.</small>{err1('sessions')}</div> : null}
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Price</legend>
             <div className="seg" role="radiogroup" aria-label="Free or paid">
@@ -292,6 +333,10 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
               <div className="field"><label htmlFor="psSort">Display order</label><input id="psSort" name="sort" type="number" min="-1000000" max="1000000" step="1" defaultValue={it.sort == null ? 0 : it.sort} /><small>Smaller numbers come first in a list.</small>{err1('sort')}</div>
             </div>
           </fieldset>
+          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Search engines (optional)</legend>
+            <div className="field"><label htmlFor="psSeoT">SEO title</label><input id="psSeoT" name="seoTitle" defaultValue={v('seoTitle')} placeholder={look.title || 'Uses the title'} maxLength={70} /><small>Up to 70 letters. Empty uses the title.</small>{err1('seoTitle')}</div>
+            <div className="field"><label htmlFor="psSeoD">SEO description</label><textarea id="psSeoD" name="seoDescription" defaultValue={v('seoDescription')} placeholder="Uses the short description" maxLength={170} rows={2} /><small>Up to 170 letters.</small>{err1('seoDescription')}</div>
+          </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Visibility</legend>
             <div className="seg" role="radiogroup" aria-label="Visibility">
               {VISIBILITY.map(([id, name]) => <label key={id} className={'seg-opt' + (vis === id ? ' on' : '')}><input type="radio" name="visibility" value={id} checked={vis === id} onChange={() => setVis(id)} />{name}</label>)}
@@ -313,6 +358,7 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
             {canWrite || canUpload ? <button type="submit" value="save" className="btn btn-primary" disabled={!!busy}>{busy ? <><span className="dm-spin" aria-hidden="true" />{busy}</> : isNew ? (vis === 'draft' ? 'Save as draft' : 'Save') : canWrite ? 'Save changes' : 'Upload the files'}</button> : null}
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={!!busy}>{canWrite ? 'Cancel' : 'Close'}</button>
             {!isNew && canWrite ? <span className="studio-more">
+              <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={duplicate}><Icon id="copy" />Duplicate</button>
               {status === 'archived' ? <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={() => setDialog('restore')}><Icon id="undo" />Restore</button>
                 : <button type="button" className="btn btn-ghost btn-danger" disabled={!!busy} onClick={() => setDialog('archive')}><Icon id="archive" />Hide</button>}
               {!it.ordered && status !== 'active' ? <button type="button" className="btn btn-ghost btn-danger" disabled={!!busy} onClick={() => setDialog('delete')}><Icon id="trash" />Delete for good</button> : null}
@@ -323,6 +369,41 @@ export default function ProductStudio({ sheet, all, classes, sections, onSaved, 
       {dialog === 'archive' || dialog === 'restore' ? <ArchiveDialog sheet={it} kind={dialog} onClose={() => setDialog(null)} onDone={ws => { setDialog(null); onSaved(ws); toast(dialog === 'archive' ? 'Hidden. It is off the website now.' : ws && ws.status === 'active' ? 'Restored. It is on sale again.' : 'Restored as a draft.'); onClose(); }} /> : null}
       {dialog === 'delete' ? <DeleteDialog sheet={it} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onSaved(null, it.id); toast('Deleted'); onClose(); }} /> : null}
     </section>
+  );
+}
+
+/* more pictures for the sheet (up to 8): add one, move it, or remove it. Saved straight away. */
+const GALLERY_MAX = 8;
+function Gallery({ sheet, canUpload, canWrite, busy, onSaved, toast }) {
+  const input = useRef(null);
+  const [work, setWork] = useState(false);
+  const pics = sheet.gallery || [], urls = sheet.galleryUrls || [];
+  const base = '/api/admin/worksheets/' + encodeURIComponent(sheet.id);
+  const add = async f => {
+    if (!f) return;
+    if (!IMAGE_TYPES.includes(f.type) || f.size > IMAGE_MAX) { toast('Use a JPG, PNG or WebP picture (5 MB at most)'); return; }
+    setWork(true);
+    try { onSaved((await sendRaw(base + '/gallery', f)).worksheet); } catch (e) { toast(uploadProblem(e, 'image')); }
+    setWork(false);
+  };
+  const save = async next => {
+    setWork(true);
+    try { onSaved((await staffApi('PUT', base, { gallery: next })).worksheet); } catch (e) { toast(problem(e)); }
+    setWork(false);
+  };
+  const move = (i, d) => { const n = pics.slice(); [n[i], n[i + d]] = [n[i + d], n[i]]; save(n); };
+  const off = busy || work;
+  return (
+    <div className="field"><label>More pictures <small className="muted">{pics.length} of {GALLERY_MAX}</small></label>
+      {pics.length ? <ul className="gallery">{pics.map((g, i) => <li key={g} style={{ backgroundImage: 'url("' + urls[i] + '")' }}>
+        {canWrite ? <span className="gallery-act">
+          <button type="button" className="icon-btn sm" aria-label="Move left" disabled={off || i === 0} onClick={() => move(i, -1)}>‹</button>
+          <button type="button" className="icon-btn sm" aria-label="Move right" disabled={off || i === pics.length - 1} onClick={() => move(i, 1)}>›</button>
+          <button type="button" className="icon-btn sm" aria-label="Remove picture" disabled={off} onClick={() => save(pics.filter(x => x !== g))}><Icon id="x" size={14} /></button>
+        </span> : null}</li>)}</ul> : <small>Extra pictures of the inside pages, shown with the cover.</small>}
+      {canUpload && pics.length < GALLERY_MAX ? <><input ref={input} type="file" hidden accept={IMAGE_TYPES.join(',')} onChange={e => { add(e.target.files[0]); e.target.value = ''; }} />
+        <button type="button" className="btn btn-ghost btn-sm" disabled={off} onClick={() => input.current.click()}>{work ? 'Saving…' : <><Icon id="image" size={16} />Add a picture</>}</button></> : null}
+    </div>
   );
 }
 

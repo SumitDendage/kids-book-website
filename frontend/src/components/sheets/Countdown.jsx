@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 /* "23h 59m 10s left", "2d 3h 15m left", "4m 05s left", "19s left" — how long a bought sheet still opens */
 export function leftText(ms) {
-  if (!(ms > 0)) return 'Time is up';
+  if (!(ms > 0)) return 'Your access has expired';
   const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   const two = n => String(n).padStart(2, '0');
   if (d) return d + 'd ' + h + 'h ' + m + 'm left';

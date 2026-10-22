@@ -37,7 +37,7 @@ test('config: the old checkout shape plus the new fields; public keys only', asy
     assert(b.currencies.includes('JPY'));
     assertEquals(b.gateways, { razorpay: 'test', stripe: false, paypal: 'sandbox' });
     assertEquals(b.keys.razorpay, 'rzp_test_publicid');
-    assertEquals([b.server, b.version, b.accessDays, b.accessHours, b.supportEmail], ['learn-with-why', '4', 1, 24, INBOX]);
+    assertEquals([b.server, b.version, b.accessDays, b.accessHours, b.supportEmail], ['learn-with-why', '4', 1, 1, INBOX]);
     assertEquals(b.agreement.version, '2026-10-07');
     assertEquals(b.features, { email: true, payments: { razorpay: true, stripe: false, paypal: true, any: true } });
     assertEquals([b.security.maxWarnings, b.viewer.recheckSeconds], [3, 60]);
@@ -59,7 +59,7 @@ test('config: settings changes show up (access days, coming soon)', async () => 
     const r = await h.call('GET', '/api/config');
     assertEquals([r.body.accessDays, r.body.classStatus.c1], [200, 'available']);
   } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 24 });
+    await h.setSetting('worksheet_access', { days: 1, hours: 1 });
     await h.sql`update classes set status = 'coming_soon' where id = 'c1'`;
   }
 });
@@ -161,10 +161,10 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   const free = await chat('Which sheets are FREE?');
   assertStatus(free, 200);
   assertEquals(free.body.source, 'faq');
-  assertMatch(free.body.reply, /^Eight sheets are free to try/);
+  assertMatch(free.body.reply, /^Free sheets to try in every section/);
 
   const days = await chat('how long does my access last after I buy?');
-  assertEquals(days.body.reply, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.body.reply, 'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
   assert(!days.body.reply.includes('{accessDays}'));
   await h.setSetting('worksheet_access', { days: 200 });
   try {
@@ -175,7 +175,7 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   try {
     assertMatch((await chat('when does it expire?')).body.reply, /stays open for 6 hours, counted from your verified payment/);
   } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 24 });
+    await h.setSetting('worksheet_access', { days: 1, hours: 1 });
   }
 
   assertMatch((await chat('hi')).body.reply, /^Hello!/);
@@ -276,7 +276,7 @@ test('faq: published public answers only, with {accessDays} filled', async () =>
   assert(list.length >= 10);
   assert(!list.some((f) => /Admin →|Refund policy is being written/.test(f.answer)));
   const days = list.find((f) => f.question.startsWith('How long can I open'))!;
-  assertEquals(days.answer, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.answer, 'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
 });
 
 test('reviews: published only, initials instead of names, never ids or emails', async () => {

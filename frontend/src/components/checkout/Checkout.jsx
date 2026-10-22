@@ -268,6 +268,9 @@ export default function Checkout() {
   const cls = item ? classById(item.cls) : subCls ? classById(subCls) : null;
   const q = quote, addrOk = !!(q && q.valid);
   const planNow = plans.find(x => x.id === plan);
+  /* buying one sheet or a cart: the class plans are offered too (Sumit, Oct 22) */
+  const offerCls = !subCls ? classById((item && item.cls) || 'kg') || classById('kg') : null;
+  const subOffer = offerCls ? serverPlans(config, addr.country, offerCls.id) : [];
   const hours = hoursOf(q) || hoursOf(item) || hoursOf(config);
   const off = q && q.discountInr ? (q.currency === 'INR' ? '₹' + q.discountInr : fmtCur(Math.round(q.discountInr * q.rate * 100) / 100, q.currency)) : '';
   const accessNote = q ? accessNoteOf(q, tz) : '';
@@ -319,6 +322,12 @@ export default function Checkout() {
               {plans.map(x => <label key={x.id} className={'method' + (x.id === plan ? ' on' : '')}><input type="radio" name="plan" value={x.id} checked={x.id === plan} onChange={() => pickPlan(x.id)} /><span className="txt"><b>{x.label}</b><small>{money(x.price)}{x.note ? ' · ' + x.note : ''}</small></span><span className="ring" /></label>)}
             </div>
           </section>}
+          {!subCls && subOffer.length > 0 && <section className="panel co-card co-plans co-sub-offer" aria-labelledby="coSubHead">
+            <header className="co-card-head"><span className="co-num">★</span><div><h3 id="coSubHead">Or subscribe to {offerCls.label}</h3><p>{(C.code === 'IN' ? 'India: ' : '') + monthsText(subOffer)} · every sheet in {offerCls.label}</p></div></header>
+            <div className="method-grid plan-grid" aria-label="Subscription plans">
+              {subOffer.map(x => <button key={x.id} type="button" className="method" onClick={() => site.openCheckout({ cls: offerCls.id, plan: x.id })}><span className="txt"><b>{x.label}</b><small>{money(x.price)}{x.note ? ' · ' + x.note : ''}</small></span></button>)}
+            </div>
+          </section>}
           <section className={'panel co-card' + (addrOk ? ' done' : '')} data-step="1" aria-labelledby="coStep1">
             <header className="co-card-head"><span className="co-num">1</span><div><h3 id="coStep1">Billing address</h3><p id="coRegionLine">{C.code === 'IN'
               ? <><span className="region-chip in">🇮🇳 India</span> prices in ₹ INR with GST · state and 6-digit PIN code</>
@@ -350,7 +359,7 @@ export default function Checkout() {
 
   return (
     <div className={'shop' + (checkout.open ? ' open' : '')} id="checkout" aria-hidden={checkout.open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Secure checkout">
-      <div className="shop-shade" style={{ background: '#071018' }} />
+      <div className="shop-shade" aria-hidden="true" />
       <header className="shop-bar">
         <div><p className="eyebrow">Secure checkout</p><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
         <div className="shop-actions"><span className="co-lock">🔒 256-bit encrypted</span><button type="button" className="icon-btn" id="checkoutBack" aria-label="Back" onClick={closeCheckout}>✕</button></div>

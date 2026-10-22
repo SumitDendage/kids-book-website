@@ -30,7 +30,7 @@ test('a question about one letter gets that letter, not another', () => {
   assert.equal(ask('tell me about alphabet Q tracing').question, 'What is Alphabet Q — tracing sheet?');
 });
 test('free answers match the site: eight free sheets', () => {
-  assert.match(ask('which sheets are free').answer, /Eight sheets are free/);
+  assert.match(ask('which sheets are free').answer, /Free sheets to try in every section/);
 });
 test('an unrelated or unclear question gets no made-up answer', () => {
   assert.equal(ask('what is the weather today').answer, null);

@@ -149,7 +149,7 @@
 },
 {
 "q": "How do I find free sheets?",
-"a": "Choose the Free view in the shop. Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Choose the Free view in the shop. Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Show me the free worksheets"
 ],
@@ -198,7 +198,7 @@
 },
 {
 "q": "How many worksheets are free?",
-"a": "Eight sheets are free to try: Alphabet A and Alphabet B tracing, and the first three Colours and first three Shapes sheets in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Are all worksheets free?",
 "Which two sheets are free?",
@@ -1115,7 +1115,7 @@
 },
 {
 "q": "Do individually purchased PDFs expire?",
-"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop.",
+"a": "Yes. A PDF you buy stays open for a set number of hours from the moment you pay (24 unless the shop says otherwise). My Account → My Worksheets shows a timer with the time left, and when it reaches zero the sheet is removed from your account. You can buy it again from the shop. The timer controls opening the sheet on this website. Pages you have already printed or downloaded stay with you, because a copy on a device or on paper cannot be removed from here.",
 "alt": [],
 "kw": [
 "pdf expiry",
@@ -1124,7 +1124,7 @@
 },
 {
 "q": "How many times can I print a worksheet?",
-"a": "Each sheet you can open comes with its own prints, set by the account type you choose after signing up: Parent 2 prints, Teacher 4 prints, Organization 300 prints. The viewer shows how many prints are left on each sheet.",
+"a": "Each sheet you can open comes with its own prints, set by the account type you choose after signing up: Parent 2 prints, Teacher 3 prints, Organization 300 prints. The viewer shows how many prints are left on each sheet.",
 "alt": [
 "Do parents get two prints and teachers four?"
 ],
@@ -2415,7 +2415,7 @@
 },
 {
 "q": "What is in Vocabulary?",
-"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours and Shapes have 10 sheets each, and the first three of each are free, with no sign-in needed. The other topics say Coming soon.",
+"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours, Shapes, Sizes and Animals have 10 sheets each. The first three Colours and Shapes sheets are free, with no sign-in needed. Sizes and Animals are paid. The other topics say Coming soon.",
 "alt": [
 "Colours and shapes sheets",
 "Do you have colour sheets?",
