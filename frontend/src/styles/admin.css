@@ -530,3 +530,35 @@
 .sec-row input[type=number] { width: 76px; }
 .sec-group { margin: 18px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); }
 @media (max-width: 720px) { .sec-row { grid-template-columns: 1fr auto; } }
+
+/* Homepage: the website's lists of sheets */
+.dash .icon-btn.sm { width: 24px; height: 24px; font-size: 13px; line-height: 1; display: inline-grid; place-items: center; padding: 0; }
+.dash .icon-btn:disabled { opacity: .4; cursor: default; }
+.hs-row.open > .sec-row { border-bottom-color: transparent; }
+.hs-edit { padding: 4px 0 16px; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
+.hs-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 420px; overflow-y: auto; }
+.hs-items li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--background); }
+.hs-items li b { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-items li small { color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
+.hs-n { font-size: 12px; color: var(--muted-foreground); text-align: right; font-variant-numeric: tabular-nums; }
+.hs-act { display: inline-flex; gap: 4px; }
+.hs-find { display: grid; gap: 6px; }
+.hs-find .search { width: 100%; }
+.hs-found { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.hs-found li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 8px; border: 1px dashed var(--input); border-radius: calc(var(--radius) - 4px); }
+.hs-found li span { display: grid; min-width: 0; }
+.hs-found li b { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-found li small { color: var(--muted-foreground); font-size: 12px; }
+@media (max-width: 720px) { .hs-items li { grid-template-columns: 22px minmax(0, 1fr) auto; } .hs-items li small { display: none; } }
+
+/* Product studio: more pictures and the card preview */
+.dash .gallery { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dash .gallery li { position: relative; aspect-ratio: 3 / 4; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--muted) center / cover no-repeat; }
+.dash .gallery-act { position: absolute; inset: auto 2px 2px 2px; display: flex; justify-content: space-between; }
+.dash .card-look { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); max-width: 220px; }
+.dash .card-look-cover { aspect-ratio: 4 / 3; border-radius: calc(var(--radius) - 4px); background: var(--muted) center / cover no-repeat; margin-bottom: 4px; }
+.dash .card-look b { font-size: 14px; font-weight: 600; }
+.dash .card-look small { color: var(--muted-foreground); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dash .card-look-price { font-weight: 600; font-size: 14px; }
+.dash .card-look-price s { margin-left: 6px; font-weight: 400; color: var(--muted-foreground); }
+.dash .pager { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; }

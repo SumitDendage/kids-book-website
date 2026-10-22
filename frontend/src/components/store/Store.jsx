@@ -5,7 +5,7 @@ import { money, isIndia } from '../../services/currency.js';
 import { getCoConfig, loadCoConfig, monthsText, serverPlans } from '../../services/checkout.js';
 import { eventsApi } from '../../services/api.js';
 import { dateTimeTz } from '../../utils/format.js';
-import { ITEMS, VIEWS, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets, inView, isListed, byOrder, extraSections } from '../../data/catalogue.js';
+import { ITEMS, shopViews, viewRank, SKILL_CATEGORIES, SKILL_NAME, skillSheets, groupSheets, KG_TOPICS, topicSheets, inView, isListed, byOrder, extraSections } from '../../data/catalogue.js';
 import SheetCard, { subjectMatches } from '../sheets/SheetCard.jsx';
 import { CartIcon } from '../layout/Navbar.jsx';
 
@@ -135,7 +135,10 @@ export default function Store() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, open]);
   const clearSearch = () => { setQuery(''); if (searchRef.current) searchRef.current.focus(); };
-  const list = pick(view, cls, subject).sort((a, b) => ((a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)) || byOrder(a, b));
+  /* a list view keeps the list's own order (Admin → Homepage); the others put free sheets first */
+  const rank = viewRank(view);
+  const list = pick(view, cls, subject).sort(rank ? (a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9) : (a, b) => ((a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)) || byOrder(a, b));
+  const VIEWS = shopViews();
   const v = VIEWS.find(x => x.id === view) || VIEWS[0];
   /* Featured, Popular and Recommended appear only when some sheet has that label */
   const views = VIEWS.filter(x => !x.label_ || x.id === view || countOf(x.id, 'all', 'all') > 0);

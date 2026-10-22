@@ -7,7 +7,7 @@ import {
   authApi, cartApi, catalogueApi, customerTokens, signedOutHere, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
 } from '../services/api.js';
 import { loadSession, rememberSession, storeSession, read, write } from '../services/storage.js';
-import { applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
+import { applyServerCatalogue, sheetOf, shopViews } from '../data/catalogue.js';
 import { WHYS, classById, planOf, accountTypeOf, DEFAULT_PRINTS, printsTableOf } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
 import { getCoConfig, loadCoConfig, initialAddress } from '../services/checkout.js';
@@ -300,7 +300,7 @@ export function SiteProvider({ children }) {
       if (!force && Date.now() - catalogueAt < 60_000) return Promise.resolve(false);
       catalogueBusy = catalogueApi.worksheets().then(r => {
         catalogueAt = Date.now();
-        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes });
+        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes, homeSections: r.homeSections });
         a.rerenderAll();
         return true;
       }).finally(() => { catalogueBusy = null; });
@@ -309,7 +309,7 @@ export function SiteProvider({ children }) {
     a.openShop = view => {
       setDrawer(null); a.closeModal();
       a.reloadCatalogue().catch(() => {});
-      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
+      setShop(s => (view && shopViews().some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
     /* token: the one from a password-reset link, kept while the reset form is showing;

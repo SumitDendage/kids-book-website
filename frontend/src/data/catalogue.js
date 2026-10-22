@@ -285,9 +285,38 @@ export const VIEWS = [
 export const LABELS = [['bestseller', 'Best Seller'], ['featured', 'Featured'], ['new', 'New Arrival'], ['popular', 'Popular'], ['recommended', 'Recommended']];
 const VIEW_TAG = { new: 'new', best: 'bestseller', featured: 'featured', popular: 'popular', recommended: 'recommended' };
 const tagsOf = it => (Array.isArray(it.tags) ? it.tags : []);
-export const hasLabel = (it, tag) => (SERVER.ready ? tagsOf(it).includes(tag) : tag === 'new' ? NEW_IDS.includes(it.id) : tag === 'bestseller' ? BEST_IDS.includes(it.id) : false);
+/* The website's lists (Admin → Homepage) once the server sends them: each label belongs to one list,
+   picked by staff or filled by itself (best sellers from paid orders, the newest, ...). A list staff
+   hid is not sent, so its label and its shop view go away. Before that, the labels are tags. */
+const LIST_TAGS = ['new', 'bestseller', 'featured', 'popular', 'recommended', 'home'];
+const listByTag = tag => (SERVER.lists ? SERVER.lists.find(x => x.label === tag) : undefined);
+export const hasLabel = (it, tag) => {
+  if (SERVER.lists && LIST_TAGS.includes(tag)) { const l = listByTag(tag); return !!l && l.has.has(it.id); }
+  return SERVER.ready ? tagsOf(it).includes(tag) : tag === 'new' ? NEW_IDS.includes(it.id) : tag === 'bestseller' ? BEST_IDS.includes(it.id) : false;
+};
+/* a list of staff's own that shows in the shop is a view of its own: 'list:<id>' */
+const ownList = vw => (SERVER.lists && String(vw).startsWith('list:') ? SERVER.lists.find(x => 'list:' + x.id === vw) : undefined);
 /* the sheets a Browse view lists (free and paid by price; the label views by label) */
-export const inView = (vw, it) => vw === 'all' || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0) || (VIEW_TAG[vw] ? hasLabel(it, VIEW_TAG[vw]) : false);
+export const inView = (vw, it) => vw === 'all' || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0) || (VIEW_TAG[vw] ? hasLabel(it, VIEW_TAG[vw]) : false)
+  || (ownList(vw) ? ownList(vw).has.has(it.id) : false);
+/* the views the shop offers now: the built-in ones (a hidden list's view left out, headings from
+   Admin → Homepage) and the lists staff added to the shop */
+export function shopViews() {
+  if (!SERVER.lists) return VIEWS;
+  const out = [];
+  VIEWS.forEach(v => {
+    if (!VIEW_TAG[v.id]) { out.push(v); return; }
+    const l = listByTag(VIEW_TAG[v.id]);
+    if (l) out.push({ ...v, label: l.title || v.label, note: l.subtitle || v.note });
+  });
+  SERVER.lists.filter(l => l.placement === 'shop' && !l.label).forEach(l => out.push({ id: 'list:' + l.id, label: l.title, note: l.subtitle || undefined, label_: true }));
+  return out;
+}
+/* the order a list view shows its sheets in (the list's own order), or null for the shop's usual order */
+export function viewRank(vw) {
+  const l = VIEW_TAG[vw] ? listByTag(VIEW_TAG[vw]) : ownList(vw);
+  return l ? l.rank : null;
+}
 /* the label a card shows (one, the first that applies) */
 const CARD_ORDER = ['new', 'bestseller', 'featured', 'popular', 'recommended'];
 const CARD_TEXT = { new: 'New', bestseller: 'Bestseller', featured: 'Featured', popular: 'Popular', recommended: 'Recommended' };
@@ -298,9 +327,20 @@ export const discountPct = it => (it.wasPrice && it.wasPrice > it.price ? Math.r
 /* is this sheet in the shop now? (the server's list says; hidden, draft and scheduled sheets are not) */
 export function isListed(it) { return !!it && !it.unlisted; }
 /* the server's view of the catalogue beyond the sheets: its sections and which classes are open */
-export const SERVER = { ready: false, sections: [], classStatus: {} };
-/* the sheets on the home page ("Picked for you"): labelled 'home', in display order */
-export const homeSheets = () => (SERVER.ready ? ITEMS.filter(it => it.pdf && isListed(it) && tagsOf(it).includes('home')).sort(byOrder) : []);
+export const SERVER = { ready: false, sections: [], classStatus: {}, lists: null };
+/* the sheets of one list, in its order (only sheets the website lists) */
+const listSheets = l => l.products.map(id => itemById(id)).filter(it => it && it.pdf && isListed(it));
+/* the sheets on the home page ("Picked for you"): its list in Admin → Homepage; before the server sends
+   lists, the sheets labelled 'home', in display order */
+export const homeSheets = () => {
+  if (SERVER.lists) { const l = listByTag('home'); return l ? listSheets(l) : []; }
+  return SERVER.ready ? ITEMS.filter(it => it.pdf && isListed(it) && tagsOf(it).includes('home')).sort(byOrder) : [];
+};
+/* every row on the home page, in order: "Picked for you" and the lists staff added there */
+export const homeRows = () => {
+  if (!SERVER.lists) { const list = homeSheets(); return list.length ? [{ id: 'picked', title: 'Picked for you', subtitle: '', list }] : []; }
+  return SERVER.lists.filter(l => l.placement === 'home').map(l => ({ id: l.id, title: l.title, subtitle: l.subtitle, list: listSheets(l) })).filter(r => r.list.length);
+};
 /* display order: the order staff set (Admin → Products), then the site's own order */
 export const byOrder = (a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9);
 /* the sections staff added in Admin → Categories, and the website's own topics outside Alphabet and
@@ -382,6 +422,11 @@ export function applyServerCatalogue(worksheets, extra) {
   SERVER.ready = !!(worksheets && worksheets.length && extra && Array.isArray(extra.sections));
   if (extra && Array.isArray(extra.sections)) SERVER.sections = extra.sections.slice().sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(b.id));
   if (extra && Array.isArray(extra.classes)) SERVER.classStatus = Object.fromEntries(extra.classes.map(c => [c.id, c.status]));
+  /* the website's lists (a server without Admin → Homepage sends none: the labels stay tags) */
+  SERVER.lists = SERVER.ready && extra && Array.isArray(extra.homeSections)
+    ? extra.homeSections.filter(l => l && l.id && Array.isArray(l.products)).sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(b.id))
+      .map(l => ({ ...l, has: new Set(l.products), rank: new Map(l.products.map((id, i) => [id, i])) }))
+    : null;
   countSkills();
 }
 /* products edited in the admin's book studio */

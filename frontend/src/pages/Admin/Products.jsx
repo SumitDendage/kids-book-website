@@ -8,7 +8,8 @@ import { staffApi } from '../../services/api.js';
 import { AUDIENCE_LABEL, LABELS, HOME_TAG, VISIBILITY, visibilityOf } from './common.js';
 
 /* the filters survive moving between sections */
-const keep = { status: 'all', cls: 'all', query: '', section: 'all', label: 'all', order: 'order' };
+const keep = { status: 'all', cls: 'all', query: '', section: 'all', label: 'all', order: 'order', subject: 'all', session: 'all' };
+const PAGE = 24;
 const STATUS_TABS = [['all', 'All'], ['published', 'Published'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['hidden', 'Hidden'], ['missing', 'Missing PDF']];
 const VIS_LABEL = Object.fromEntries(VISIBILITY);
 const LABEL_NAME = Object.fromEntries(LABELS.concat([[HOME_TAG, 'Home page']]));
@@ -77,6 +78,12 @@ export default function Products() {
   const classesQ = useStaffGet('/api/admin/classes', { keep: true });
   const filesQ = useStaffGet('/api/admin/files', { keep: true });
   const sectionsQ = useStaffGet('/api/admin/sections', { keep: true });
+  const subjectsQ = useStaffGet('/api/admin/subjects', { keep: true });
+  const sessionsQ = useStaffGet('/api/admin/sessions', { keep: true });
+  const [subject, setSubjectState] = useState(keep.subject), [session, setSessionState] = useState(keep.session);
+  const [page, setPage] = useState(1);
+  const setSubject = v => { keep.subject = v; setSubjectState(v); };
+  const setSession = v => { keep.session = v; setSessionState(v); };
   const [status, setStatusState] = useState(keep.status), [cls, setClsState] = useState(keep.cls), [query, setQueryState] = useState(keep.query);
   const [section, setSectionState] = useState(keep.section), [label, setLabelState] = useState(keep.label), [order, setOrderState] = useState(keep.order);
   const setSection = v => { keep.section = v; setSectionState(v); };
@@ -105,8 +112,18 @@ export default function Products() {
   if (section !== 'all') list = list.filter(s => (section === 'none' ? !s.section : s.section === section));
   if (label !== 'all') list = list.filter(s => (s.tags || []).includes(label));
   if (cls !== 'all') list = list.filter(s => s.cls === cls);
+  if (subject !== 'all') list = list.filter(s => s.subject === subject);
+  if (session !== 'all') list = list.filter(s => (session === 'none' ? !(s.sessions || []).length : (s.sessions || []).includes(session)));
   if (query) list = list.filter(s => (s.title + ' ' + s.subject + ' ' + s.id + ' ' + (s.sectionLabel || '') + ' ' + (s.description || '')).toLowerCase().includes(query));
   list = list.slice().sort(SORTERS[order] || SORTERS.order);
+  /* 24 cards a page; a filter change goes back to the first page */
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const filterKey = [status, cls, query, section, label, order, subject, session].join('|');
+  useEffect(() => { setPage(1); }, [filterKey]);
+  const at = Math.min(page, pages);
+  const shown = list.slice((at - 1) * PAGE, at * PAGE);
+  const subjectList = (subjectsQ.data && subjectsQ.data.subjects) || null;
+  const sessionList = (sessionsQ.data && sessionsQ.data.sessions) || null;
 
   /* Publish now / Unpublish from the card */
   const quick = async (it, want) => {
@@ -129,7 +146,7 @@ export default function Products() {
       const rows = (d && d.worksheets) || [];
       return { ...(d || {}), worksheets: rows.some(r => r.id === ws.id) ? rows.map(r => (r.id === ws.id ? ws : r)) : [ws, ...rows] };
     });
-    filesQ.reload(true); classesQ.reload(true); sectionsQ.reload(true); refreshCounts();
+    filesQ.reload(true); classesQ.reload(true); sectionsQ.reload(true); subjectsQ.reload(true); refreshCounts();
     if (site && typeof site.reloadCatalogue === 'function') site.reloadCatalogue();
   };
   const editingSheet = editing && editing !== 'new' ? all.find(s => s.id === editing) : null;
@@ -137,7 +154,7 @@ export default function Products() {
 
   return (
     <Guard state={sheets} rows={8}>
-      {editing && (editing === 'new' || editingSheet) ? <ProductStudio key={editing} sheet={editingSheet} all={all} classes={classes} sections={sections} onSaved={onSaved} onClose={() => setEditing(null)} /> : null}
+      {editing && (editing === 'new' || editingSheet) ? <ProductStudio key={editing} sheet={editingSheet} all={all} classes={classes} sections={sections} subjectList={subjectList} sessionList={sessionList} onSaved={onSaved} onClose={() => setEditing(null)} /> : null}
       {sheets.error ? <ErrorNote error={sheets.error} onRetry={sheets.reload} compact /> : null}
       <div className="kpi-row">
         <MetricCard label="Published" value={on} sub={plural(all.filter(s => visibilityOf(s) === 'published' && s.price === 0).length, 'free sheet') + ' among them' + (count('scheduled') ? ' · ' + count('scheduled') + ' scheduled' : '')} icon="book" />
@@ -162,11 +179,18 @@ export default function Products() {
         <div className="filters-row">
           <select aria-label="Section" value={section} onChange={e => setSection(e.target.value)}><option value="all">Every section</option><option value="none">No section</option>
             {sections.filter(x => x.products).map(x => <option key={x.id} value={x.id}>{(x.groupLabel ? x.groupLabel + ' › ' : '') + x.label} ({x.products})</option>)}</select>
+          {subjectList && subjectList.length > 1 ? <select aria-label="Subject" value={subject} onChange={e => setSubject(e.target.value)}><option value="all">Every subject</option>{subjectList.map(x => <option key={x.id} value={x.name}>{x.name} ({all.filter(s => s.subject === x.name).length})</option>)}</select> : null}
+          {sessionList && sessionList.length ? <select aria-label="Academic session" value={session} onChange={e => setSession(e.target.value)}><option value="all">Every session</option><option value="none">No session</option>{sessionList.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select> : null}
           <select aria-label="Label" value={label} onChange={e => setLabel(e.target.value)}><option value="all">Any label</option>{Object.entries(LABEL_NAME).map(([t, n]) => <option key={t} value={t}>{n}</option>)}</select>
           <select aria-label="Sort" value={order} onChange={e => setOrder(e.target.value)}>{ORDERS.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
         </div>
-        {list.length ? <div className="book-grid">{list.map(it => <BookCard key={it.id} it={it} className={className(it.cls)} canWrite={canWrite} onQuick={quick} quickBusy={quickBusy} onEdit={setEditing} onArchive={s => setConfirm({ sheet: s, kind: 'archive' })} onRestore={s => setConfirm({ sheet: s, kind: 'restore' })} />)}</div>
+        {list.length ? <div className="book-grid">{shown.map(it => <BookCard key={it.id} it={it} className={className(it.cls)} canWrite={canWrite} onQuick={quick} quickBusy={quickBusy} onEdit={setEditing} onArchive={s => setConfirm({ sheet: s, kind: 'archive' })} onRestore={s => setConfirm({ sheet: s, kind: 'restore' })} />)}</div>
           : <p className="cart-empty">{all.length ? 'No sheets match.' : 'No sheets yet. Use "Upload new book" to add the first one.'}</p>}
+        {pages > 1 ? <nav className="pager" aria-label="Pages">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={at === 1} onClick={() => setPage(at - 1)}>Previous</button>
+          <span>Page {at} of {pages}</span>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={at === pages} onClick={() => setPage(at + 1)}>Next</button>
+        </nav> : null}
       </section>
       {confirm ? <ArchiveDialog {...confirm} onClose={() => setConfirm(null)} onDone={ws => { setConfirm(null); onSaved(ws); toast(confirm.kind === 'archive' ? 'Hidden. It is off the website now.' : ws && ws.status === 'active' ? 'Restored. It is on sale again.' : 'Restored as a draft. Upload its PDF to put it on sale.'); }} /> : null}
     </Guard>

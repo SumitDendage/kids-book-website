@@ -46,7 +46,7 @@ export default function Homepage() {
     section: ((secQ.data && secQ.data.sections) || []).map(s => [s.id, (s.groupLabel ? s.groupLabel + ' › ' : '') + s.label]),
   };
   const filterName = s => { const o = (opts[s.kind] || []).find(([v]) => v === s.filter); return o ? o[1] : s.filter; };
-  const done = (r, msg) => { q.setData(d => ({ ...(d || {}), sections: r.sections })); if (msg) toast(msg); if (site && typeof site.reloadCatalogue === 'function') site.reloadCatalogue(); };
+  const done = (r, msg) => { q.setData(d => ({ ...(d || {}), sections: r.sections })); if (msg) toast(msg); if (site && typeof site.reloadCatalogue === 'function') site.reloadCatalogue(true).catch(() => {}); };
   const save = async (s, patch, msg) => {
     setBusy(s.id);
     try { done(await staffApi('PUT', '/api/admin/home-sections/' + encodeURIComponent(s.id), patch), msg); } catch (e) { toast(problem(e)); }
@@ -56,7 +56,7 @@ export default function Homepage() {
   const row = s => (
     <div key={s.id} className={'hs-row' + (open === s.id ? ' open' : '')}>
       <div className="sec-row">
-        <div className="sec-name"><b>{s.title}</b><small>{KIND_NAME[s.kind]}{FILTERED.includes(s.kind) ? ': ' + filterName(s) : ''} · {s.mode === 'auto' ? 'Automatic' : 'Hand-picked'} · {plural(s.shown.length, 'sheet')} on the website{s.subtitle ? ' · ' + s.subtitle : ''}</small></div>
+        <div className="sec-name"><b>{s.title}</b><small>{KIND_NAME[s.kind]}{FILTERED.includes(s.kind) ? ': ' + filterName(s) : ''}{s.kind === 'curated' ? '' : s.mode === 'auto' ? ' · Automatic' : ' · Hand-picked'} · {plural(s.shown.length, 'sheet')} on the website{s.subtitle ? ' · ' + s.subtitle : ''}</small></div>
         <span className="btn-row">{s.visible ? <Pill tone="ok">Shown</Pill> : <Pill tone="neutral">Hidden</Pill>}{s.mode === 'auto' ? <Pill tone="info">Auto</Pill> : null}</span>
         {canWrite ? <label className="inline-field" title="Smaller numbers come first"><span className="muted">Order</span>
           <input type="number" defaultValue={s.sort} disabled={busy === s.id} onBlur={e => { const n = parseInt(e.target.value, 10); if (Number.isFinite(n) && n !== s.sort) save(s, { sort: n }, 'Order saved.'); }} /></label> : <span />}

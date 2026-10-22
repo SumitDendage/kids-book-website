@@ -10,6 +10,8 @@ import { staffApi } from '../../services/api.js';
 import { dateInput, startOfDayIso, endOfDayIso } from './common.js';
 
 const APPLIES = { all: 'Everything', worksheet: 'Single sheets', class: 'Class plans' };
+/* what a coupon takes off, in a few words */
+const offText = c => (c.kind === 'fixed' ? '₹' + c.amountInr : c.pct + '%');
 
 /* where a coupon stands today */
 function stateOf(c) {
@@ -52,8 +54,8 @@ export default function Coupons() {
               return {
                 key: c.code, cells: [
                   <span key="c"><b className="mono">{c.code}</b>{c.note ? <small>{c.note}</small> : null}</span>,
-                  c.pct + '%',
-                  APPLIES[c.appliesTo] + (c.cls ? ' · ' + className(c.cls) : ''),
+                  <span key="o">{offText(c)}{c.minOrderInr || c.maxDiscountInr ? <small>{[c.minOrderInr ? 'Orders from ₹' + c.minOrderInr : '', c.maxDiscountInr ? 'At most ₹' + c.maxDiscountInr + ' off' : ''].filter(Boolean).join(' · ')}</small> : null}</span>,
+                  <span key="w">{APPLIES[c.appliesTo] + (c.cls ? ' · ' + className(c.cls) : '')}{(c.productIds || []).length || (c.sectionIds || []).length ? <small>{[(c.productIds || []).length ? plural(c.productIds.length, 'chosen sheet') : '', (c.sectionIds || []).length ? plural(c.sectionIds.length, 'category', 'categories') : ''].filter(Boolean).join(' + ')}</small> : null}</span>,
                   <span key="u">{c.uses}{c.maxUses ? ' of ' + c.maxUses : ''}{c.perUserLimit ? <small>{c.perUserLimit === 1 ? 'Once per customer' : c.perUserLimit + ' per customer'}</small> : null}</span>,
                   c.validFrom || c.validUntil ? (c.validFrom ? dateOnly(c.validFrom) : 'Now') + ' to ' + (c.validUntil ? dateOnly(c.validUntil) : 'no end') : 'Any time',
                   <Pill key="s" tone={tone}>{label}</Pill>,
@@ -74,11 +76,22 @@ function CouponDialog({ coupon, classes, onClose, onDone }) {
   const c = coupon || {};
   const [busy, setBusy] = useState(false), [err, setErr] = useState(null), [errs, setErrs] = useState({});
   const [applies, setApplies] = useState(c.appliesTo || 'all');
+  const [kind, setKind] = useState(c.kind || 'percent');
+  const [prods, setProds] = useState(c.productIds || []), [secs, setSecs] = useState(c.sectionIds || []);
+  const { can } = useDash();
+  const sheetsQ = useStaffGet(can('catalogue.read') ? '/api/admin/worksheets' : null, { keep: true });
+  const sectionsQ = useStaffGet(can('catalogue.read') ? '/api/admin/sections' : null, { keep: true });
+  const sheetOpts = ((sheetsQ.data && sheetsQ.data.worksheets) || []).map(x => ({ id: x.id, name: x.title, note: x.id }));
+  const sectionOpts = ((sectionsQ.data && sectionsQ.data.sections) || []).map(x => ({ id: x.id, name: (x.groupLabel ? x.groupLabel + ' › ' : '') + x.label, note: plural(x.products || 0, 'sheet') }));
   const submit = async e => {
     const f = new FormData(e.currentTarget);
     const num = k => { const s = String(f.get(k) || '').trim(); return s === '' ? 0 : Number(s); };
+    const money = k => { const s = String(f.get(k) || '').trim(); return s === '' ? null : Number(s); };
     const body = {
-      pct: Number(f.get('pct')), maxUses: num('maxUses'), perUserLimit: num('perUserLimit'), appliesTo: f.get('appliesTo'),
+      kind, ...(kind === 'fixed' ? { amountInr: money('amountInr') } : { pct: Number(f.get('pct')) }),
+      minOrderInr: money('minOrderInr') ?? 0, maxDiscountInr: kind === 'percent' ? money('maxDiscountInr') : null,
+      productIds: prods, sectionIds: secs,
+      maxUses: num('maxUses'), perUserLimit: num('perUserLimit'), appliesTo: f.get('appliesTo'),
       classId: f.get('classId') || null, validFrom: startOfDayIso(f.get('validFrom')), validUntil: endOfDayIso(f.get('validUntil')),
       active: f.get('active') === 'on', note: String(f.get('note') || '').trim() || null,
     };
@@ -97,7 +110,14 @@ function CouponDialog({ coupon, classes, onClose, onDone }) {
     <Modal title={coupon ? 'Edit ' + c.code : 'New coupon'} onClose={onClose} onSubmit={submit} submitLabel={coupon ? 'Save' : 'Add the coupon'} busyLabel="Saving…" busy={busy} error={err} wide>
       <div className="grid-3">
         {coupon ? null : <div className="field"><label htmlFor="cpCode">Code</label><input id="cpCode" name="code" required maxLength={32} placeholder="e.g. SPRING20" style={{ textTransform: 'uppercase' }} />{fe('code')}</div>}
-        <div className="field"><label htmlFor="cpPct">% off</label><input id="cpPct" name="pct" type="number" min="1" max="100" step="0.5" required defaultValue={c.pct || ''} />{fe('pct')}</div>
+        <div className="field"><label htmlFor="cpKind">Takes off</label><select id="cpKind" value={kind} onChange={e => setKind(e.target.value)}><option value="percent">A percentage</option><option value="fixed">A fixed amount (₹)</option></select>{fe('kind')}</div>
+        {kind === 'percent'
+          ? <div className="field"><label htmlFor="cpPct">% off</label><input id="cpPct" name="pct" type="number" min="1" max="100" step="0.5" required defaultValue={c.pct || ''} />{fe('pct')}</div>
+          : <div className="field"><label htmlFor="cpAmt">₹ off</label><input id="cpAmt" name="amountInr" type="number" min="1" max="100000" step="1" required defaultValue={c.amountInr || ''} />{fe('amountInr')}</div>}
+      </div>
+      <div className="grid-3">
+        <div className="field"><label htmlFor="cpMin">Smallest order ₹</label><input id="cpMin" name="minOrderInr" type="number" min="0" step="1" defaultValue={c.minOrderInr || ''} placeholder="Any order" />{fe('minOrderInr')}</div>
+        {kind === 'percent' ? <div className="field"><label htmlFor="cpCap">Most it takes off ₹</label><input id="cpCap" name="maxDiscountInr" type="number" min="1" step="1" defaultValue={c.maxDiscountInr || ''} placeholder="No cap" />{fe('maxDiscountInr')}</div> : null}
         <div className="field"><label htmlFor="cpMax">Uses in all</label><input id="cpMax" name="maxUses" type="number" min="0" defaultValue={c.maxUses || ''} placeholder="No limit" />{fe('maxUses')}</div>
         <div className="field"><label htmlFor="cpPer">Uses per customer</label><input id="cpPer" name="perUserLimit" type="number" min="0" max="1000" defaultValue={c.perUserLimit || ''} placeholder="No limit" />{fe('perUserLimit')}</div>
       </div>
@@ -111,8 +131,28 @@ function CouponDialog({ coupon, classes, onClose, onDone }) {
         <div className="field"><label htmlFor="cpUntil">Ends after</label><input id="cpUntil" name="validUntil" type="date" defaultValue={dateInput(c.validUntil)} /><small>Empty: no end date.</small>{fe('validUntil')}</div>
         <div className="field"><label htmlFor="cpNote">Note for staff</label><input id="cpNote" name="note" maxLength={200} defaultValue={c.note || ''} placeholder="e.g. Newsletter, May" />{fe('note')}</div>
       </div>
+      {applies !== 'class' && (sheetOpts.length || sectionOpts.length || prods.length || secs.length) ? <div className="grid-2">
+        <Picker id="cpProds" label="Only these sheets" hint="Empty: every sheet." options={sheetOpts} value={prods} onChange={setProds} error={fe('productIds')} />
+        <Picker id="cpSecs" label="Only these categories" hint="Empty: every category. A sheet in a chosen category counts." options={sectionOpts} value={secs} onChange={setSecs} error={fe('sectionIds')} />
+      </div> : null}
       {coupon && c.uses ? <p className="auth-sub">Used {plural(c.uses, 'time')} so far.</p> : null}
     </Modal>
+  );
+}
+
+/* pick some items from a long list: search, then click to add; chosen ones show as chips */
+function Picker({ id, label, hint, options, value, onChange, error }) {
+  const [find, setFind] = useState('');
+  const byId = new Map(options.map(o => [o.id, o]));
+  const q = find.trim().toLowerCase();
+  const found = q ? options.filter(o => !value.includes(o.id) && (o.name + ' ' + o.id).toLowerCase().includes(q)).slice(0, 6) : [];
+  return (
+    <div className="field"><label htmlFor={id}>{label}</label>
+      {value.length ? <div className="chips">{value.map(v => <button key={v} type="button" className="chip on" aria-label={'Remove ' + ((byId.get(v) || {}).name || v)} onClick={() => onChange(value.filter(x => x !== v))}>{(byId.get(v) || {}).name || v} ✕</button>)}</div> : null}
+      <input id={id} className="search" type="search" placeholder="Search to add…" value={find} onChange={e => setFind(e.target.value)} />
+      {found.length ? <ul className="hs-found">{found.map(o => <li key={o.id}><span><b>{o.name}</b><small>{o.note}</small></span><button type="button" className="btn btn-ghost btn-sm" onClick={() => { onChange(value.concat(o.id)); setFind(''); }}>Add</button></li>)}</ul> : null}
+      <small>{hint}</small>{error}
+    </div>
   );
 }
 
