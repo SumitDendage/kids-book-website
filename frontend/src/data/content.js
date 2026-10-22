@@ -50,10 +50,10 @@ export const PLANS = [
   { id: 'y1', label: '12 months', months: 12, price: 1499, note: 'best value', regions: ['INTL'] },
 ];
 export const planOf = id => PLANS.find(x => x.id === id) || PLANS[0];
-/* How long a bought sheet stays open. The server sends accessHours (24 unless staff change it) and,
+/* How long a bought sheet stays open. The server sends accessHours (1 unless staff change it) and,
    for older readers, accessDays rounded up. "24 hours", "1 hour", "3 days" (days only when the hours
    make whole days of two or more), as the server words it. */
-export const DEFAULT_ACCESS_HOURS = 24;
+export const DEFAULT_ACCESS_HOURS = 1;
 export const spanText = hours => { const h = Math.round(Number(hours)) || DEFAULT_ACCESS_HOURS; return h >= 48 && h % 24 === 0 ? h / 24 + ' days' : h + (h === 1 ? ' hour' : ' hours'); };
 /* hours from anything that carries accessHours / accessDays (a sheet, a quote line, the config) */
 export const hoursOf = x => { if (!x || typeof x !== 'object') return 0; const h = Number(x.accessHours); if (h > 0) return Math.round(h); const d = Number(x.accessDays); return d > 0 ? Math.round(d * 24) : 0; };

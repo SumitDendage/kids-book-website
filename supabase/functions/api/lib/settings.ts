@@ -28,7 +28,7 @@ export type Settings = {
 };
 
 export const DEFAULTS: Settings = {
-  worksheet_access: { days: 1, hours: 24 },
+  worksheet_access: { days: 1, hours: 1 },
   sessions: { rememberDays: 30, shortHours: 12, maxDays: 90 },
   login: { maxFailed: 5, lockMinutes: 15 },
   auth_links: { verifyHours: 24, resetMinutes: 30 },
