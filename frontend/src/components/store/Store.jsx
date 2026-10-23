@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
-import { CLASSES, SUBJECTS, classById, subjectById } from '../../data/content.js';
+import { CLASSES, SUBJECTS, TAGLINES, classById, subjectById } from '../../data/content.js';
+import { Sticker } from '../common/Slogans.jsx';
 import { money, isIndia } from '../../services/currency.js';
 import { getCoConfig, loadCoConfig, monthsText, serverPlans } from '../../services/checkout.js';
 import { eventsApi } from '../../services/api.js';
@@ -164,7 +165,7 @@ export default function Store() {
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
       <div className="shop-scene" aria-hidden="true"><img src="/shop/learn-with-why-wallpaper.webp" alt="" decoding="async" /></div>
       <header className="shop-bar">
-        <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2></div>
+        <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2><Sticker tilt={-2} className="sticker-sm">{TAGLINES.shop}</Sticker></div>
         <div className="shop-actions">
           <button type="button" className="btn btn-ghost" id="shopBagBtn" aria-label="My Account" onClick={() => openDrawer('bag')}><span className="acct-label">My Account</span><svg className="acct-short" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg></button>
           <button type="button" className="btn btn-ghost" id="shopCartBtn" aria-label={'Cart: ' + cart.count + (cart.count === 1 ? ' sheet' : ' sheets')} onClick={openCart}><CartIcon /> Cart <b id="shopCartCount">{cart.count}</b></button>

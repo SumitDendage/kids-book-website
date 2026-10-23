@@ -26,6 +26,8 @@ const ldJson = o => JSON.stringify(o).replace(/</g, '\\u003c');
 /* /kindergarten-worksheets/colours/ rather than …/vocab-colours/ */
 export const slugOf = id => String(id).replace(/^vocab-/, '').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
 export const topicPath = id => HUB + slugOf(id) + '/';
+/* the same catchy lines as the site's ribbons (src/data/content.js SLOGANS) */
+const SLOGANS = ['Little hands. Big whys. Bright minds.', 'From ABC to “Aha!” — one sheet at a time.', 'Print it. Play it. Learn it. Love it.', 'Made in India for every curious little mind.', 'Every “why” deserves a “wow”.', 'Kindergarten worksheets kids actually ask for.', 'Five minutes a day. One big smile every day.', 'Ask why. Find wow. Learn With Why.'];
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 const priceText = p => (p === 0 ? 'Free' : '₹' + p);
 
@@ -88,7 +90,7 @@ a:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4
 .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
 header.top{border-bottom:1px solid var(--line);background:rgba(6,16,26,.85);position:sticky;top:0;z-index:2}
 header.top .wrap{display:flex;align-items:center;gap:16px;min-height:60px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-family:Cormorant,Georgia,serif;font-size:1.45rem;font-weight:500}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-family:'Baloo 2',system-ui,sans-serif;font-size:1.4rem;font-weight:700}
 .brand img{border-radius:10px;background:#f7f3ea;padding:3px}
 header.top nav{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
 header.top nav a{color:var(--soft);text-decoration:none;font-size:.95rem}
@@ -96,15 +98,23 @@ header.top nav a:hover,header.top nav a[aria-current]{color:var(--ink)}
 .crumbs{font-size:.88rem;color:var(--soft);margin:22px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .crumbs li+li::before{content:"›";margin-right:6px;color:var(--line)}
 .crumbs a{color:var(--soft)}
-h1,h2{font-family:Cormorant,Georgia,serif;font-weight:500;line-height:1.15;margin:.4em 0}
+h1,h2{font-family:'Baloo 2',system-ui,sans-serif;font-weight:700;line-height:1.15;margin:.4em 0}
 h1{font-size:clamp(2rem,5vw,3.1rem)}
 h2{font-size:clamp(1.5rem,3.4vw,2rem);margin-top:1.6em}
 .lede{max-width:760px;color:var(--soft);font-size:1.08rem}
 .facts{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none;margin:18px 0}
 .facts li{border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.9rem;background:var(--card)}
-.cta{display:inline-block;background:var(--gold);color:#1b1407;font-weight:700;text-decoration:none;border-radius:999px;padding:10px 22px;margin:6px 0 10px}
+.cta{display:inline-block;background:linear-gradient(120deg,#ffe066,#ff9b6a);color:#1b1407;font-weight:700;text-decoration:none;border-radius:999px;padding:10px 22px;margin:6px 0 10px;transition:transform .3s,box-shadow .3s}
+.cta:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 10px 24px rgba(255,155,106,.35)}
+.tag{display:inline-block;margin:0 0 6px;padding:4px 14px;border-radius:999px;background:linear-gradient(120deg,#fff4a8,#ffc6dc);color:#2b1d4e;font-weight:700;font-size:.95rem}
+.ribbon{overflow:hidden;border-bottom:1px solid var(--line);background:linear-gradient(100deg,rgba(255,216,138,.16),rgba(255,143,191,.14),rgba(143,227,176,.14));mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.ribbon .rt{display:flex;width:max-content;animation:drift 50s linear infinite}
+.ribbon span{white-space:nowrap;padding:7px 1.4em;color:var(--gold);font-weight:600;font-size:.92rem}
+.ribbon span::before{content:"✦ ";color:#ff8fbf}
+@keyframes drift{to{transform:translateX(-50%)}}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;padding:0;list-style:none}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .3s,border-color .3s,box-shadow .3s}
+.card:hover{transform:translateY(-5px) rotate(-.5deg);border-color:var(--gold);box-shadow:0 14px 30px rgba(0,0,0,.35)}
 .card img{display:block;width:100%;height:auto;aspect-ratio:520/735;object-fit:cover;background:#fff}
 .card .body{padding:12px 14px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
 .card h3{font-size:.98rem;margin:0;line-height:1.3}
@@ -115,7 +125,8 @@ h2{font-size:clamp(1.5rem,3.4vw,2rem);margin-top:1.6em}
 .price.free{color:var(--green)}
 .topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:0;list-style:none}
 .topic{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;text-decoration:none;color:var(--ink)}
-.topic:hover{border-color:var(--gold)}
+.topic{transition:transform .3s,border-color .3s}
+.topic:hover{border-color:var(--gold);transform:translateY(-3px)}
 .topic img{width:64px;height:auto;aspect-ratio:520/735;border-radius:8px;background:#fff;flex:none}
 .topic b{display:block;font-size:1.02rem}
 .topic span{color:var(--soft);font-size:.88rem}
@@ -123,6 +134,7 @@ h2{font-size:clamp(1.5rem,3.4vw,2rem);margin-top:1.6em}
 .how li{margin:.35em 0}
 footer.foot{border-top:1px solid var(--line);margin-top:56px;padding:24px 0 40px;color:var(--soft);font-size:.92rem}
 footer.foot nav{display:flex;flex-wrap:wrap;gap:8px 18px;margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){.ribbon .rt{animation:none;flex-wrap:wrap;width:auto}.ribbon span[aria-hidden]{display:none}.card,.topic,.cta{transition:none}.card:hover,.topic:hover,.cta:hover{transform:none}}
 `;
 
 function page({ path, title, description, h1, crumbs, body, image, ld }) {
@@ -149,8 +161,8 @@ function page({ path, title, description, h1, crumbs, body, image, ld }) {
 <meta property="og:image" content="${esc(SITE + (image || '/og.jpg'))}">
 <meta property="og:locale" content="en_IN">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" as="font" type="font/woff2" href="/fonts/cormorant-garamond-latin-500-normal.woff2" crossorigin>
-<style>@font-face{font-family:Cormorant;font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/cormorant-garamond-latin-500-normal.woff2) format('woff2')}${STYLE.replace(/\n/g, '')}</style>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/baloo-2-latin-wght-normal.woff2" crossorigin>
+<style>@font-face{font-family:'Baloo 2';font-style:normal;font-weight:400 800;font-display:swap;src:url(/fonts/baloo-2-latin-wght-normal.woff2) format('woff2')}${STYLE.replace(/\n/g, '')}</style>
 <script type="application/ld+json">${ldJson([crumbLd, ...(ld || [])])}</script>
 </head>
 <body>
@@ -159,9 +171,11 @@ function page({ path, title, description, h1, crumbs, body, image, ld }) {
 <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36">${BRAND}</a>
 <nav aria-label="Main"><a href="/">Home</a><a href="${HUB}"${path === HUB ? ' aria-current="page"' : ''}>Kindergarten worksheets</a><a href="/#contact">Contact us</a></nav>
 </div></header>
+<div class="ribbon" role="marquee" aria-label="${BRAND} in a few words"><div class="rt">${SLOGANS.map(s => `<span>${esc(s)}</span>`).join('')}${SLOGANS.map(s => `<span aria-hidden="true">${esc(s)}</span>`).join('')}</div></div>
 <main id="main" class="wrap">
 <ol class="crumbs" aria-label="Breadcrumb">${crumbs.map((c, i) => `<li>${i === crumbs.length - 1 ? `<span aria-current="page">${esc(c.name)}</span>` : `<a href="${esc(c.path)}">${esc(c.name)}</a>`}</li>`).join('')}</ol>
 <h1>${esc(h1)}</h1>
+<p class="tag">${esc(SLOGANS[(path.length + h1.length) % SLOGANS.length])}</p>
 ${body}
 </main>
 <footer class="foot"><div class="wrap">
