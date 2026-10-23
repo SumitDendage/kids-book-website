@@ -131,3 +131,24 @@ test('the home page ships no staff stylesheet and no address from the old domain
   assert.doesNotMatch(html, /learnwithwhy\.in/);
   assert.match(html, /<link rel="canonical" href="https:\/\/learnwithwhy\.com\/">/);
 });
+
+/* Nothing may stand between the browser and the opening veil: the look and the fonts are
+   loaded without blocking the first paint (scripts/build-seo-pages.mjs). */
+test('the home page lets the browser draw before the stylesheet arrives', async () => {
+  const { deferStylesheet, inlineFontCss } = await import('../scripts/build-seo-pages.mjs');
+  const out = deferStylesheet('<link rel="stylesheet" crossorigin href="/assets/main-abc.css">');
+  assert.match(out, /<link rel="preload" as="style" crossorigin href="\/assets\/main-abc\.css" onload="this\.onload=null;this\.rel='stylesheet'">/);
+  assert.match(out, /<noscript><link rel="stylesheet" crossorigin href="\/assets\/main-abc\.css"><\/noscript>/, 'a browser without JavaScript still gets the look');
+
+  const fonts = inlineFontCss('<link href="/fonts/inter.css" rel="stylesheet">', () => "@font-face { src: url(inter-0.ttf) format('truetype'); }");
+  assert.match(fonts, /<style>.*url\(\/fonts\/inter-0\.ttf\).*<\/style>/s, 'the font rules are in the page, with addresses that still work');
+  assert.doesNotMatch(fonts, /<link/, 'and the round trip for them is gone');
+  assert.equal(inlineFontCss('<link href="/fonts/inter.css" rel="stylesheet">', () => null), '<link href="/fonts/inter.css" rel="stylesheet">', 'an unreadable file leaves the page as it was');
+
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /#veil\{position:fixed/, 'index.html carries the veil styles itself');
+  const site = await readFile(new URL('../src/styles/site.css', import.meta.url), 'utf8');
+  assert.match(site, /--css-ready: 1/, 'the stylesheet ends with the flag the veil waits for');
+  const layout = await readFile(new URL('../src/layouts/SiteLayout.jsx', import.meta.url), 'utf8');
+  assert.match(layout, /--css-ready/, 'and the veil waits for it, so nothing is ever shown unstyled');
+});

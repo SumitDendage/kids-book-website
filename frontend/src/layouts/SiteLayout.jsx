@@ -50,12 +50,16 @@ function Site() {
   const onStaffHash = useCallback(h => { if (!STAFF[h]) return false; navigate('/' + h); return true; }, [navigate]);
   useChapterInput(stage, contentRef, { isInputLocked, onStaffHash });
 
-  /* the opening veil: lift it once the first frame is painted (at least 1.8 s), or after 15 s whatever happens */
+  /* the look arrives without blocking the first paint (scripts/build-seo-pages.mjs), so the veil
+     also waits for it: its last rule sets --css-ready, and until then the site below is unstyled */
+  const styled = () => getComputedStyle(document.documentElement).getPropertyValue('--css-ready').trim() === '1';
+
+  /* the opening veil: lift it once the look and the first frame are there (at least 1.8 s), or after 15 s whatever happens */
   useEffect(() => {
     const started = Date.now();
     let hintTimer = 0;
     const t = setInterval(() => {
-      const elapsed = Date.now() - started, painted = !!(engineRef.current && engineRef.current.painted);
+      const elapsed = Date.now() - started, painted = !!(engineRef.current && engineRef.current.painted) && styled();
       if (!painted && elapsed > 4000) setVeil(v => (v.slow ? v : { ...v, slow: true }));
       if ((painted && elapsed >= 1800) || elapsed >= 15000) {
         clearInterval(t);

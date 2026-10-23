@@ -263,6 +263,27 @@ export function buildPages(cat) {
   return { topics, files };
 }
 
+/* The home page carries its own opening-veil styles (index.html), so the full stylesheet no
+   longer has to arrive before the browser can draw anything. Vite writes the <link> itself, so
+   it is turned into a non-blocking load here, after the build. The veil stays up until the
+   stylesheet has landed (--css-ready, see layouts/SiteLayout.jsx), so nothing is ever shown
+   unstyled, and <noscript> keeps the plain blocking link for a browser without JavaScript. */
+export function deferStylesheet(html) {
+  return html.replace(/<link rel="stylesheet"([^>]*?)href="([^"]+)"([^>]*)>/g, (all, a, href, b) =>
+    `<link rel="preload" as="style"${a}href="${href}"${b} onload="this.onload=null;this.rel='stylesheet'">`
+    + `<noscript>${all}</noscript>`);
+}
+
+/* The two font files are a kilobyte each but cost the browser a round trip apiece before it may
+   draw: their @font-face rules go straight into the page instead. The fonts themselves are
+   fetched exactly as before (font-display: swap), only sooner. */
+export function inlineFontCss(html, read) {
+  return html.replace(/<link href="\/fonts\/([a-z]+\.css)" rel="stylesheet">/g, (all, name) => {
+    const css = read(name);
+    return css ? '<style>/* /fonts/' + name + ' */' + css.replace(/url\(('?)(?!\/|https?:)/g, "url($1/fonts/").trim() + '</style>' : all;
+  });
+}
+
 async function main() {
   const live = await liveCatalogue();
   const cat = live || JSON.parse(readFileSync(resolve(ROOT, 'scripts/seo-catalogue-snapshot.json'), 'utf8'));
@@ -273,6 +294,12 @@ async function main() {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, text);
   }
+  const home = resolve(DIST, 'index.html');
+  const before = readFileSync(home, 'utf8');
+  const after = inlineFontCss(deferStylesheet(before), name => readFileSync(resolve(DIST, 'fonts', name), 'utf8'));
+  if (!after.includes('rel="preload" as="style"')) throw new Error('seo pages: no stylesheet link found in dist/index.html');
+  if (after.includes('rel="stylesheet">') && !after.includes('<noscript><link rel="stylesheet"')) throw new Error('seo pages: a stylesheet still blocks the first paint');
+  writeFileSync(home, after);
   console.log(`seo pages: ${topics.length} topics, ${topics.reduce((n, t) => n + t.sheets.length, 0)} sheets, ${Object.keys(files).length} files (${live ? 'live catalogue' : 'saved copy'})`);
 }
 
