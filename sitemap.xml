@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  <url><loc>https://learnwithwhy.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority><image:image><image:loc>https://learnwithwhy.in/og.jpg</image:loc><image:title>Learn With Why — a fox and a rabbit reading</image:title></image:image></url>
+  <url><loc>https://learnwithwhy.com/</loc><image:image><image:loc>https://learnwithwhy.com/og.jpg</image:loc></image:image></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/letter-tracing/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/letter-recognition/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/match-upper-lower/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/before-after-letters/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/beginning-sounds/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/ending-sounds/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/missing-letters/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/colours/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/shapes/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/sizes/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/animals/</loc></url>
+  <url><loc>https://learnwithwhy.com/kindergarten-worksheets/picture-reading/</loc></url>
 </urlset>
