@@ -105,3 +105,29 @@ test('a sheet whose class is not on sale yet never reaches a page', () => {
   assert.deepEqual(t.flatMap(x => x.sheets).map(x => x.id), ['a']);
   assert.ok(!sitemapOf(t).includes('Later'));
 });
+
+/* index.html draws the opening veil itself, so the first screen does not wait for JavaScript.
+   React renders the same veil the moment it mounts; if one of the two changes, this fails. */
+test('the veil in index.html matches the one React renders', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const jsx = await readFile(new URL('../src/components/layout/Veil.jsx', import.meta.url), 'utf8');
+  const logo = await readFile(new URL('../src/components/common/LogoTile.jsx', import.meta.url), 'utf8');
+  for (const part of ['id="veil"', 'class="veil-inner"', 'class="logo-tile"', 'class="veil-word"', 'class="veil-line"', 'id="veilNote"']) {
+    assert.ok(html.includes(part), 'index.html draws ' + part);
+  }
+  assert.ok(html.includes('Opening the forest') && jsx.includes('Opening the forest'), 'both say the same thing');
+  assert.ok(html.includes('<b>LEARN</b><small>WITH WHY</small>') && logo.includes('<b>LEARN</b><small>WITH WHY</small>'));
+  const leaves = JSON.parse(logo.match(/const LEAVES = (\[\[[^;]+\]\]);/)[1]);
+  for (const [x, y] of leaves) assert.ok(html.includes(`cx="${x}" cy="${y}"`), `the static logo has the leaf at ${x},${y}`);
+  assert.equal((html.match(/<ellipse /g) || []).length, leaves.length, 'the same number of leaves');
+});
+
+test('the home page ships no staff stylesheet and no address from the old domain', async () => {
+  const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(main, /admin\.css['"]/, 'admin.css belongs to the staff pages, not every visitor');
+  const portal = await readFile(new URL('../src/pages/Portal/Portal.jsx', import.meta.url), 'utf8');
+  assert.match(portal, /styles\/admin\.css/, 'the staff pages load it themselves');
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /learnwithwhy\.in/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/learnwithwhy\.com\/">/);
+});
