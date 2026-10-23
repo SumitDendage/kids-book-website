@@ -26,6 +26,9 @@ const PERM_LABEL = {
   'staff.manage': 'Manage staff', 'developer.read': 'Open the developer panel', 'logs.read': 'See payment and sign-in logs',
 };
 const TOP = r => r === 'owner' || r === 'admin';
+/* administrators never open the Developer panel (the server and the database refuse it too) */
+const ADMIN_NOT = new Set(['developer.read']);
+const allowedFor = (role, list) => (role === 'admin' ? list.filter(p => !ADMIN_NOT.has(p)) : list);
 
 /* Roles: the staff list from the server, adding someone (a new account gets its password by
    email), changing a role or single permissions, and removing someone. Only an owner can give
@@ -83,7 +86,7 @@ export default function Roles() {
 
 function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
   const s = row || {};
-  const tpl = id => ((roles.find(r => r.role === id) || {}).permissions || []);
+  const tpl = id => allowedFor(id, (roles.find(r => r.role === id) || {}).permissions || []);
   const firstRole = (roles.find(r => !TOP(r.role)) || roles[0] || { role: 'support' }).role;
   const [role, setRole] = useState(s.role || firstRole);
   const [perms, setPerms] = useState(() => new Set(row ? (s.permissions || []) : tpl(s.role || firstRole)));
@@ -97,7 +100,7 @@ function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
 
   const submit = async e => {
     const f = new FormData(e.currentTarget);
-    const body = { role, permissions: role === 'owner' ? undefined : [...perms].sort(), note: String(f.get('note') || '').trim() || null };
+    const body = { role, permissions: role === 'owner' ? undefined : allowedFor(role, [...perms]).sort(), note: String(f.get('note') || '').trim() || null };
     if (!row) { body.email = String(f.get('email') || '').trim(); body.name = String(f.get('name') || '').trim() || undefined; }
     setBusy(true); setErr(null); setErrs({});
     try {
@@ -134,7 +137,7 @@ function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
         <small>{role === 'owner' ? 'An owner can do everything, including managing other owners.' : custom ? 'Changed from the role\'s usual permissions.' : 'The role\'s usual permissions are ticked. Change them below if needed.'}</small>{fe('role')}</div>
       {role === 'owner' ? null : <div className="perm-grid">{PERM_GROUPS.map(([g, list]) => (
         <fieldset key={g} className="fs"><legend>{g}</legend>
-          {list.map(p => <label key={p} className="check" title={info[p] || ''}><input type="checkbox" checked={perms.has(p)} disabled={!mayGive(p) && !perms.has(p)} onChange={e => toggle(p, e.target.checked)} />{PERM_LABEL[p] || p}{!mayGive(p) ? <small className="muted"> ({p === 'staff.manage' ? 'owner only' : 'you do not have it'})</small> : null}</label>)}
+          {allowedFor(role, list).map(p => <label key={p} className="check" title={info[p] || ''}><input type="checkbox" checked={perms.has(p)} disabled={!mayGive(p) && !perms.has(p)} onChange={e => toggle(p, e.target.checked)} />{PERM_LABEL[p] || p}{!mayGive(p) ? <small className="muted"> ({p === 'staff.manage' ? 'owner only' : 'you do not have it'})</small> : null}</label>)}
         </fieldset>))}</div>}
       <div className="field"><label htmlFor="stfNote">Note for staff</label><input id="stfNote" name="note" maxLength={300} defaultValue={s.note || ''} placeholder="e.g. Weekend support" /></div>
     </Modal>

@@ -963,3 +963,30 @@ test('messages reply: email queued to the sender with reply-to = the inbox, note
   r = await h.call('POST', '/api/admin/messages/424242/reply', { token: support.token, body: { body: 'Hello there' } });
   assertStatus(r, 404);
 });
+
+test('administrators can never open the Developer panel; owners and developers can', async () => {
+  // the role template and a fresh admin row no longer carry developer.read
+  const [tpl] = await h.sql<{ permissions: string[] }[]>`select permissions from staff_role_templates where role = 'admin'`;
+  assert(!tpl.permissions.includes('developer.read'));
+  let r = await h.call('GET', '/api/admin/developer/health', { token: admin.token });
+  assertStatus(r, 403);
+  r = await h.call('GET', '/api/admin/me', { token: admin.token });
+  assert(!r.body.staff.permissions.includes('developer.read'));
+
+  // even written straight into the database, the trigger takes it off an admin row
+  const sneaky = await h.staff('admin', ['dashboard.view', 'developer.read']);
+  const [row] = await h.sql<{ permissions: string[] }[]>`select permissions from staff_members where user_id = ${sneaky.id}`;
+  assertEquals(row.permissions, ['dashboard.view']);
+  assertStatus(await h.call('GET', '/api/admin/developer/health', { token: sneaky.token }), 403);
+
+  // and an owner cannot hand it to an admin through the API
+  r = await h.call('PUT', `/api/admin/staff/${sneaky.id}`, { token: owner.token, body: { permissions: ['dashboard.view', 'developer.read'] } });
+  assertStatus(r, 400);
+  r = await h.call('POST', '/api/admin/staff', { token: owner.token, body: { email: uniqueEmail('adm-dev'), role: 'admin', permissions: ['developer.read'] } });
+  assertStatus(r, 400);
+
+  // owners and developers still get in
+  const dev = await h.staff('developer');
+  assertStatus(await h.call('GET', '/api/admin/developer/health', { token: dev.token }), 200);
+  assertStatus(await h.call('GET', '/api/admin/developer/health', { token: owner.token }), 200);
+});

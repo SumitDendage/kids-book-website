@@ -12,7 +12,7 @@ import type { Router } from '../lib/router.ts';
 import type { Ctx, Profile, StaffInfo } from '../lib/context.ts';
 import { tx, type Tx } from '../lib/db.ts';
 import { HttpError, intParam, readJson } from '../lib/http.ts';
-import { BLOCKED_MESSAGE, bearer, effectivePermissions, hasPermission, publicUser, requireStaff, requireUser } from '../lib/auth.ts';
+import { BLOCKED_MESSAGE, DEV_PERM, bearer, effectivePermissions, hasPermission, publicUser, requireStaff, requireUser } from '../lib/auth.ts';
 import { audit, notify, rateLimit, securityEvent } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
 import { enqueue, kickOutbox, sendSensitive } from '../lib/mail.ts';
@@ -579,9 +579,12 @@ function parseRole(v: unknown, refs: Refs): string {
   return role;
 }
 
-/** What a staff manager may hand out: owner/admin roles and staff.manage only by an owner;
+/** What a staff manager may hand out: never the Developer panel to an administrator; owner/admin roles and staff.manage only by an owner;
  *  a non-owner only gives permissions they hold themselves. */
 function checkGrant(actor: StaffInfo, newRole: string, newPerms: string[], oldPerms: string[]) {
+  if (newRole === 'admin' && newPerms.includes(DEV_PERM)) {
+    bad('permissions', 'Administrators cannot open the Developer panel. Give the Developer role instead.');
+  }
   if (actor.role === 'owner') return;
   if (newRole === 'owner' || newRole === 'admin') throw ownerOnly('Only an owner can give the owner or admin role.');
   const added = newPerms.filter((p) => !oldPerms.includes(p));
