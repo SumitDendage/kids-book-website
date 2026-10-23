@@ -31,6 +31,28 @@
 <link rel="preload" as="font" type="font/woff2" href="/fonts/cormorant-garamond-latin-400-italic.woff2" crossorigin>
 <link href="/fonts/inter.css" rel="stylesheet">
 <link href="/fonts/cormorant.css" rel="stylesheet">
+<style>/* Just enough to draw the opening veil. The rest of the look follows without holding up the first paint. */
+:root{--fg:#f7f3ea;--fg-dim:rgba(247,243,234,.5);--font-display:'Cormorant','Cormorant Garamond',Georgia,serif;--font-body:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--fs-eyebrow:.68rem;--ease:cubic-bezier(.16,1,.3,1)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+html,body{width:100%;height:100%;overflow:hidden;background:#050a0e;touch-action:none}
+body{color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5}
+#veil{position:fixed;inset:0;z-index:999;display:grid;place-items:center;background:#06101a;transition:transform .9s cubic-bezier(.65,0,.35,1),visibility .9s}
+#veil.gone{transform:translateY(-100%);visibility:hidden}
+.veil-inner{display:grid;justify-items:center;gap:14px}
+.logo-tile{display:grid;place-items:center;gap:1px;width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.22);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.veil-inner .logo-tile{width:96px;height:96px;border-radius:22px;background:#fff;color:#14181c;border:none;--bg-tile:#fff;animation:tileIn .9s var(--ease) both}
+.logo-tile svg{width:60%;height:auto}
+.logo-tile b{font:700 .36rem var(--font-display);letter-spacing:.12em}
+.logo-tile small{font:600 .22rem var(--font-body);letter-spacing:.32em;margin-top:-1px}
+@keyframes tileIn{from{opacity:0;transform:scale(.8) translateY(10px)}to{opacity:1;transform:none}}
+.veil-word{font-family:var(--font-display);font-size:1.9rem;letter-spacing:.14em;text-transform:uppercase}
+.veil-word small{display:block;font:600 .62rem var(--font-body);letter-spacing:.44em;color:var(--fg-dim);text-align:center;margin-top:2px}
+.veil-line{width:180px;height:2px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.veil-line i{display:block;height:100%;width:30%;background:#fff;animation:veil-slide 1.25s var(--ease) infinite}
+@keyframes veil-slide{from{transform:translateX(-120%)}to{transform:translateX(420%)}}
+.veil-note{font-size:var(--fs-eyebrow);letter-spacing:.22em;text-transform:uppercase;color:var(--fg-dim)}
+@media (prefers-reduced-motion:reduce){.veil-line i,.veil-inner .logo-tile{animation:none}}
+</style>
 <script type="application/ld+json" id="ld-org">[{"@context":"https://schema.org","@type":"Organization","name":"Learn With Why","url":"https://learnwithwhy.com/","logo":"https://learnwithwhy.com/logo.png","sameAs":["https://www.instagram.com/learnwithwhy_01"],"email":"learnwithwhy6@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Pune","addressCountry":"IN"},"description":"Printable activity sheets and worksheets for Kindergarten to Class 3."},{"@context":"https://schema.org","@type":"WebSite","name":"Learn With Why","url":"https://learnwithwhy.com/","inLanguage":"en"}]</script>
 </head>
 <body data-stage="boot">
