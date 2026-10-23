@@ -136,7 +136,9 @@ async function serverVerifyLoginOtp(body) {
 export const authApi = {
   /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
      service needed); ready means it can sign in at once */
-  signup: body => sdkAuth.signUp(body),verifyLoginOtp: serverVerifyLoginOtp,
+  signup: body => sdkAuth.signUp(body),
+  /* { challengeId, code } → { user, session, staff, security }: the 6-digit code emailed after the password */
+  verifyLoginOtp: serverVerifyLoginOtp,
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
   logout: serverLogout,
@@ -278,7 +280,14 @@ export const eventsApi = {
 
 /* Staff sign in through the server like customers (staff: true refuses a customer account). */
 export const staffAuth = {
-  login: async body => { await serverLogin({ ...body, staff: true }); return api('GET', '/api/admin/me'); },
+  /* the password step: { otpRequired, challengeId, email } when the server emails a sign-in code
+     (finish with verifyOtp), otherwise the staff account at once */
+  login: async body => {
+    const r = await serverLogin({ ...body, staff: true });
+    return r && r.otpRequired ? r : api('GET', '/api/admin/me');
+  },
+  /* { challengeId, code } → the staff account */
+  verifyOtp: async body => { await serverVerifyLoginOtp(body); return api('GET', '/api/admin/me'); },
   logout: serverLogout,
   me: () => api('GET', '/api/admin/me', undefined, staffTokens),
   signedIn: () => usable(staffTokens.get()),
