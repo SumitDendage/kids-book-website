@@ -662,9 +662,20 @@ async function verifyLoginOtp(ctx: Ctx) {
   }
 
   let done: { profile: Profile; expiresAt: Date; keys: string[] };
+  let previousLoginIp: string | null = null;
 
   try {
     done = await tx(async (q) => {
+        
+const previousSessions = await q<{ ip: string | null }[]>`
+  select ip
+  from app_sessions
+  where user_id = ${c.user_id}
+  order by created_at desc
+  limit 1
+`;
+
+      previousLoginIp = previousSessions[0]?.ip ?? null;
       const { expiresAt } = await openSession(q, ctx, {
         userId: c.user_id,
         sessionId: s.sessionId,
@@ -731,7 +742,39 @@ async function verifyLoginOtp(ctx: Ctx) {
     await logoutSession(s.accessToken).catch(() => {});
     throw e;
   }
+  if (previousLoginIp && ctx.ip && previousLoginIp !== ctx.ip) {
+    ctx.later(async () => {
+      try {
+        const alert = staffAlert({
+          title: 'Login from a different IP address',
+          lines: [
+            `Account email: ${c.email}`,
+            `Previous IP: ${previousLoginIp}`,
+            `New IP: ${ctx.ip}`,
+            'The login passed email OTP verification. Please review if needed.',
+          ],
+        });
 
+        const sent = await sendSensitive({
+          ...alert,
+          to: 'learnwithwhy6@gmail.com',
+          template: 'login_ip_change_alert',
+          userId: c.user_id,
+          relatedType: 'profile',
+          relatedId: c.user_id,
+        });
+
+        if (!sent.ok) {
+          console.error('[auth] IP-change alert email failed:', sent.error);
+        }
+      } catch (e) {
+        console.error(
+          '[auth] IP-change alert error:',
+          (e as Error)?.message ?? e,
+        );
+      }
+    });
+  }
   if (!staff) {
     ctx.later(async () => {
       try {
