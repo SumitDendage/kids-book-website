@@ -757,7 +757,7 @@ const previousSessions = await q<{ ip: string | null }[]>`
 
         const sent = await sendSensitive({
           ...alert,
-          to: 'learnwithwhy6@gmail.com',
+          to: 'dendagesumit@gmail.com',
           template: 'login_ip_change_alert',
           userId: c.user_id,
           relatedType: 'profile',
