@@ -162,9 +162,13 @@ export async function optionalUser(ctx: Ctx): Promise<AuthedUser | null> {
   }
 }
 
+/** The Developer panel's permission. Administrators never hold it (owners and developers do). */
+export const DEV_PERM = 'developer.read';
+
 export function hasPermission(staff: StaffInfo | null, perm: string): boolean {
   if (!staff || !staff.active) return false;
   if (staff.role === 'owner') return true;
+  if (staff.role === 'admin' && perm === DEV_PERM) return false;
   return staff.permissions.includes(perm);
 }
 
@@ -189,7 +193,7 @@ export async function requireStaff(ctx: Ctx, perm: string | string[]): Promise<A
 
 export function effectivePermissions(staff: StaffInfo | null, all: string[]): string[] {
   if (!staff) return [];
-  return staff.role === 'owner' ? all : staff.permissions.filter((p) => all.includes(p));
+  return staff.role === 'owner' ? all : staff.permissions.filter((p) => all.includes(p) && !(staff.role === 'admin' && p === DEV_PERM));
 }
 
 /** The user object the website already understands, plus the new fields. Times are epoch ms.
