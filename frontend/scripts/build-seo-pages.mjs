@@ -27,7 +27,7 @@ const ldJson = o => JSON.stringify(o).replace(/</g, '\\u003c');
 export const slugOf = id => String(id).replace(/^vocab-/, '').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
 export const topicPath = id => HUB + slugOf(id) + '/';
 /* the same catchy lines as the site's ribbons (src/data/content.js SLOGANS) */
-const SLOGANS = ['Little hands. Big whys. Bright minds.', 'From ABC to “Aha!” — one sheet at a time.', 'Print it. Play it. Learn it. Love it.', 'Made in India for every curious little mind.', 'Every “why” deserves a “wow”.', 'Kindergarten worksheets kids actually ask for.', 'Five minutes a day. One big smile every day.', 'Ask why. Find wow. Learn With Why.'];
+const SLOGANS = ['Little hands. Big whys. Bright minds.', 'From ABC to “Aha!” — one sheet at a time.', 'Print it. Play it. Learn it. Love it.', 'Every “why” deserves a “wow”.', 'Kindergarten worksheets kids actually ask for.', 'Five minutes a day. One big smile every day.', 'Ask why. Find wow. Learn With Why.'];
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 const priceText = p => (p === 0 ? 'Free' : '₹' + p);
 

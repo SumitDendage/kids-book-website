@@ -122,7 +122,6 @@ export const SLOGANS = [
   'Little hands. Big whys. Bright minds.',
   'From ABC to “Aha!” — one sheet at a time.',
   'Print it. Play it. Learn it. Love it.',
-  'Made in India for every curious little mind.',
   'Every “why” deserves a “wow”.',
   'Kindergarten worksheets kids actually ask for.',
   'Five minutes a day. One big smile every day.',
