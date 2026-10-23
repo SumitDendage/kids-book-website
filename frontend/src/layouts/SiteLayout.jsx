@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { ToastProvider } from '../context/ToastContext.jsx';
 import { SiteProvider, useSite } from '../context/SiteContext.jsx';
@@ -9,19 +9,31 @@ import MagicLayer from '../components/cinematic/MagicLayer.jsx';
 import Veil from '../components/layout/Veil.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import StageChrome from '../components/layout/StageChrome.jsx';
-import Drawers from '../components/layout/Drawers.jsx';
 import HomeChapter from '../components/home/HomeChapter.jsx';
 import AboutChapter from '../components/home/AboutChapter.jsx';
 import WhatWeDoChapter from '../components/home/WhatWeDoChapter.jsx';
 import SheetsChapter from '../components/sheets/SheetsChapter.jsx';
 import ContactChapter from '../components/home/ContactChapter.jsx';
 import TestimonialsChapter from '../components/home/TestimonialsChapter.jsx';
-import Store from '../components/store/Store.jsx';
-import Checkout from '../components/checkout/Checkout.jsx';
-import SheetModal from '../components/modals/SheetModal.jsx';
-import AIAssistant from '../components/ai/AIAssistant.jsx';
-import AccountTypePopup from '../components/account/AccountTypePopup.jsx';
 import { IDS } from '../data/content.js';
+
+/* Nothing below the first screen is downloaded while the forest is still opening: the shop,
+   the checkout, My Account, a sheet's window, the AI assistant and the account-type question
+   are all behind a tap, so they load on their own once the site is up (warmUp below) — or the
+   moment they are first needed, whichever comes first. The screen never waits for them. */
+const Store = lazy(() => import('../components/store/Store.jsx'));
+const Checkout = lazy(() => import('../components/checkout/Checkout.jsx'));
+const Drawers = lazy(() => import('../components/layout/Drawers.jsx'));
+const SheetModal = lazy(() => import('../components/modals/SheetModal.jsx'));
+const AIAssistant = lazy(() => import('../components/ai/AIAssistant.jsx'));
+const AccountTypePopup = lazy(() => import('../components/account/AccountTypePopup.jsx'));
+const warmUp = () => {
+  import('../components/store/Store.jsx');
+  import('../components/checkout/Checkout.jsx');
+  import('../components/layout/Drawers.jsx');
+  import('../components/modals/SheetModal.jsx');
+  import('../components/ai/AIAssistant.jsx');
+};
 
 const STAFF = { admin: true, developer: true };
 
@@ -54,6 +66,7 @@ function Site() {
         onStaffHash(h);
         stage.jump(IDS.indexOf(h));
         hintTimer = setTimeout(stage.onHideHint, 6000);
+        warmUp();               /* the shop, the cart and the rest are fetched now, before anyone taps */
         handlePaymentReturn();   /* finish a Stripe / PayPal payment if we just came back from one */
         handleAuthLink();        /* an Accept & Continue or password-reset link from an account email */
         loadCurrency();          /* the currency the prices are shown in */
@@ -82,13 +95,15 @@ function Site() {
         </div>
       </main>
       <StageChrome />
-      <AIAssistant />
-      <Suspense fallback={null}><Outlet /></Suspense>
-      <Store />
-      <Checkout />
-      <Drawers />
-      <SheetModal />
-      {askRole && siteStage === 'site' ? <AccountTypePopup /> : null}
+      <Suspense fallback={null}>
+        <AIAssistant />
+        <Outlet />
+        <Store />
+        <Checkout />
+        <Drawers />
+        <SheetModal />
+        {askRole && siteStage === 'site' ? <AccountTypePopup /> : null}
+      </Suspense>
     </>
   );
 }

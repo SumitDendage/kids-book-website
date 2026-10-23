@@ -571,6 +571,7 @@ export function SiteProvider({ children }) {
        sign-in; /?reset=… opens the new-password form. Both land on the sign-in card (chapter 01). */
     a.handleAuthLink = async () => {
       a.handleAccountLink();
+      a.handleSheetLink();
       const u = new URL(window.location.href), verify = u.searchParams.get('verify'), reset = u.searchParams.get('reset');
       if (isRecovery()) { a.forgetSession(); stage.goTo(0); a.setAuthView('reset', 'supabase'); return; }
       if (!verify && !reset) return;
@@ -610,6 +611,16 @@ export function SiteProvider({ children }) {
         if (go()) { clearInterval(t); return; }
         if (++n > 40 || !authApi.hasTokens()) { clearInterval(t); a.requireSignIn({ do: 'account', tab }, 'Sign in to see My Account.', 'signin'); }
       }, 250);
+    };
+    /* The worksheet pages for search engines (/kindergarten-worksheets/…) link each sheet to /?sheet=<id>:
+       go to the Sheets chapter and open that sheet's window once the catalogue from the server is in. */
+    a.handleSheetLink = () => {
+      const u = new URL(window.location.href), id = u.searchParams.get('sheet');
+      if (!id) return;
+      u.searchParams.delete('sheet');
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+      stage.goTo(3);
+      a.reloadCatalogue(true).catch(() => {}).finally(() => { if (sheetOf(id)) a.openSheet(id); else toast('That sheet is not in the shop any more. Here are the others.'); });
     };
     /* Confirmation resend never changes the password. */
     a.resendWelcome = email => authApi.resendVerification({ email })

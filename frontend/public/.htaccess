@@ -53,6 +53,14 @@ RedirectMatch 404 ^/_live(/|$)
     Header set Referrer-Policy "no-referrer"
   </Files>
   Header always set X-Content-Type-Options "nosniff"
+  # Staff and account pages never appear in search results. They are answered by index.html,
+  # so the flag set from the address below is read under both names (before and after that rewrite).
+  Header always set X-Robots-Tag "noindex, nofollow" env=LWW_NOINDEX
+  Header always set X-Robots-Tag "noindex, nofollow" env=REDIRECT_LWW_NOINDEX
+</IfModule>
+
+<IfModule mod_setenvif.c>
+  SetEnvIf Request_URI "^/(admin|developer|account-blocked|viewer)(/|$)" LWW_NOINDEX=1
 </IfModule>
 
 <IfModule mod_expires.c>

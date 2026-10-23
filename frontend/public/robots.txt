@@ -1,4 +1,9 @@
+# Learn With Why: robots.txt for https://learnwithwhy.com
+# The staff pages (/admin, /developer), the sheet viewer and the account-blocked page tell
+# search engines "noindex" themselves, so they are not blocked here (a blocked page can't show it).
 User-agent: *
 Allow: /
 Disallow: /frames-webp/
-Sitemap: https://learnwithwhy.in/sitemap.xml
+Disallow: /_live/
+
+Sitemap: https://learnwithwhy.com/sitemap.xml
