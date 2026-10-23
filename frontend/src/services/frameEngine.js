@@ -3,9 +3,12 @@
    script in legacy/old-static-site/index.html with the same numbers:
    KEY 24 (every 24th frame is kept), WINDOW 32 frames either side of the playhead,
    at most 96 decoded frames in memory, 6 downloads at a time, 3 retries per frame.
-   Nothing here touches React: the canvas is drawn directly. */
+   Nothing here touches React: the canvas is drawn directly.
+   Until the visitor first scrolls, taps or presses a key (or 6 s after the page has loaded), only
+   the frames just around the opening one are fetched, so the first screen isn't competing with
+   ~70 downloads (about 15 MB): the full ladder starts the moment it's needed. */
 export const TOTAL = 960;
-const KEY = 24, WINDOW = 32, MAX_RESIDENT = 96, CONCURRENCY = 6;
+const KEY = 24, WINDOW = 32, MAX_RESIDENT = 96, CONCURRENCY = 6, EARLY_WINDOW = 4, WARM_AFTER_LOAD = 6000;
 export const frameSrc = i => '/frames-webp/frame_' + String(i + 1).padStart(6, '0') + '.webp';
 
 /* live numbers for the Developer panel (Dashboard + Performance) */
@@ -14,7 +17,7 @@ export const engineStats = { total: TOTAL, readyCount: 0, inflight: 0, painted: 
 export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = {}) {
   const ctx = canvas.getContext('2d', { alpha: false });
   const frames = new Array(total), status = new Uint8Array(total), tries = new Uint8Array(total);
-  let lastDrawn = -1, shown = 0, readyCount = 0, inflight = 0, painted = false, tick = 0, progress = 0, destroyed = false;
+  let lastDrawn = -1, shown = 0, readyCount = 0, inflight = 0, painted = false, tick = 0, progress = 0, destroyed = false, warm = false, warmTimer = 0;
   const sync = () => { engineStats.total = total; engineStats.readyCount = readyCount; engineStats.inflight = inflight; engineStats.painted = painted; };
   const frameAt = () => Math.round(Math.min(1, Math.max(0, progress)) * (total - 1));
   const decodeWidth = () => Math.max(1024, Math.min(1440, innerWidth || 1280));
@@ -37,6 +40,7 @@ export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = 
   function nextWanted() {
     const c = frameAt();
     if (status[c] === 0) return c;
+    if (!warm) { for (let d = 1; d <= EARLY_WINDOW; d++) { if (c + d < total && status[c + d] === 0) return c + d; if (c - d >= 0 && status[c - d] === 0) return c - d; } return -1; }
     for (let i = 0; i < total; i += KEY) if (status[i] === 0) return i;
     for (let d = 1; d <= WINDOW; d++) { if (c - d >= 0 && status[c - d] === 0) return c - d; if (c + d < total && status[c + d] === 0) return c + d; }
     return -1;
@@ -66,8 +70,22 @@ export function createFrameEngine(canvas, { total = TOTAL, srcOf = frameSrc } = 
     if ((tick++ & 7) === 0) { pump(); evict(); }
     if ((tick & 127) === 0) retry();
   }
-  function start() { resize(); loadFrame(0); pump(); }
-  function destroy() { destroyed = true; for (let i = 0; i < total; i++) if (status[i] === 2) release(i); sync(); }
+  const WARM_EVENTS = ['wheel', 'touchstart', 'pointerdown', 'keydown', 'scroll'];
+  function warmUp() {
+    if (warm) return;
+    warm = true; clearTimeout(warmTimer);
+    WARM_EVENTS.forEach(e => removeEventListener(e, warmUp, true));
+    removeEventListener('load', onLoad);
+    pump();
+  }
+  function onLoad() { warmTimer = setTimeout(warmUp, WARM_AFTER_LOAD); }
+  function start() {
+    resize(); loadFrame(0);
+    WARM_EVENTS.forEach(e => addEventListener(e, warmUp, { capture: true, passive: true }));
+    if (document.readyState === 'complete') onLoad(); else addEventListener('load', onLoad);
+    pump();
+  }
+  function destroy() { destroyed = true; warmUp(); for (let i = 0; i < total; i++) if (status[i] === 2) release(i); sync(); }
   /* shown: the frame on the canvas now, so the live scenery (scenery.js) follows the same camera */
   return { start, paint, resize, destroy, get painted() { return painted; }, get shown() { return shown; } };
 }

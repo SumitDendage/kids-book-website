@@ -14,14 +14,17 @@ function ViewerRedirect() {
   return null;
 }
 
+/* staff and account pages stay out of search results (React puts the tag in <head>) */
+const NoIndex = () => <meta name="robots" content="noindex, nofollow" />;
+
 export default function App() {
   return (
     <Routes>
       <Route element={<SiteLayout />}>
         <Route index element={null} />
-        <Route path="admin" element={<Portal kind="admin" />} />
-        <Route path="developer" element={<Portal kind="developer" />} />
-        <Route path="account-blocked" element={<AccountBlocked />} />
+        <Route path="admin" element={<><NoIndex /><Portal kind="admin" /></>} />
+        <Route path="developer" element={<><NoIndex /><Portal kind="developer" /></>} />
+        <Route path="account-blocked" element={<><NoIndex /><AccountBlocked /></>} />
       </Route>
       <Route path="viewer" element={<ViewerRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />
