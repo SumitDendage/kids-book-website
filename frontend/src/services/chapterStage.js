@@ -49,8 +49,12 @@ export function createStage() {
       /* 0 while the middle of the screen is inside the chapter, ±1 a screen away */
       const d = top > mid ? (top - mid) / innerHeight : bottom < mid ? (bottom - mid) / innerHeight : 0;
       const a = Math.min(1, Math.abs(d));
-      /* no tilt or shrink — text stays flat and readable; chapters only soften a little as they leave the screen */
-      if (!s.reduceMotion && s.inners[i]) s.inners[i].style.opacity = (1 - a * 0.35).toFixed(3);
+      /* no tilt or shrink — text stays flat and readable; chapters only soften a little as they
+         leave the screen, and drift a touch behind the glide (parallax) so the story has depth */
+      if (!s.reduceMotion && s.inners[i]) {
+        s.inners[i].style.opacity = (1 - a * 0.35).toFixed(3);
+        s.inners[i].style.transform = a < 0.001 ? '' : 'translate3d(0,' + (d * 26).toFixed(1) + 'px,0)';
+      }
       if (a < nearestD) { nearestD = a; nearest = i; }
       c.classList.toggle('is-active', a < 0.62 || (c.classList.contains('is-active') && a < 0.9));
     });

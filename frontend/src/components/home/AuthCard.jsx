@@ -7,6 +7,7 @@ import { getSiteRules, markAccountBlocked, DEFAULT_AGREEMENT } from '../../servi
 import AcceptRules from '../security/AcceptRules.jsx';
 import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
 import { classById, printsText } from '../../data/content.js';
+import Aurora from '../motion/Aurora.jsx';
 
 /* Two ways in: Sign up (name, email, a password the customer picks and the account rules; Supabase
    Auth emails a 6-digit code, view 'verify' takes it, and only then is the account open and signed
@@ -250,7 +251,8 @@ export default function AuthCard() {
   }[view];
 
   return (
-    <div className={'panel auth-card rise' + (session ? ' is-signed' : '')} id="authCard" style={{ '--i': 2 }}>
+    /* the warm light follows the mouse across the card (components/motion/Aurora.jsx) */
+    <Aurora className={'panel auth-card rise' + (session ? ' is-signed' : '')} id="authCard" style={{ '--i': 2 }}>
       <p className="eyebrow">01 / Your adventure starts here</p>
       <div className="guest">
         <div className="tabs" role="tablist">
@@ -287,6 +289,6 @@ export default function AuthCard() {
         </p>
         <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => openShop('all')}>Explore the sheets →</button><button type="button" className="btn btn-ghost" id="signOutBtn" onClick={signOut}>Sign out</button></div>
       </div>
-    </div>
+    </Aurora>
   );
 }

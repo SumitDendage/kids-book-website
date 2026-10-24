@@ -18,6 +18,8 @@ import './styles/36-readable-auth.css';
 /* the brighter magical forest look (Oct 16): loaded last */
 import './styles/37-magic-forest.css';
 import './styles/38-countdown.css';
+/* the Framer Motion pieces: it must come last, so it can quiet the older transitions */
+import './styles/40-motion.css';
 
 installTelemetry();
 

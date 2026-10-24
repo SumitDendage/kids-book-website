@@ -1,6 +1,7 @@
 import { KG_TOPICS, ITEMS, topicSheets, isListed } from '../../data/catalogue.js';
 import SheetCard from './SheetCard.jsx';
 import { AzTile, PicTile } from './SheetTiles.jsx';
+import MotionCard from '../motion/MotionCard.jsx';
 
 /* Kindergarten follows the Kindergarten content plan: one tile for each of the seven
    Alphabet sub-categories, in order. A tile opens to every sheet in it.
@@ -38,7 +39,7 @@ export default function KgTopics({ open, onOpen }) {
         {all.map((x, n) => {
           const acc = accessOf(x.list);
           return (
-            <article key={x.id} className={'kg-tile' + (x.list.length ? '' : ' soon')} style={{ '--n': n }}>
+            <MotionCard key={x.id} n={n} className={'kg-tile' + (x.list.length ? '' : ' soon')} style={{ '--n': n }}>
               <span className="kg-no" aria-hidden="true">{x.no}</span>
               <h4 className="card-title">{x.label}</h4>
               <p className="kg-focus">{x.focus}</p>
@@ -47,7 +48,7 @@ export default function KgTopics({ open, onOpen }) {
                 <span>{x.list.length ? x.list.length + (x.list.length === 1 ? ' sheet' : ' sheets') : 'Sheets on the way'}</span>
                 {x.list.length ? <button type="button" className="btn btn-sm btn-primary" onClick={() => onOpen(x.id)}>Browse worksheets <span aria-hidden="true">→</span></button> : null}
               </div>
-            </article>
+            </MotionCard>
           );
         })}
       </div>

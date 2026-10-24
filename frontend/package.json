@@ -19,6 +19,7 @@
     "@fontsource-variable/fredoka": "^5.2.5",
     "@fontsource-variable/nunito": "^5.2.5",
     "@supabase/supabase-js": "2.117.3",
+    "framer-motion": "^12.43.0",
     "pdfjs-dist": "4.10.38",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, m } from 'framer-motion';
 import { useSite } from '../../context/SiteContext.jsx';
+import { LIST, LIST_ITEM, PANEL, SNAPPY } from '../motion/presets.js';
 import useMyWorksheets from '../../hooks/useMyWorksheets.js';
 import SecurityStatusCard from '../security/SecurityStatusCard.jsx';
 import { meApi } from '../../services/api.js';
@@ -9,6 +11,11 @@ import { NAV, IDS, classById, planOf, accessSpan, printsText, spanText, hoursOf,
 import Countdown from '../sheets/Countdown.jsx';
 import { sheetOf } from '../../data/catalogue.js';
 import { dateTimeTz, shortClass, timeAgo } from '../../utils/format.js';
+
+/* a drawer slides in on a spring (Framer Motion) instead of a fixed-time slide */
+const slide = open => ({ initial: false, animate: { x: open ? 0 : '104%' }, transition: PANEL });
+/* a sheet added to the cart drops in; a removed one slides out and the rest close the gap */
+const CART_ROW = { layout: 'position', initial: { opacity: 0, x: 30 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: 60, transition: { duration: 0.22 } }, transition: PANEL };
 
 const TABS = [
   { id: 'sheets', label: 'My Worksheets' },
@@ -36,15 +43,16 @@ export default function Drawers() {
   return (
     <>
       <div className={'drawer-scrim' + (drawer ? ' open' : '')} id="drawerScrim" onClick={closeDrawers} />
-      <aside className={'drawer' + (drawer === 'menu' ? ' open' : '')} id="menuDrawer" aria-label="Menu" aria-hidden={drawer === 'menu' ? undefined : 'true'}>
+      <m.aside className={'drawer' + (drawer === 'menu' ? ' open' : '')} id="menuDrawer" aria-label="Menu" aria-hidden={drawer === 'menu' ? undefined : 'true'} {...slide(drawer === 'menu')}>
         <div className="drawer-head"><span className="drawer-title">Menu</span><button type="button" className="icon-btn" aria-label="Close" onClick={closeDrawers}>✕</button></div>
-        <div className="nav-list" id="menuList">
-          {NAV.map((l, i) => <button key={IDS[i]} type="button" className={section === i ? 'on' : undefined} onClick={() => goTo(i)}>{l}</button>)}
-          <button type="button" id="bagBtn2" onClick={() => openDrawer('bag')}>My Account</button>
-          <button type="button" id="cartBtn2" onClick={openCart}>Cart{cart.count ? ' · ' + cart.count : ''}</button>
-        </div>
-      </aside>
-      <aside className={'drawer acct' + (open ? ' open' : '')} id="bagDrawer" aria-label="My Account" aria-hidden={open ? undefined : 'true'}>
+        {/* the links slide in one after another as the menu opens */}
+        <m.div className="nav-list" id="menuList" variants={LIST} initial="closed" animate={drawer === 'menu' ? 'open' : 'closed'}>
+          {NAV.map((l, i) => <m.button key={IDS[i]} variants={LIST_ITEM} type="button" className={section === i ? 'on' : undefined} onClick={() => goTo(i)}>{l}</m.button>)}
+          <m.button variants={LIST_ITEM} type="button" id="bagBtn2" onClick={() => openDrawer('bag')}>My Account</m.button>
+          <m.button variants={LIST_ITEM} type="button" id="cartBtn2" onClick={openCart}>Cart{cart.count ? ' · ' + cart.count : ''}</m.button>
+        </m.div>
+      </m.aside>
+      <m.aside className={'drawer acct' + (open ? ' open' : '')} id="bagDrawer" aria-label="My Account" aria-hidden={open ? undefined : 'true'} {...slide(open)}>
         <div className="drawer-head"><span className="drawer-title">My Account</span><button type="button" className="icon-btn" aria-label="Close" onClick={closeDrawers}>✕</button></div>
         {session ? (
           <div id="bagBody">
@@ -54,7 +62,7 @@ export default function Drawers() {
                 <small><a href={mailTo(null, 'Change my account type')}>Write to us</a> if this needs changing.</small></p>
             ) : null}
             <div className="tabs acct-tabs" role="tablist" aria-label="My Account">
-              {TABS.map(t => <button key={t.id} type="button" role="tab" id={'acctTab-' + t.id} aria-controls="acctPanel" aria-selected={tab === t.id} className={'tab' + (tab === t.id ? ' on' : '')} onClick={() => setAccountTab(t.id)}>{t.label}</button>)}
+              {TABS.map(t => <button key={t.id} type="button" role="tab" id={'acctTab-' + t.id} aria-controls="acctPanel" aria-selected={tab === t.id} className={'tab' + (tab === t.id ? ' on' : '')} onClick={() => setAccountTab(t.id)}>{t.label}{tab === t.id ? <m.span layoutId="acct-tab-line" className="tab-line" transition={SNAPPY} aria-hidden="true" /> : null}</button>)}
             </div>
             <div id="acctPanel" role="tabpanel" aria-labelledby={'acctTab-' + tab}>
               {tab === 'sheets' ? <SheetsTab tz={tz} open={open} /> : null}
@@ -71,7 +79,7 @@ export default function Drawers() {
             <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: '10px' }} onClick={() => site.openShop('all')}>Browse all sheets →</button>
           </div>
         )}
-      </aside>
+      </m.aside>
       <CartDrawer open={drawer === 'cart'} />
     </>
   );
@@ -91,7 +99,7 @@ function CartDrawer({ open }) {
   const payable = cart.items.filter(l => !l.problem);
   const n = cart.items.length;
   return (
-    <aside className={'drawer cart' + (open ? ' open' : '')} id="cartDrawer" aria-label="Cart" aria-hidden={open ? undefined : 'true'}>
+    <m.aside className={'drawer cart' + (open ? ' open' : '')} id="cartDrawer" aria-label="Cart" aria-hidden={open ? undefined : 'true'} {...slide(open)}>
       <div className="drawer-head"><span className="drawer-title">Cart{n ? ' · ' + n : ''}</span><button type="button" className="icon-btn" aria-label="Close" onClick={closeDrawers}>✕</button></div>
       {!n ? (
         <>
@@ -101,12 +109,13 @@ function CartDrawer({ open }) {
       ) : (
         <>
           <div id="cartList">
+            <AnimatePresence initial={false}>
             {cart.items.map(l => {
               const it = sheetOf(l.worksheet), c = l.cls ? classById(l.cls) : null;
               const thumb = l.thumb || (it && it.img) || null;
               const meta = [c ? c.label : null, l.subject || (it && it.subject) || null, l.problem ? null : 'open for ' + accessSpan(hoursOf(l) ? l : it)].filter(Boolean).join(' · ');
               return (
-                <div key={l.worksheet} className={'cart-row' + (l.problem ? ' has-problem' : '')} data-sheet={l.worksheet}>
+                <m.div key={l.worksheet} className={'cart-row' + (l.problem ? ' has-problem' : '')} data-sheet={l.worksheet} {...CART_ROW}>
                   <div className="paper-mini">{thumb ? <img src={thumb} alt="" loading="lazy" /> : (it && (it.glyph || it.az)) || 'PDF'}</div>
                   <div className="nm">{it ? <button type="button" className="link" onClick={() => openSheet(l.worksheet)}>{l.title || it.title}</button> : (l.title || l.worksheet)}
                     <span>{meta}</span>
@@ -116,9 +125,10 @@ function CartDrawer({ open }) {
                     {l.problem ? null : <span>{rupees(l.priceInr)}{l.wasPriceInr && l.wasPriceInr > l.priceInr ? <> <s>{rupees(l.wasPriceInr)}</s></> : null}</span>}
                     <button type="button" className="btn btn-ghost acct-mini" disabled={!!busy} aria-label={'Remove ' + (l.title || 'this sheet') + ' from the cart'} onClick={() => run('rm-' + l.worksheet, () => removeFromCart(l.worksheet))}>{busy === 'rm-' + l.worksheet ? 'Removing…' : 'Remove'}</button>
                   </div>
-                </div>
+                </m.div>
               );
             })}
+            </AnimatePresence>
           </div>
           <div className="cart-total" id="cartTotal"><span>Total<small>{payable.length === 1 ? '1 sheet' : payable.length + ' sheets'} · tax and fees are added at checkout</small></span><b>{rupees(cart.totalInr)}</b></div>
           <div className="cart-actions">
@@ -128,7 +138,7 @@ function CartDrawer({ open }) {
           <p className="cart-note">{session ? 'Every sheet opens on your account as soon as your payment is verified.' : 'Your cart is kept in this browser. Sign in to pay, and it comes with you.'}</p>
         </>
       )}
-    </aside>
+    </m.aside>
   );
 }
 

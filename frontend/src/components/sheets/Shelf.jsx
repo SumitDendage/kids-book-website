@@ -4,7 +4,9 @@ import { CLASSES, SUBJECTS, classById, accessSpan } from '../../data/content.js'
 import { ITEMS, KG_TOPICS, AZ_LETTERS, AZ_FREE, azItem, isListed, byOrder, SERVER } from '../../data/catalogue.js';
 import { subjectMatches } from './SheetCard.jsx';
 import Rise from '../common/Rise.jsx';
+import RevealWords from '../motion/RevealWords.jsx';
 import SheetCard from './SheetCard.jsx';
+import Magnetic from '../motion/Magnetic.jsx';
 import { AzTile } from './SheetTiles.jsx';
 import KgTopics, { kgSheetCount, alphaSheetCount, vocabSheetCount } from './KgTopics.jsx';
 import VocabBoard from './VocabBoard.jsx';
@@ -99,7 +101,7 @@ export default function Shelf() {
       <div className="ws-head">
         <div>
           <Rise as="p" i={0} className="eyebrow">The shelf · free first, then the rest</Rise>
-          <Rise as="h2" i={1} className="h2">Grow a little.<br /><em>Every day.</em></Rise>
+          <Rise as="h2" i={1} className="h2"><RevealWords>Grow a little.<br /><em>Every day.</em></RevealWords></Rise>
         </div>
         <Rise as="p" i={2} className="aside">Pick a class. The free sheet comes first — try it, then subscribe to open the ones beside it. <em>Little sums, big smiles.</em></Rise>
       </div>
@@ -115,7 +117,7 @@ export default function Shelf() {
             {cat === 'kg' ? <KgTopics open={kgOpen} onOpen={openTopic} /> : cat === 'vocab' ? <VocabBoard open={kgOpen} onOpen={openTopic} /> : hasAZ(cat) ? <AzBlock /> : null}
           </div>
           <Rise i={3} className="shop-grid" id="wsRow" hidden={cat === 'kg' || cat === 'vocab'}>{row}</Rise>
-          <Rise i={4} className="ws-nav"><span id="wsCount">{count}</span><button type="button" className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => openShop('all')}>See every sheet →</button></Rise>
+          <Rise i={4} className="ws-nav"><span id="wsCount">{count}</span><Magnetic className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => openShop('all')}>See every sheet →</Magnetic></Rise>
         </div>
       </div>
     </div>

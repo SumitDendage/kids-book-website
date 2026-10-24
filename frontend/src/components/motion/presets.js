@@ -1,0 +1,23 @@
+/* The springs and moves every animation on the site shares, so they all feel like one storybook. */
+
+/* soft and floaty: cards, tiles, the sheet window's contents (Rise.jsx uses the same numbers) */
+export const SPRING = { type: 'spring', stiffness: 120, damping: 18, mass: 0.9 };
+/* quick and bouncy: hover, tap, the nav pill */
+export const SNAPPY = { type: 'spring', stiffness: 380, damping: 26 };
+/* panels sliding over the page: drawers, the chat, the sheet window */
+export const PANEL = { type: 'spring', stiffness: 260, damping: 30, mass: 0.9 };
+
+/* a card or tile pops up the first time it scrolls into view; `n` is its place in the grid */
+export const CARD_IN = {
+  hide: { opacity: 0, y: 22, scale: 0.94 },
+  show: n => ({ opacity: 1, y: 0, scale: 1, transition: { ...SPRING, delay: Math.min(n, 14) * 0.045 } }),
+};
+export const CARD_HOVER = { y: -7, scale: 1.025, transition: SNAPPY };
+/* Only a whisper of a squeeze: a card that shrinks under the finger can slide out from under the
+   press, and the browser then gives the click to whatever is behind — a sheet that does not open.
+   The press is felt through .mo-card:active in 40-motion.css instead (no change of shape). */
+export const CARD_TAP = { scale: 0.995, transition: SNAPPY };
+
+/* a menu's links slide in one after another when it opens */
+export const LIST = { open: { transition: { staggerChildren: 0.05, delayChildren: 0.12 } }, closed: {} };
+export const LIST_ITEM = { open: { opacity: 1, x: 0, transition: SPRING }, closed: { opacity: 0, x: 26, transition: { duration: 0.15 } } };
