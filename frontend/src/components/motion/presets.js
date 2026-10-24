@@ -13,7 +13,10 @@ export const CARD_IN = {
   show: n => ({ opacity: 1, y: 0, scale: 1, transition: { ...SPRING, delay: Math.min(n, 14) * 0.045 } }),
 };
 export const CARD_HOVER = { y: -7, scale: 1.025, transition: SNAPPY };
-export const CARD_TAP = { scale: 0.97, transition: SNAPPY };
+/* Only a whisper of a squeeze: a card that shrinks under the finger can slide out from under the
+   press, and the browser then gives the click to whatever is behind — a sheet that does not open.
+   The press is felt through .mo-card:active in 40-motion.css instead (no change of shape). */
+export const CARD_TAP = { scale: 0.995, transition: SNAPPY };
 
 /* a menu's links slide in one after another when it opens */
 export const LIST = { open: { transition: { staggerChildren: 0.05, delayChildren: 0.12 } }, closed: {} };

@@ -15,6 +15,8 @@
   opacity: 0; transition: opacity 0.35s ease;
 }
 @media (hover: hover) and (pointer: fine) { .mo-card:hover .mo-glare { opacity: 1; } }
+/* the press is shown by the card darkening a touch, not by shrinking: see CARD_TAP in presets.js */
+.mo-card:active { filter: brightness(0.96) saturate(1.06); }
 
 /* ── the nav: one coloured pill glides to the chapter you are on (Navbar.jsx) ── */
 .nav-links .nav-link { position: relative; isolation: isolate; }
