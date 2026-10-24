@@ -193,10 +193,23 @@ export default function AuthCard() {
           return;
         }
         busyOn(true);
-        const r = await authApi.verifyLoginOtp({
-          challengeId: loginChallenge.challengeId,
-          code
-        });
+        let r;
+        try {
+          r = await authApi.verifyLoginOtp({
+            challengeId: loginChallenge.challengeId,
+            code
+          });
+        } catch (err) {
+          /* only the newest email's code fits this sign-in; an expired or locked code means signing in again */
+          if (err.code === 'invalid_otp') { setAuthAlert({ type: 'err', msg: 'That code is not right. Use the code from the newest email we sent.' }); return; }
+          if (err.code === 'otp_expired' || err.code === 'otp_attempts_exceeded') {
+            setLoginChallenge(null);
+            setAuthView('signin', null, { email });
+            setTimeout(() => setAuthAlert({ type: 'err', msg: err.code === 'otp_expired' ? 'That code has expired or was already used. Sign in again to get a new one.' : 'Too many wrong codes. Sign in again to get a new one.' }), 0);
+            return;
+          }
+          throw err;
+        }
         setLoginChallenge(null);
         write('lww_seen', true);
         const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];

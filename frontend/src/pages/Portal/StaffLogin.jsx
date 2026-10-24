@@ -20,7 +20,7 @@ function loginProblem(e) {
     case 'email_unverified': return 'This email address is not confirmed yet. Open the email we sent you, press Accept & Continue, then sign in here.';
     case 'rate_limited': return 'Too many attempts. Wait a few minutes and try again.';
     case 'auth_unavailable': return 'Sign-in is briefly unavailable. Please try again in a minute.';
-    case 'invalid_otp': return 'That code is not right. Check the newest email from us and try again.';
+    case 'invalid_otp': return 'That code is not right. Use the code from the newest email we sent.';
     case 'otp_expired': return 'That code has expired or was already used. Sign in again to get a new one.';
     case 'otp_attempts_exceeded': return 'Too many wrong codes. Sign in again to get a new one.';
     case 'mail_unavailable': return 'The server cannot send the sign-in code just now. Please try again later.';
