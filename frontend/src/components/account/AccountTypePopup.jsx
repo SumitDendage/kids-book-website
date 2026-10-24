@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { m } from 'framer-motion';
 import { useSite } from '../../context/SiteContext.jsx';
+import { PANEL, SNAPPY } from '../motion/presets.js';
 import { ACCOUNT_TYPES, printsText } from '../../data/content.js';
 
 /* "Who will use these sheets?" Asked once, right after a customer signs in for the first time
@@ -60,7 +62,9 @@ export default function AccountTypePopup() {
   const first = String((session && session.name) || '').trim().split(/\s+/)[0];
   return createPortal(
     <div className="type-scrim" onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
-      <form className="panel type-card" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} ref={boxRef} onSubmit={save} noValidate>
+      {/* the card springs up, then the three choices drop in one after another */}
+      <m.form className="panel type-card" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} ref={boxRef} onSubmit={save} noValidate
+        initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={PANEL}>
         <p className="eyebrow">{first ? 'Welcome, ' + first : 'Welcome'}</p>
         <h2 id={titleId} className="type-title">Who will use these sheets?</h2>
         <p id={bodyId} className="type-sub">Pick the one that fits you best. It sets how many times you can print each sheet.</p>
@@ -68,12 +72,13 @@ export default function AccountTypePopup() {
           {ACCOUNT_TYPES.map((t, i) => {
             const n = printsTable[t.key];
             return (
-              <label key={t.id} className={'type-choice' + (pick === t.id ? ' on' : '')} data-type={t.key}>
+              <m.label key={t.id} className={'type-choice' + (pick === t.id ? ' on' : '')} data-type={t.key}
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ ...PANEL, delay: 0.18 + i * 0.08 }} whileHover={{ y: -2, transition: SNAPPY }} whileTap={{ scale: 0.98 }}>
                 <input ref={i === 0 ? firstRef : undefined} type="radio" name="accountType" value={t.id} checked={pick === t.id} disabled={busy}
                   onChange={() => { setPick(t.id); setError(''); }} />
                 <span className="type-name"><b>{t.label}</b><small>{t.hint}</small></span>
                 <span className="type-prints"><b>{n}</b><small>{n === 1 ? 'print' : 'prints'} per sheet</small></span>
-              </label>
+              </m.label>
             );
           })}
         </div>
@@ -82,7 +87,7 @@ export default function AccountTypePopup() {
         <button type="submit" className="btn btn-primary btn-block type-go" disabled={busy || !pick}>
           {busy ? 'Saving…' : pick ? 'Continue as ' + ACCOUNT_TYPES.find(t => t.id === pick).label + ' · ' + printsText(printsTable[ACCOUNT_TYPES.find(t => t.id === pick).key]).toLowerCase() : 'Choose one to continue'}
         </button>
-      </form>
+      </m.form>
     </div>,
     document.body,
   );

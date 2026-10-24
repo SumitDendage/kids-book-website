@@ -1,6 +1,8 @@
 import { NAV, IDS } from '../../data/content.js';
 import { useSite } from '../../context/SiteContext.jsx';
+import { m } from 'framer-motion';
 import LogoTile from '../common/LogoTile.jsx';
+import { SNAPPY } from '../motion/presets.js';
 
 /* a small basket for the Cart buttons */
 export function CartIcon({ size = 16 }) {
@@ -20,7 +22,11 @@ export default function Navbar() {
         <LogoTile as="span" /><span className="wordmark">Learn With Why<small>Print · Play · Ask why</small></span>
       </button>
       <div className="nav-links" id="navLinks">
-        {NAV.map((l, i) => <a key={IDS[i]} className={'nav-link' + (section === i ? ' on' : '')} href={'#' + IDS[i]} aria-current={section === i ? 'true' : undefined} onClick={go(i)}>{l}</a>)}
+        {NAV.map((l, i) => <a key={IDS[i]} className={'nav-link' + (section === i ? ' on' : '')} href={'#' + IDS[i]} aria-current={section === i ? 'true' : undefined} onClick={go(i)}>
+          {/* the coloured pill glides from chapter to chapter instead of jumping */}
+          {section === i ? <m.span layoutId="nav-pill" className="nav-pill" transition={SNAPPY} aria-hidden="true" /> : null}
+          <span className="nav-word">{l}</span>
+        </a>)}
         <button type="button" className="nav-link bag" id="bagBtn" title="My Account: your sheets, orders and devices" onClick={() => openDrawer('bag')}>My Account</button>
         <button type="button" className="nav-link bag cart" id="cartBtn" title={cartTitle} aria-label={cartTitle} onClick={openCart}>Cart <b id="cartCount" className={n ? 'has' : undefined}>{n}</b></button>
       </div>

@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { m } from 'framer-motion';
+import { SNAPPY } from '../components/motion/presets.js';
 
 const ToastContext = createContext(() => {});
 export const useToast = () => useContext(ToastContext);
@@ -12,7 +14,9 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className={'toast' + (state.show ? ' show' : '')} id="toast" role="status" aria-live="polite">{state.msg}</div>
+      {/* it pops up with a little bounce and sinks away again */}
+      <m.div className={'toast' + (state.show ? ' show' : '')} id="toast" role="status" aria-live="polite"
+        initial={false} animate={state.show ? { x: '-50%', y: 0, scale: 1 } : { x: '-50%', y: 14, scale: 0.9 }} transition={SNAPPY}>{state.msg}</m.div>
     </ToastContext.Provider>
   );
 }

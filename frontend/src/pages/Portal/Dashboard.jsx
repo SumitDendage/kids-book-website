@@ -1,4 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { m } from 'framer-motion';
 import Sidebar from '../../components/dashboard/Sidebar.jsx';
 import DashboardHeader from '../../components/dashboard/DashboardHeader.jsx';
 import CommandMenu from '../../components/dashboard/CommandMenu.jsx';
@@ -207,7 +208,10 @@ export default function Dashboard({ kind, me, site, portalRef, onSwitch, onBack,
           </div>
           <main className="mn">
             <div className="mn-head"><div><h1>{label(cur)}</h1><p>{DESC[kind][cur] || ''}</p></div><div className="mn-actions"><HeadActions kind={kind} cur={cur} can={can} me={me} actions={actions} busy={busy} /></div></div>
-            <SectionBoundary section={kind + cur}><Section key={kind + cur} /></SectionBoundary>
+            {/* each section glides in when you pick it in the sidebar */}
+            <m.div key={kind + cur} className="mn-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}>
+              <SectionBoundary section={kind + cur}><Section /></SectionBoundary>
+            </m.div>
           </main>
           <footer className="ft"><span>Learn With Why · {kind === 'admin' ? 'Admin' : 'Developer'} · v{SITE_VERSION}</span><span>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></footer>
         </div>

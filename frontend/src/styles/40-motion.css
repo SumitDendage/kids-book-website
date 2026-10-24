@@ -1,0 +1,38 @@
+/* ---------- Framer Motion (Sumit, Oct 24: "premium animation ... using framer") ----------
+   The springs themselves live in components/motion/. This file only steps the old CSS
+   transitions out of the way where Framer Motion now moves the same thing (two engines
+   moving one card makes it stutter), and draws the few new pieces: the sliding nav pill,
+   the account tab line and the light that follows the mouse across a card.
+   It is imported by MotionRoot.jsx, which comes before site.css, so the rules that must
+   win over the older files say so with !important. */
+
+/* ── cards and tiles (MotionCard.jsx): Framer does the pop-in, lift, tilt and squeeze ── */
+.mo-card { position: relative; animation: none !important; transition-property: border-color, background, box-shadow, filter !important; }
+#content .mo-card:hover, #shop .mo-card:hover { translate: none !important; rotate: none !important; }
+.mo-glare {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 58%);
+  opacity: 0; transition: opacity 0.35s ease;
+}
+@media (hover: hover) and (pointer: fine) { .mo-card:hover .mo-glare { opacity: 1; } }
+
+/* ── the nav: one coloured pill glides to the chapter you are on (Navbar.jsx) ── */
+.nav-links .nav-link { position: relative; isolation: isolate; }
+.nav-links .nav-link.on { background: transparent; }
+.nav-pill { position: absolute; inset: 0; z-index: -1; border-radius: var(--r-pill, 999px); background: linear-gradient(135deg, var(--mf-coral, #ff7a59), var(--mf-pink, #ff5fa2)); box-shadow: 0 6px 16px rgba(255, 95, 162, 0.35); }
+
+/* ── My Account tabs: the underline slides between them (Drawers.jsx) ── */
+.drawer .tab.on::after { display: none; }
+.tab-line { position: absolute; left: 4px; right: 4px; bottom: -1px; height: 2px; border-radius: 2px; background: currentColor; }
+
+/* ── panels Framer now slides on a spring ── */
+.drawer { transition: none !important; }
+.modal { transition: none !important; }
+.toast { transition: opacity 0.3s !important; }
+.ai-panel, .ai-panel.open { transition-property: opacity, visibility !important; }
+.ai-msg { animation: none !important; }
+.type-card { animation: none !important; }
+.quote-card { transition: filter 0.8s !important; }
+
+/* printing: every chapter line is shown, whatever Framer last set */
+@media print { .rise-m { opacity: 1 !important; transform: none !important; } }
