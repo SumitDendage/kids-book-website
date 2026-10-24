@@ -36,3 +36,32 @@
 
 /* printing: every chapter line is shown, whatever Framer last set */
 @media print { .rise-m { opacity: 1 !important; transform: none !important; } }
+
+/* ── the slim bar along the top that fills as you move through the chapters (ScrollProgress.jsx) ── */
+.mo-progress { position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 260; pointer-events: none; background: rgba(255, 255, 255, 0.22); opacity: 0; transition: opacity 0.6s ease 0.4s; }
+[data-stage="site"] .mo-progress { opacity: 1; }
+.mo-progress span { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(var(--scroll, 0)); background: linear-gradient(90deg, var(--mf-lemon, #ffd977), var(--mf-coral, #ff7a59) 45%, var(--mf-pink, #ff5fa2) 70%, var(--mf-sky, #7fd4ff)); box-shadow: 0 0 10px rgba(255, 122, 89, 0.5); }
+@media print { .mo-progress { display: none; } }
+
+/* ── magnetic buttons (Magnetic.jsx): the wrapper must lay the label out exactly as the button did ── */
+.mo-magnet-in { display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; }
+.hero-peek .arrow-link > .mo-magnet-in { animation: none; }
+.btn.mo-magnet { transition-property: background, box-shadow, color !important; }
+
+/* ── chapter headings arrive word by word (RevealWords.jsx) ── */
+#content .h2 .rw { display: inline-block; opacity: 0; padding: 0.04em 0.04em 0.14em; margin: -0.04em -0.04em -0.14em; }
+/* a coloured word carries the candy gradient itself: its parent's clipped background cannot reach it */
+#content .h2 .rw-em .rw {
+  background: linear-gradient(100deg, #ff4f93 0%, #ff7a59 30%, #f5a300 55%, #b05cff 80%, #ff4f93 100%); background-size: 240% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+[data-stage="site"] .chapter.is-active .h2 .rw { animation: moWordIn 0.9s var(--ease) both; animation-delay: calc(var(--w) * 110ms + 320ms); }
+[data-stage="site"] .chapter.is-active .h2 .rw-em .rw { animation: moWordIn 0.9s var(--ease) both, storyShimmer 6s ease-in-out infinite alternate; animation-delay: calc(var(--w) * 110ms + 320ms), calc(var(--w) * -0.7s); }
+@keyframes moWordIn { from { opacity: 0; transform: translateY(0.4em) rotate(-3deg) scale(0.94); filter: blur(7px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-progress span { transition: none; }
+  #content .h2 .rw { opacity: 1; }
+  [data-stage="site"] .chapter.is-active .h2 .rw, [data-stage="site"] .chapter.is-active .h2 .rw-em .rw { animation: none; }
+}
+@media print { #content .h2 .rw { opacity: 1 !important; animation: none !important; } }

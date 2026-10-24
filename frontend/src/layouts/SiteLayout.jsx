@@ -7,6 +7,7 @@ import useChapterInput from '../hooks/useChapterInput.js';
 import CinematicScroll from '../components/cinematic/CinematicScroll.jsx';
 import MagicLayer from '../components/cinematic/MagicLayer.jsx';
 import Veil from '../components/layout/Veil.jsx';
+import ScrollProgress from '../components/motion/ScrollProgress.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import StageChrome from '../components/layout/StageChrome.jsx';
 import HomeChapter from '../components/home/HomeChapter.jsx';
@@ -88,6 +89,7 @@ function Site() {
       <MagicLayer />
       <Veil gone={veil.gone} slow={veil.slow} />
       <Navbar />
+      <ScrollProgress />
       <main id="content" ref={contentRef}>
         <div id="stack" ref={el => { stage.stack = el; }}>
           <HomeChapter />

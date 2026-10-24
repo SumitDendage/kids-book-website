@@ -3,6 +3,7 @@ import Rise from '../common/Rise.jsx';
 import WhyLine from './WhyLine.jsx';
 import AuthCard from './AuthCard.jsx';
 import { AnimatedHtml, AnimatedLetters, AnimatedWords } from './AnimatedText.jsx';
+import Magnetic from '../motion/Magnetic.jsx';
 import { useSite } from '../../context/SiteContext.jsx';
 import { HERO } from '../../data/content.js';
 
@@ -19,7 +20,7 @@ export default function HomeChapter() {
           <Rise as="h1" i={1} className="display hero-title"><AnimatedHtml html={content.heroTitle || HERO.titleHtml} /></Rise>
           <Rise as="p" i={2} className="lede hero-lede"><AnimatedWords text={content.heroLede || HERO.lede} /></Rise>
           <Rise as="p" i={3} className="why-line" aria-live="polite"><span>Today&apos;s why:</span> <WhyLine whys={whys} /></Rise>
-          <Rise i={4} className="hero-peek"><button type="button" className="arrow-link" onClick={() => goTo(3)}>Take a peek at the collection <span aria-hidden="true">→</span></button></Rise>
+          <Rise i={4} className="hero-peek"><Magnetic className="arrow-link" onClick={() => goTo(3)}>Take a peek at the collection <span aria-hidden="true">→</span></Magnetic></Rise>
         </div>
         <AuthCard />
       </div>

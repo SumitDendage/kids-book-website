@@ -1,5 +1,6 @@
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
+import RevealWords from '../motion/RevealWords.jsx';
 import PreviewPlayer from './PreviewPlayer.jsx';
 import Shelf from './Shelf.jsx';
 import PickedRow from './PickedRow.jsx';
@@ -10,7 +11,7 @@ export default function SheetsChapter() {
   const { section } = useSite();
   return (
     <Chapter index={3}>
-      <Rise i={0} className="sheets-head"><p className="eyebrow" style={{ textAlign: 'center', marginBottom: '10px' }}>04 / Sheets</p><h2 className="h2">A moment of <em>wonder</em>.</h2><p>Choose the sheet that sparks their curiosity. Psst — the fox says start with the free one.</p></Rise>
+      <Rise i={0} className="sheets-head"><p className="eyebrow" style={{ textAlign: 'center', marginBottom: '10px' }}>04 / Sheets</p><h2 className="h2"><RevealWords>A moment of <em>wonder</em>.</RevealWords></h2><p>Choose the sheet that sparks their curiosity. Psst — the fox says start with the free one.</p></Rise>
       <PreviewPlayer active={section === 3} />
       <PickedRow />
       <Shelf />

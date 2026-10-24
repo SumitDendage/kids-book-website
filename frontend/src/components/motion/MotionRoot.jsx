@@ -1,5 +1,4 @@
 import { LazyMotion, MotionConfig } from 'framer-motion';
-import '../../styles/40-motion.css';
 
 /* Framer Motion for the whole site. Only the small `m` elements are in the first download; the
    animation engine (features.js) follows as its own file once the page has loaded and the phone
