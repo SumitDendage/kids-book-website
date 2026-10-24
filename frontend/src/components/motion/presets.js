@@ -1,17 +1,11 @@
 /* The springs and moves every animation on the site shares, so they all feel like one storybook. */
 
-/* soft and floaty: chapters, cards, tiles */
+/* soft and floaty: cards, tiles, the sheet window's contents (Rise.jsx uses the same numbers) */
 export const SPRING = { type: 'spring', stiffness: 120, damping: 18, mass: 0.9 };
 /* quick and bouncy: hover, tap, the nav pill */
 export const SNAPPY = { type: 'spring', stiffness: 380, damping: 26 };
 /* panels sliding over the page: drawers, the chat, the sheet window */
 export const PANEL = { type: 'spring', stiffness: 260, damping: 30, mass: 0.9 };
-
-/* a chapter's lines float up one after another (Rise.jsx); `i` is the line's place in the chapter */
-export const RISE = {
-  hide: { opacity: 0, y: 28, scale: 0.985, transition: { duration: 0.25 } },
-  show: i => ({ opacity: 1, y: 0, scale: 1, transition: { ...SPRING, delay: 0.14 + i * 0.09 } }),
-};
 
 /* a card or tile pops up the first time it scrolls into view; `n` is its place in the grid */
 export const CARD_IN = {
