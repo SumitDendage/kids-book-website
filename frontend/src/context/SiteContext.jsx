@@ -469,10 +469,13 @@ export function SiteProvider({ children }) {
     a.showAccountPopup = id => setModal({ open: true, kind: 'account', id });
     /* any sheet, free or paid: a look at the page, what is inside, and the open / buy action.
        Free sheets open for everyone, so they show their own window to guests too. */
-    a.openSheet = id => {
+    a.openSheet = (id, from) => {
       const it = sheetOf(id); if (!it) return;
       if (!sessionRef.current && it.price !== 0) { a.showAccountPopup(id); return; }
-      setModal({ open: true, kind: 'sheet', id });
+      /* `from` is where the tapped card's picture sits on the screen: the picture flies from
+         there into the window (components/motion/SheetFlight.jsx). `at` makes every tap its own
+         event, so tapping the same sheet twice flies twice. */
+      setModal({ open: true, kind: 'sheet', id, from: from || null, at: Date.now() });
     };
     /* after a verified payment: the popup gets purchaseOf(...) (see above) */
     /* the server takes paid sheets out of the cart when an order is paid, so the cart is read again */

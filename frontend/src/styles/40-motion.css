@@ -67,3 +67,23 @@
   [data-stage="site"] .chapter.is-active .h2 .rw, [data-stage="site"] .chapter.is-active .h2 .rw-em .rw { animation: none; }
 }
 @media print { #content .h2 .rw { opacity: 1 !important; animation: none !important; } }
+
+/* ── the printed page flying from a card into the sheet window (SheetFlight.jsx) ── */
+.mo-flight { position: fixed; z-index: 480; margin: 0; object-fit: cover; border-radius: 10px; background: #fff; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45); pointer-events: none; will-change: left, top, width, height; }
+@media (prefers-reduced-motion: reduce) { .mo-flight { display: none; } }
+
+/* ── the shop's own scroll-driven pieces (ShopScrollFx.jsx) ── */
+.shop-progress { position: sticky; top: 0; z-index: 6; height: 3px; margin: 0 0 -3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.shop-progress span { display: block; height: 100%; transform: scaleX(0); transform-origin: 0 50%; background: linear-gradient(90deg, #ffd977, #ff7a59 55%, #ff5fa2); }
+.shop-scene img { will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .shop-progress { display: none; } }
+
+/* ── the light that follows the pointer across a card (Aurora.jsx) ── */
+.mo-aurora { position: relative; isolation: isolate; }
+/* z-index -1 lays the light over the card's frosted background but under the writing, so the text
+   stays as crisp as it was; the ring sits on top, because it only paints on the card's own edge. */
+.mo-aurora-glow { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; }
+.mo-aurora-edge { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; border: 1.5px solid rgba(255, 255, 255, 0.95); box-shadow: inset 0 0 22px rgba(255, 221, 140, 0.55); }
+@media (hover: none) { .mo-aurora-glow, .mo-aurora-edge { display: none; } }
+@media (prefers-reduced-motion: reduce) { .mo-aurora-glow, .mo-aurora-edge { display: none; } }
+@media print { .mo-aurora-glow, .mo-aurora-edge { display: none; } }
