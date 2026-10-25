@@ -117,7 +117,9 @@ function Site() {
       <Suspense fallback={null}>
         <AIAssistant />
         <Outlet />
-        {extras || wanted ? <><Store /><Checkout /><Drawers /><SheetModal /></> : null}
+        {/* their own boundary: while their code loads, the page under Outlet (the admin sign-in,
+            say) must stay on screen, or the click that started the load lands on nothing */}
+        <Suspense fallback={null}>{extras || wanted ? <><Store /><Checkout /><Drawers /><SheetModal /></> : null}</Suspense>
         {askRole && siteStage === 'site' ? <AccountTypePopup /> : null}
       </Suspense>
     </>
