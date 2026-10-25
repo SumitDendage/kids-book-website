@@ -32,7 +32,7 @@ export default function Overview() {
 
   return (
     <Guard state={st} rows={6}>
-      {can('analytics.read') ? <div className="tabs-s"><button type="button" className="on">Overview</button><button type="button" onClick={() => go('analytics')}>Analytics</button></div> : null}
+      {allowed('analytics') || allowed('money') ? <div className="tabs-s"><button type="button" className="on">Overview</button>{allowed('analytics') ? <button type="button" onClick={() => go('analytics')}>Analytics</button> : null}{allowed('money') ? <button type="button" onClick={() => go('money')}>Money</button> : null}</div> : null}
       {st.error ? <ErrorNote error={st.error} onRetry={st.reload} compact /> : null}
       {s ? <>
         <div className="kpi-row">

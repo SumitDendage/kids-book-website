@@ -25,7 +25,7 @@ export default function Analytics() {
   return (
     <>
       <div className="row-between tabs-row">
-        <div className="tabs-s">{allowed('overview') ? <button type="button" onClick={() => go('overview')}>Overview</button> : null}<button type="button" className="on">Analytics</button></div>
+        <div className="tabs-s">{allowed('overview') ? <button type="button" onClick={() => go('overview')}>Overview</button> : null}<button type="button" className="on">Analytics</button>{allowed('money') ? <button type="button" onClick={() => go('money')}>Money</button> : null}</div>
         <div className="chips" role="group" aria-label="Period">{RANGES.map(([n, l]) => <button key={n} type="button" className={'chip' + (days === n ? ' on' : '')} onClick={() => setDays(n)}>{l}</button>)}</div>
       </div>
       <Guard state={q} rows={8}>
