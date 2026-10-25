@@ -100,7 +100,7 @@ export function LineChart({ series, labels, prefix = '', h = 240, empty = 'Nothi
           </g>)}
           {hover != null ? <line x1={x(hover)} x2={x(hover)} y1={PT} y2={base} stroke="var(--muted-foreground)" strokeOpacity="0.5" /> : null}
           {hover != null && !none ? series.map((s, si) => <circle key={s.name} cx={x(hover)} cy={y(s.values[hover])} r="4.5" fill={s.color || VIZ[si]} stroke="var(--card)" strokeWidth="2" />) : null}
-          {labels.map((l, i) => (i % step === 0 || i === n - 1 ? <text key={'l' + i} x={x(i)} y={H - 8} fontSize="11" textAnchor={i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle'} fill="var(--muted-foreground)">{short(l)}</text> : null))}
+          {labels.map((l, i) => (i % step === 0 || (i === n - 1 && (n - 1) % step > step / 2) ? <text key={'l' + i} x={x(i)} y={H - 8} fontSize="11" textAnchor={i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle'} fill="var(--muted-foreground)">{short(l)}</text> : null))}
           {labels.map((l, i) => <rect key={'h' + i} x={x(i) - slot / 2} y={PT} width={slot} height={plotH} fill="transparent" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)} />)}
         </svg>
         {none ? <p className="viz-empty">{empty}</p> : null}
@@ -202,6 +202,42 @@ export function Meter({ value, max, label, tone }) {
       <div className="meter-top"><span>{label}</span><b>{m ? Math.round(p) + '%' : 'None yet'}</b></div>
       <div className="meter-t" role="progressbar" aria-valuemin={0} aria-valuemax={m || 1} aria-valuenow={v} aria-label={label}><i style={{ width: p + '%' }} /></div>
       <small>{num(v)} of {num(m)}</small>
+    </div>
+  );
+}
+
+/* columns that can go below zero (profit and loss): above the line in --ok, below in --bad */
+export function PosNegBars({ series, labels, prefix = '', h = 240, empty = 'Nothing yet.', posLabel = 'Profit', negLabel = 'Loss' }) {
+  const [hover, setHover] = useState(null);
+  const n = series.length;
+  if (!n) return <p className="cart-empty">{empty}</p>;
+  const v = series.map(x => Number(x) || 0);
+  const W = 640, H = h, PL = 52, PR = 8, PT = 12, PB = 28, plotW = W - PL - PR, plotH = H - PT - PB;
+  const top = niceMax(Math.max(0, ...v)), bottom = Math.min(0, ...v) < 0 ? niceMax(-Math.min(...v)) : 0;
+  const span = top + bottom, y = val => PT + (top - val) / span * plotH, zero = y(0);
+  const slot = plotW / n, bw = Math.min(24, slot * 0.6), r = Math.min(4, bw / 2), step = Math.ceil(n / 7);
+  const ticks = [top, top / 2, 0].concat(bottom ? [-bottom / 2, -bottom] : []);
+  const none = !v.some(x => x !== 0);
+  return (
+    <div className="viz">
+      <Legend items={[[posLabel, 'var(--ok)'], [negLabel, 'var(--bad)']]} />
+      <div className="viz-plot" onMouseLeave={() => setHover(null)}>
+        <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={labels.map((l, i) => l + ' ' + prefix + num(v[i])).join(', ')}>
+          {ticks.map(t => <g key={t}><line x1={PL} x2={W - PR} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.5 : 1} /><text x={PL - 8} y={y(t)} dy="4" fontSize="11" textAnchor="end" fill="var(--muted-foreground)">{(t < 0 ? '−' : '') + prefix + compact(Math.abs(t))}</text></g>)}
+          {v.map((val, i) => {
+            if (!val) return null;
+            const x = PL + i * slot + (slot - bw) / 2, hh = Math.max(2, Math.abs(val) / span * plotH), up = val > 0;
+            const d = up
+              ? `M${x} ${zero}v-${(hh - r).toFixed(1)}a${r} ${r} 0 0 1 ${r} -${r}h${(bw - 2 * r).toFixed(1)}a${r} ${r} 0 0 1 ${r} ${r}v${(hh - r).toFixed(1)}z`
+              : `M${x} ${zero}v${(hh - r).toFixed(1)}a${r} ${r} 0 0 0 ${r} ${r}h${(bw - 2 * r).toFixed(1)}a${r} ${r} 0 0 0 ${r} -${r}v-${(hh - r).toFixed(1)}z`;
+            return <path key={i} d={d} fill={up ? 'var(--ok)' : 'var(--bad)'} opacity={hover == null || hover === i ? 1 : 0.5} />;
+          })}
+          {labels.map((l, i) => (i % step === 0 || (i === n - 1 && (n - 1) % step > step / 2) ? <text key={'l' + i} x={PL + i * slot + slot / 2} y={H - 8} fontSize="11" textAnchor="middle" fill="var(--muted-foreground)">{l}</text> : null))}
+          {labels.map((l, i) => <rect key={'h' + i} x={PL + i * slot} y={PT} width={slot} height={plotH} fill="transparent" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)} />)}
+        </svg>
+        {none ? <p className="viz-empty">{empty}</p> : null}
+        {hover != null ? <div className="viz-tip" style={{ left: ((PL + hover * slot + slot / 2) / W * 100) + '%' }}><b>{labels[hover]}</b><span><i style={{ background: v[hover] < 0 ? 'var(--bad)' : 'var(--ok)' }} />{v[hover] < 0 ? negLabel : posLabel}<em>{(v[hover] < 0 ? '−' : '') + prefix + num(Math.abs(v[hover]))}</em></span></div> : null}
+      </div>
     </div>
   );
 }

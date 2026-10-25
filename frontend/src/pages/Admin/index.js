@@ -8,9 +8,10 @@ import Customers from './Customers.jsx';
 import Security from './Security.jsx';
 import Messages from './Messages.jsx';
 import Analytics from './Analytics.jsx';
+import Money from './Money.jsx';
 import Coupons from './Coupons.jsx';
 import Content from './Content.jsx';
 import Settings from './Settings.jsx';
 import AuditLogs from './AuditLogs.jsx';
 
-export const ADMIN = { overview: Overview, products: Products, categories: Categories, homepage: Homepage, orders: Orders, customers: Customers, security: Security, messages: Messages, analytics: Analytics, coupons: Coupons, content: Content, settings: Settings, audit: AuditLogs };
+export const ADMIN = { overview: Overview, products: Products, categories: Categories, homepage: Homepage, orders: Orders, customers: Customers, security: Security, messages: Messages, analytics: Analytics, money: Money, coupons: Coupons, content: Content, settings: Settings, audit: AuditLogs };
