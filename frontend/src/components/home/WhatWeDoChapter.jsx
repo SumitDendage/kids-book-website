@@ -1,6 +1,7 @@
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
-import { accessSpan } from '../../data/content.js';
+import { accessSpan, TAGLINES } from '../../data/content.js';
+import { Sticker } from '../common/Slogans.jsx';
 import { getCoConfig } from '../../services/checkout.js';
 
 /* 03 · What we do */
@@ -11,6 +12,7 @@ export default function WhatWeDoChapter() {
     <Chapter index={2}>
       <Rise as="p" i={0} className="eyebrow">03 / What we do</Rise>
       <Rise as="h2" i={1} className="h2">We turn big ideas into <em>one calm page</em>.</Rise>
+      <Rise i={1} className="sticker-row"><Sticker tilt={3}>{TAGLINES.whatWeDo}</Sticker></Rise>
       <Rise as="p" i={2} className="lede">Learn With Why designs, tests and delivers printable sheets from Kindergarten to Class 3 — alphabet, numbers, colours, shapes, stories and handwriting — so practice at home feels like play.</Rise>
       <Rise i={3} className="trio">
         <div className="panel"><span className="mark" aria-hidden="true">✎</span><h3>We design</h3><p>Every sheet is drawn by hand around a single idea: one letter, one number, one shape. Generous white space, thick guide lines and letterforms small hands can copy.</p></div>

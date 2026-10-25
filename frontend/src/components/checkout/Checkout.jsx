@@ -5,7 +5,8 @@ import { write } from '../../services/storage.js';
 import { fmtCur, money, setCurrencyFromCountry } from '../../services/currency.js';
 import { addressForQuote, initialAddress, loadCoConfig, loadRazorpay, monthsText, payErrorText, serverPlans, tidyAddress } from '../../services/checkout.js';
 import { PAY_VIA, RZP_DISPLAY, PAY } from '../../data/checkout.js';
-import { classById, hoursOf, spanText } from '../../data/content.js';
+import { TAGLINES, classById, hoursOf, spanText } from '../../data/content.js';
+import { Sticker } from '../common/Slogans.jsx';
 import { sheetOf } from '../../data/catalogue.js';
 import { flagOf, shortClass, dateTimeTz } from '../../utils/format.js';
 import { PAY_MARK } from './PayMarks.jsx';
@@ -361,7 +362,7 @@ export default function Checkout() {
     <div className={'shop' + (checkout.open ? ' open' : '')} id="checkout" aria-hidden={checkout.open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Secure checkout">
       <div className="shop-shade" aria-hidden="true" />
       <header className="shop-bar">
-        <div><p className="eyebrow">Secure checkout</p><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
+        <div><p className="eyebrow">Secure checkout</p><Sticker tilt={-2} className="sticker-sm">{TAGLINES.checkout}</Sticker><ol className="stepper" id="coStepper"><li className={addrOk ? 'done' : 'on'}><i>1</i>Address</li><li className={addrOk ? 'on' : undefined}><i>2</i>Payment</li></ol></div>
         <div className="shop-actions"><span className="co-lock">🔒 256-bit encrypted</span><button type="button" className="icon-btn" id="checkoutBack" aria-label="Back" onClick={closeCheckout}>✕</button></div>
       </header>
       <div className="checkout-body" id="checkoutBody">{checkout.item || subCls || multi || status !== 'ready' ? body : null}</div>
