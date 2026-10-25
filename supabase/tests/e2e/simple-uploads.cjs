@@ -82,14 +82,16 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
   await step('Products opens on sheets by class and section', async () => {
     await go('Products');
     await page.locator('.browser').waitFor({ timeout: 15000 });
-    const first = page.locator('.browse-sec').filter({ hasNotText: '0 sheets' }).first();
-    await first.locator('.browse-toggle').click();
-    await first.locator('.browse-sheet').first().waitFor({ timeout: 5000 });
+    must(!(await page.locator('.br-sec', { hasText: 'Empty' }).count()), 'empty sections are shown');
+    await shot('01-sections-as-cards');
+    await page.locator('.br-more').click(); await sleep(300); await shot('01b-with-empty-sections', true); await page.locator('.br-more').click();
+    await page.locator('.br-sec').first().click();
+    await page.locator('.br-sheet').first().waitFor({ timeout: 5000 });
     await shot('01-sheets-by-section');
   });
 
   await step('the product form has none of the removed boxes', async () => {
-    await page.locator('.browse-sheet').first().click();
+    await page.locator('.br-sheet').first().click();
     await page.locator('#psTitle').waitFor();
     for (const id of ['psTags', 'psAge', 'psSku', 'psStock', 'psSort', 'psSeoT', 'psSeoD']) must(!(await page.locator('#' + id).count()), id + ' is still there');
     must(!(await page.locator('.studio legend', { hasText: /Category|Search engines/ }).count()), 'old fieldsets still there');
@@ -101,21 +103,21 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
   });
 
   await step('add a new class, a subject and a section', async () => {
-    await page.locator('.browser .chip.add', { hasText: 'New class' }).click();
+    await page.locator('.br-class.add').click();
     await page.fill('#ndName', CLASS); await shot('03-new-class');
     await submitModal('Save'); await toast(/added/);
-    must(await page.locator('.browser .chip.on', { hasText: CLASS }).count(), 'the new class is not picked');
-    await page.locator('.browser .chip.add', { hasText: 'New subject' }).click();
+    must(await page.locator('.br-class.on', { hasText: CLASS }).count(), 'the new class is not picked');
+    await page.selectOption('.br-tools select[aria-label="Subject"]', '+new');
     await page.fill('#ndName', SUBJECT); await submitModal('Save'); await toast(/is ready/);
-    await page.locator('.browser-actions button', { hasText: 'Add section' }).click();
+    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
     await page.fill('#buName', SECTION); await shot('04a-add-section-dialog');
     await submitModal('Add section'); await toast(/Section .* added/);
-    await page.locator('.browse-toggle b', { hasText: SECTION }).waitFor();
+    await page.locator('.br-open h3', { hasText: SECTION }).waitFor();
     await shot('04-new-class-and-section');
   });
 
   await step('upload two PDFs at once into the section, straight to the website', async () => {
-    await page.locator('.browse-sec', { has: page.locator('.browse-toggle b', { hasText: SECTION }) }).locator('button', { hasText: 'Upload PDFs' }).click();
+    await page.locator('.br-open-head button', { hasText: 'Upload PDFs' }).click();
     await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('rhymes_part-1.pdf'), tinyPdf('rhymes_part-2.pdf')]);
     must(await page.locator('#buSubj').inputValue(), 'no subject');
     await page.fill('#buSubj', SUBJECT);
@@ -130,7 +132,8 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
   });
 
   await step('Add section with its PDFs in one step', async () => {
-    await page.locator('.add-sec').click();
+    await page.locator('.br-crumbs button').click();
+    await page.locator('.br-sec.add').click();
     await page.fill('#buName', 'Number fun ' + STAMP);
     await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('count_to_10.pdf'), tinyPdf('count_to_20.pdf')]);
     await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
@@ -138,8 +141,11 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await submitModal('Add section with 2 PDFs');
     await page.locator('.dm button[type=submit]', { hasText: 'Done' }).waitFor({ timeout: 30000 });
     await submitModal('Done');
-    await page.locator('.browse-sec', { has: page.locator('.browse-toggle b', { hasText: 'Number fun ' + STAMP }) }).locator('.browse-sheet').nth(1).waitFor({ timeout: 10000 });
+    await page.locator('.br-open h3', { hasText: 'Number fun ' + STAMP }).waitFor();
+    await page.locator('.br-sheet').nth(1).waitFor({ timeout: 10000 });
     await shot('04c-section-with-its-sheets');
+    await page.locator('.br-crumbs button').click(); await sleep(300);
+    await shot('04d-class-4-sections');
     const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === 'Number fun ' + STAMP);
     must(ws.length === 2, 'expected 2 public sheets, got ' + ws.length);
   });
