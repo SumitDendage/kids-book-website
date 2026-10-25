@@ -243,7 +243,7 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
   });
 
   /* ======================= 2. every section ======================= */
-  const ADMIN_SECTIONS = ['Dashboard', 'Products', 'Orders', 'Customers', 'Security', 'Messages', 'Analytics', 'Coupons', 'Content', 'Roles', 'Settings', 'Audit logs'];
+  const ADMIN_SECTIONS = ['Dashboard', 'Products', 'Orders', 'Customers', 'Security', 'Messages', 'Analytics', 'Coupons', 'Content', 'Settings', 'Audit logs'];
   await step('every admin section loads server data with no console or API errors', async () => {
     const seen = await sidebar(page);
     must(JSON.stringify(seen) === JSON.stringify(ADMIN_SECTIONS), 'owner sidebar: ' + seen.join(', '));
@@ -308,7 +308,7 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
   let supportPassword = null, supportId = null;
   await step('owner adds a support staff member; the password comes by email', async () => {
     await toAdmin(page);
-    await go(page, 'Roles');
+    await go(page, 'Settings'); await page.getByRole('button', { name: 'Show staff' }).click();
     await page.getByRole('button', { name: 'Add staff member' }).click();
     await page.fill('#stfEmail', SUPPORT.email);
     await page.fill('#stfName', SUPPORT.name);
@@ -388,9 +388,9 @@ const mailTo = async to => (await dev('/__dev/mail?to=' + encodeURIComponent(to)
     await note.getByRole('button', { name: 'Archive' }).click();
     await toast(sup, /Archived/);
     await sup.locator('main.mn details.msg', { hasText: STAMP }).first().locator('.pill', { hasText: 'Archived' }).waitFor({ timeout: 10000 }).catch(() => {});
-    /* the owner changes the support member in Roles: no more answering messages */
+    /* the owner changes the support member under Settings → Staff: no more answering messages */
     await toAdmin(page);
-    await go(page, 'Roles');
+    await go(page, 'Settings'); await page.getByRole('button', { name: 'Show staff' }).click();
     const row = page.locator('main.mn tr', { hasText: SUPPORT.email }).first();
     await row.getByRole('button', { name: 'Change' }).click();
     const box = page.locator('.dm .perm-grid label', { hasText: 'Answer messages' }).locator('input[type=checkbox]');

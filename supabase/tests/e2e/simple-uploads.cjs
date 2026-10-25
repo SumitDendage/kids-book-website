@@ -1,6 +1,6 @@
 /* The simpler Products page (Oct 25): the product form without tags, age group, SKU, sessions,
    stock, display order and search-engine boxes; a section typed by name; sheets by class and
-   section; a new class, subject and section; many PDFs at once; Roles for the owner only.
+   section; a new class, subject and section; many PDFs at once; no Roles menu item (staff live at the bottom of Settings, owner only).
 
    HOW TO RUN (nothing here reaches the internet): start the dev API and the website exactly as in
    products.cjs, then  node supabase/tests/e2e/simple-uploads.cjs
@@ -74,9 +74,13 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.locator('.dash').waitFor({ timeout: 30000 });
   };
 
-  await step('owner signs in and sees Roles', async () => {
+  await step('owner signs in: no Roles in the menu, staff at the bottom of Settings', async () => {
     await signIn(users.owner);
-    must(await page.locator('.sb .sb-item[title="Roles"]').count(), 'the owner lost Roles');
+    must(!(await page.locator('.sb .sb-item[title="Roles"]').count()), 'the menu still has Roles');
+    await go('Settings');
+    await page.getByRole('button', { name: 'Show staff' }).click();
+    await page.getByRole('button', { name: 'Add staff member' }).waitFor({ timeout: 15000 });
+    await shot('00-settings-staff');
   });
 
   await step('Products opens on sheets by class and section', async () => {
@@ -192,6 +196,8 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.context().clearCookies(); await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
     await signIn({ email, password });
     must(!(await page.locator('.sb .sb-item[title="Roles"]').count()), 'an admin sees Roles');
+    await go('Settings');
+    must(!(await page.getByRole('button', { name: 'Show staff' }).count()), 'an admin sees the staff part of Settings');
     await shot('09-admin-menu-no-roles');
     await page.goto(SITE + '/developer'); await veilGone();
     await page.locator('text=No developer access').waitFor({ timeout: 20000 });

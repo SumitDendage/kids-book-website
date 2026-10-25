@@ -15,7 +15,7 @@ function loginProblem(e) {
       const left = e.body && e.body.lockedUntil ? Math.max(1, Math.ceil((e.body.lockedUntil - Date.now()) / 60000)) : null;
       return 'Too many wrong passwords, so this account is locked' + (left ? ' for ' + left + ' more minute' + (left === 1 ? '' : 's') : ' for a while') + '. You can unlock it now with Forgot password.';
     }
-    case 'not_staff': return 'This account is not on the staff list yet. Ask the shop owner to add your email on Admin → Roles, then sign in again.';
+    case 'not_staff': return 'This account is not on the staff list yet. Ask the shop owner to add your email on Admin → Settings → Staff, then sign in again.';
     case 'account_suspended': return 'This account is blocked. Ask the shop owner to unblock it.';
     case 'email_unverified': return 'This email address is not confirmed yet. Open the email we sent you, press Accept & Continue, then sign in here.';
     case 'rate_limited': return 'Too many attempts. Wait a few minutes and try again.';
@@ -35,7 +35,7 @@ function loginProblem(e) {
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (_) { return undefined; } };
 
 /* Staff sign in with their own account. A new person can make an account here (no email service
-   needed), but it opens the panels only after an owner adds that email on Admin → Roles; the
+   needed), but it opens the panels only after an owner adds that email on Admin → Settings → Staff; the
    server decides who is staff, never this form. A forgotten password is reset by email. */
 export default function StaffLogin({ kind, note, onSignedIn }) {
   const [view, setView] = useState('signin');   /* 'signin' | 'code' | 'signup' | 'forgot' */
@@ -135,11 +135,11 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
       const r = await authApi.signup({ name: nm, email: em, password: pw, timeZone: zone() });
       setBusy(false); setView('signin'); setErrs({});
       setOk(r && r.ready
-        ? 'Your account is made. Ask the shop owner to add ' + em + ' on Admin → Roles, then sign in here with your password.'
-        : 'Your account is made. Open the email we sent to ' + em + ' to confirm it, ask the shop owner to add you on Admin → Roles, then sign in here.');
+        ? 'Your account is made. Ask the shop owner to add ' + em + ' on Admin → Settings → Staff, then sign in here with your password.'
+        : 'Your account is made. Open the email we sent to ' + em + ' to confirm it, ask the shop owner to add you on Admin → Settings → Staff, then sign in here.');
     } catch (err) {
       setBusy(false);
-      if (err.code === 'email_taken') { setView('signin'); setErrs({}); setAlert('That email already has an account. Sign in with its password. If it is not on the staff list yet, ask the shop owner to add it on Admin → Roles.'); }
+      if (err.code === 'email_taken') { setView('signin'); setErrs({}); setAlert('That email already has an account. Sign in with its password. If it is not on the staff list yet, ask the shop owner to add it on Admin → Settings → Staff.'); }
       else if (err.code === 'weak_password') setErrs({ password: err.message });
       else setAlert(loginProblem(err));
     }
@@ -149,7 +149,7 @@ export default function StaffLogin({ kind, note, onSignedIn }) {
     return (
       <form className="panel portal-login" noValidate onSubmit={signUp} aria-busy={busy ? 'true' : 'false'}>
         <h3 className="card-title" style={{ marginBottom: '6px' }}>Create a staff account</h3>
-        <p className="auth-sub">Choose your password. The panel opens once the shop owner adds your email on Admin → Roles.</p>
+        <p className="auth-sub">Choose your password. The panel opens once the shop owner adds your email on Admin → Settings → Staff.</p>
         <div role="alert">{alert ? <div className="alert err">{alert}</div> : null}</div>
         <div className="field"><label htmlFor="stName">Your name</label><input id="stName" name="name" type="text" autoComplete="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} aria-invalid={errs.name ? 'true' : undefined} aria-describedby="stNameErr" /><div className="err" id="stNameErr">{errs.name || ''}</div></div>
         <div className="field"><label htmlFor="stUpEmail">Email</label><input id="stUpEmail" name="email" type="email" autoComplete="username" placeholder="you@learnwithwhy.com" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={errs.email ? 'true' : undefined} aria-describedby="stUpEmailErr" /><div className="err" id="stUpEmailErr">{errs.email || ''}</div></div>
