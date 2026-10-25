@@ -9,13 +9,12 @@ import { staffApi } from '../../services/api.js';
 import { AUDIENCE_LABEL, LABELS, HOME_TAG, VISIBILITY, visibilityOf } from './common.js';
 
 /* the filters survive moving between sections */
-const keep = { status: 'all', cls: 'all', query: '', section: 'all', label: 'all', order: 'order', subject: 'all', view: 'sections' };
+const keep = { status: 'all', cls: 'all', query: '', view: 'sections' };
 const VIEWS = [['sections', 'By class and section'], ['grid', 'All sheets']];
 const PAGE = 24;
 const STATUS_TABS = [['all', 'All'], ['published', 'Published'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['hidden', 'Hidden'], ['missing', 'Missing PDF']];
 const VIS_LABEL = Object.fromEntries(VISIBILITY);
 const LABEL_NAME = Object.fromEntries(LABELS.concat([[HOME_TAG, 'Home page']]));
-const ORDERS = [['order', 'Website order'], ['newest', 'Newest first'], ['sold', 'Best selling'], ['price', 'Price, low to high'], ['title', 'Title, A to Z']];
 const SORTERS = {
   order: (a, b) => (a.cls === b.cls ? 0 : a.cls < b.cls ? -1 : 1) || (a.sort - b.sort) || a.id.localeCompare(b.id),
   newest: (a, b) => (b.created || 0) - (a.created || 0),
@@ -81,16 +80,11 @@ export default function Products() {
   const filesQ = useStaffGet('/api/admin/files', { keep: true });
   const sectionsQ = useStaffGet('/api/admin/sections', { keep: true });
   const subjectsQ = useStaffGet('/api/admin/subjects', { keep: true });
-  const [subject, setSubjectState] = useState(keep.subject), [view, setViewState] = useState(keep.view);
+  const [view, setViewState] = useState(keep.view);
   const [page, setPage] = useState(1);
   const [preset, setPreset] = useState(null);   /* class, subject and section for a new sheet started from a section */
-  const setSubject = v => { keep.subject = v; setSubjectState(v); };
   const setView = v => { keep.view = v; setViewState(v); };
   const [status, setStatusState] = useState(keep.status), [cls, setClsState] = useState(keep.cls), [query, setQueryState] = useState(keep.query);
-  const [section, setSectionState] = useState(keep.section), [label, setLabelState] = useState(keep.label), [order, setOrderState] = useState(keep.order);
-  const setSection = v => { keep.section = v; setSectionState(v); };
-  const setLabel = v => { keep.label = v; setLabelState(v); };
-  const setOrder = v => { keep.order = v; setOrderState(v); };
   const [quickBusy, setQuickBusy] = useState(false);
   const setStatus = v => { keep.status = v; setStatusState(v); };
   const setCls = v => { keep.cls = v; setClsState(v); };
@@ -111,15 +105,12 @@ export default function Products() {
   let list = all;
   if (status === 'missing') list = list.filter(s => missing.has(s.id));
   else if (status !== 'all') list = list.filter(s => visibilityOf(s) === status);
-  if (section !== 'all') list = list.filter(s => (section === 'none' ? !s.section : s.section === section));
-  if (label !== 'all') list = list.filter(s => (s.tags || []).includes(label));
   if (cls !== 'all') list = list.filter(s => s.cls === cls);
-  if (subject !== 'all') list = list.filter(s => s.subject === subject);
   if (query) list = list.filter(s => (s.title + ' ' + s.subject + ' ' + s.id + ' ' + (s.sectionLabel || '') + ' ' + (s.description || '')).toLowerCase().includes(query));
-  list = list.slice().sort(SORTERS[order] || SORTERS.order);
+  list = list.slice().sort(SORTERS.order);
   /* 24 cards a page; a filter change goes back to the first page */
   const pages = Math.max(1, Math.ceil(list.length / PAGE));
-  const filterKey = [status, cls, query, section, label, order, subject].join('|');
+  const filterKey = [status, cls, query].join('|');
   useEffect(() => { setPage(1); }, [filterKey]);
   const at = Math.min(page, pages);
   const shown = list.slice((at - 1) * PAGE, at * PAGE);
@@ -188,13 +179,6 @@ export default function Products() {
           <button type="button" className={'chip' + (cls === 'all' ? ' on' : '')} onClick={() => setCls('all')}>Every class</button>
           {classes.map(c => <button key={c.id} type="button" className={'chip' + (cls === c.id ? ' on' : '')} onClick={() => setCls(c.id)}>{c.name} <small>{all.filter(s => s.cls === c.id).length}</small></button>)}
         </div> : null}
-        <div className="filters-row">
-          <select aria-label="Section" value={section} onChange={e => setSection(e.target.value)}><option value="all">Every section</option><option value="none">No section</option>
-            {sections.filter(x => x.products).map(x => <option key={x.id} value={x.id}>{(x.groupLabel ? x.groupLabel + ' › ' : '') + x.label} ({x.products})</option>)}</select>
-          {subjectList && subjectList.length > 1 ? <select aria-label="Subject" value={subject} onChange={e => setSubject(e.target.value)}><option value="all">Every subject</option>{subjectList.map(x => <option key={x.id} value={x.name}>{x.name} ({all.filter(s => s.subject === x.name).length})</option>)}</select> : null}
-          <select aria-label="Label" value={label} onChange={e => setLabel(e.target.value)}><option value="all">Any label</option>{Object.entries(LABEL_NAME).map(([t, n]) => <option key={t} value={t}>{n}</option>)}</select>
-          <select aria-label="Sort" value={order} onChange={e => setOrder(e.target.value)}>{ORDERS.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
-        </div>
         {list.length ? <div className="book-grid">{shown.map(it => <BookCard key={it.id} it={it} className={className(it.cls)} canWrite={canWrite} onQuick={quick} quickBusy={quickBusy} onEdit={setEditing} onArchive={s => setConfirm({ sheet: s, kind: 'archive' })} onRestore={s => setConfirm({ sheet: s, kind: 'restore' })} />)}</div>
           : <p className="cart-empty">{all.length ? 'No sheets match.' : 'No sheets yet. Use "Upload new book" to add the first one.'}</p>}
         {pages > 1 ? <nav className="pager" aria-label="Pages">
