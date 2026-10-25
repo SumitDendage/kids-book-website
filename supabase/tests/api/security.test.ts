@@ -64,6 +64,16 @@ async function anotherSignIn(userId: string) {
   return { token: t.access_token as string, sessionId: sid };
 }
 
+/** Runs a test with concurrent_devices waiting for staff to confirm (it confirms itself live). */
+const withStaffConfirm = (fn: () => Promise<void>) => async () => {
+  await h.sql`update security_rules set auto_confirm = false where id = 'concurrent_devices'`;
+  try {
+    await fn();
+  } finally {
+    await h.sql`update security_rules set auto_confirm = true where id = 'concurrent_devices'`;
+  }
+};
+
 const incidents = (userId: string) =>
   h.sql<{ id: number; rule_id: string; status: string; evidence: Record<string, unknown> }[]>`
     select id, rule_id, status, evidence from security_incidents where user_id = ${userId} order by id`;
@@ -119,7 +129,37 @@ test('a new IP alone or a new device alone never opens an incident', async () =>
   assertEquals((await incidents(c.id)).length, 0);
 });
 
+test('two devices on networks they never shared (a sign-in code passed on) give a warning at once', async () => {
+  const c = await h.customer();
+  await usedPaid(c.id, 'own-phone-aaaaaaaaa', '10.211.1.0/24');
+  await usedPaid(c.id, 'friend-pc-bbbbbbbbb', '10.211.2.0/24');
+  const ids = await evaluateRules(null, c.id);
+  assertEquals(ids.length, 1);
+  const inc = await incidents(c.id);
+  assertEquals(inc.map((x) => [x.rule_id, x.status]), [['concurrent_devices', 'confirmed']]);
+  assertMatch(String(inc[0].evidence.summary), /2 devices from 2 different networks/);
+  const w = await warnings(c.id);
+  assertEquals(w.length, 1);
+  assertEquals(w[0].level, 1);
+  assertEquals((await outbox({ dedupe: `warning:${w[0].id}` })).length, 1, 'the customer is emailed');
+  // the same sharing carrying on is the same warning
+  await usedPaid(c.id, 'friend-pc-bbbbbbbbb', '10.211.2.0/24');
+  await evaluateRules(null, c.id);
+  assertEquals((await warnings(c.id)).length, 1);
+});
+
+test('two devices that were on the same network are not sharing (a phone that left the home wifi)', async () => {
+  const c = await h.customer();
+  await usedPaid(c.id, 'home-laptop-aaaaaaa', '10.212.1.0/24');
+  await usedPaid(c.id, 'home-phone-bbbbbbbb', '10.212.1.0/24');
+  await usedPaid(c.id, 'home-phone-bbbbbbbb', '10.212.2.0/24');
+  assertEquals(await evaluateRules(null, c.id), []);
+  assertEquals((await incidents(c.id)).length, 0);
+});
+
 test('the concurrent_devices pattern opens exactly one incident (repeat evaluations dedupe)', async () => {
+  await h.sql`update security_rules set auto_confirm = false where id = 'concurrent_devices'`;
+  try {
   const c = await h.customer();
   await usedPaid(c.id, 'dev-one-aaaaaaaaaaa', '10.202.1.0/24');
   await usedPaid(c.id, 'dev-two-bbbbbbbbbbb', '10.202.2.0/24');
@@ -141,7 +181,9 @@ test('the concurrent_devices pattern opens exactly one incident (repeat evaluati
   const staffNote = await h.sql`select 1 from notifications where audience = 'staff' and kind = 'security.incident' and (data->>'incidentId')::bigint = ${inc[0].id}`;
   assertEquals(staffNote.length, 1);
   const ev = await h.sql`select 1 from security_events where user_id = ${c.id} and event_type = 'security.incident_opened'`;
-  assertEquals(ev.length, 1);
+  assertEquals(ev.length, 1);  } finally {
+    await h.sql`update security_rules set auto_confirm = true where id = 'concurrent_devices'`;
+  }
 });
 
 test('activity older than the window does not count', async () => {
@@ -201,7 +243,7 @@ test('disabled rules are not run; an auto-confirm rule issues the warning at onc
   await usedPaid(c.id, 'auto-one-aaaaaaaaaa', '10.206.1.0/24');
   await usedPaid(c.id, 'auto-two-bbbbbbbbbb', '10.206.2.0/24');
   await usedPaid(c.id, 'auto-three-cccccccc', '10.206.3.0/24');
-  await h.sql`update security_rules set enabled = false where id = 'concurrent_devices'`;
+  await h.sql`update security_rules set enabled = false, auto_confirm = false where id = 'concurrent_devices'`;
   try {
     assertEquals(await evaluateRules(null, c.id), []);
     await h.sql`update security_rules set enabled = true, auto_confirm = true where id = 'concurrent_devices'`;
@@ -219,7 +261,7 @@ test('disabled rules are not run; an auto-confirm rule issues the warning at onc
     const sysAudit = await h.sql`select actor_role from audit_logs where action = 'security.warning_issue' and target_id = ${String(w[0].id)}`;
     assertEquals(sysAudit[0].actor_role, 'system');
   } finally {
-    await h.sql`update security_rules set enabled = true, auto_confirm = false where id = 'concurrent_devices'`;
+    await h.sql`update security_rules set enabled = true, auto_confirm = true where id = 'concurrent_devices'`;
   }
 });
 
@@ -253,7 +295,7 @@ test('SHARING-1 one sign-in whose X-Device-Id changes on every request is one de
   assertEquals(inc.length, 0, `one sign-in on one network opened: ${inc.map((i) => `${i.rule_id} "${i.evidence.summary}"`).join('; ')}`);
 });
 
-test('SHARING-2 a decided incident keeps its evidence; bigger activity after the decision opens a new incident for staff', async () => {
+test('SHARING-2 a decided incident keeps its evidence; bigger activity after the decision opens a new incident for staff', withStaffConfirm(async () => {
   const c = await h.customer();
   await usedPaid(c.id, 'sh2-dev-a-aaaaaaaaaa', '10.62.1.0/24');
   await usedPaid(c.id, 'sh2-dev-b-bbbbbbbbbb', '10.62.2.0/24');
@@ -290,7 +332,7 @@ test('SHARING-2 a decided incident keeps its evidence; bigger activity after the
   // and evaluating again keeps the one open follow-up
   await evaluateRules(null, c.id);
   assertEquals((await incidents(c.id)).filter((i) => i.status === 'open').length, 1);
-});
+}));
 
 test('SHARING-3 signing in on several devices and opening only free sheets opens no "paid sheets" incident', async () => {
   const c = await h.customer({ ip: '10.63.1.10' });   // parent's laptop at home
@@ -309,7 +351,7 @@ test('SHARING-3 signing in on several devices and opening only free sheets opens
 
 // ── warnings ────────────────────────────────────────────────────────────────────────────
 
-test('confirming an incident issues one warning, emails the customer and alerts staff; a second confirm does not', async () => {
+test('confirming an incident issues one warning, emails the customer and alerts staff; a second confirm does not', withStaffConfirm(async () => {
   const c = await h.customer();
   await usedPaid(c.id, 'conf-one-aaaaaaaaaa', '10.208.1.0/24');
   await usedPaid(c.id, 'conf-two-bbbbbbbbbb', '10.208.2.0/24');
@@ -347,7 +389,7 @@ test('confirming an incident issues one warning, emails the customer and alerts 
   // emails really go out
   await h.processOutbox();
   assert(h.mail.sent.some((m) => m.to === c.email && /security warning 1 of 3/.test(m.subject)), 'customer email sent');
-});
+}));
 
 test('SHARING-5 a warning to a customer whose access staff already paused says so, not "third warning"', async () => {
   const c = await h.customer();
