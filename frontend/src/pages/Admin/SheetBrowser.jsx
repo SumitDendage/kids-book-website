@@ -123,6 +123,7 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
             {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: open })}><Icon id="download" />Upload PDFs</button> : null}
             <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'rename', section: open })}><Icon id="edit" />Rename</button>
             <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setShown(open, open.visible === false)}><Icon id="eye" />{open.visible === false ? 'Show on website' : 'Hide from website'}</button>
+            {open.list.length ? null : <button type="button" className="btn btn-ghost danger" onClick={() => setDialog({ kind: 'delete', section: open })}><Icon id="trash" />Delete section</button>}
           </div> : null}
         </div>
         {open.list.length ? <ul className="br-sheets">{open.list.map(sheetCard)}</ul>
@@ -165,6 +166,13 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
           onMade('sections', await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(dialog.section.id), { label: name }));
           toast('Renamed.');
         }} /> : null}
+      {dialog && dialog.kind === 'delete' ? <Modal title="Delete this section?" danger submitLabel="Delete it" busyLabel="Deleting…" busy={busy} onClose={() => setDialog(null)}
+        onSubmit={async () => {
+          setBusy(true);
+          try { onMade('sections', await staffApi('DELETE', '/api/admin/sections/' + encodeURIComponent(dialog.section.id))); setDialog(null); setOpened(null); toast('Section deleted.'); }
+          catch (e) { toast(e.code === 'in_use' ? e.message : problem(e)); }
+          setBusy(false);
+        }}><p><b>{dialog.section.label}</b> has no sheets, so it is simply removed.</p></Modal> : null}
       {dialog && dialog.kind === 'bulk' ? <BulkUpload cls={cur} section={dialog.section} sections={sections} classes={classes} subjects={subjects} subjectList={subjectList} startSubject={subject !== 'all' ? subject : ''}
         onSaved={onSaved} onMade={onMade} onClose={() => setDialog(null)} /> : null}
     </section>
