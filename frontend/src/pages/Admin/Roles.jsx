@@ -57,7 +57,7 @@ export default function Roles() {
   return (
     <Guard state={staffQ} rows={6}>
       <section className="panel">
-        <div className="row-between"><div><p className="eyebrow">Staff</p><p className="auth-sub">Who can open this panel, and what each person may do. {isOwner ? '' : 'Only an owner can make someone an owner or administrator.'}</p></div>
+        <div className="row-between"><div><p className="eyebrow">Staff</p><p className="auth-sub">Who can open this panel. Add a person's email here after they make an account on the staff sign-in page.</p></div>
           <div className="btn-row">{gone ? <label className="check"><input type="checkbox" checked={showGone} onChange={e => setShowGone(e.target.checked)} />Show removed ({gone})</label> : null}
             {can('staff.manage') ? <button type="button" className="btn btn-primary" onClick={() => setEdit('new')}><Icon id="userplus" />Add staff member</button> : null}</div></div>
         {staffQ.error ? <ErrorNote error={staffQ.error} onRetry={staffQ.reload} compact /> : null}
@@ -71,11 +71,6 @@ export default function Roles() {
             mayTouch(s) ? <span key="a" className="row-actions">{s.active ? <><button type="button" className="link" onClick={() => setEdit(s)}>Change</button><button type="button" className="link danger" onClick={() => setDrop(s)}>Remove</button></> : <button type="button" className="link" onClick={() => bringBack(s)}>Bring back</button>}</span>
               : <small key="a" className="muted">{s.userId === myId ? 'Ask another staff manager' : 'Owner only'}</small>,
           ] }))} />
-      </section>
-      <section className="panel"><p className="eyebrow">Roles</p><p className="auth-sub">A role is a starting set of permissions. You can add or remove single permissions for each person.</p>
-        {rolesQ.error ? <ErrorNote error={rolesQ.error} onRetry={rolesQ.reload} compact /> : null}
-        <DataTable plain head={['Role', 'What it can do']} empty={rolesQ.loading ? 'Loading…' : 'No roles.'}
-          rows={roles.map(r => ({ key: r.role, cells: [<b key="r">{r.label || ROLE_LABEL[r.role] || r.role}</b>, r.role === 'owner' ? 'Everything, and the only role that can give the owner or administrator role.' : r.permissions.map(p => PERM_LABEL[p] || p).join(', ')] }))} />
       </section>
       {edit ? <StaffDialog row={edit === 'new' ? null : edit} roles={roles} info={info} isOwner={isOwner} myPerms={(me && me.staff && me.staff.permissions) || []} onClose={() => setEdit(null)}
         onDone={(s, msg) => { setEdit(null); put(s); toast(msg); }} /> : null}

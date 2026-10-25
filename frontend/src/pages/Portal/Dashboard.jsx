@@ -14,7 +14,7 @@ import { SITE_VERSION } from '../../data/content.js';
 /* which section each panel shows, kept while the staff page is closed and reopened */
 const sectionOf = { admin: 'overview', developer: 'health' };
 /* where a staff notification leads (by the first part of its kind) */
-const NOTE_SECTION = { order: 'orders', payment: 'orders', refund: 'orders', contact: 'messages', message: 'messages', security: 'security', appeal: 'security', access: 'security', warning: 'security', incident: 'security', review: 'content', staff: 'roles' };
+const NOTE_SECTION = { order: 'orders', payment: 'orders', refund: 'orders', contact: 'messages', message: 'messages', security: 'security', appeal: 'security', access: 'security', warning: 'security', incident: 'security', review: 'content', staff: 'settings' };
 const NOTE_PERMS = ['dashboard.view', 'orders.read', 'messages.read', 'security.read', 'reviews.moderate', 'emails.read', 'staff.manage'];
 
 /* a section that throws shows a note instead of taking the whole panel down */
