@@ -77,6 +77,10 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
   await step('owner signs in: no Roles in the menu, staff at the bottom of Settings', async () => {
     await signIn(users.owner);
     must(!(await page.locator('.sb .sb-item[title="Roles"]').count()), 'the menu still has Roles');
+    must(!(await page.locator('.sb .sb-item[title="Categories"]').count()), 'the menu still has Categories');
+    await shot('00a-dashboard');
+    await page.getByRole('button', { name: 'Sheets and sections' }).click();
+    await page.locator('.browser').waitFor({ timeout: 15000 });
     await go('Settings');
     await page.getByRole('button', { name: 'Show staff' }).click();
     await page.getByRole('button', { name: 'Add staff member' }).waitFor({ timeout: 15000 });
@@ -152,6 +156,18 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await shot('04d-class-4-sections');
     const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === 'Number fun ' + STAMP);
     must(ws.length === 2, 'expected 2 public sheets, got ' + ws.length);
+  });
+
+  await step('an empty section can be deleted from Products', async () => {
+    await page.locator('.br-sec.add').click();
+    await page.fill('#buName', 'Empty one ' + STAMP);
+    await submitModal('Add section');
+    await page.locator('.br-open h3', { hasText: 'Empty one ' + STAMP }).waitFor({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Delete section' }).click();
+    await shot('04e-delete-empty-section');
+    await submitModal('Delete it');
+    await toast(/Section deleted/);
+    await page.locator('.br-open').waitFor({ state: 'detached', timeout: 15000 });
   });
 
   await step('All sheets has no filter boxes', async () => {

@@ -30,7 +30,8 @@ function HeadActions({ kind, cur, can, me, actions, busy }) {
   const exp = (k, label) => (canExport(k, can) ? <button key={k} type="button" className="btn btn-ghost" disabled={busy === k} onClick={() => actions.exportCsv(k)}><Icon id="download" />{busy === k ? 'Preparing…' : (label || 'Export')}</button> : null);
   const backup = label => (canBackup(me, can) ? <button type="button" className="btn btn-primary" disabled={busy === 'backup'} onClick={actions.backup} title="Settings, prices, products, coupons and site text as one file"><Icon id="download" />{busy === 'backup' ? 'Preparing…' : label}</button> : null);
   if (kind === 'admin') {
-    if (cur === 'overview') return backup('Download backup');
+    /* the fastest way to the sheets from the first page (Sumit, Oct 25: "do this in this page") */
+    if (cur === 'overview') return <>{can('catalogue.read') ? <button type="button" className="btn btn-ghost" onClick={() => actions.go('products')}><Icon id="products" />Sheets and sections</button> : null}{backup('Download backup')}</>;
     if (cur === 'products') return can('catalogue.write') ? <button type="button" className="btn btn-primary" onClick={actions.newProduct}><Icon id="plus" />Upload new book</button> : null;
     if (cur === 'orders') return <>{exp('payments', 'Export payments')}{exp('orders')}</>;
     if (cur === 'customers') return <>{exp('entitlements', 'Export access')}{exp('customers')}</>;
@@ -137,6 +138,7 @@ export default function Dashboard({ kind, me, site, portalRef, onSwitch, onBack,
   const failed = useCallback(e => { if (e && e.status === 401) authLost(e); else toast(problem(e)); }, [authLost, toast]);
   const actions = useMemo(() => ({
     newProduct: () => { sectionOf[kind] = 'products'; setEditing('new'); },
+    go: id => go(id),
     exportCsv: async k => {
       setBusy(k);
       try { const r = await exportCsv(k); toast(r.rows != null ? 'Downloaded ' + r.rows + ' ' + EXPORTS[k].label + (r.truncated ? ' (the first ones only)' : '') : 'Downloaded ' + r.name); }
@@ -148,7 +150,7 @@ export default function Dashboard({ kind, me, site, portalRef, onSwitch, onBack,
       try { const r = await downloadBackup(); toast('Downloaded ' + r.name); } catch (e) { failed(e); }
       setBusy(null);
     },
-  }), [kind, toast, failed]);
+  }), [kind, toast, failed, go]);
 
   const openNote = n => {
     setMenu(null);
