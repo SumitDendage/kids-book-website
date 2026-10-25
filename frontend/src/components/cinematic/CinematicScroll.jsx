@@ -22,7 +22,10 @@ export default function CinematicScroll({ onTick, engineRef, total = TOTAL, srcO
     if (engineRef) engineRef.current = engine;
     engine.start();
     let raf = 0;
-    const loop = () => { const p = tickRef.current ? tickRef.current() : 0; engine.paint(p); scenery.paint(engine.shown); walkers.paint(p); raf = requestAnimationFrame(loop); };
+    /* the birds, the water and the walking animals wait behind the opening veil until it lifts,
+       so a phone spends those first seconds on getting the page ready, not on drawing under a cover */
+    const open = () => document.body.dataset.stage !== 'boot';
+    const loop = () => { const p = tickRef.current ? tickRef.current() : 0; engine.paint(p); if (open()) { scenery.paint(engine.shown); walkers.paint(p); } raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
     const onResize = () => { engine.resize(); scenery.resize(); walkers.resize(); };
     addEventListener('resize', onResize);

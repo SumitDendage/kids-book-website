@@ -29,7 +29,7 @@ export default function MagicLayer() {
 
     function resize() {
       dpr = Math.min(devicePixelRatio || 1, 1.5);
-      W = innerWidth; H = innerHeight;
+      W = innerWidth; H = innerHeight; sprites.clear();
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const small = W < 700;   /* fewer on phones: lighter and less busy */
@@ -52,8 +52,34 @@ export default function MagicLayer() {
       ctx.closePath(); ctx.fill();
     }
 
+    /* a letter's soft glow is drawn once into its own little picture, then reused on every frame:
+       a canvas blur worked out 60 times a second was one of the heaviest jobs on a phone */
+    const sprites = new Map();
+    function sprite(ch, size) {
+      const key = ch + (size | 0);
+      let c = sprites.get(key);
+      if (c) return c;
+      const pad = 18, px = Math.round(size * dpr), side = Math.ceil(px * 1.4 + pad * 2 * dpr);
+      c = document.createElement('canvas'); c.width = c.height = side;
+      const g2 = c.getContext('2d');
+      g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.font = '500 ' + px + 'px "Cormorant Garamond", Georgia, serif';
+      g2.shadowColor = 'rgba(255,220,140,0.9)'; g2.shadowBlur = 14 * dpr; g2.fillStyle = '#fff4d6';
+      g2.fillText(ch, side / 2, side / 2);
+      if (sprites.size > 120) sprites.clear();
+      sprites.set(key, c);
+      return c;
+    }
+
+    /* nothing is drawn behind the opening veil; on phones the layer moves at 30 frames a second */
+    const lite = matchMedia('(pointer: coarse), (max-width: 820px)').matches;
+    let skip = false;
+    /* the letters' own font arrived: draw their glows again in it */
+    const onFonts = () => sprites.clear();
+    if (document.fonts) document.fonts.addEventListener('loadingdone', onFonts);
     function frame(now) {
       raf = requestAnimationFrame(frame);
+      if (document.body.dataset.stage === 'boot') { last = now; return; }
+      if (lite && (skip = !skip)) return;
       const dt = Math.min((now - last) / 1000, 0.05), t = now / 1000; last = now;
       push *= 0.92;
       ctx.clearRect(0, 0, W, H);
@@ -79,10 +105,9 @@ export default function MagicLayer() {
         if (L.y < -60) Object.assign(L, letter(H + 40));
         if (L.y > H + 80) L.y = -40;
         const edge = Math.min(1, Math.max(0, Math.min(L.y / (H * 0.25), (H - L.y) / (H * 0.2))));
+        const img = sprite(L.ch, L.size), side = img.width / dpr;
         ctx.save(); ctx.translate(L.x + Math.sin(L.ph) * 18, L.y); ctx.rotate(L.rot + Math.sin(L.ph * 0.8) * 0.12);
-        ctx.globalAlpha = L.a * edge; ctx.font = '500 ' + L.size + 'px "Cormorant Garamond", Georgia, serif';
-        ctx.shadowColor = 'rgba(255,220,140,0.9)'; ctx.shadowBlur = 14; ctx.fillStyle = '#fff4d6';
-        ctx.fillText(L.ch, 0, 0); ctx.restore();
+        ctx.globalAlpha = L.a * edge; ctx.drawImage(img, -side / 2, -side / 2, side, side); ctx.restore();
       }
 
       /* fireflies: wander and pulse */
@@ -127,6 +152,7 @@ export default function MagicLayer() {
       removeEventListener('resize', resize); removeEventListener('pointerdown', onTap); removeEventListener('wheel', onWheel);
       removeEventListener('touchstart', onTouchStart); removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('visibilitychange', onVis);
+      if (document.fonts) document.fonts.removeEventListener('loadingdone', onFonts);
     };
   }, []);
 
