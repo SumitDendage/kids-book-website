@@ -87,7 +87,7 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
         {canWrite ? <button type="button" className="chip add" onClick={() => setDialog({ kind: 'subject' })}><Icon id="plus" size={14} />New subject</button> : null}
       </div>
       {canWrite ? <div className="btn-row browser-actions">
-        <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" />New section in {cur.name}</button>
+        <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" />Add section</button>
         {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: null })}><Icon id="download" />Upload many PDFs</button> : null}
       </div> : null}
       {groups.length ? groups.map(([g, list]) => <div key={g}>
@@ -119,7 +119,9 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
             </div>
           );
         })}</div>
-      </div>) : <p className="cart-empty">{subject === 'all' ? 'No sections in ' + cur.name + ' yet.' : 'No ' + subject + ' sheets in ' + cur.name + ' yet.'}{canWrite ? ' Add a section to start.' : ''}</p>}
+      </div>) : null}
+      {canWrite ? <button type="button" className="add-sec" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" size={20} /><span><b>Add your own section to {cur.name}</b><small>Type its name, drop its PDFs, save. That's it.</small></span></button> : null}
+      {groups.length || canWrite ? null : <p className="cart-empty">{subject === 'all' ? 'No sections in ' + cur.name + ' yet.' : 'No ' + subject + ' sheets in ' + cur.name + ' yet.'}</p>}
 
       {dialog && dialog.kind === 'class' ? <NameDialog title="Add a class" label="Class name" placeholder="e.g. Class 4" note='It shows as "Coming soon" on the website until you set it to Open.'
         onClose={() => setDialog(null)} onSave={async name => {
@@ -132,12 +134,8 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
           const r = await ensurePlace({ subjects: subjectList, subject: name }, onMade);
           setSubject(r.subject); toast(r.subject + ' is ready. Pick it on a sheet.');
         }} /> : null}
-      {dialog && dialog.kind === 'section' ? <NameDialog title={'New section in ' + cur.name} label="Section name" placeholder="e.g. Story time"
-        onClose={() => setDialog(null)} onSave={async name => {
-          if (sectionsOfClass(sections, cur.id).some(x => sameName(x.label, name))) throw Object.assign(new Error(cur.name + ' already has a section with that name.'), { field: true });
-          const r = await ensurePlace({ sections, cls: cur.id, section: name }, onMade);
-          setOpen(o => new Set(o).add(r.section.id)); setSubject('all'); toast('Section added. Add its sheets now.');
-        }} /> : null}
+      {dialog && dialog.kind === 'section' ? <BulkUpload make cls={cur} section={null} sections={sections} classes={classes} subjects={subjects} subjectList={subjectList} startSubject={subject !== 'all' ? subject : ''}
+        onSaved={onSaved} onMade={onMade} onSection={id => { setOpen(o => new Set(o).add(id)); setSubject('all'); }} onClose={() => setDialog(null)} /> : null}
       {dialog && dialog.kind === 'rename' ? <NameDialog title="Rename section" label="Section name" start={dialog.section.label}
         onClose={() => setDialog(null)} onSave={async name => {
           onMade('sections', await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(dialog.section.id), { label: name }));
@@ -168,8 +166,9 @@ function NameDialog({ title, label, placeholder, note, start = '', onSave, onClo
 }
 
 /* many PDFs at once: each file becomes a sheet in the section, named after the file. They are saved
-   as drafts unless "Put them on the website now" is ticked. A file that fails is listed; the rest go on. */
-function BulkUpload({ cls, section, sections, classes, subjects, subjectList, startSubject, onSaved, onMade, onClose }) {
+   as drafts unless "Put them on the website now" is ticked. A file that fails is listed; the rest go on.
+   make = "Add section": the section's name comes first and the PDFs are optional. */
+function BulkUpload({ make, cls, section, sections, classes, subjects, subjectList, startSubject, onSaved, onMade, onSection, onClose }) {
   const { can, toast } = useDash();
   const canPrice = can('pricing.write');
   const input = useRef(null);
@@ -181,6 +180,7 @@ function BulkUpload({ cls, section, sections, classes, subjects, subjectList, st
   const [publish, setPublish] = useState(false);
   const [busy, setBusy] = useState(false), [err, setErr] = useState(null);
   const [done, setDone] = useState({});   /* file name → 'ok' | error text | 'working' */
+  const [bad, setBad] = useState(''), [made, setMade] = useState(null);   /* "Add section": the name's problem, the section once made */
   const classSecs = sectionsOfClass(sections, cls.id);
   const add = list => {
     const fs = Array.from(list || []);
@@ -191,14 +191,18 @@ function BulkUpload({ cls, section, sections, classes, subjects, subjectList, st
   const finished = files.length > 0 && files.every(f => done[f.name] === 'ok');
   const submit = async () => {
     if (finished) { onClose(); return; }
-    if (!files.length) { setErr('Choose the PDFs first.'); return; }
+    if (make && !secName.trim()) { setBad('Type a name for the section.'); return; }
+    if (make && !made && classSecs.some(x => sameName(x.label, secName))) { setBad(cls.name + ' already has a section called "' + secName.trim() + '".'); return; }
+    if (!make && !files.length) { setErr('Choose the PDFs first.'); return; }
     if (!subject.trim()) { setErr('Pick or type a subject.'); return; }
     const p = free ? 0 : Number(price);
     if (canPrice && !free && !(Number.isInteger(p) && p >= 0)) { setErr('Enter the price in whole rupees.'); return; }
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setBad('');
     let place;
-    try { place = await ensurePlace({ classes, subjects: subjectList, sections, cls: cls.id, subject, section: secName }, onMade); }
+    try { place = await ensurePlace({ classes, subjects: subjectList, sections: made ? sections.concat(made) : sections, cls: cls.id, subject, section: secName }, onMade); }
     catch (x) { setErr(problem(x)); setBusy(false); return; }
+    if (make && place.section && !made) { setMade(place.section); if (onSection) onSection(place.section.id); }
+    if (!files.length) { setBusy(false); toast('Section "' + place.section.label + '" added. Add its sheets any time.'); onClose(); return; }
     let ok = 0;
     for (const f of files) {
       if (done[f.name] === 'ok') continue;
@@ -219,9 +223,13 @@ function BulkUpload({ cls, section, sections, classes, subjects, subjectList, st
   };
   const drag = on => e => { e.preventDefault(); if (!busy) setOver(on); };
   return (
-    <Modal title={'Upload PDFs to ' + cls.name} onClose={onClose} onSubmit={submit} wide busy={busy} error={err}
-      submitLabel={finished ? 'Done' : files.length ? 'Upload ' + plural(files.length, 'PDF') : 'Upload'} busyLabel="Uploading…" cancelLabel={finished ? 'Close' : 'Cancel'}>
+    <Modal title={(make ? 'Add a section to ' : 'Upload PDFs to ') + cls.name} onClose={onClose} onSubmit={submit} wide busy={busy} error={err}
+      submitLabel={finished ? 'Done' : make ? (files.length ? 'Add section with ' + plural(files.length, 'PDF') : 'Add section') : files.length ? 'Upload ' + plural(files.length, 'PDF') : 'Upload'}
+      busyLabel={files.length ? 'Uploading…' : 'Saving…'} cancelLabel={finished ? 'Close' : 'Cancel'}>
       <div>
+        {make ? <div className="field big"><label htmlFor="buName">Section name</label><input id="buName" value={secName} onChange={e => { setSecName(e.target.value); setBad(''); }} disabled={busy || !!made} maxLength={60} placeholder="e.g. Story time" autoComplete="off" aria-invalid={!!bad} data-autofocus />
+          {bad ? <small className="bad">{bad}</small> : <small>Shown on the website as a shelf in {cls.name}.</small>}</div> : null}
+        {make ? <p className="field-title">Its PDFs <small className="muted">(optional, you can add them later)</small></p> : null}
         <div className={'drop small' + (over ? ' over' : '')} role="button" tabIndex={0} aria-label="Choose the PDFs"
           onClick={() => !busy && input.current.click()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!busy) input.current.click(); } }}
           onDragEnter={drag(true)} onDragOver={drag(true)} onDragLeave={drag(false)} onDrop={e => { e.preventDefault(); setOver(false); if (!busy) add(e.dataTransfer.files); }}>
@@ -237,9 +245,9 @@ function BulkUpload({ cls, section, sections, classes, subjects, subjectList, st
         <div className="grid-3">
           <div className="field"><label htmlFor="buSubj">Subject</label><input id="buSubj" list="buSubjList" value={subject} onChange={e => setSubject(e.target.value)} disabled={busy} maxLength={40} autoComplete="off" />
             <datalist id="buSubjList">{subjects.map(x => <option key={x} value={x} />)}</datalist></div>
-          <div className="field"><label htmlFor="buSec">Section</label><input id="buSec" list="buSecList" value={secName} onChange={e => setSecName(e.target.value)} disabled={busy} maxLength={60} placeholder="Pick or type a new one" autoComplete="off" />
+          {make ? null : <div className="field"><label htmlFor="buSec">Section</label><input id="buSec" list="buSecList" value={secName} onChange={e => setSecName(e.target.value)} disabled={busy} maxLength={60} placeholder="Pick or type a new one" autoComplete="off" />
             <datalist id="buSecList">{classSecs.map(x => <option key={x.id} value={x.label} />)}</datalist>
-            <small>{secName.trim() && !classSecs.some(x => sameName(x.label, secName)) ? 'A new section is made.' : ''}</small></div>
+            <small>{secName.trim() && !classSecs.some(x => sameName(x.label, secName)) ? 'A new section is made.' : ''}</small></div>}
           <div className="field"><label htmlFor="buPrice">Price ₹ each</label><input id="buPrice" type="number" min="0" step="1" value={free ? '0' : price} onChange={e => setPrice(e.target.value)} disabled={busy || free || !canPrice} />
             <label className="check"><input type="checkbox" checked={free} onChange={e => setFree(e.target.checked)} disabled={busy || !canPrice} />Free</label></div>
         </div>

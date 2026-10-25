@@ -107,8 +107,9 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     must(await page.locator('.browser .chip.on', { hasText: CLASS }).count(), 'the new class is not picked');
     await page.locator('.browser .chip.add', { hasText: 'New subject' }).click();
     await page.fill('#ndName', SUBJECT); await submitModal('Save'); await toast(/is ready/);
-    await page.locator('.browser-actions button', { hasText: 'New section' }).click();
-    await page.fill('#ndName', SECTION); await submitModal('Save'); await toast(/Section added/);
+    await page.locator('.browser-actions button', { hasText: 'Add section' }).click();
+    await page.fill('#buName', SECTION); await shot('04a-add-section-dialog');
+    await submitModal('Add section'); await toast(/Section .* added/);
     await page.locator('.browse-toggle b', { hasText: SECTION }).waitFor();
     await shot('04-new-class-and-section');
   });
@@ -126,6 +127,28 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await submitModal('Done');
     const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === SECTION);
     must(ws.length === 2 && ws.every(w => w.title.startsWith('Rhymes part') && w.subject === SUBJECT), 'not public: ' + JSON.stringify(ws.map(w => [w.title, w.subject])));
+  });
+
+  await step('Add section with its PDFs in one step', async () => {
+    await page.locator('.add-sec').click();
+    await page.fill('#buName', 'Number fun ' + STAMP);
+    await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('count_to_10.pdf'), tinyPdf('count_to_20.pdf')]);
+    await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
+    await shot('04b-add-section-with-pdfs');
+    await submitModal('Add section with 2 PDFs');
+    await page.locator('.dm button[type=submit]', { hasText: 'Done' }).waitFor({ timeout: 30000 });
+    await submitModal('Done');
+    await page.locator('.browse-sec', { has: page.locator('.browse-toggle b', { hasText: 'Number fun ' + STAMP }) }).locator('.browse-sheet').nth(1).waitFor({ timeout: 10000 });
+    await shot('04c-section-with-its-sheets');
+    const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === 'Number fun ' + STAMP);
+    must(ws.length === 2, 'expected 2 public sheets, got ' + ws.length);
+  });
+
+  await step('All sheets has no filter boxes', async () => {
+    await page.locator('.tabs-s button', { hasText: 'All sheets' }).click();
+    await page.locator('.book-grid').waitFor();
+    must(!(await page.locator('.filters-row').count()), 'filter boxes still there');
+    await page.locator('.tabs-s button', { hasText: 'By class and section' }).click();
   });
 
   await step('a new sheet with a typed new section', async () => {
