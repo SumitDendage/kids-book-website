@@ -667,15 +667,16 @@ async function verifyLoginOtp(ctx: Ctx) {
   try {
     done = await tx(async (q) => {
         
-const previousSessions = await q<{ ip: string | null }[]>`
+const previousLogins = await q<{ ip: string | null }[]>`
   select ip
-  from app_sessions
+  from login_activity
   where user_id = ${c.user_id}
+    and success = true
   order by created_at desc
   limit 1
 `;
 
-      previousLoginIp = previousSessions[0]?.ip ?? null;
+previousLoginIp = previousLogins[0]?.ip ?? null;
       const { expiresAt } = await openSession(q, ctx, {
         userId: c.user_id,
         sessionId: s.sessionId,
