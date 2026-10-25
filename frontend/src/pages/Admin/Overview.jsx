@@ -2,7 +2,7 @@ import MetricCard from '../../components/dashboard/MetricCard.jsx';
 import DataTable from '../../components/dashboard/DataTable.jsx';
 import Pill from '../../components/dashboard/Pill.jsx';
 import Icon from '../../components/dashboard/Icon.jsx';
-import { BarChart } from '../../components/dashboard/Charts.jsx';
+import { BarChart, Donut, SplitBar, Meter } from '../../components/dashboard/Charts.jsx';
 import { Guard, ErrorNote } from '../../components/dashboard/States.jsx';
 import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, inr, cur, fmt, initialsOf, tzName, qs, plural } from '../Portal/dashboard.js';
@@ -36,13 +36,13 @@ export default function Overview() {
       {st.error ? <ErrorNote error={st.error} onRetry={st.reload} compact /> : null}
       {s ? <>
         <div className="kpi-row">
-          <MetricCard label="Total revenue" value={inr(s.revenue_inr)} sub={(s.today && s.today.revenueInr ? '+' + inr(s.today.revenueInr) : 'Nothing yet') + ' today' + (s.refundedInr ? ' · ' + inr(s.refundedInr) + ' refunded' : '')} icon="rupee" />
-          <MetricCard label="Paid orders" value={s.paid_orders} sub={plural(s.today ? s.today.paidOrders : 0, 'payment') + ' today · ' + (s.pendingOrders || 0) + ' waiting for payment'} icon="card" />
+          <MetricCard label="Total revenue" value={inr(s.revenue_inr)} sub={(s.today && s.today.revenueInr ? '+' + inr(s.today.revenueInr) : 'Nothing yet') + ' today' + (s.refundedInr ? ' · ' + inr(s.refundedInr) + ' refunded' : '')} icon="rupee" trend={days.map(d => d.revenueInr || 0)} />
+          <MetricCard label="Paid orders" value={s.paid_orders} sub={plural(s.today ? s.today.paidOrders : 0, 'payment') + ' today · ' + (s.pendingOrders || 0) + ' waiting for payment'} icon="card" trend={days.map(d => d.paidOrders || 0)} trendColor="var(--viz-3)" />
           <MetricCard label="Open access" value={s.active_entitlements} sub={plural(s.activePlans || 0, 'class plan') + ' among them'} icon="users" />
           <MetricCard label="Visitors today" value={s.today ? s.today.visitors : 0} sub={'+' + (s.today ? s.today.visitorsLastHour : 0) + ' in the last hour · ' + plural(s.users || 0, 'customer') + ' in all'} icon="activity" />
         </div>
         <div className="grid-7">
-          <section className="panel span-4"><p className="eyebrow">Sales</p><p className="auth-sub">Paid orders in rupees, per day, last {days.length} days.</p><BarChart series={days.map(d => d.revenueInr || 0)} labels={days.map(d => d.day)} prefix="₹" /></section>
+          <section className="panel span-4"><p className="eyebrow">Sales</p><p className="auth-sub">Paid orders in rupees, per day, last {days.length} days.</p><BarChart series={days.map(d => d.revenueInr || 0)} labels={days.map(d => d.day)} prefix="₹" color="var(--viz-1)" empty="No sales in the last 14 days yet." /></section>
           <section className="panel span-3"><p className="eyebrow">Recent sales</p>
             {!can('orders.read') ? <p className="auth-sub">Your role does not show orders.</p>
               : latest.error ? <ErrorNote error={latest.error} onRetry={latest.reload} compact />
@@ -64,10 +64,24 @@ export default function Overview() {
           <section className="panel"><p className="eyebrow">The shop</p>
             <div className="kv">
               <span>Sheets on sale</span><b>{s.worksheets}</b>
-              <span>Sheets with their PDF</span><b>{s.with_pdf}</b>
               <span>Opened in the last 24 hours</span><b>{s.opens_24h}</b>
               <span>Sign-ups today</span><b>{s.today ? s.today.signups : 0}</b>
               <span>Staff members</span><b>{s.staff}</b>
+            </div>
+            <div className="meters" style={{ marginTop: 16 }}>
+              <Meter label="Sheets on sale with their PDF" value={s.with_pdf} max={s.worksheets} />
+              <Meter label="Messages read" value={(s.messages || 0) - (s.messages_unread || 0)} max={s.messages} />
+            </div>
+          </section>
+        </div>
+        <div className="grid-2">
+          <section className="panel"><p className="eyebrow">Customers</p><p className="auth-sub">Every customer account, and how many are paused or blocked.</p>
+            <Donut parts={[['Active', Math.max(0, (s.users || 0) - (s.suspendedCustomers || 0) - (s.blockedCustomers || 0)), 'var(--viz-1)'], ['Paid access paused', s.suspendedCustomers, 'var(--viz-4)'], ['Blocked', s.blockedCustomers, 'var(--viz-2)']]} sub="customers" empty="No customers yet. They appear here when someone signs up." />
+          </section>
+          <section className="panel"><p className="eyebrow">Orders</p><p className="auth-sub">All orders so far, by what happened to them.</p>
+            <SplitBar parts={[['Paid', s.paid_orders, 'var(--viz-1)'], ['Waiting for payment', s.pendingOrders, 'var(--viz-4)'], ['Refunded', s.refundedOrders, 'var(--viz-2)']]} empty="No orders yet. They appear here when a customer checks out." />
+            <div className="meters" style={{ marginTop: 20 }}>
+              <Meter label="Open access that is a class plan" value={s.activePlans} max={s.active_entitlements} tone={s.active_entitlements ? 'ok' : 'none'} />
             </div>
           </section>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
+import { Donut, RankBars } from '../../components/dashboard/Charts.jsx';
 import { StaffStyles, CardTable, Chips, KV, Loading, LoadError, Note, NoAccess, PanelHead, Where, useServer, useStaffAccess, when, count, bytes, ms } from './common.jsx';
 
 /* Developer → Database: the live database's tables with their size and about how many rows each
@@ -45,6 +46,18 @@ export default function Database() {
         <MetricCard label="Size on disk" value={data ? bytes(total) : '…'} sub="tables and their indexes" icon="backups" />
         <MetricCard label="Database answer" value={data ? ms(db.latencyMs) : '…'} sub="measured on the server" icon="clock" />
       </div>
+      {data ? (
+        <div className="grid-2" data-section="db-charts">
+          <section className="panel" aria-labelledby="lwDbSpace">
+            <PanelHead id="lwDbSpace" title="Where the space goes" sub="The biggest tables by size on disk; the rest are grouped as Other." />
+            <Donut parts={tables.map(t => [t.name, t.bytes])} center={bytes(total)} sub="in all" format={bytes} empty="The server reported no tables." />
+          </section>
+          <section className="panel" aria-labelledby="lwDbRows">
+            <PanelHead id="lwDbRows" title="Most rows" sub="The tables holding the most rows (the database’s own estimate)." />
+            <RankBars rows={tables.map(t => [t.name, t.rows])} color="var(--viz-3)" empty="Every table is empty so far." />
+          </section>
+        </div>
+      ) : null}
       <section className="panel" aria-labelledby="lwDbTables" data-section="db-tables">
         <PanelHead id="lwDbTables" title="Tables" sub="Live from the database. Row counts are the database’s own estimates, so large tables can be slightly off.">
           <button type="button" className="btn btn-ghost btn-sm" onClick={reload} disabled={loading}>{loading ? <><span className="lw-spin" aria-hidden="true" />Checking…</> : 'Check again'}</button>
