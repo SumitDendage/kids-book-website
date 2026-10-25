@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { authFetch, API_BASE } from '../../services/api.js';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
+import { BarChart, LineChart } from '../../components/dashboard/Charts.jsx';
 import { StaffStyles, CardTable, KV, Tag, Loading, LoadError, Note, PanelHead, Where, useServer, useStaffAccess, when, ago, count, ms } from './common.jsx';
 import { usePublicHealth } from './Health.jsx';
 
@@ -10,6 +11,14 @@ import { usePublicHealth } from './Health.jsx';
 
 const DAY = 24 * 3600e3;
 const within = (list, key) => list.filter(x => Date.now() - x[key] < DAY).length;
+/* the last 7 days in this browser's time zone, oldest first, as YYYY-MM-DD */
+function lastDays(n) {
+  const out = [], d = new Date(); d.setHours(0, 0, 0, 0);
+  for (let i = n - 1; i >= 0; i--) { const x = new Date(d.getTime() - i * DAY); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0')); }
+  return out;
+}
+const dayOf = ms => { const x = new Date(ms); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const perDay = (days, list, ok) => days.map(day => list.filter(x => dayOf(x.at) === day && (ok == null || ok(x))).length);
 
 export default function ApiMonitor() {
   const access = useStaffAccess();
@@ -39,6 +48,7 @@ export default function ApiMonitor() {
   const many = list => (list.length >= 2000 && within(list, 'at') >= 2000 ? '+' : '');
   const lg = logins.data ? logins.data.logins || [] : [];
   const vw = viewer.data ? viewer.data.log || [] : [];
+  const week = lastDays(7);
 
   return (
     <>
@@ -57,6 +67,7 @@ export default function ApiMonitor() {
         </PanelHead>
         {runs.length ? (
           <>
+            <BarChart series={runs.map(r => (r.ms != null ? Math.round(r.ms) : 0))} labels={runs.map((r, i) => 'Try ' + (i + 1))} color="var(--viz-1)" h={180} small />
             <KV rows={[['Fastest', ms(times[0])], ['Middle', ms(times[Math.floor(times.length / 2)])], ['Slowest', ms(times[times.length - 1])], ['Failed', String(runs.filter(r => r.status !== 200).length) + ' of ' + runs.length]]} />
             <CardTable caption="Measurements" rows={runs} rowKey={r => r.at + ':' + r.ms} cols={[
               ['Asked', r => when(r.at)], ['Answer', r => (r.status === 200 ? <Tag tone="ok">200 OK</Tag> : <Tag tone="bad">{r.status ? String(r.status) : 'No answer'}</Tag>)], ['Time', r => (r.ms != null ? ms(r.ms) : '')],
@@ -80,6 +91,17 @@ export default function ApiMonitor() {
           d && d.payments.lastPaidAt ? ['Last paid order', ago(d.payments.lastPaidAt)] : null,
         ]} />
       </section>
+
+      {canLogs && (logins.data || viewer.data) ? (
+        <section className="panel" aria-labelledby="lwApiWeek" data-section="api-week">
+          <PanelHead id="lwApiWeek" title="The last 7 days" sub="Sign-in attempts and sheet viewer requests per day, from the server’s logs (the newest 2,000 of each). Point at a day to see its numbers." />
+          <LineChart labels={week} series={[
+            { name: 'Sign-ins that worked', values: perDay(week, lg, l => l.success) },
+            { name: 'Sign-ins that failed', values: perDay(week, lg, l => !l.success), color: 'var(--viz-2)' },
+            { name: 'Sheet viewer requests', values: perDay(week, vw), color: 'var(--viz-3)' },
+          ]} empty="No sign-ins or sheet views in the last 7 days." />
+        </section>
+      ) : null}
 
       <section className="panel" aria-labelledby="lwApiLogs">
         <PanelHead id="lwApiLogs" title="Every request" sub="The site does not keep its own log of each API call." />

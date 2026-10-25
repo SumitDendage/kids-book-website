@@ -10,6 +10,8 @@
   --accent: oklch(0.968 0.007 247.896); --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508); --input: oklch(0.929 0.013 255.508); --ring: oklch(0.704 0.04 256.788);
+  /* data-viz series (checked for colour-blind separation, light and dark steps) */
+  --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a; --viz-4: #eda100; --viz-other: #a3a3a0;
   --chart-1: oklch(0.646 0.222 41.116); --chart-2: oklch(0.6 0.118 184.704); --chart-3: oklch(0.398 0.07 227.392); --chart-4: oklch(0.828 0.189 84.429); --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: var(--background); --sidebar-accent: var(--accent); --sidebar-border: var(--border);
   --ok: oklch(0.6 0.118 184.704); --ok-bg: oklch(0.6 0.118 184.704 / 0.12); --info: oklch(0.55 0.15 240); --info-bg: oklch(0.55 0.15 240 / 0.12); --bad: var(--destructive); --bad-bg: oklch(0.577 0.245 27.325 / 0.1);
@@ -28,6 +30,7 @@
   --accent: oklch(0.279 0.041 260.031); --accent-foreground: oklch(0.984 0.003 247.858);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%); --ring: oklch(0.551 0.027 264.364);
+  --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-other: #6b6b68;
   --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08); --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
   --ok: oklch(0.696 0.17 162.48); --ok-bg: oklch(0.696 0.17 162.48 / 0.15); --info: oklch(0.7 0.14 240); --info-bg: oklch(0.7 0.14 240 / 0.15); --bad-bg: oklch(0.704 0.191 22.216 / 0.18);
   --paper: var(--card);
@@ -272,6 +275,37 @@
 .chart.sm { max-height: 240px; }
 .chart text { font-family: inherit; }
 .chart .bar { transition: opacity 0.15s; } .chart:hover .bar { opacity: 0.55; } .chart .bar:hover { opacity: 1; }
+/* more charts: line, ring, split bar, ranked bars, meter, KPI trend (components/dashboard/Charts.jsx) */
+.viz { display: grid; gap: 12px; }
+.viz-plot { position: relative; max-width: 900px; }
+.viz-empty { position: absolute; inset: 0 0 28px 44px; display: grid; place-items: center; margin: 0; font-size: 13px; color: var(--muted-foreground); pointer-events: none; text-align: center; }
+.viz-tip { position: absolute; top: 4px; transform: translateX(-50%); min-width: 140px; padding: 8px 10px; border-radius: 8px; background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); box-shadow: var(--shadow-sm); font-size: 12px; display: grid; gap: 4px; pointer-events: none; z-index: 2; white-space: nowrap; }
+.viz-tip span { display: flex; align-items: center; gap: 6px; } .viz-tip em { margin-left: auto; padding-left: 12px; font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; }
+.viz-tip i, .viz-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.viz-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.viz-legend li { display: flex; align-items: center; gap: 6px; min-width: 0; } .viz-legend b { font-weight: 600; font-variant-numeric: tabular-nums; } .viz-legend small { color: var(--muted-foreground); font-size: 12px; }
+.viz-legend.line i { height: 3px; width: 14px; border-radius: 2px; }
+.viz-legend.col { flex-direction: column; flex-wrap: nowrap; gap: 8px; flex: 1; min-width: 0; }
+.viz-legend.col li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; gap: 8px; padding: 2px 4px; border-radius: 6px; } .viz-legend.col li.on { background: var(--muted); }
+.viz-legend.col span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .viz-legend.col small { text-align: right; }
+.donut { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.donut svg { width: 140px; height: 140px; flex-shrink: 0; } .donut svg circle { cursor: default; }
+.split { display: flex; gap: 2px; height: 14px; border-radius: 7px; overflow: hidden; background: var(--muted); }
+.split i { display: block; min-width: 3px; height: 100%; }
+.split.none { display: grid; place-items: center; height: 28px; border-radius: 8px; font-size: 12px; color: var(--muted-foreground); }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rank li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; align-items: center; gap: 12px; font-size: 13px; }
+.rank-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rank-l small { color: var(--muted-foreground); margin-left: 6px; font-size: 12px; }
+.rank-t { display: block; height: 10px; } .rank-t i { display: block; height: 10px; border-radius: 0 4px 4px 0; }
+.rank b { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 2.5em; text-align: right; }
+.meter { display: grid; gap: 6px; } .meter-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; } .meter-top b { font-variant-numeric: tabular-nums; }
+.meter-t { height: 10px; border-radius: 5px; background: var(--muted); overflow: hidden; } .meter-t i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width .4s; }
+.meter.mid .meter-t i { background: var(--viz-4); } .meter.low .meter-t i { background: var(--bad); }
+.meter small { font-size: 12px; color: var(--muted-foreground); }
+.meters { display: grid; gap: 16px; }
+.kpi .spark { position: relative; height: 28px; margin-top: 2px; } .kpi .spark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.kpi .spark i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); }
+.viz-grid { display: grid; gap: 16px; } @media (min-width: 1024px) { .viz-grid.three { grid-template-columns: repeat(3, 1fr); } }
 .funnel { display: grid; gap: 12px; }
 .funnel-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 12px; font-size: 14px; }
 .funnel-row i { display: block; height: 10px; border-radius: 5px; background: var(--primary); }
