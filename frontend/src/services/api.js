@@ -98,6 +98,18 @@ function report(store, err) {
   if (err.code === 'account_suspended' || err.code === 'session_blocked') sdkAuth.logout().catch(() => {});
   if (onAuthProblem) { try { onAuthProblem(err.code, err); } catch (_) {} }
 }
+const RETRY_MS = 800;
+const pause = ms => new Promise(done => setTimeout(done, ms));
+/* a GET changes nothing, so a hiccup is asked once more after a moment: a 503 (the server was
+   starting or busy) or no answer at all (a failed preflight looks like that to the browser) */
+async function getTwice(call, statusOf) {
+  try {
+    const res = await call();
+    if (statusOf(res) !== 503) return res;
+  } catch (e) { if (e?.code !== 'network') throw e; }
+  await pause(RETRY_MS);
+  return call();
+}
 async function send(path, opt) {
   try {
     const headers = { ...idHeaders(), ...await sdkAuth.getHeaders(), ...opt.headers };
@@ -112,7 +124,8 @@ export const setUnauthorizedHandler = fn => { onUnauthorized = fn; };
 
 /* JSON calls to our own API */
 export async function api(method, path, body, store = customerTokens) {
-  const { r, stuck } = await send(path, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined }, store);
+  const opt = { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined };
+  const { r, stuck } = await (method === 'GET' ? getTwice(() => send(path, opt, store), x => x.r.status) : send(path, opt, store));
   const out = await bodyOf(r);
   if (r.ok) return validateResponse(path, out);
   /* the refresh could not reach the server: still signed in, try again later */
@@ -198,8 +211,8 @@ export const catalogueApi = {
 
 /* ---------- public reads that need no sign-in ---------- */
 async function publicGet(path, fallback) {
-  let r;
-  try { r = await fetch(apiUrl(path), { headers: idHeaders(), credentials: CREDENTIALS }); } catch (e) { throw offline(e); }
+  const get = async () => { try { return await fetch(apiUrl(path), { headers: idHeaders(), credentials: CREDENTIALS }); } catch (e) { throw offline(e); } };
+  const r = await getTwice(get, x => x.status);
   const out = await bodyOf(r);
   if (!r.ok) throw httpError(r.status, out, fallback);
   return out;
