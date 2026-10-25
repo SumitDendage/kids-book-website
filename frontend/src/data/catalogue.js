@@ -381,6 +381,12 @@ function serverItem(w) {
 }
 export function applyServerCatalogue(worksheets, extra) {
   const byId = {}; (worksheets || []).forEach(w => { byId[w.id] = w; });
+  /* classes staff added in Admin (Class 4, Class 5 …) join the shelf, and renamed ones take their new name */
+  if (extra && Array.isArray(extra.classes)) extra.classes.forEach(c => {
+    if (!c || typeof c.id !== 'string') return;
+    const name = c.name || c.label || c.id, old = CLASSES.find(x => x.id === c.id);
+    if (old) old.label = name; else CLASSES.push({ id: c.id, label: name });
+  });
   /* sheets added in Admin → Products join the shelf (a class the website does not draw is left out) */
   (worksheets || []).forEach(w => { if (!itemById(w.id) && CLASSES.some(c => c.id === w.cls)) { const it = serverItem(w); ITEMS.push(it); PDF_SHEETS.push(it); } });
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;

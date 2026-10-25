@@ -1,0 +1,176 @@
+/* The simpler Products page (Oct 25): the product form without tags, age group, SKU, sessions,
+   stock, display order and search-engine boxes; a section typed by name; sheets by class and
+   section; a new class, subject and section; many PDFs at once; Roles for the owner only.
+
+   HOW TO RUN (nothing here reaches the internet): start the dev API and the website exactly as in
+   products.cjs, then  node supabase/tests/e2e/simple-uploads.cjs
+   E2E_API, E2E_SITE and E2E_SHOTS (default /var/tmp/sb/su-shots) point it elsewhere. */
+const { chromium } = require(require('child_process').execSync('npm root -g').toString().trim() + '/playwright');
+const fs = require('fs');
+const path = require('path');
+
+const API = (process.env.E2E_API || 'http://127.0.0.1:54321').replace(/\/+$/, '');
+const SITE = (process.env.E2E_SITE || 'http://127.0.0.1:5173').replace(/\/+$/, '');
+const SHOTS = process.env.E2E_SHOTS || '/var/tmp/sb/su-shots';
+const STAMP = Date.now().toString(36).slice(-4);
+const CLASS = process.env.E2E_CLASS || 'Class ' + (4 + (parseInt(STAMP, 36) % 90)), SUBJECT = 'Hindi ' + STAMP, SECTION = 'Story time ' + STAMP, TYPED = 'Poems ' + STAMP;
+fs.mkdirSync(SHOTS, { recursive: true });
+
+function tinyPdf(name) {
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>'];
+  let out = '%PDF-1.4\n'; const offs = [];
+  objs.forEach((o, i) => { offs.push(out.length); out += (i + 1) + ' 0 obj\n' + o + '\nendobj\n'; });
+  const x = out.length;
+  out += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n' + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+  out += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + x + '\n%%EOF\n';
+  const f = path.join(SHOTS, name); fs.writeFileSync(f, out); return f;
+}
+
+let failed = 0;
+const log = (...a) => console.log(...a);
+async function step(name, fn) {
+  const t0 = Date.now();
+  try { const out = await fn(); log('PASS', name, '(' + (Date.now() - t0) + ' ms)' + (out ? ' ' + out : '')); return true; }
+  catch (e) { failed++; log('FAIL', name, '-', String(e.message).split('\n')[0]); return false; }
+}
+const must = (c, m) => { if (!c) throw new Error(m); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')).json();
+
+(async () => {
+  const users = await (await fetch(API + '/__dev/users')).json();
+  const browser = await chromium.launch({ executablePath: process.env.E2E_CHROME || undefined });
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, reducedMotion: 'reduce' });
+  await ctx.route('**/frames-webp/**', r => r.fulfill({ status: 204, body: '' }));
+  const page = await ctx.newPage();
+  const consoleErrors = [];
+  page.on('pageerror', e => consoleErrors.push(e.message));
+
+  const shot = (name, full) => page.screenshot({ path: SHOTS + '/' + name + '.png', fullPage: !!full }).catch(() => {});
+  const veilGone = async () => { await page.waitForFunction(() => { const v = document.getElementById('veil'); return !v || v.classList.contains('gone'); }, null, { timeout: 30000 }).catch(() => {}); await sleep(600); };
+  const toast = async re => { const end = Date.now() + 15000; let seen = ''; for (;;) { seen = await page.evaluate(() => Array.from(document.querySelectorAll('.toast, [role="status"], .toast-msg')).map(x => x.textContent).join(' | ')); if (re.test(seen)) return seen; if (Date.now() > end) throw new Error('no message ' + re + ' (saw: ' + seen.slice(0, 200) + ')'); await sleep(200); } };
+  const go = async title => { await page.locator('.sb .sb-item[title="' + title + '"]').click(); await page.waitForFunction(t => { const h = document.querySelector('main.mn .mn-head h1'); return h && h.textContent.trim() === t; }, title, { timeout: 20000 }); await sleep(800); };
+  const submitModal = label => page.locator('.dm button[type=submit]', { hasText: label }).click();
+  const signIn = async who => {
+    await page.goto(SITE + '/admin');
+    await page.locator('#stEmail, .dash').first().waitFor({ timeout: 60000 });
+    await veilGone();
+    await page.fill('#stEmail', who.email); await page.fill('#stPass', who.password);
+    const t0 = new Date(Date.now() - 2000).toISOString();
+    await page.locator('.portal-login button[type=submit]').click();
+    /* sign-in asks for the 6-digit code from the email (the dev API keeps the mail) */
+    await page.locator('#stCode, .dash').first().waitFor({ timeout: 30000 });
+    if (await page.locator('#stCode').count()) {
+      let code = null;
+      for (let i = 0; i < 50 && !code; i++) {
+        const m = ((await (await fetch(API + '/__dev/mail')).json()).mail || []).find(x => x.to === who.email && x.at >= t0 && /code is: (\d{6})/.test(x.text));
+        code = m && /code is: (\d{6})/.exec(m.text)[1];
+        if (!code) await sleep(200);
+      }
+      must(code, 'no sign-in code mailed');
+      await page.fill('#stCode', code);
+      await page.locator('.portal-login button[type=submit]').click();
+    }
+    await page.locator('.dash').waitFor({ timeout: 30000 });
+  };
+
+  await step('owner signs in and sees Roles', async () => {
+    await signIn(users.owner);
+    must(await page.locator('.sb .sb-item[title="Roles"]').count(), 'the owner lost Roles');
+  });
+
+  await step('Products opens on sheets by class and section', async () => {
+    await go('Products');
+    await page.locator('.browser').waitFor({ timeout: 15000 });
+    const first = page.locator('.browse-sec').filter({ hasNotText: '0 sheets' }).first();
+    await first.locator('.browse-toggle').click();
+    await first.locator('.browse-sheet').first().waitFor({ timeout: 5000 });
+    await shot('01-sheets-by-section');
+  });
+
+  await step('the product form has none of the removed boxes', async () => {
+    await page.locator('.browse-sheet').first().click();
+    await page.locator('#psTitle').waitFor();
+    for (const id of ['psTags', 'psAge', 'psSku', 'psStock', 'psSort', 'psSeoT', 'psSeoD']) must(!(await page.locator('#' + id).count()), id + ' is still there');
+    must(!(await page.locator('.studio legend', { hasText: /Category|Search engines/ }).count()), 'old fieldsets still there');
+    must(!(await page.locator('.studio', { hasText: 'Academic sessions' }).count()), 'academic sessions still there');
+    must(await page.locator('#psTopic').evaluate(e => e.tagName === 'INPUT'), 'the section is not a typed box');
+    await page.locator('.studio legend', { hasText: 'Where it goes' }).scrollIntoViewIfNeeded();
+    await shot('02-edit-sheet-form');
+    await page.locator('.studio button[aria-label="Close"]').click();
+  });
+
+  await step('add a new class, a subject and a section', async () => {
+    await page.locator('.browser .chip.add', { hasText: 'New class' }).click();
+    await page.fill('#ndName', CLASS); await shot('03-new-class');
+    await submitModal('Save'); await toast(/added/);
+    must(await page.locator('.browser .chip.on', { hasText: CLASS }).count(), 'the new class is not picked');
+    await page.locator('.browser .chip.add', { hasText: 'New subject' }).click();
+    await page.fill('#ndName', SUBJECT); await submitModal('Save'); await toast(/is ready/);
+    await page.locator('.browser-actions button', { hasText: 'New section' }).click();
+    await page.fill('#ndName', SECTION); await submitModal('Save'); await toast(/Section added/);
+    await page.locator('.browse-toggle b', { hasText: SECTION }).waitFor();
+    await shot('04-new-class-and-section');
+  });
+
+  await step('upload two PDFs at once into the section, straight to the website', async () => {
+    await page.locator('.browse-sec', { has: page.locator('.browse-toggle b', { hasText: SECTION }) }).locator('button', { hasText: 'Upload PDFs' }).click();
+    await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('rhymes_part-1.pdf'), tinyPdf('rhymes_part-2.pdf')]);
+    must(await page.locator('#buSubj').inputValue(), 'no subject');
+    await page.fill('#buSubj', SUBJECT);
+    await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
+    await shot('05-upload-many');
+    await submitModal('Upload 2 PDFs');
+    await page.locator('.dm button[type=submit]', { hasText: 'Done' }).waitFor({ timeout: 30000 });
+    await shot('06-upload-many-done');
+    await submitModal('Done');
+    const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === SECTION);
+    must(ws.length === 2 && ws.every(w => w.title.startsWith('Rhymes part') && w.subject === SUBJECT), 'not public: ' + JSON.stringify(ws.map(w => [w.title, w.subject])));
+  });
+
+  await step('a new sheet with a typed new section', async () => {
+    await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
+    await page.locator('#psTitle').waitFor();
+    await page.fill('#psTitle', 'Little poems ' + STAMP);
+    await page.fill('#psSubj', 'English');
+    await page.fill('#psTopic', TYPED);
+    must(/New section/.test(await page.locator('#psTopic ~ small').innerText()), 'no new-section note');
+    await page.locator('.studio input[type=file][accept*="pdf"]').setInputFiles(tinyPdf('poems.pdf'));
+    await shot('07-new-sheet-typed-section');
+    await page.locator('.studio-actions button[type=submit]').click();
+    await toast(/Saved|draft|website/);
+    const secs = (await catalogue()).sections || [];
+    must(secs.some(x => x.label === TYPED), 'the typed section was not made');
+  });
+
+  await step('the website lists the new class', async () => {
+    const r = await catalogue();
+    must(r.classes.some(c => c.name === CLASS), 'class not public');
+  });
+
+  await step('phone size', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.studio button[aria-label="Close"]').click().catch(() => {});
+    await sleep(600);
+    await page.locator('.browser').scrollIntoViewIfNeeded();
+    await shot('08-phone-sheets-by-section');
+    await page.setViewportSize({ width: 1360, height: 900 });
+  });
+
+  await step('an Administrator does not see Roles or the Developer panel', async () => {
+    if (!process.env.E2E_ADMIN) return 'skipped (set E2E_ADMIN=email:password of an admin)';
+    const [email, password] = process.env.E2E_ADMIN.split(':');
+    await page.context().clearCookies(); await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await signIn({ email, password });
+    must(!(await page.locator('.sb .sb-item[title="Roles"]').count()), 'an admin sees Roles');
+    await shot('09-admin-menu-no-roles');
+    await page.goto(SITE + '/developer'); await veilGone();
+    await page.locator('text=No developer access').waitFor({ timeout: 20000 });
+    await shot('10-admin-no-developer-panel');
+  });
+
+  if (consoleErrors.length) { failed++; log('FAIL page errors:', consoleErrors.slice(0, 3).join(' | ')); }
+  await browser.close();
+  log(failed ? failed + ' failed' : 'all passed', '· shots in', SHOTS);
+  process.exit(failed ? 1 : 0);
+})();
