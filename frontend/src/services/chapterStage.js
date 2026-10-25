@@ -33,24 +33,31 @@ export function createStage() {
     if (s.site && location.pathname === '/') history.replaceState(history.state, '', '#' + IDS[n]);
     s.onSection(n);
   };
-  /* Once per frame: move the stack, soften the chapters leaving the screen, pick the one in the middle. */
+  /* Once per frame: move the stack, soften the chapters leaving the screen, pick the one in the middle.
+     Phones (Oct 25): every size is read first and everything is written after, so the browser
+     works out the page's layout once per frame instead of once per chapter, and how far along we
+     are goes only to the progress bars that show it (not the whole page, which made the browser
+     restyle every element on every frame of a scroll). */
+  let bars = [];
+  const progressBars = () => (bars.length && bars.every(b => b.isConnected) ? bars : (bars = Array.from(document.querySelectorAll('.progress, .mo-progress'))));
   s.onFrame = () => {
     if (!s.site || !s.stack) return;
     const p = Math.min(1, Math.max(0, s.current / s.maxScroll));
-    if (Math.abs(p - s.lastProgress) > 0.0004) { s.lastProgress = p; document.documentElement.style.setProperty('--scroll', p); }
+    if (Math.abs(p - s.lastProgress) > 0.0004) { s.lastProgress = p; progressBars().forEach(b => b.style.setProperty('--scroll', p)); }
     if (Math.abs(s.current - s.lastY) < 0.01) return;
     s.lastY = s.current;
+    const mid = innerHeight / 2;
+    const spots = s.chapters.map(c => (c ? [c.offsetTop - s.current, c.offsetHeight] : null));
     s.stack.style.transform = 'translate3d(0,' + (-s.current).toFixed(2) + 'px,0)';
     let nearest = 0, nearestD = Infinity;
-    const mid = innerHeight / 2;
     s.chapters.forEach((c, i) => {
       if (!c) return;
-      const top = c.offsetTop - s.current, bottom = top + c.offsetHeight;
+      const [top, height] = spots[i], bottom = top + height;
       /* 0 while the middle of the screen is inside the chapter, ±1 a screen away */
       const d = top > mid ? (top - mid) / innerHeight : bottom < mid ? (bottom - mid) / innerHeight : 0;
       const a = Math.min(1, Math.abs(d));
       /* no tilt or shrink — text stays flat and readable; chapters only soften a little as they leave the screen */
-      if (!s.reduceMotion && s.inners[i]) s.inners[i].style.opacity = (1 - a * 0.35).toFixed(3);
+      if (!s.reduceMotion && s.inners[i]) { const o = String(+(1 - a * 0.35).toFixed(3)); if (s.inners[i].style.opacity !== o) s.inners[i].style.opacity = o; }
       if (a < nearestD) { nearestD = a; nearest = i; }
       c.classList.toggle('is-active', a < 0.62 || (c.classList.contains('is-active') && a < 0.9));
     });

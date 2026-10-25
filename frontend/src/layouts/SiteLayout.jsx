@@ -41,7 +41,7 @@ const STAFF = { admin: true, developer: true };
    pages open over it (the <Outlet/>), exactly like the old #admin overlay. */
 function Site() {
   const site = useSite();
-  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, handleAuthLink, loadCurrency, askRole, siteStage } = site;
+  const { stage, isInputLocked, setSiteStage, handlePaymentReturn, handleAuthLink, loadCurrency, askRole, siteStage, shop, checkout, drawer, modal, notice } = site;
   const navigate = useNavigate();
   const contentRef = useRef(null), engineRef = useRef(null);
   const [veil, setVeil] = useState({ gone: false, slow: false });
@@ -54,14 +54,14 @@ function Site() {
      also waits for it: its last rule sets --css-ready, and until then the site below is unstyled */
   const styled = () => getComputedStyle(document.documentElement).getPropertyValue('--css-ready').trim() === '1';
 
-  /* the opening veil: lift it once the look and the first frame are there (at least 1.8 s), or after 15 s whatever happens */
+  /* the opening veil: lift it once the look and the first frame are there (at least 1 s), or after 15 s whatever happens */
   useEffect(() => {
     const started = Date.now();
     let hintTimer = 0;
     const t = setInterval(() => {
       const elapsed = Date.now() - started, painted = !!(engineRef.current && engineRef.current.painted) && styled();
       if (!painted && elapsed > 4000) setVeil(v => (v.slow ? v : { ...v, slow: true }));
-      if ((painted && elapsed >= 1800) || elapsed >= 15000) {
+      if ((painted && elapsed >= 1000) || elapsed >= 15000) {
         clearInterval(t);
         setVeil(v => ({ ...v, gone: true }));
         document.body.dataset.stage = 'site'; stage.site = true; setSiteStage('site');
@@ -70,7 +70,7 @@ function Site() {
         onStaffHash(h);
         stage.jump(IDS.indexOf(h));
         hintTimer = setTimeout(stage.onHideHint, 6000);
-        warmUp();               /* the shop, the cart and the rest are fetched now, before anyone taps */
+        warmUp();               /* the shop's code, the cart and the rest are fetched now, before anyone taps */
         handlePaymentReturn();   /* finish a Stripe / PayPal payment if we just came back from one */
         handleAuthLink();        /* an Accept & Continue or password-reset link from an account email */
         loadCurrency();          /* the currency the prices are shown in */
@@ -79,6 +79,21 @@ function Site() {
     return () => { clearInterval(t); clearTimeout(hintTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* The shop, checkout, drawers and sheet window are drawn a few seconds after the veil lifts (or
+     the moment one of them is wanted, or the visitor first touches the page): drawn straight away
+     they fetched the shop's wallpaper and card pictures (about 600 KB) while a phone was still
+     trying to show the first screen. */
+  const [extras, setExtras] = useState(false);
+  const wanted = shop.open || checkout.open || !!drawer || modal.open || !!notice;
+  useEffect(() => { if (wanted) setExtras(true); }, [wanted]);
+  useEffect(() => {
+    if (!veil.gone || extras) return undefined;
+    const go = () => setExtras(true), events = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    const t = setTimeout(go, 4000);
+    events.forEach(e => addEventListener(e, go, { passive: true, once: true }));
+    return () => { clearTimeout(t); events.forEach(e => removeEventListener(e, go)); };
+  }, [veil.gone, extras]);
 
   const onTick = useCallback(() => stage.tick(), [stage]);
   return (
@@ -102,10 +117,7 @@ function Site() {
       <Suspense fallback={null}>
         <AIAssistant />
         <Outlet />
-        <Store />
-        <Checkout />
-        <Drawers />
-        <SheetModal />
+        {extras || wanted ? <><Store /><Checkout /><Drawers /><SheetModal /></> : null}
         {askRole && siteStage === 'site' ? <AccountTypePopup /> : null}
       </Suspense>
     </>
