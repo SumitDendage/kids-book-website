@@ -161,7 +161,7 @@ export default function Products() {
         <MetricCard label="Sheets sold" value={sold} sub={inr(revenue) + ' from paid orders'} icon="rupee" />
         <MetricCard label="With their PDF" value={filesQ.data ? filesQ.data.counts.withPdf + ' / ' + filesQ.data.counts.total : all.filter(s => s.available).length + ' / ' + all.length} sub={missing.size ? plural(missing.size, 'sheet') + ' still need a PDF' : 'Every sheet has its file'} icon="file" />
       </div>
-      {top.length ? <section className="panel">
+      {top.length && view === 'grid' ? <section className="panel">
         <p className="eyebrow">Best sellers</p>
         <ul className="top-sellers">{top.map(s => <li key={s.id}><button type="button" className="link" onClick={() => setEditing(s.id)}>{s.title}</button><span>{plural(s.sold, 'sale')} · {inr(s.revenue)}</span></li>)}</ul>
       </section> : null}

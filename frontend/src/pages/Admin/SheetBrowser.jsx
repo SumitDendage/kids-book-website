@@ -18,116 +18,140 @@ export const titleFromFile = name => {
   const t = String(name || '').replace(/\.pdf$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
   return t ? t[0].toUpperCase() + t.slice(1) : 'New sheet';
 };
-let keepCls = null, keepSubject = 'all';
+let keepCls = null, keepSubject = 'all', keepOpen = null;
+const glyph = t => String(t || '?').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+const hasText = (q, ...xs) => xs.some(x => String(x || '').toLowerCase().includes(q));
 
-/* Sheets by class and section: pick a class (or add one), a subject (or add one), and see every
-   section with its sheets. Open any sheet to change it, add one sheet to a section, or drop
-   many PDFs on a section at once. */
+/* Sheets by class and section, laid out like folders: pick a class at the top, then every section
+   with sheets is a card (its cover, name and count) under its group. Open a card to see its sheets
+   and change any of them. Empty sections stay tucked away until asked for. */
 export default function SheetBrowser({ all, classes, sections, subjectList, onEdit, onNew, onSaved, onMade }) {
   const { can, toast } = useDash();
   const canWrite = can('catalogue.write'), canUpload = can('files.upload');
   const [cls, setClsState] = useState(() => (keepCls && classes.some(c => c.id === keepCls) ? keepCls : (classes[0] && classes[0].id) || 'kg'));
   const [subject, setSubjectState] = useState(keepSubject);
-  const setCls = v => { keepCls = v; setClsState(v); };
+  const [opened, setOpenedState] = useState(keepOpen);   /* the open section's id ('' = the class shelf), or null for all sections */
+  const setCls = v => { keepCls = v; setClsState(v); setOpened(null); };
   const setSubject = v => { keepSubject = v; setSubjectState(v); };
+  const setOpened = v => { keepOpen = v; setOpenedState(v); };
   const [dialog, setDialog] = useState(null);   /* { kind: 'class' | 'subject' | 'section' | 'rename' | 'bulk', section? } */
-  const [open, setOpen] = useState(() => new Set());
+  const [showEmpty, setShowEmpty] = useState(false);
+  const [find, setFind] = useState('');
   const [busy, setBusy] = useState(false);
   const cur = classes.find(c => c.id === cls) || classes[0] || { id: cls, name: cls, status: 'available' };
+  const q = find.trim().toLowerCase();
 
   const inClass = useMemo(() => all.filter(s => s.cls === cur.id), [all, cur.id]);
   const subjects = useMemo(() => [...new Set((subjectList || []).filter(x => x.active).map(x => x.name).concat(inClass.map(s => s.subject).filter(Boolean)))], [subjectList, inClass]);
   const shown = subject === 'all' ? inClass : inClass.filter(s => s.subject === subject);
-  /* this class's sections, by their group (Alphabet, Vocabulary …), then "No section" */
-  const groups = useMemo(() => {
-    const secs = sectionsOfClass(sections, cur.id).slice().sort((a, b) => (a.sort - b.sort) || a.label.localeCompare(b.label));
-    const ids = new Set(secs.map(x => x.id));
+  /* this class's sections with their sheets, Your sections first, then the website's groups in order */
+  const secs = useMemo(() => {
+    const list = sectionsOfClass(sections, cur.id).slice().sort((a, b) => (a.sort - b.sort) || a.label.localeCompare(b.label));
+    const ids = new Set(list.map(x => x.id));
     /* a sheet whose section belongs to another class still shows here */
-    shown.forEach(s => { if (s.section && !ids.has(s.section)) { ids.add(s.section); secs.push({ id: s.section, label: s.sectionLabel || s.section, group: s.group, groupLabel: '', cls: cur.id, products: 0 }); } });
-    const m = new Map();
-    secs.forEach(x => {
-      const list = shown.filter(s => s.section === x.id);
-      if (subject !== 'all' && !list.length) return;
-      const g = x.groupLabel || (x.builtin ? 'Other topics' : 'Your sections');
-      if (!m.has(g)) m.set(g, []);
-      m.get(g).push({ ...x, list });
-    });
+    shown.forEach(s => { if (s.section && !ids.has(s.section)) { ids.add(s.section); list.push({ id: s.section, label: s.sectionLabel || s.section, group: s.group, groupLabel: '', cls: cur.id }); } });
+    const out = list.map(x => ({ ...x, group: x.groupLabel || (x.builtin ? 'Other topics' : 'Your sections'), list: shown.filter(s => s.section === x.id) }));
     const none = shown.filter(s => !s.section);
-    if (none.length) m.set('Not in a section', [{ id: '', label: 'Class shelf only', list: none }]);
-    return [...m.entries()];
-  }, [sections, shown, cur.id, subject]);
+    if (none.length) out.push({ id: '', label: 'Not in a section', group: 'Class shelf', list: none });
+    return out;
+  }, [sections, shown, cur.id]);
+  const filled = secs.filter(x => x.list.length);
+  const empty = secs.length - filled.length;
+  const visible = q ? secs.filter(x => hasText(q, x.label, x.group) || x.list.some(s => hasText(q, s.title))) : showEmpty ? secs : filled;
+  const groups = useMemo(() => {
+    const m = new Map();
+    visible.forEach(x => { if (!m.has(x.group)) m.set(x.group, []); m.get(x.group).push(x); });
+    /* staff's own sections first */
+    return [...m.entries()].sort((a, b) => (b[0] === 'Your sections') - (a[0] === 'Your sections'));
+  }, [visible]);
+  const sheetHits = q ? shown.filter(s => hasText(q, s.title, s.id)).slice(0, 30) : [];
+  const open = opened === null ? null : secs.find(x => x.id === opened) || null;
 
-  const toggle = id => setOpen(o => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const setStatus = async st => {
     setBusy(true);
     try { onMade('classes', await staffApi('PUT', '/api/admin/classes', { classes: [{ id: cur.id, status: st }] })); toast(cur.name + ': ' + CLASS_STATUS.find(x => x[0] === st)[1] + ' on the website.'); }
     catch (e) { toast(problem(e)); }
     setBusy(false);
   };
+  const setShown = async (x, on) => {
+    setBusy(true);
+    try { onMade('sections', await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(x.id), { visible: on })); toast(on ? 'Shown on the website.' : 'Hidden from the website.'); }
+    catch (e) { toast(problem(e)); }
+    setBusy(false);
+  };
   const preset = x => ({ cls: cur.id, subject: subject !== 'all' ? subject : '', sectionLabel: x && x.id ? x.label : '' });
+  const live = list => list.filter(s => visibilityOf(s) === 'published').length;
+  const sheetCard = s => {
+    const vis = visibilityOf(s);
+    return <li key={s.id}><button type="button" className="br-sheet" onClick={() => onEdit(s.id)} aria-label={(canWrite ? 'Edit ' : 'Open ') + s.title}>
+      <span className="br-cover" style={s.thumb ? { backgroundImage: 'url("' + s.thumb + '")' } : undefined} aria-hidden="true">{s.thumb ? null : glyph(s.title)}</span>
+      <b>{s.title}</b>
+      <small>{s.subject} · {s.pages} pg{s.available ? '' : ' · no PDF yet'}</small>
+      <span className="br-foot"><Pill tone={VISIBILITY_TONE[vis]}>{VIS_LABEL[vis]}</Pill><span className="br-price">{s.price === 0 ? 'Free' : inr(s.price)}</span></span>
+    </button></li>;
+  };
 
   return (
     <section className="panel browser" aria-label="Sheets by class and section">
-      <div className="row-between"><div><p className="eyebrow">Sheets by class and section</p>
-        <p className="auth-sub">Pick a class and a subject. Open a section to see its sheets, then click a sheet to change it.</p></div></div>
-      <div className="chips" role="group" aria-label="Class">
-        {classes.map(c => <button key={c.id} type="button" className={'chip' + (c.id === cur.id ? ' on' : '')} aria-pressed={c.id === cur.id} onClick={() => setCls(c.id)}>{c.name} <small>{all.filter(s => s.cls === c.id).length}</small></button>)}
-        {canWrite ? <button type="button" className="chip add" onClick={() => setDialog({ kind: 'class' })}><Icon id="plus" size={14} />New class</button> : null}
+      <div className="br-classes" role="tablist" aria-label="Class">
+        {classes.map(c => <button key={c.id} type="button" role="tab" aria-selected={c.id === cur.id} className={'br-class' + (c.id === cur.id ? ' on' : '')} onClick={() => setCls(c.id)}>
+          <b>{c.name}</b><small>{plural(all.filter(s => s.cls === c.id).length, 'sheet')}{c.status !== 'available' ? ' · ' + (CLASS_STATUS.find(x => x[0] === c.status) || [])[1] : ''}</small></button>)}
+        {canWrite ? <button type="button" className="br-class add" onClick={() => setDialog({ kind: 'class' })}><Icon id="plus" size={16} /><b>New class</b></button> : null}
       </div>
-      <div className="browser-class">
-        <b>{cur.name}</b>
+      <div className="br-tools">
+        <input className="search" type="search" placeholder={'Find a section or sheet in ' + cur.name + '…'} aria-label="Find a section or sheet" value={find} onChange={e => { setFind(e.target.value); if (e.target.value) setOpened(null); }} />
+        <select aria-label="Subject" value={subject} onChange={e => { if (e.target.value === '+new') setDialog({ kind: 'subject' }); else setSubject(e.target.value); }}>
+          <option value="all">Every subject ({inClass.length})</option>
+          {subjects.map(x => <option key={x} value={x}>{x} ({inClass.filter(s => s.subject === x).length})</option>)}
+          {canWrite ? <option value="+new">+ New subject…</option> : null}</select>
         {canWrite ? <label className="inline-field"><span className="muted">On the website</span>
           <select value={cur.status} disabled={busy} onChange={e => setStatus(e.target.value)} aria-label={cur.name + ' on the website'}>{CLASS_STATUS.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></label>
           : <Pill>{(CLASS_STATUS.find(x => x[0] === cur.status) || [])[1]}</Pill>}
-        {cur.status !== 'available' ? <small className="muted">Customers can't buy this class's sheets until it is Open.</small> : null}
+        {canWrite ? <span className="br-acts">
+          <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" />Add section</button>
+          {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: open && open.id ? open : null })}><Icon id="download" />Upload PDFs</button> : null}
+        </span> : null}
       </div>
-      <div className="chips" role="group" aria-label="Subject">
-        <button type="button" className={'chip' + (subject === 'all' ? ' on' : '')} onClick={() => setSubject('all')}>Every subject <small>{inClass.length}</small></button>
-        {subjects.map(x => <button key={x} type="button" className={'chip' + (subject === x ? ' on' : '')} onClick={() => setSubject(x)}>{x} <small>{inClass.filter(s => s.subject === x).length}</small></button>)}
-        {canWrite ? <button type="button" className="chip add" onClick={() => setDialog({ kind: 'subject' })}><Icon id="plus" size={14} />New subject</button> : null}
-      </div>
-      {canWrite ? <div className="btn-row browser-actions">
-        <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" />Add section</button>
-        {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: null })}><Icon id="download" />Upload many PDFs</button> : null}
-      </div> : null}
-      {groups.length ? groups.map(([g, list]) => <div key={g}>
-        <p className="sec-group">{g}</p>
-        <div className="sec-list">{list.map(x => {
-          const isOpen = open.has(x.id) || list.length === 1 && groups.length === 1;
-          return (
-            <div key={x.id || 'none'} className={'browse-sec' + (isOpen ? ' open' : '')} data-section={x.id || 'none'}>
-              <div className="browse-head">
-                <button type="button" className="browse-toggle" aria-expanded={isOpen} onClick={() => toggle(x.id)}>
-                  <span className="browse-caret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span><b>{x.label}</b>
-                  <small>{plural(x.list.length, 'sheet')}{x.visible === false ? ' · hidden on the website' : ''}</small></button>
-                {canWrite && x.id ? <span className="btn-row">
-                  <button type="button" className="link" onClick={() => onNew(preset(x))}>Add a sheet</button>
-                  {canUpload ? <button type="button" className="link" onClick={() => setDialog({ kind: 'bulk', section: x })}>Upload PDFs</button> : null}
-                  <button type="button" className="link" onClick={() => setDialog({ kind: 'rename', section: x })}>Rename</button>
-                </span> : null}
-              </div>
-              {isOpen ? (x.list.length ? <ul className="browse-sheets">{x.list.map(s => {
-                const vis = visibilityOf(s);
-                return <li key={s.id}><button type="button" className="browse-sheet" onClick={() => onEdit(s.id)} aria-label={(canWrite ? 'Edit ' : 'Open ') + s.title}>
-                  <span className="browse-thumb" style={s.thumb ? { backgroundImage: 'url("' + s.thumb + '")' } : undefined} aria-hidden="true" />
-                  <span className="browse-title"><b>{s.title}</b><small>{s.subject} · {s.pages} pg · {s.available ? 'PDF ' + size(s.pdfBytes) : 'No PDF yet'}</small></span>
-                  <Pill tone={VISIBILITY_TONE[vis]}>{VIS_LABEL[vis]}</Pill>
-                  <span className="browse-price">{s.price === 0 ? 'Free' : inr(s.price)}</span>
-                  <span className="link">{canWrite ? 'Edit' : 'Open'}</span>
-                </button></li>;
-              })}</ul> : <p className="cart-empty">No sheets here yet.{canWrite ? ' Use "Add a sheet" or "Upload PDFs".' : ''}</p>) : null}
-            </div>
-          );
-        })}</div>
-      </div>) : null}
-      {canWrite ? <button type="button" className="add-sec" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" size={20} /><span><b>Add your own section to {cur.name}</b><small>Type its name, drop its PDFs, save. That's it.</small></span></button> : null}
-      {groups.length || canWrite ? null : <p className="cart-empty">{subject === 'all' ? 'No sections in ' + cur.name + ' yet.' : 'No ' + subject + ' sheets in ' + cur.name + ' yet.'}</p>}
+      {cur.status !== 'available' ? <div className="st-note warn compact"><Icon id="lock" size={16} /><span>{cur.name} is {cur.status === 'hidden' ? 'hidden' : '"Coming soon"'} on the website, so customers can't buy its sheets yet. Set "On the website" to Open when it is ready.</span></div> : null}
+
+      {open ? <div className="br-open">
+        <nav className="br-crumbs" aria-label="Where you are"><button type="button" className="link" onClick={() => setOpened(null)}>← All sections</button><span>{cur.name}</span><span>{open.group}</span><b>{open.label}</b></nav>
+        <div className="row-between br-open-head">
+          <div><h3>{open.label}</h3><p className="auth-sub">{plural(open.list.length, 'sheet')} · {live(open.list)} on the website{open.visible === false ? ' · this section is hidden on the website' : ''}</p></div>
+          {canWrite && open.id ? <div className="btn-row">
+            <button type="button" className="btn btn-primary" onClick={() => onNew(preset(open))}><Icon id="plus" />Add a sheet</button>
+            {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: open })}><Icon id="download" />Upload PDFs</button> : null}
+            <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'rename', section: open })}><Icon id="edit" />Rename</button>
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setShown(open, open.visible === false)}><Icon id="eye" />{open.visible === false ? 'Show on website' : 'Hide from website'}</button>
+          </div> : null}
+        </div>
+        {open.list.length ? <ul className="br-sheets">{open.list.map(sheetCard)}</ul>
+          : <p className="cart-empty">No sheets here yet.{canWrite ? ' Use "Add a sheet" or "Upload PDFs".' : ''}</p>}
+      </div> : <>
+        {groups.map(([g, list]) => <div key={g} className="br-group">
+          <p className="sec-group">{g} <small>{plural(list.length, 'section')}</small></p>
+          <ul className="br-secs">{list.map(x => {
+            const pic = (x.list.find(s => s.thumb) || {}).thumb;
+            return <li key={x.id || 'none'}><button type="button" className={'br-sec' + (x.visible === false ? ' off' : '')} data-section={x.id || 'none'} onClick={() => { setOpened(x.id); setFind(''); }}>
+              <span className="br-cover" style={pic ? { backgroundImage: 'url("' + pic + '")' } : undefined} aria-hidden="true">{pic ? null : <Icon id="file" size={22} />}</span>
+              <b>{x.label}</b>
+              <small>{x.list.length ? plural(x.list.length, 'sheet') + ' · ' + live(x.list) + ' live' : 'Empty'}{x.visible === false ? ' · hidden' : ''}</small>
+            </button></li>;
+          })}
+          {canWrite && g === 'Your sections' ? <li><button type="button" className="br-sec add" onClick={() => setDialog({ kind: 'section' })}><span className="br-cover" aria-hidden="true"><Icon id="plus" size={24} /></span><b>Add section</b><small>Name, PDFs, save</small></button></li> : null}</ul>
+        </div>)}
+        {canWrite && !groups.some(([g]) => g === 'Your sections') && !q ? <div className="br-group"><p className="sec-group">Your sections</p>
+          <ul className="br-secs"><li><button type="button" className="br-sec add" onClick={() => setDialog({ kind: 'section' })}><span className="br-cover" aria-hidden="true"><Icon id="plus" size={24} /></span><b>Add your own section</b><small>Name, PDFs, save</small></button></li></ul></div> : null}
+        {sheetHits.length ? <div className="br-group"><p className="sec-group">Sheets matching "{find.trim()}"</p><ul className="br-sheets">{sheetHits.map(sheetCard)}</ul></div> : null}
+        {q && !visible.length && !sheetHits.length ? <p className="cart-empty">Nothing in {cur.name} matches "{find.trim()}".</p> : null}
+        {!q && empty ? <button type="button" className="link br-more" onClick={() => setShowEmpty(v => !v)}>{showEmpty ? 'Hide the empty sections' : 'Show ' + plural(empty, 'empty section') + ' too'}</button> : null}
+      </>}
 
       {dialog && dialog.kind === 'class' ? <NameDialog title="Add a class" label="Class name" placeholder="e.g. Class 4" note='It shows as "Coming soon" on the website until you set it to Open.'
         onClose={() => setDialog(null)} onSave={async name => {
           if (classes.some(c => sameName(c.name, name))) throw Object.assign(new Error('There is already a class with that name.'), { field: true });
           const r = await ensurePlace({ classes, newClass: name }, onMade);
-          setCls(r.cls); setSubject('all'); toast(name + ' added.');
+          setCls(r.cls); setSubject('all'); toast(name + ' added. Add its first section now.');
         }} /> : null}
       {dialog && dialog.kind === 'subject' ? <NameDialog title="Add a subject" label="Subject name" placeholder="e.g. Hindi"
         onClose={() => setDialog(null)} onSave={async name => {
@@ -135,7 +159,7 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
           setSubject(r.subject); toast(r.subject + ' is ready. Pick it on a sheet.');
         }} /> : null}
       {dialog && dialog.kind === 'section' ? <BulkUpload make cls={cur} section={null} sections={sections} classes={classes} subjects={subjects} subjectList={subjectList} startSubject={subject !== 'all' ? subject : ''}
-        onSaved={onSaved} onMade={onMade} onSection={id => { setOpen(o => new Set(o).add(id)); setSubject('all'); }} onClose={() => setDialog(null)} /> : null}
+        onSaved={onSaved} onMade={onMade} onSection={id => { setOpened(id); setSubject('all'); setFind(''); }} onClose={() => setDialog(null)} /> : null}
       {dialog && dialog.kind === 'rename' ? <NameDialog title="Rename section" label="Section name" start={dialog.section.label}
         onClose={() => setDialog(null)} onSave={async name => {
           onMade('sections', await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(dialog.section.id), { label: name }));
