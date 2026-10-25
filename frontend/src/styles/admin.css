@@ -562,3 +562,30 @@
 .dash .card-look-price { font-weight: 600; font-size: 14px; }
 .dash .card-look-price s { margin-left: 6px; font-weight: 400; color: var(--muted-foreground); }
 .dash .pager { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; }
+
+/* Products → Sheets by class and section */
+.browser .chips { margin: 12px 0 0; }
+.dash .chip.add { border-style: dashed; color: var(--muted-foreground); }
+.browser-class { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 14px 0 0; padding: 10px 12px; border-radius: var(--radius); background: var(--muted); }
+.browser-class > b { font-size: 15px; }
+.browser-actions { margin: 14px 0 0; }
+.browse-sec { border-bottom: 1px solid var(--border); }
+.browse-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; }
+.browse-toggle { display: inline-flex; align-items: baseline; gap: 8px; background: none; border: 0; padding: 4px 0; font: inherit; color: var(--foreground); cursor: pointer; text-align: left; }
+.browse-toggle small { color: var(--muted-foreground); }
+.browse-caret { width: 1em; color: var(--muted-foreground); }
+.browse-sheets { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.browse-sheet { width: 100%; display: grid; grid-template-columns: 44px 1fr auto auto auto; gap: 12px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); background: var(--background); font: inherit; color: var(--foreground); text-align: left; cursor: pointer; }
+.browse-sheet:hover, .browse-sheet:focus-visible { background: var(--accent); }
+.browse-thumb { width: 44px; height: 44px; border-radius: 6px; background: var(--muted) center / cover no-repeat; }
+.browse-title { min-width: 0; } .browse-title b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browse-title small { color: var(--muted-foreground); font-size: 12px; }
+.browse-price { font-weight: 600; font-size: 13px; }
+.bulk-list { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow: auto; }
+.bulk-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.bulk-list li small { display: block; color: var(--muted-foreground); font-size: 12px; }
+.bulk-list li small.bad { color: var(--destructive); max-width: 50%; }
+@media (max-width: 640px) {
+  .browse-sheet { grid-template-columns: 40px 1fr auto; }
+  .browse-sheet .browse-price, .browse-sheet > .link { display: none; }
+}

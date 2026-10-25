@@ -7,13 +7,13 @@ import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, plural, problem, fieldErrors } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 
-import { ClassesPanel, SubjectsPanel, SessionsPanel } from './Taxonomy.jsx';
+import { ClassesPanel, SubjectsPanel } from './Taxonomy.jsx';
 
-const TABS = [['sections', 'Sections'], ['classes', 'Classes'], ['subjects', 'Subjects'], ['sessions', 'Academic sessions']];
+const TABS = [['sections', 'Sections'], ['classes', 'Classes'], ['subjects', 'Subjects']];
 let keepTab = 'sections';
 
 /* Categories: the website sections a sheet can be put in, the classes (open, coming soon or hidden on the
-   website), subjects and academic sessions. The website's own sections (Alphabet, Vocabulary …) can be renamed, reordered or hidden;
+   website), and subjects. The website's own sections (Alphabet, Vocabulary …) can be renamed, reordered or hidden;
    sections added here show in the shop under "More sections" once a sheet is in them. */
 export default function Categories() {
   const { can, toast } = useDash();
@@ -21,8 +21,7 @@ export default function Categories() {
   const secQ = useStaffGet('/api/admin/sections', { keep: true });
   const clsQ = useStaffGet('/api/admin/classes', { keep: true });
   const subQ = useStaffGet('/api/admin/subjects', { keep: true });
-  const sesQ = useStaffGet('/api/admin/sessions', { keep: true });
-  const [tab, setTab] = useState(keepTab);
+  const [tab, setTab] = useState(TABS.some(([id]) => id === keepTab) ? keepTab : 'sections');
   const setTabK = t => { keepTab = t; setTab(t); };
   const [edit, setEdit] = useState(null);   /* a section, or {} for a new one */
   const [del, setDel] = useState(null);
@@ -63,7 +62,6 @@ export default function Categories() {
       </div>
       {tab === 'classes' ? <ClassesPanel clsQ={clsQ} /> : null}
       {tab === 'subjects' ? <SubjectsPanel subQ={subQ} /> : null}
-      {tab === 'sessions' ? <SessionsPanel sesQ={sesQ} /> : null}
       {tab === 'sections' ? <>
       <section className="panel">
         <div className="row-between"><div><p className="eyebrow">Your sections</p><p className="auth-sub">Sections you add show in the shop under "More sections" once a sheet is in them. Pick the section on a sheet in Products.</p></div>

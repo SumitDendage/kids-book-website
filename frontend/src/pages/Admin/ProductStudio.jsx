@@ -6,20 +6,21 @@ import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
 import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, VISIBILITY, localInput, fromLocalInput } from './common.js';
+import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
 import { spanText } from '../../data/content.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /* sends one file as the raw request body (the server reads PDFs and pictures this way) */
-async function sendRaw(path, file) {
+export async function sendRaw(path, file) {
   const r = await staffFetch(path, { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
   let b = {}; try { b = await r.json(); } catch (_) { /* not JSON */ }
   if (!r.ok) throw Object.assign(new Error(String(b.error || 'The upload did not work.').replace(/\s+—\s+/g, ', ')), { status: r.status, code: b.code || null, body: b });
   return b;
 }
 /* upload problems in plain words */
-function uploadProblem(e, what) {
+export function uploadProblem(e, what) {
   if (e.status === 413 || e.code === 'too_large') return what === 'pdf' ? 'That PDF is too big. A PDF can be up to 40 MB.' : 'That picture is too big. A picture can be up to 5 MB.';
   if (e.code === 'not_pdf') return 'That file is not a PDF.';
   if (e.code === 'pdf_incomplete') return 'The PDF looks incomplete. Please upload it again.';
@@ -65,10 +66,11 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
   );
 }
 
-/* "Upload new book" / "Edit book": cover and PDF, page pictures, details, category, price, access
-   and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its PDF is
-   uploaded. */
-export default function ProductStudio({ sheet, all, classes, sections, subjectList, sessionList, onSaved, onClose }) {
+/* "Upload new book" / "Edit book": cover and PDF, page pictures, details, where it goes, price,
+   access and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its
+   PDF is uploaded. The class, subject and section can be picked or typed new (made on save).
+   preset = { cls, subject, section } for a new sheet started from a section. */
+export default function ProductStudio({ sheet, preset, all, classes, sections, subjectList, onSaved, onMade, onClose }) {
   const { toast, can, setEditing } = useDash();
   const it = sheet || {};
   const isNew = !sheet;
@@ -99,9 +101,12 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
   const [when, setWhen] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
   const [labels, setLabels] = useState(() => new Set((it.tags || []).filter(t => LABELS.some(([x]) => x === t) || t === HOME_TAG)));
   const toggleLabel = t => setLabels(cur => { const n = new Set(cur); if (n.has(t)) n.delete(t); else n.add(t); return n; });
-  /* academic sessions it belongs to (Categories → Academic sessions) */
-  const [sess, setSess] = useState(() => new Set(it.sessions || (isNew ? (sessionList || []).filter(x => x.current).map(x => x.id) : [])));
-  const toggleSess = id => setSess(cur => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  /* where it goes: a class (or a new one), a subject and a section, picked or typed */
+  const start = isNew ? (preset || {}) : {};
+  const [cls, setCls] = useState(it.cls || start.cls || (classes[0] && classes[0].id) || 'kg');
+  const [newClass, setNewClass] = useState('');
+  const startSec = it.section ? (it.sectionLabel || ((sections || []).find(x => x.id === it.section) || {}).label || it.section) : (start.sectionLabel || '');
+  const [secName, setSecName] = useState(startSec);
   /* live preview of the shop card */
   const [look, setLook] = useState({ title: it.title || '', short: it.shortDescription || '' });
 
@@ -112,23 +117,12 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     if (it.subject && !list.includes(it.subject)) list.push(it.subject);
     return list;
   }, [subjectList, all, it.subject]);
-  const topics = useMemo(() => {
-    const m = new Map();
-    (all || []).forEach(s => { if (s.section) { const k = (s.group || '') + '|' + s.section; if (!m.has(k)) m.set(k, { group: s.group || '', section: s.section, label: s.sectionLabel || s.section, cls: s.cls }); } });
-    return [...m.values()].sort((a, b) => a.label.localeCompare(b.label));
-  }, [all]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
   const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
   const shopSpan = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && (x.effectiveAccessHours || x.effectiveAccessDays)); return s ? (s.effectiveAccessHours ? spanText(s.effectiveAccessHours) : s.effectiveAccessDays + ' days') : null; }, [all]);
-  const topicValue = it.section ? (it.group || '') + '|' + it.section : '';
-  /* the website's sections (Admin → Categories), by group; the sheets' own sections if they could not load */
-  const sectionGroups = useMemo(() => {
-    const list = (sections && sections.length ? sections.map(x => ({ group: x.group || '', section: x.id, label: x.label, groupLabel: x.groupLabel || (x.builtin ? '' : 'Your sections'), visible: x.visible })) : topics.map(t => ({ ...t, groupLabel: '' })));
-    if (it.section && !list.some(x => x.section === it.section)) list.push({ group: it.group || '', section: it.section, label: it.sectionLabel || it.section, groupLabel: '' });
-    const m = new Map();
-    list.forEach(x => { const k = x.groupLabel || 'Other'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); });
-    return [...m.entries()];
-  }, [sections, topics, it.section, it.group, it.sectionLabel]);
+  /* the sections of the chosen class, to pick from (a new class has none yet) */
+  const classSections = useMemo(() => (newClass ? [] : sectionsOfClass(sections, cls)).slice().sort((a, b) => a.label.localeCompare(b.label)), [sections, cls, newClass]);
+  const secIsNew = !!secName.trim() && !classSections.some(x => sameName(x.label, secName)) && !(it.section && sameName(secName, startSec));
 
   const pickCover = f => { const r = new FileReader(); r.onload = () => setCover({ file: f, url: r.result }); r.readAsDataURL(f); };
   const v = k => (it[k] == null ? '' : it[k]);
@@ -140,30 +134,20 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const body = {
       title: String(f.get('title') || '').trim(),
       description: String(f.get('description') || '').trim(),
-      cls: f.get('cls'),
+      cls,
       subject: String(f.get('subject') || '').trim(),
       pages: n('pages') || 1,
       audience: f.get('audience') || null,
-      stock: n('stock'),
       accessDays: n('accessDays'),
       printRule: f.get('printRule') === 'sheet' ? 'sheet' : 'account',
       printLimit: n('printLimit') ?? 0,
       downloadLimit: n('downloadLimit') ?? 0,
       landscape: f.get('landscape') === 'on',
-      /* the free words people search by, plus the labels ticked above */
-      tags: [...new Set(String(f.get('tags') || '').split(/[,\s]+/).map(t => t.trim().toLowerCase()).filter(t => t && !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
-      sort: n('sort') ?? 0,
+      /* the labels ticked below; any older words on the sheet are kept as they were */
+      tags: [...new Set((it.tags || []).filter(t => !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
       shortDescription: String(f.get('shortDescription') || '').trim(),
-      sku: String(f.get('sku') || '').trim() || null,
       language: String(f.get('language') || '').trim() || 'English',
-      ageGroup: String(f.get('ageGroup') || '').trim() || null,
-      seoTitle: String(f.get('seoTitle') || '').trim() || null,
-      seoDescription: String(f.get('seoDescription') || '').trim() || null,
     };
-    if (sessionList) body.sessions = [...sess];
-    const t = sectionGroups.flatMap(([, l]) => l).find(x => x.group + '|' + x.section === f.get('topic'));
-    if (t) { body.group = t.group || null; body.section = t.section; body.sectionLabel = t.label; }
-    else if (f.get('topic') === '') { body.group = null; body.section = null; body.sectionLabel = null; }
     if (canPrice) { body.price = finalPrice ?? 0; body.wasPrice = !free && origPrice != null && origPrice > (finalPrice ?? 0) ? origPrice : null; }
     return body;
   }
@@ -176,6 +160,7 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const body = fieldsOf(form);
     if (canWrite && !body.title) { setErrs({ title: 'Give the sheet a title.' }); return; }
     if (canWrite && !body.subject) { setErrs({ subject: 'Give the sheet a subject.' }); return; }
+    if (canWrite && cls === '+new' && !newClass.trim()) { setErrs({ cls: 'Type the name of the new class, e.g. Class 4.' }); return; }
     if (canWrite && canPrice && !free && (finalPrice == null || !(finalPrice >= 0) || !Number.isInteger(finalPrice))) { setErrs({ price: 'Enter the selling price in whole rupees.' }); return; }
     if (canWrite && canPrice && pct !== '' && !(num(pct) >= 0 && num(pct) <= 100)) { setErrs({ pct: 'A discount is from 0 to 100%.' }); return; }
     if (canWrite && vis === 'scheduled' && !(fromLocalInput(when) > Date.now())) { setErrs({ publishAt: 'Pick a time in the future.' }); return; }
@@ -184,7 +169,15 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const notes = [];
     try {
       if (canWrite) {
-        step = 'details'; setBusy(isNew ? 'Saving the draft…' : 'Saving…');
+        step = 'details'; setBusy('Saving…');
+        /* a new class, subject or section is made first */
+        const sameSec = !isNew && it.section && cls === it.cls && sameName(secName, startSec);
+        const place = await ensurePlace({ classes, subjects: subjectList, sections, cls: cls === '+new' ? '' : cls, newClass: cls === '+new' ? newClass : '', subject: body.subject, section: sameSec ? '' : secName }, onMade);
+        if (cls === '+new') { setCls(place.cls); setNewClass(''); }
+        /* the sheet's own section stays when its name was not changed */
+        const keepSec = !isNew && it.section && place.cls === it.cls && sameName(secName, startSec) ? { id: it.section, group: it.group, label: it.sectionLabel || startSec } : null;
+        Object.assign(body, { cls: place.cls, subject: place.subject }, sectionFields(keepSec || place.section));
+        setBusy(isNew ? 'Saving the draft…' : 'Saving…');
         ws = (isNew ? await staffApi('POST', '/api/admin/worksheets', body) : await staffApi('PUT', '/api/admin/worksheets/' + encodeURIComponent(it.id), body)).worksheet;
       }
       const base = '/api/admin/worksheets/' + encodeURIComponent(ws.id);
@@ -246,7 +239,7 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
   return (
     <section className="panel studio" aria-label={isNew ? 'Upload new book' : 'Edit ' + it.title}>
       <div className="row-between"><div><p className="eyebrow">{isNew ? 'Upload new book' : canWrite ? 'Edit book' : 'Book'}</p>
-        <p className="auth-sub">{isNew ? 'Fill in the details, drop the cover and the PDF, pick its section, price and visibility, then save.' : it.title}</p></div>
+        <p className="auth-sub">{isNew ? 'Drop the PDF and the cover, give it a title, pick or type its section, then save.' : it.title}</p></div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} disabled={!!busy}><Icon id="x" /></button></div>
       {!isNew ? <div className="studio-status">
         <Pill tone={SHEET_TONE[status]}>{SHEET_STATUS_LABEL[status]}</Pill>
@@ -285,28 +278,22 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
             <div className="field"><label htmlFor="psDesc">Description</label><textarea id="psDesc" name="description" placeholder="One or two lines parents will read on the card" defaultValue={v('description')} maxLength={2000} />{err1('description')}</div>
             <div className="grid-3">
               <div className="field"><label htmlFor="psPages">Pages</label><input id="psPages" name="pages" type="number" min="1" max="500" defaultValue={it.pages || 1} /><small>Counted from the PDF when you upload it.</small>{err1('pages')}</div>
-              <div className="field"><label htmlFor="psTags">Tags</label><input id="psTags" name="tags" defaultValue={(it.tags || []).join(', ')} placeholder="e.g. best, new" />{err1('tags')}</div>
+              <div className="field"><label htmlFor="psLang">Language</label><input id="psLang" name="language" defaultValue={it.language || 'English'} maxLength={40} />{err1('language')}</div>
               <label className="check"><input type="checkbox" name="landscape" defaultChecked={!!it.landscape} />Pages are landscape</label>
             </div>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psLang">Language</label><input id="psLang" name="language" defaultValue={it.language || 'English'} maxLength={40} />{err1('language')}</div>
-              <div className="field"><label htmlFor="psAge">Age group</label><input id="psAge" name="ageGroup" defaultValue={v('ageGroup')} placeholder="e.g. 4 to 6 years" maxLength={40} />{err1('ageGroup')}</div>
-              <div className="field"><label htmlFor="psSku">SKU (optional)</label><input id="psSku" name="sku" defaultValue={v('sku')} placeholder="e.g. KG-ENG-001" maxLength={40} /><small>Your own product code. Never shown to customers.</small>{err1('sku')}</div>
-            </div>
           </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Category</legend>
+          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Where it goes on the website</legend>
             <div className="grid-3">
-              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" name="cls" defaultValue={it.cls || (classes[0] && classes[0].id) || 'kg'}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}</select>{err1('cls')}</div>
-              <div className="field"><label htmlFor="psSubj">Subject</label><select id="psSubj" name="subject" defaultValue={v('subject') || (isNew ? subjects[0] || '' : '')} aria-invalid={!!errs.subject}>{subjects.map(s => <option key={s} value={s}>{s}</option>)}</select><small>Add subjects in Categories.</small>{err1('subject')}</div>
-              <div className="field"><label htmlFor="psTopic">Website section</label><select id="psTopic" name="topic" defaultValue={topicValue}><option value="">None (the class shelf only)</option>
-                {sectionGroups.map(([g, l]) => <optgroup key={g} label={g}>{l.map(t => <option key={t.group + '|' + t.section} value={t.group + '|' + t.section}>{t.label}{t.visible === false ? ' (hidden)' : ''}</option>)}</optgroup>)}</select>
-                <small>Where it shows on the website. Add or rename sections in Categories.</small>{err1('section')}</div>
+              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" value={cls} onChange={e => setCls(e.target.value)} aria-invalid={!!errs.cls}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}<option value="+new">+ New class…</option></select>
+                {cls === '+new' ? <input id="psNewCls" aria-label="New class name" value={newClass} onChange={e => setNewClass(e.target.value)} placeholder="e.g. Class 4" maxLength={40} autoFocus /> : null}
+                <small>{cls === '+new' ? 'Made when you save. It shows as "Coming soon" until you open it.' : 'Pick the class, or "+ New class" to add one.'}</small>{err1('cls')}</div>
+              <div className="field"><label htmlFor="psSubj">Subject</label><input id="psSubj" name="subject" list="psSubjList" defaultValue={v('subject') || start.subject || (isNew ? subjects[0] || '' : '')} placeholder="e.g. English" maxLength={40} autoComplete="off" aria-invalid={!!errs.subject} />
+                <datalist id="psSubjList">{subjects.map(x => <option key={x} value={x} />)}</datalist><small>Pick one, or type a new subject.</small>{err1('subject')}</div>
+              <div className="field"><label htmlFor="psTopic">Section</label><input id="psTopic" list="psTopicList" value={secName} onChange={e => setSecName(e.target.value)} placeholder="e.g. Story time" maxLength={60} autoComplete="off" />
+                <datalist id="psTopicList">{classSections.map(x => <option key={x.id} value={x.label} />)}</datalist>
+                <small>{secIsNew ? 'New section "' + secName.trim() + '" is made when you save.' : secName.trim() ? 'Goes into this section.' : 'Pick a section or type a new name. Empty: the class shelf only.'}</small>{err1('section')}</div>
               <div className="field"><label htmlFor="psFor">For</label><select id="psFor" name="audience" defaultValue={it.audience || ''}><option value="">Everyone</option><option value="both">Parents and teachers</option><option value="parent">Parents</option><option value="teacher">Teachers</option></select></div>
             </div>
-            {sessionList && sessionList.length ? <div className="field"><label>Academic sessions</label>
-              <div className="label-picks" role="group" aria-label="Academic sessions">
-                {sessionList.filter(x => x.active || sess.has(x.id)).map(x => <label key={x.id} className={'check pick' + (sess.has(x.id) ? ' on' : '')}><input type="checkbox" checked={sess.has(x.id)} onChange={() => toggleSess(x.id)} />{x.label}{x.current ? ' (current)' : ''}</label>)}
-              </div><small>Which school years this sheet is for. Add sessions in Categories.</small>{err1('sessions')}</div> : null}
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Price</legend>
             <div className="seg" role="radiogroup" aria-label="Free or paid">
@@ -320,22 +307,12 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
             </div>
             <p className="price-sum">{!canPrice ? 'Your role cannot change prices.' : free ? 'Free: anyone can open it, no sign-in needed.' : finalPrice == null ? 'Enter the selling price.'
               : <>Customers pay <b>₹{finalPrice}</b>{origPrice > finalPrice ? <> instead of <s>₹{origPrice}</s> ({Math.round((1 - finalPrice / origPrice) * 100)}% off, they save ₹{origPrice - finalPrice})</> : null}, before tax and fees.</>}</p>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psStock">Stock</label><input id="psStock" name="stock" type="number" min="0" defaultValue={v('stock')} placeholder="No limit" /><small>Leave empty for no limit.</small>{err1('stock')}</div>
-            </div>
           </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Labels and placement</legend>
+          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Home page lists</legend>
             <div className="label-picks" role="group" aria-label="Labels">
               {LABELS.map(([t, name]) => <label key={t} className={'check pick' + (labels.has(t) ? ' on' : '')}><input type="checkbox" checked={labels.has(t)} onChange={() => toggleLabel(t)} />{name}</label>)}
             </div>
-            <div className="grid-3">
-              <label className="check"><input type="checkbox" checked={labels.has(HOME_TAG)} onChange={() => toggleLabel(HOME_TAG)} />Show on the home page</label>
-              <div className="field"><label htmlFor="psSort">Display order</label><input id="psSort" name="sort" type="number" min="-1000000" max="1000000" step="1" defaultValue={it.sort == null ? 0 : it.sort} /><small>Smaller numbers come first in a list.</small>{err1('sort')}</div>
-            </div>
-          </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Search engines (optional)</legend>
-            <div className="field"><label htmlFor="psSeoT">SEO title</label><input id="psSeoT" name="seoTitle" defaultValue={v('seoTitle')} placeholder={look.title || 'Uses the title'} maxLength={70} /><small>Up to 70 letters. Empty uses the title.</small>{err1('seoTitle')}</div>
-            <div className="field"><label htmlFor="psSeoD">SEO description</label><textarea id="psSeoD" name="seoDescription" defaultValue={v('seoDescription')} placeholder="Uses the short description" maxLength={170} rows={2} /><small>Up to 170 letters.</small>{err1('seoDescription')}</div>
+            <label className="check"><input type="checkbox" checked={labels.has(HOME_TAG)} onChange={() => toggleLabel(HOME_TAG)} />Show on the home page</label>
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Visibility</legend>
             <div className="seg" role="radiogroup" aria-label="Visibility">
