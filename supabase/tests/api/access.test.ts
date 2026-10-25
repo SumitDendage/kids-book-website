@@ -628,7 +628,7 @@ test('opening a paid sheet runs the sharing rules after the response', async () 
     assertStatus({ status: r.status, text: r.text }, 200);
     return r.token as string;
   };
-  // three devices on two networks within minutes, each opening the paid sheet → one incident (from the background check)
+  // two devices on one network are not sharing; a third on another network is → one warning (from the background check)
   assertStatus(await open(c.token, 'az-S', { device: 'device-one-aaaaaaaa', ip: '10.10.1.5' }), 200);
   const two = await signIn('device-two-bbbbbbbb', '10.10.1.6');
   assertStatus(await open(two, 'az-S', { device: 'device-two-bbbbbbbb', ip: '10.10.1.6' }), 200);
@@ -638,11 +638,14 @@ test('opening a paid sheet runs the sharing rules after the response', async () 
   const inc = await h.sql`select rule_id, status from security_incidents where user_id = ${c.id}`;
   assertEquals(inc.length, 1);
   assertEquals(inc[0].rule_id, 'concurrent_devices');
-  assertEquals(inc[0].status, 'open');
-  // still one incident after more requests
+  assertEquals(inc[0].status, 'confirmed');
+  assertEquals((await h.sql`select count(*)::int as n from account_warnings where user_id = ${c.id}`)[0].n, 1);
+  // a fourth device right after goes beyond what was warned for: a follow-up for staff, no second warning
   const four = await signIn('device-four-dddddd', '10.30.3.8');
   assertStatus(await open(four, 'az-S', { device: 'device-four-dddddd', ip: '10.30.3.8' }), 200);
-  assertEquals((await h.sql`select count(*)::int as n from security_incidents where user_id = ${c.id}`)[0].n, 1);
+  const all = await h.sql`select status from security_incidents where user_id = ${c.id} order by id`;
+  assertEquals(all.map((x) => x.status), ['confirmed', 'open']);
+  assertEquals((await h.sql`select count(*)::int as n from account_warnings where user_id = ${c.id}`)[0].n, 1);
 });
 
 // ── review fixes ────────────────────────────────────────────────────────────────────────

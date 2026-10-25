@@ -3,7 +3,8 @@
 // The policy (see migrations/20261007120400_security.sql):
 //  * the API records what it sees (sessions, devices, networks, viewer use) in access_log;
 //  * enabled security_rules turn patterns into INCIDENTS — only a suspicion; a new IP or one new
-//    device never opens one on its own (thresholds are clamped so that cannot happen);
+//    device never opens one on its own (thresholds are clamped so that cannot happen; two devices
+//    count only when they were on different networks, as when a sign-in code is passed on);
 //  * an incident becomes a WARNING when staff confirm it, or at once for auto-confirm rules;
 //    one warning per incident at most;
 //  * at settings.security.maxWarnings active warnings (and autoSuspend) paid access is
@@ -195,6 +196,25 @@ async function activity(q: Tx, userId: string, since: Date, o: { paidOnly?: bool
   return r[0] ?? { devices: 0, networks: 0, countries: 0, nets: null, cs: null };
 }
 
+/** Did two devices open paid sheets since `since` without ever being on the same network?
+ *  (A device is counted as in activity().) */
+async function apartDevices(q: Tx, userId: string, since: Date): Promise<boolean> {
+  const r = await q<{ apart: boolean }[]>`
+    with ev as (
+      select coalesce(s.device_id_hash, a.device_id_hash, 'session:' || a.session_id::text, 'ip:' || a.ip) as dev,
+             a.ip_network as net
+      from access_log a
+      left join app_sessions s on s.id = a.session_id
+      where a.user_id = ${userId} and a.at >= ${since} and coalesce(s.is_staff, false) = false
+        and a.ok and a.ip_network is not null
+        and exists (select 1 from entitlements e where e.id = a.entitlement_id and e.kind <> 'free')
+    ), d as (
+      select dev, array_agg(distinct net) as nets from ev group by dev
+    )
+    select exists (select 1 from d x join d y on x.dev < y.dev where not (x.nets && y.nets)) as apart`;
+  return !!r[0]?.apart;
+}
+
 async function detect(q: Tx, rule: RuleRow, userId: string): Promise<Hit | null> {
   const p = rule.params ?? {};
   const now = Date.now();
@@ -202,10 +222,14 @@ async function detect(q: Tx, rule: RuleRow, userId: string): Promise<Hit | null>
     case 'concurrent_devices': {
       // needs BOTH several devices and several networks: one new device or a new IP never trips it
       const mins = clamp(p.windowMinutes, 15, 1, 1440);
-      const needDevices = clamp(p.devices, 3, 3, 100);
+      const needDevices = clamp(p.devices, 3, 2, 100);
       const needNetworks = clamp(p.networks, 2, 2, 100);
-      const a = await activity(q, userId, new Date(now - mins * 60_000), { paidOnly: true });
+      const since = new Date(now - mins * 60_000);
+      const a = await activity(q, userId, since, { paidOnly: true });
       if (a.devices < needDevices || a.networks < needNetworks) return null;
+      // with only two devices, one phone that changed network next to a laptop on the same home
+      // network is not sharing: the two devices must never have shared a network in the window
+      if (a.devices < 3 && !(await apartDevices(q, userId, since))) return null;
       return {
         windowSeconds: mins * 60,
         summary: `Your account was used on ${a.devices} devices from ${a.networks} different networks within ${mins} minutes.`,
