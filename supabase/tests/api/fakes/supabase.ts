@@ -395,6 +395,24 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       return authError(404, 'not_found', 'Not found');
     }
 
+    // the website's own sign-up (supabase.auth.signUp), with "Confirm email" off as on the live
+    // project: the account is confirmed at once and the answer carries a session
+    if (path === '/signup' && method === 'POST') {
+      if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
+      const b = await readBody(req);
+      if (!b) return authError(400, 'bad_json', 'Could not parse request body as JSON');
+      const made = await createUser({
+        email: b.email, password: b.password, confirmed: true,
+        userMeta: b.data && typeof b.data === 'object' ? b.data : {},
+      });
+      if (made.status !== 200) return made;
+      const user = (await userByEmail(String(b.email).trim().toLowerCase()))!;
+      const s = await openAuthSession(user, req.headers.get('user-agent'), validIp(req.headers.get('sb-forwarded-for')));
+      // a new address has one identity (an empty list is how GoTrue says "already registered")
+      s.user = { ...s.user, identities: [{ id: user.id, user_id: user.id, provider: 'email', identity_data: { email: user.email } }] };
+      return json(200, s);
+    }
+
     if (path === '/token' && method === 'POST') {
       if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
       const grant = u.searchParams.get('grant_type');
