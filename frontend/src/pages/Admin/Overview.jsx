@@ -24,7 +24,7 @@ export default function Overview() {
     ['messages', 'messages', s.messages_unread, n => plural(n, 'unread message')],
     ['security', 'security', (s.openIncidents || 0), n => plural(n, 'possible sharing case') + ' to review'],
     ['security', 'security', (s.openAppeals || 0), n => plural(n, 'customer note') + ' about a warning or block'],
-    ['content', 'star', s.pendingReviews, n => plural(n, 'review') + ' waiting to be published'],
+    ['homepage', 'star', s.pendingReviews, n => plural(n, 'review') + ' waiting to be published'],
     ['products', 'file', Math.max(0, (s.worksheets || 0) - (s.with_pdf || 0)), n => plural(n, 'sheet') + ' without a PDF'],
     ['developer', 'mail', s.emailsFailed, n => plural(n, 'email') + ' could not be sent'],
   ].filter(([, , n]) => n > 0) : [];

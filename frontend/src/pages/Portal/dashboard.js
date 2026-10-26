@@ -8,7 +8,7 @@ import { useDash } from './DashContext.js';
 
 export const ADMIN_SECTIONS = [
   ['overview', 'Dashboard'], ['products', 'Products'], ['homepage', 'Homepage'], ['orders', 'Orders'], ['customers', 'Customers'], ['security', 'Security'], ['messages', 'Messages'],
-  ['analytics', 'Analytics'], ['money', 'Money'], ['coupons', 'Coupons'], ['content', 'Content'], ['settings', 'Settings'], ['audit', 'Audit logs'],
+  ['analytics', 'Analytics'], ['money', 'Money'], ['coupons', 'Coupons'], ['settings', 'Settings'], ['audit', 'Audit logs'],
 ];
 export const DEV_SECTIONS = [
   ['health', 'Dashboard'], ['errors', 'Errors'], ['emails', 'Emails'], ['api', 'API monitoring'], ['db', 'Database'],
@@ -16,15 +16,15 @@ export const DEV_SECTIONS = [
   ['security', 'Security'], ['deploy', 'Deployments'], ['backups', 'Backups'], ['audit', 'Audit logs'],
 ];
 export const GROUPS = {
-  admin: [['General', ['overview', 'products', 'homepage', 'orders', 'customers', 'security', 'messages', 'analytics', 'money']], ['Store', ['coupons', 'content', 'settings', 'audit']]],
+  admin: [['General', ['overview', 'products', 'homepage', 'orders', 'customers', 'security', 'messages', 'analytics', 'money']], ['Store', ['coupons', 'settings', 'audit']]],
   developer: [['General', ['health', 'errors', 'emails', 'api', 'db', 'perf']], ['Logs', ['payments', 'webhooks', 'auth', 'security', 'audit']], ['Ops', ['deploy', 'backups']]],
 };
 /* the line under each section's title (the developer panel's own security page keeps its line) */
 export const DESC = {
   admin: {
-    overview: "Here's what is happening in your store today.", products: 'Every sheet by class and section: upload one or many PDFs, change any sheet, add a class, subject or section. Changes show on the website by themselves.', homepage: 'The lists of sheets on the home page and in the shop: pick them yourself or let them fill by themselves.', orders: 'Every order, its payments and the access it gave.',
+    overview: "Here's what is happening in your store today.", products: 'Every sheet by class and section: upload one or many PDFs, change any sheet, add a class, subject or section. Changes show on the website by themselves.', homepage: 'The lists of sheets on the home page and in the shop, the home page text, questions and answers, and reviews.', orders: 'Every order, its payments and the access it gave.',
     customers: 'Customer accounts, their orders and their access.', security: 'Account sharing: sessions, incidents, warnings and appeals.', messages: 'Notes customers sent through the contact form.',
-    analytics: 'Sales, visitors and conversion.', money: 'Money in, refunds, your costs, and the profit or loss each month.', coupons: 'Coupon codes and class discounts.', content: 'Home page text, questions and answers, and reviews.',
+    analytics: 'Sales, visitors and conversion.', money: 'Money in, refunds, your costs, and the profit or loss each month.', coupons: 'Coupon codes and class discounts.',
     settings: 'How long access lasts, prices, rates, fees and sign-in rules.', audit: 'Everything staff changed, newest first.',
   },
   developer: {
@@ -45,8 +45,8 @@ export const sectionsOf = kind => (kind === 'admin' ? ADMIN_SECTIONS : DEV_SECTI
    A section opens with any one of its permissions. */
 export const SECTION_PERMS = {
   admin: {
-    overview: ['dashboard.view'], products: ['catalogue.read'], homepage: ['catalogue.read'], orders: ['orders.read'], customers: ['customers.read'], security: ['security.read'],
-    messages: ['messages.read'], analytics: ['analytics.read'], money: ['analytics.read', 'orders.read'], coupons: ['coupons.write', 'pricing.write'], content: ['content.write', 'reviews.moderate'],
+    overview: ['dashboard.view'], products: ['catalogue.read'], homepage: ['catalogue.read', 'content.write', 'reviews.moderate'], orders: ['orders.read'], customers: ['customers.read'], security: ['security.read'],
+    messages: ['messages.read'], analytics: ['analytics.read'], money: ['analytics.read', 'orders.read'], coupons: ['coupons.write', 'pricing.write'],
     /* no Categories item either (Sumit, Oct 25): classes, subjects and sections are made, renamed,
        hidden and deleted right in Products → By class and section */
     /* no Roles item in the menu (Sumit, Oct 25: "remove this role"); the owner adds staff at the

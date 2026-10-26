@@ -8,15 +8,18 @@ import { useDash } from '../Portal/DashContext.js';
 import { useStaffGet, fmt, qs, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 import { HERO, WHYS } from '../../data/content.js';
+import Homepage from './Homepage.jsx';
 
 const keep = { tab: null };
 
-/* Content: the home page's first screen, the questions and answers (the site's help and the
-   assistant use the published public ones), and customer reviews waiting to be published. */
+/* The Homepage section: the lists of sheets, the home page's first screen, the questions and
+   answers (the site's help and the assistant use the published public ones), and customer reviews
+   waiting to be published. There is no separate Content item in the menu (Sumit, Oct 26). */
 export default function Content() {
   const { can, stats } = useDash();
   const tabs = [
-    can('content.write') ? ['home', 'Home page'] : null,
+    can('catalogue.read') ? ['lists', 'Sheet lists'] : null,
+    can('content.write') ? ['home', 'Home page text'] : null,
     can('content.write') ? ['faq', 'Questions and answers'] : null,
     can('reviews.moderate') ? ['reviews', 'Reviews'] : null,
   ].filter(Boolean);
@@ -26,7 +29,7 @@ export default function Content() {
   return (
     <>
       <div className="tabs-s" role="tablist">{tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}{id === 'reviews' && pending ? <small>{pending}</small> : null}</button>)}</div>
-      {tab === 'home' ? <HomeText /> : tab === 'faq' ? <Faq /> : tab === 'reviews' ? <Reviews /> : null}
+      {tab === 'lists' ? <Homepage /> : tab === 'home' ? <HomeText /> : tab === 'faq' ? <Faq /> : tab === 'reviews' ? <Reviews /> : null}
     </>
   );
 }
