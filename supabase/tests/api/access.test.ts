@@ -60,6 +60,11 @@ async function pdfContent(bytes: Uint8Array): Promise<string> {
   }
   return all.toUpperCase();
 }
+/** The PDF as it was uploaded for this sheet: delivered copies carry no watermark (Sumit, Oct 26). */
+async function stored(id: string): Promise<Uint8Array> {
+  const [{ pdf_path }] = await h.sql`select pdf_path from products where id = ${id}`;
+  return h.storage.get('worksheets', pdf_path)!.bytes;
+}
 const hexOf = (s: string) => Array.from(new TextEncoder().encode(s), (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 
 // ── free sheets ─────────────────────────────────────────────────────────────────────────
@@ -139,9 +144,7 @@ test('GUEST a free sheet opens without signing in: view only, stamped with the s
   const f = await h.call('GET', '/api/view/file', { headers: viewHeaders(r.body.token), ip: '10.77.0.1' });
   assertStatus(f, 200);
   assertEquals(f.headers.get('content-type'), 'application/pdf');
-  const content = await pdfContent(f.bytes);
-  assert(content.includes(hexOf('Free sheet from learnwithwhy.com - ')), 'stamped as a free sheet from the site');
-  assert(!content.includes(hexOf('Licensed to')), 'no account line');
+  assertEquals(f.bytes, await stored('vs-2'), 'sent as uploaded, with no watermark');
 
   // no counted copies without an account
   for (const kind of ['print', 'download']) {
@@ -261,7 +264,7 @@ test('a paid sheet with live access opens; meta has the old shape plus the new f
   assert(log.some((x) => x.action === 'meta' && x.ok), 'meta is logged');
 });
 
-test('the PDF is streamed from private storage with the watermark on every page', async () => {
+test('the PDF is streamed from private storage exactly as uploaded, with no watermark', async () => {
   await ready('az-E', 3);
   const c = await h.customer();
   await h.grant(c.id, { productId: 'az-E', days: 30 });
@@ -272,36 +275,14 @@ test('the PDF is streamed from private storage with the watermark on every page'
   assertEquals(f.headers.get('content-type'), 'application/pdf');
   assertMatch(f.headers.get('cache-control') ?? '', /no-store/);
   assertEquals(f.headers.get('content-disposition'), 'inline');
-  assertEquals(f.headers.get('x-pages'), '3');
-  assertEquals(new TextDecoder().decode(f.bytes.slice(0, 5)), '%PDF-');
-  // the stored original is untouched; the delivered copy differs and carries the stamp
-  const original = h.storage.get('worksheets', 'a-to-z/E.pdf')!.bytes;
-  assert(original.byteLength !== f.bytes.byteLength, 'delivered copy is stamped');
+  assertEquals(f.headers.get('x-pages'), String((await h.sql`select pages from products where id = 'az-E'`)[0].pages), 'the page count on record');
+  assertEquals(f.bytes, await stored('az-E'), 'the delivered copy is the original file');
   const content = await pdfContent(f.bytes);
-  const stamp = hexOf(`Licensed to ${c.email} - Granted access - `);
-  assertEquals(content.split(stamp).length - 1, 3, 'one footer stamp per page');
-  assertEquals(content.split(`<${hexOf(`Name on account: ${c.name}`)}>`).length - 1, 3, 'one name line per page');
-  assertEquals(content.split(`<${hexOf(c.email)}>`).length - 1, 9, 'three diagonal email stamps per page');
+  assert(!content.includes(hexOf('Licensed to')) && !content.includes(hexOf(c.email)), 'no stamp on the pages');
   const doc = await PDFDocument.load(f.bytes);
   assertEquals(doc.getPageCount(), 3);
   const log = await accessRows(c.id);
   assert(log.some((x) => x.action === 'pdf' && x.ok), 'pdf delivery is logged');
-});
-
-test('a file that cannot be stamped is sent as it is and recorded as watermark.failed', async () => {
-  const c = await h.customer();
-  await h.sql`update products set pdf_path = 'uploads/az-F-broken.pdf' where id = 'az-F'`;
-  const junk = new TextEncoder().encode('%PDF-1.4\nthis is not really a pdf\n%%EOF\n');
-  await h.storage.put('worksheets', 'uploads/az-F-broken.pdf', junk, 'application/pdf');
-  await h.grant(c.id, { productId: 'az-F', days: 5 });
-  const r = await open(c.token, 'az-F');
-  assertStatus(r, 200);
-  const f = await view(c.token, r.body.token, '/api/view/file');
-  assertStatus(f, 200);
-  assertEquals(f.bytes, junk);
-  const ev = await h.sql`select detail from security_events where user_id = ${c.id} and event_type = 'watermark.failed'`;
-  assertEquals(ev.length, 1);
-  assertEquals(ev[0].detail.productId, 'az-F');
 });
 
 test('page pictures stream by 0-based number; missing pages are 404', async () => {
@@ -557,7 +538,7 @@ test('print: 0 = not allowed (403), then the limit is counted and 429 when used 
   assertEquals(log.filter((x) => x.action === 'print').map((x) => x.ok), [false, true, true, false]);
 });
 
-test('concurrent downloads never exceed the limit; each copy is a stamped attachment', async () => {
+test('concurrent downloads never exceed the limit; each copy is the original file as an attachment', async () => {
   await ready('az-P');
   await h.sql`update products set download_limit = 3 where id = 'az-P'`;
   const c = await h.customer();
@@ -574,7 +555,7 @@ test('concurrent downloads never exceed the limit; each copy is a stamped attach
   for (const x of ok) {
     assertEquals(x.headers.get('content-type'), 'application/pdf');
     assertEquals(x.headers.get('content-disposition'), 'attachment; filename="learn-with-why-az-P.pdf"');
-    assert((await pdfContent(x.bytes)).includes(hexOf(`Licensed to ${c.email} - Granted access - `)), 'download is stamped');
+    assertEquals(x.bytes, await stored('az-P'), 'download is the original file');
   }
   const used = await h.sql`select used from delivery_counts where entitlement_id = ${ent} and product_id = 'az-P' and kind = 'download'`;
   assertEquals(used[0].used, 3);
@@ -709,7 +690,7 @@ test('ACCESS-2 every sheet of a class plan has its own print and download allowa
   assertEquals([again.body.printsLeft, again.body.downloadsLeft], [0, 0]);
 });
 
-test('ACCESS-3 a view-only sheet: the viewer copy is stamped, logged and rate-limited; downloading is refused', async () => {
+test('ACCESS-3 a view-only sheet: the viewer copy is logged and rate-limited; downloading is refused', async () => {
   await ready('az-V', 2);
   // view only: its own print limit (print rule 'sheet') of 0 and no downloads
   await h.sql`update products set print_rule = 'sheet', print_limit = 0 where id = 'az-V'`;
@@ -725,9 +706,7 @@ test('ACCESS-3 a view-only sheet: the viewer copy is stamped, logged and rate-li
   const f = await view(c.token, r.body.token, '/api/view/file');
   assertStatus(f, 200);
   assertEquals(f.headers.get('content-disposition'), 'inline');
-  const viewed = await pdfContent(f.bytes);
-  assert(viewed.includes(hexOf(`Licensed to ${c.email} - Granted access - `)), 'viewer copy carries the email');
-  assert(viewed.includes(hexOf('Name on account: Meera Iyer')), 'viewer copy carries the name');
+  assertEquals(f.bytes, await stored('az-V'), 'viewer copy is the original file');
   assertEquals((await accessRows(c.id)).filter((x) => x.action === 'pdf').map((x) => x.ok), [true]);
   // the copy is not sent without limit: at most FILE_LIMIT.count an hour per account
   await h.sql`
@@ -743,7 +722,7 @@ test('ACCESS-3 a view-only sheet: the viewer copy is stamped, logged and rate-li
   assertEquals((await h.call('GET', '/api/view/file', { token: c.token })).body.code, 'invalid');
 });
 
-test('ACCESS-4 delivered copies carry the customer\'s name and email; an unreadable name falls back to the email', async () => {
+test('ACCESS-4 delivered copies carry no name or email', async () => {
   await ready('az-W');
   await h.sql`update products set download_limit = 5 where id = 'az-W'`;
   const c = await h.customer({ name: 'Meera Iyer' });
@@ -751,38 +730,12 @@ test('ACCESS-4 delivered copies carry the customer\'s name and email; an unreada
   const r = await open(c.token, 'az-W');
   const d = await h.call('POST', '/api/view/download', { token: c.token, headers: viewHeaders(r.body.token) });
   assertStatus(d, 200);
+  assertEquals(d.bytes, await stored('az-W'));
   const content = await pdfContent(d.bytes);
-  assert(content.includes(hexOf(`Licensed to ${c.email} - Granted access - `)), 'footer stamp has the email');
-  assert(content.includes(`<${hexOf('Name on account: Meera Iyer')}>`), 'and the name on its own line');
-  assert(content.includes(`<${hexOf(c.email)}>`), 'diagonal stamp has the email');
-
-  const t = await h.customer({ name: 'मीरा अय्यर' });
-  await h.grant(t.id, { productId: 'az-W', days: 30 });
-  const rt = await open(t.token, 'az-W');
-  const dt = await h.call('POST', '/api/view/download', { token: t.token, headers: viewHeaders(rt.body.token) });
-  assertStatus(dt, 200);
-  const tc = await pdfContent(dt.bytes);
-  assert(tc.includes(hexOf(`Licensed to ${t.email} - Granted access - `)), 'the email line is always there');
-  assert(!tc.includes(hexOf('Name on account')), 'no name line when the name cannot be printed');
+  assert(!content.includes(hexOf(c.email)) && !content.includes(hexOf('Meera Iyer')), 'no stamp');
 });
 
-/** The text a reader of the PDF can see (pdftotext drops what is drawn outside the page), or null
- *  when poppler's pdftotext is not installed. */
-async function visibleText(bytes: Uint8Array): Promise<string | null> {
-  const f = await Deno.makeTempFile({ suffix: '.pdf' });
-  try {
-    await Deno.writeFile(f, bytes);
-    const r = await new Deno.Command('pdftotext', { args: ['-layout', f, '-'] }).output();
-    return new TextDecoder().decode(r.stdout);
-  } catch (e) {
-    if (e instanceof Deno.errors.NotFound) return null;
-    throw e;
-  } finally {
-    await Deno.remove(f).catch(() => {});
-  }
-}
-
-test('ACCESS-6 a long or misleading name chosen in PATCH /api/auth/me never pushes the email, order or time off a stamped page', async () => {
+test('ACCESS-6 the stamp layout (services/watermark.ts) never pushes the email, order or time off the page', async () => {
   // the layout itself, with the real font metrics: every footer line fits the page, the identifying
   // line comes first and holds the email, the order and the time; the name is cut by measured width
   const font = await (await PDFDocument.create()).embedFont(StandardFonts.Helvetica);
@@ -800,32 +753,6 @@ test('ACCESS-6 a long or misleading name chosen in PATCH /api/auth/me never push
   }
   assertEquals(stampText({ name: 'Priya Sharma priya@x.com', email: 'a@b.co', orderId: null, kind: 'grant', at }),
     'Licensed to a@b.co - Granted access - 2026-10-07 12:30 UTC', 'the identifying line never carries the chosen name');
-
-  // end to end: the customer renames themself to a long name, then opens and downloads the sheet
-  await ready('az-X');
-  await h.sql`update products set download_limit = 5 where id = 'az-X'`;
-  const c = await h.customer({ name: 'Meera Iyer' });
-  await h.grant(c.id, { productId: 'az-X', days: 30 });
-  for (const name of ['W'.repeat(60), `Priya Sharma priya@x.com ${'.'.repeat(54)}`]) {
-    assertStatus(await h.call('PATCH', '/api/auth/me', { token: c.token, body: { name } }), 200, 'rename');
-    const r = await open(c.token, 'az-X');
-    assertStatus(r, 200);
-    const f = await view(c.token, r.body.token, '/api/view/file');
-    assertStatus(f, 200);
-    const d = await h.call('POST', '/api/view/download', { token: c.token, headers: viewHeaders(r.body.token) });
-    assertStatus(d, 200);
-    for (const bytes of [f.bytes, d.bytes]) {
-      const content = await pdfContent(bytes);
-      assert(content.includes(`<${hexOf(`Licensed to ${c.email} - Granted access - `)}`), 'the identifying line is drawn on its own');
-      assert(content.includes(`<${hexOf(c.email)}>`), 'the diagonal stamp is the email alone');
-      const seen = await visibleText(bytes);
-      if (seen === null) continue; // pdftotext is not installed: the layout checks above still ran
-      const flat = seen.replace(/\s+/g, ' ');
-      assert(flat.includes(`Licensed to ${c.email} - Granted access - `), `the email stays readable on the page; visible text was: ${flat.slice(0, 400)}`);
-      assertMatch(flat, /Granted access - \d{4}-\d\d-\d\d \d\d:\d\d UTC/, 'and the time');
-      assert(flat.includes('Name on account: '), 'the name is labelled as the name on the account');
-    }
-  }
 });
 
 test('ACCESS-5 a free sheet opens on its own free pass for a class-plan holder, also when paid access is paused or the plan ends', async () => {

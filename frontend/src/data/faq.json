@@ -615,8 +615,8 @@
 ]
 },
 {
-"q": "Why does the worksheet show my name?",
-"a": "The uploaded website says the protected viewer adds a watermark with your name to identify your licensed access.",
+"q": "Does the worksheet have a watermark?",
+"a": "No. Worksheets open in the protected viewer as clean pages, with no watermark or name printed on them.",
 "alt": [],
 "kw": [
 "watermark",

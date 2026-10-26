@@ -63,7 +63,7 @@ function SheetDetail({ id }) {
     : st.open && free
       ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">{session ? 'Free access sheet. No payment needed: it opens in a new tab in the protected viewer, with your name on every page.' : 'Free access sheet. No sign-in or payment needed: it opens in a new tab in the protected viewer.'}</span></>
     : st.open
-      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
+      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer. Close it to come back here.</span></>
       : !session
         ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button>{free ? null : <CartButton it={it} st={st} />}<span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : cart.has(it.id) ? 'It is in your cart. Sign in to pay for everything in your cart in one go.' : 'Sign in, then buy this PDF, or add it to your cart and buy a few together. It stays open for ' + span + ' from the day you pay.'}</span></>
         : free
