@@ -6,24 +6,28 @@ import { fetchReviews } from '../../services/api.js';
 import { sheetOf } from '../../data/catalogue.js';
 import { dateOf } from '../../utils/format.js';
 import { StarRow, StarBars } from '../reviews/Stars.jsx';
+import { QUOTES } from '../../data/content.js';
 
 /* 06 · Reviews — what customers rated the sheets on the website (published in Admin → Homepage →
    Reviews): the shop's score with its five bars, then the newest reviews as little glass notes, each
-   with the sheet it is about (tap to open it). With no reviews yet, five big stars invite the first one. */
+   with the sheet it is about (tap to open it). The real notes customers sent on WhatsApp and Instagram
+   (QUOTES) follow as notes too, marked as such and without stars (they gave no star rating). */
 const FILTERS = [['all', 'All'], ['5', '5 ★'], ['4', '4 ★'], ['low', '3 ★ and below']];
 const initialsOf = name => String(name || '').replace(/[^A-Za-zÀ-ÿ]/g, '').slice(0, 2) || '★';
 
+const fromChat = QUOTES.map((q, i) => ({ id: 'q' + i, chat: true, body: q.text, name: q.who, meta: q.meta, initials: q.initials }));
+
 function ReviewNote({ r, n }) {
   const { openSheet } = useSite();
-  const it = sheetOf(r.worksheet);
+  const it = r.chat ? null : sheetOf(r.worksheet);
   return (
-    <article className="rv-note" style={{ '--n': n }}>
-      <div className="rv-note-top"><StarRow value={r.rating} /><small>{r.at ? dateOf(r.at) : ''}</small></div>
+    <article className={'rv-note' + (r.chat ? ' chat' : '')} style={{ '--n': n % 6 }}>
+      <div className="rv-note-top">{r.chat ? <span className="rv-via">💬 WhatsApp &amp; Instagram</span> : <><StarRow value={r.rating} /><small>{r.at ? dateOf(r.at) : ''}</small></>}</div>
       {r.title ? <h3 className="rv-note-title">{r.title}</h3> : null}
       {r.body ? <p className="rv-note-text">“{r.body}”</p> : null}
       <div className="rv-note-foot">
-        <span className="rv-who"><i aria-hidden="true">{initialsOf(r.name)}</i><b>{r.name}</b></span>
-        {it ? <button type="button" className="rv-sheet" onClick={() => openSheet(it.id)} aria-label={'Open ' + it.title}>
+        <span className="rv-who"><i aria-hidden="true">{r.initials || initialsOf(r.name)}</i><b>{r.name}</b></span>
+        {r.chat ? (r.meta ? <span className="rv-sheet plain"><span>{r.meta}</span></span> : null) : it ? <button type="button" className="rv-sheet" onClick={() => openSheet(it.id)} aria-label={'Open ' + it.title}>
           {it.img ? <img src={it.img} alt="" loading="lazy" /> : null}<span>{it.title}</span>
         </button> : r.worksheetTitle ? <span className="rv-sheet plain"><span>{r.worksheetTitle}</span></span> : null}
       </div>
@@ -47,7 +51,12 @@ export default function ReviewsChapter() {
   const count = (rv && Number(rv.count)) || 0;
   const avg = rv && rv.avg != null ? Number(rv.avg) : null;
   const all = ((rv && rv.reviews) || []);
-  const shown = all.filter(r => filter === 'all' || (filter === 'low' ? r.rating <= 3 : String(r.rating) === filter)).slice(0, 6);
+  const [more, setMore] = useState(false);
+  /* website reviews first (by stars when a filter is on), then the WhatsApp and Instagram notes */
+  const site = all.filter(r => filter === 'all' || filter === 'chat' ? true : filter === 'low' ? r.rating <= 3 : String(r.rating) === filter);
+  const list = filter === 'chat' ? fromChat : filter === 'all' ? site.concat(fromChat) : site;
+  const shown = more ? list : list.slice(0, 6);
+  const filters = (count ? FILTERS : [FILTERS[0]]).concat([['chat', 'WhatsApp & Instagram']]);
 
   return (
     <Chapter index={5}>
@@ -55,7 +64,7 @@ export default function ReviewsChapter() {
         <Rise as="p" i={0} className="eyebrow" style={{ textAlign: 'center' }}>06 / Customer reviews</Rise>
         <Rise as="h2" i={1} className="h2" style={{ textAlign: 'center' }}>Stars from <em>real families</em>.</Rise>
       </div>
-      <div className={'rv-grid' + (count ? '' : ' empty')}>
+      <div className="rv-grid">
         <Rise className="rv-score panel" i={2}>
           {count && avg != null ? <>
             <p className="rv-score-label">Our sheets are rated</p>
@@ -64,8 +73,9 @@ export default function ReviewsChapter() {
             <p className="rv-count">{count === 1 ? 'from 1 review' : 'from ' + count + ' reviews'}</p>
             <StarBars stars={rv.stars} count={count} />
           </> : <>
-            <p className="rv-score-label">No reviews yet</p>
-            <p className="rv-first">Be the first to give our sheets a star.</p>
+            <p className="rv-score-label">Happy families</p>
+            <div className="rv-big"><b>{QUOTES.length}</b><span>kind notes</span></div>
+            <p className="rv-first">No star ratings on the website yet. Be the first to give a sheet its stars.</p>
             <div className="rv-wish" role="group" aria-label="Rate a sheet" onMouseLeave={() => setHover(0)}>
               {[1, 2, 3, 4, 5].map(n => <button key={n} type="button" className={n <= hover ? 'on' : ''} style={{ '--n': n }} aria-label={'Rate ' + n + (n === 1 ? ' star' : ' stars')} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onClick={openReview}>★</button>)}
             </div>
@@ -74,22 +84,15 @@ export default function ReviewsChapter() {
           <p className="rv-fine">Only customers who used a sheet can rate it. We read every review before it shows here.</p>
         </Rise>
 
-        {count ? (
-          <Rise className="rv-wall" i={3}>
-            <div className="chips rv-filters" role="group" aria-label="Show reviews">
-              {FILTERS.map(([id, label]) => <button key={id} type="button" className={'chip' + (filter === id ? ' on' : '')} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>)}
-            </div>
-            {shown.length
-              ? <div className="rv-notes">{shown.map((r, n) => <ReviewNote key={r.id} r={r} n={n} />)}</div>
-              : <p className="rv-none">No reviews with those stars yet.</p>}
-          </Rise>
-        ) : (
-          <Rise className="rv-steps" i={3}>
-            {[['📄', 'Open a sheet', 'A free sheet or one you bought.'], ['★', 'Tap the stars', '1 to 5, and a few words if you like.'], ['🌼', 'It shows here', 'After a quick check, for other parents and teachers.']].map(([icon, t, s], n) => (
-              <div key={t} className="rv-step panel" style={{ '--n': n }}><i aria-hidden="true">{icon}</i><b>{t}</b><span>{s}</span></div>
-            ))}
-          </Rise>
-        )}
+        <Rise className="rv-wall" i={3}>
+          <div className="chips rv-filters" role="group" aria-label="Show reviews">
+            {filters.map(([id, label]) => <button key={id} type="button" className={'chip' + (filter === id ? ' on' : '')} aria-pressed={filter === id} onClick={() => { setFilter(id); setMore(false); }}>{label}</button>)}
+          </div>
+          {shown.length
+            ? <div className="rv-notes">{shown.map((r, n) => <ReviewNote key={r.id} r={r} n={n} />)}</div>
+            : <p className="rv-none">No reviews with those stars yet.</p>}
+          {list.length > 6 ? <button type="button" className="arrow-link rv-more" onClick={() => setMore(m => !m)}>{more ? 'Show fewer' : 'See all ' + list.length + ' reviews'} <span aria-hidden="true">{more ? '↑' : '→'}</span></button> : null}
+        </Rise>
       </div>
     </Chapter>
   );

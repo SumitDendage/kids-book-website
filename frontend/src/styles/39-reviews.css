@@ -115,7 +115,7 @@
 .rv-note-top .star-row-off { color: rgba(29, 33, 38, 0.2); }
 .rv-note-top small { font-size: 0.7rem; color: #4a4f57; }
 .rv-note-title { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.25; }
-.rv-note-text { font-size: 0.9rem; line-height: 1.5; color: #23272d; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.rv-note-text { font-size: 0.9rem; line-height: 1.5; color: #23272d; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .rv-note-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .rv-who { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; }
 .rv-who i { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #7a4b00; font-style: normal; font-weight: 800; font-size: 0.64rem; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); }
@@ -126,15 +126,9 @@
 .rv-sheet span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
 .rv-none { font-size: var(--fs-small); color: #1d2126; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.6); }
 
-.rv-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-self: center; }
-.rv-step { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 20px 16px; color: #1d2126; animation: rv-in 0.6s var(--ease) both; animation-delay: calc(var(--n) * 120ms); }
-#content .rv-step:nth-child(1) { --card: var(--c-pink); }
-#content .rv-step:nth-child(2) { --card: var(--c-mint); }
-#content .rv-step:nth-child(3) { --card: var(--c-sky); }
-.rv-step i { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.85); font-style: normal; font-size: 1.5rem; color: #f5a623; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1); }
-.rv-step b { font-family: var(--font-display); font-size: 1.15rem; }
-.rv-step span { font-size: 0.85rem; line-height: 1.45; color: #2b2f36; }
-
+.rv-via { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em; color: #2b5d3f; background: rgba(255, 255, 255, 0.7); padding: 3px 9px; border-radius: 100px; }
+.rv-more { margin-top: 12px; color: #fff; text-shadow: 0 1px 8px rgba(10, 30, 50, 0.6); }
+.rv-score .rv-first { font-family: var(--font-body, inherit); font-size: 0.92rem; font-weight: 600; max-width: 28ch; }
 @media (max-width: 900px) {
   .rv-grid { grid-template-columns: minmax(0, 1fr); }
   .rv-score { max-width: 460px; width: 100%; justify-self: center; }
@@ -143,9 +137,6 @@
   /* the notes slide sideways on a phone, so the chapter stays one screen tall */
   .rv-notes { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 10px; gap: 12px; }
   .rv-note { flex: 0 0 82%; scroll-snap-align: center; transform: none; }
-  .rv-steps { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .rv-step { grid-template-columns: auto 1fr; justify-items: start; text-align: left; column-gap: 12px; padding: 12px 14px; }
-  .rv-step i { grid-row: span 2; width: 42px; height: 42px; font-size: 1.2rem; }
   .rv-score .star-bars, .rv-fine { display: none; }
   .rv-score { gap: 4px; padding: 16px; }
   .rv-big b { font-size: 3.2rem; }
@@ -159,4 +150,4 @@
   .nav-brand .wordmark { display: none; }
   .nav-brand { padding-right: 4px; }
 }
-@media (prefers-reduced-motion: reduce) { .rv-note, .rv-step, .rv-wish button { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rv-note, .rv-wish button { animation: none; } }
