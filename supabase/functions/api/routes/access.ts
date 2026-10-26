@@ -1,7 +1,7 @@
 // OWNER: agent D. Opening sheets: POST /api/access/:id (the server access check) and the
 // protected viewer /api/view/*. Every viewer request checks the sign-in, the account, the
 // paid-access suspension, the sheet, its PDF and the access record again in the database —
-// the view token alone opens nothing. PDFs only leave through these routes (stamped), never as
+// the view token alone opens nothing. PDFs only leave through these routes (unstamped), never as
 // a storage link.
 // A free sheet also opens without an account (Sumit, Oct 17: "the free can access easily, not
 // required to sign in"): a visitor with no sign-in gets a guest token for that one sheet, held to
@@ -12,7 +12,7 @@ import type { AuthedUser, Ctx } from '../lib/context.ts';
 import { tx, type Tx } from '../lib/db.ts';
 import { HttpError, intParam, streamResponse } from '../lib/http.ts';
 import { bearer, hasPermission, requireUser } from '../lib/auth.ts';
-import { analytics, rateLimit, securityEvent } from '../lib/guard.ts';
+import { analytics, rateLimit } from '../lib/guard.ts';
 import { getSettings } from '../lib/settings.ts';
 import { download, downloadBytes, WORKSHEETS } from '../lib/storage.ts';
 import { fmtDateTime } from '../lib/util.ts';
@@ -21,7 +21,6 @@ import {
   pubEntitlement,
 } from '../services/entitlements.ts';
 import { type GuestClaims, isGuestToken, makeGuestToken, makeViewToken, readGuestToken, readViewToken, type ViewClaims, viewTokenFrom } from '../services/viewtoken.ts';
-import { StampError, stampPdf } from '../services/watermark.ts';
 import { type AccessAction, maybeEvaluateRules, observeAccess } from '../services/sharing.ts';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -29,7 +28,7 @@ const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 export const FILE_LIMIT = { count: 60, seconds: 3600 };
 /** Guests (free sheets, no account) per IP address: opens, viewer requests and whole PDFs. */
 export const GUEST_LIMITS = { open: { count: 30, seconds: 600 }, view: { count: 300, seconds: 300 }, file: { count: 40, seconds: 3600 } };
-/** What a guest copy is stamped with in place of an account email. */
+/** What the viewer shows for a guest in place of an account email. */
 export const GUEST_STAMP = 'learnwithwhy.com';
 
 const NO_SHEET = 'No such worksheet.';
@@ -276,14 +275,7 @@ async function guestFile(ctx: Ctx, g: GuestView) {
     'Very many sheets were opened from this connection in the last hour — please wait a while, then open the sheet again.');
   const bytes = await downloadBytes(WORKSHEETS, g.p.pdf_path!);
   if (!bytes) throw new HttpError(404, NO_FILE, { code: 'nofile' });
-  let out: { bytes: Uint8Array; pages: number | null };
-  try {
-    out = await stampPdf(bytes, { email: GUEST_STAMP, orderId: null, kind: 'free', at: new Date(), guest: true });
-  } catch (e) {
-    console.error('[view] guest watermark failed', g.p.id, e instanceof StampError ? e.reason : 'stamp_failed');
-    out = { bytes, pages: null };
-  }
-  return streamResponse(out.bytes, 'application/pdf', { 'X-Pages': String(out.pages ?? g.p.pages) });
+  return streamResponse(bytes, 'application/pdf', { 'X-Pages': String(g.p.pages) });
 }
 
 async function guestPage(ctx: Ctx, g: GuestView, n: number) {
@@ -420,23 +412,10 @@ async function meta(ctx: Ctx) {
   };
 }
 
-/** The PDF stamped for this customer; the original when stamping fails (recorded). */
-async function stampedPdf(ctx: Ctx, v: ViewOk, bytes: Uint8Array): Promise<{ bytes: Uint8Array; pages: number | null }> {
-  try {
-    return await stampPdf(bytes, { name: v.user.profile.name, email: v.user.profile.email, orderId: v.ent.order_id, kind: v.ent.kind, at: new Date() });
-  } catch (e) {
-    const reason = e instanceof StampError ? e.reason : 'stamp_failed';
-    console.error('[view] watermark failed', v.p.id, reason);
-    await securityEvent(ctx, v.user.id, 'watermark.failed', { productId: v.p.id, entitlementId: v.ent.id, reason, bytes: bytes.byteLength })
-      .catch((err) => console.error('[view] could not record watermark failure', (err as Error)?.message));
-    return { bytes, pages: null };
-  }
-}
-
-/** The stamped PDF the viewer draws the pages from. A sheet with no prints or downloads left (or
- *  none offered) still needs it — most sheets have no page picture for every page (DESIGN.md §5) — so it is
- *  never refused for that; every delivery is authenticated, stamped with the customer's name and
- *  email, logged and held to its own rate limit. */
+/** The PDF the viewer draws the pages from, sent as it was uploaded (no watermark, Sumit Oct 26).
+ *  A sheet with no prints or downloads left (or none offered) still needs it — most sheets have no
+ *  page picture for every page (DESIGN.md §5) — so it is never refused for that; every delivery is
+ *  authenticated, logged and held to its own rate limit. */
 async function file(ctx: Ctx) {
   const g = await guestContext(ctx);
   if (g) return await guestFile(ctx, g);
@@ -452,8 +431,7 @@ async function file(ctx: Ctx) {
   await observeAccess(ctx, v.user, { ...meta, ok: true });
   const bytes = await downloadBytes(WORKSHEETS, v.p.pdf_path!);
   if (!bytes) throw new HttpError(404, NO_FILE, { code: 'nofile' });
-  const out = await stampedPdf(ctx, v, bytes);
-  return streamResponse(out.bytes, 'application/pdf', { 'X-Pages': String(out.pages ?? v.p.pages) });
+  return streamResponse(bytes, 'application/pdf', { 'X-Pages': String(v.p.pages) });
 }
 
 const IMAGE_TYPES: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
@@ -529,10 +507,9 @@ async function downloadCopy(ctx: Ctx) {
     await giveBack(v.ent.id, v.p.id);
     throw new HttpError(404, NO_FILE, { code: 'nofile' });
   }
-  const out = await stampedPdf(ctx, v, bytes);
-  return streamResponse(out.bytes, 'application/pdf', {
+  return streamResponse(bytes, 'application/pdf', {
     'Content-Disposition': `attachment; filename="learn-with-why-${v.p.id}.pdf"`,
-    'X-Pages': String(out.pages ?? v.p.pages),
+    'X-Pages': String(v.p.pages),
     'X-Downloads-Left': String(left),
     'X-Downloads-Limit': String(limit),
   });

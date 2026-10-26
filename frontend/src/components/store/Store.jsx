@@ -206,7 +206,7 @@ export default function Store() {
                 <div className="skill-content">
                   <h3 className="card-title">{c.label}</h3>
                   <p className="skill-desc">{c.description}</p>
-                  <ul className="skill-list"><li>{skillSheets(c.id).some(it => it.price === 0) ? 'Free sample to explore' : 'Preview every sheet first'}</li><li>Watermarked with your name</li><li>Buy or subscribe to unlock</li></ul>
+                  <ul className="skill-list"><li>{skillSheets(c.id).some(it => it.price === 0) ? 'Free sample to explore' : 'Preview every sheet first'}</li><li>Clean pages, ready to print</li><li>Buy or subscribe to unlock</li></ul>
                   <div className="skill-foot">
                     <span className="skill-count">{c.count} sheets</span>
                     <button type="button" className="btn btn-primary" onClick={() => filter({ skill: c.id, view: 'all', cls: 'all', subject: 'all' })}>Browse worksheets <span aria-hidden="true">→</span></button>
