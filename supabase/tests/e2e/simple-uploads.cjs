@@ -78,6 +78,12 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await signIn(users.owner);
     must(!(await page.locator('.sb .sb-item[title="Roles"]').count()), 'the menu still has Roles');
     must(!(await page.locator('.sb .sb-item[title="Categories"]').count()), 'the menu still has Categories');
+    must(!(await page.locator('.sb .sb-item[title="Content"]').count()), 'the menu still has Content');
+    await go('Homepage');
+    for (const t of ['Sheet lists', 'Home page text', 'Questions and answers', 'Reviews']) must(await page.locator('.tabs-s button', { hasText: t }).count(), 'Homepage has no ' + t + ' tab');
+    await page.locator('.tabs-s button', { hasText: 'Questions and answers' }).click(); await sleep(800);
+    await shot('00b-homepage-with-content');
+    await go('Dashboard');
     await shot('00a-dashboard');
     await page.getByRole('button', { name: 'Sheets and sections' }).click();
     await page.locator('.browser').waitFor({ timeout: 15000 });
