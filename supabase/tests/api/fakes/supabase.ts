@@ -395,6 +395,28 @@ export async function startFakeSupabase(o: FakeSupabaseOptions): Promise<FakeSup
       return authError(404, 'not_found', 'Not found');
     }
 
+    // sign-up from the website (supabase.auth.signUp) with "Confirm email" off, as on the live
+    // project: the account is confirmed at once and the answer carries a session
+    if (path === '/signup' && method === 'POST') {
+      if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
+      const b = await readBody(req);
+      if (!b) return authError(400, 'bad_json', 'Could not parse request body as JSON');
+      const made = await createUser({
+        email: b.email, password: String(b.password ?? ''), confirmed: true,
+        userMeta: b.data && typeof b.data === 'object' ? b.data : {},
+      });
+      if (made.status !== 200) return made;
+      const user = await userByEmail(String(b.email).trim().toLowerCase());
+      const out = await openAuthSession(user!, req.headers.get('user-agent'), validIp(req.headers.get('sb-forwarded-for')));
+      // a new account has its email identity (supabase-js reads an empty list as "address taken")
+      // deno-lint-ignore no-explicit-any
+      const u = (out as any).user;
+      if (u && !(Array.isArray(u.identities) && u.identities.length)) {
+        u.identities = [{ id: u.id, user_id: u.id, provider: 'email', identity_data: { email: u.email, sub: u.id } }];
+      }
+      return json(200, out);
+    }
+
     if (path === '/token' && method === 'POST') {
       if (!isAnyKey(req)) return json(401, { message: keyOf(req) ? 'Invalid API key' : 'No API key found in request' });
       const grant = u.searchParams.get('grant_type');

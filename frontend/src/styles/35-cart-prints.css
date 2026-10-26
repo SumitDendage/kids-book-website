@@ -3,35 +3,39 @@
    drawer and its buttons, the Print hints and the search box in the shop. Same look as the rest:
    frosted glass cards, gold headings, flat candy-coloured buttons. */
 
-/* ----- "Who will use these sheets?" (glass card over a soft dark scrim; it cannot be closed) ----- */
+/* ----- "Who will use these sheets?" (white card over a soft dark scrim; it cannot be closed) -----
+   White with dark words (Sumit, 26 Oct: "make it white of background"); each choice keeps its own
+   colour on its border and number, and fills with it when picked. */
 .type-scrim { position: fixed; inset: 0; z-index: 430; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; background: rgba(2, 8, 14, 0.62); backdrop-filter: blur(8px); animation: secFade 0.3s ease both; }
-.type-card { width: min(100%, 520px); display: grid; gap: 12px; padding: 28px 26px 22px; background: rgba(10, 22, 30, 0.74); border-color: rgba(255, 255, 255, 0.22); animation: secRise 0.45s var(--ease) both; }
-.type-card .eyebrow { margin: 0; color: #a8f0c6; }
-.type-title { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.5rem); line-height: 1.08; color: #ffd977; text-wrap: balance; }
-.type-sub { font-size: 0.92rem; line-height: 1.55; color: var(--fg-muted); }
+.type-card { --ink: #1c1530; --ink-soft: #4a4160; width: min(100%, 520px); display: grid; gap: 12px; padding: 28px 26px 22px; background: #fff; border: 1px solid rgba(28, 21, 48, 0.08); box-shadow: 0 24px 60px rgba(10, 6, 30, 0.35); color: var(--ink); text-shadow: none; animation: secRise 0.45s var(--ease) both; }
+.type-card .eyebrow { margin: 0; color: #5b2f99; -webkit-text-fill-color: #5b2f99; background: none; border: none; box-shadow: none; padding: 0; text-shadow: none; }
+.type-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.5rem); line-height: 1.08; color: var(--ink); -webkit-text-fill-color: var(--ink); background: none; text-shadow: none; text-wrap: balance; }
+.type-card .type-sub { font-size: 0.92rem; line-height: 1.55; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); opacity: 1; text-shadow: none; }
 .type-choices { display: grid; gap: 10px; margin-top: 4px; }
-.type-choice { --candy: #e2558f; position: relative; display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 14px 16px 14px 18px; border-radius: var(--r-lg); border: 2px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.07); color: var(--fg); cursor: pointer; transition: background var(--d-fast), border-color var(--d-fast), transform var(--d-fast) var(--ease); }
-.type-choice[data-type="teacher"] { --candy: #3fae6a; }
-.type-choice[data-type="organization"] { --candy: #4a95e8; }
-.type-choice::before { content: ''; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--candy); background: transparent; transition: background var(--d-fast); }
-.type-choice:hover { background: rgba(255, 255, 255, 0.12); transform: translateY(-1px); }
-.type-choice.on { background: var(--candy); border-color: var(--candy); color: #fff; }
-.type-choice.on::before { background: #fff; border-color: #fff; }
-.type-choice:focus-within { outline: 3px solid #ffd977; outline-offset: 2px; }
+.type-choice { --candy: #d2407e; position: relative; display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 14px 16px 14px 18px; border-radius: var(--r-lg); border: 2px solid var(--candy); background: #fff; color: var(--ink); cursor: pointer; transition: background var(--d-fast), box-shadow var(--d-fast), transform var(--d-fast) var(--ease); }
+.type-choice[data-type="teacher"] { --candy: #2f8a5c; }
+.type-choice[data-type="organization"] { --candy: #3a7fd0; }
+.type-choice::before { content: ''; flex: none; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--candy); background: #fff; }
+.type-choice:hover { box-shadow: 0 6px 16px rgba(28, 21, 48, 0.12); transform: translateY(-1px); }
+.type-choice.on { background: var(--candy); color: #fff; box-shadow: 0 8px 20px rgba(28, 21, 48, 0.2); }
+.type-choice.on::before { border-color: #fff; box-shadow: inset 0 0 0 3px var(--candy); }
+.type-choice:focus-within { outline: 3px solid #5b2f99; outline-offset: 2px; }
 .type-choice input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .type-name { flex: 1; display: grid; gap: 3px; min-width: 0; }
-.type-name b { font-size: 1.12rem; font-weight: 700; }
-.type-name small { font-size: 0.8rem; line-height: 1.35; color: var(--fg-muted); }
-.type-choice.on .type-name small { color: rgba(255, 255, 255, 0.9); }
+.type-name b { font-size: 1.12rem; font-weight: 800; color: inherit; }
+.type-name small { font-size: 0.8rem; line-height: 1.35; color: var(--ink-soft); }
+.type-choice.on .type-name small { color: rgba(255, 255, 255, 0.92); }
 .type-prints { flex: none; display: grid; justify-items: end; text-align: right; line-height: 1; }
-.type-prints b { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: #ffd977; }
+.type-prints b { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--candy); }
 .type-choice.on .type-prints b { color: #fff; }
-.type-prints small { margin-top: 3px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; color: var(--fg-dim); white-space: nowrap; }
-.type-choice.on .type-prints small { color: rgba(255, 255, 255, 0.88); }
-.type-once { text-align: center; font-family: var(--font-display); font-style: italic; font-size: 1.12rem; color: var(--fg); }
+.type-prints small { margin-top: 3px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-soft); white-space: nowrap; }
+.type-choice.on .type-prints small { color: rgba(255, 255, 255, 0.9); }
+.type-card .type-once { text-align: center; font-family: var(--font-display); font-style: italic; font-size: 1.12rem; color: var(--ink); -webkit-text-fill-color: var(--ink); opacity: 1; text-shadow: none; }
 .type-card .alert { margin: 0; }
-.type-go { padding: 14px 20px; }
-.type-go:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.type-card .alert.err { color: #8a1c1c; background: #fdecec; border-color: rgba(192, 57, 43, 0.35); }
+.type-card .type-go { padding: 14px 20px; background: #5b2f99; border-color: #5b2f99; color: #fff; -webkit-text-fill-color: #fff; box-shadow: 0 8px 20px rgba(91, 47, 153, 0.3); }
+.type-card .type-go:hover { background: #4a2480; }
+.type-card .type-go:disabled { background: #e6e1ee; border-color: #e6e1ee; color: #6b6380; -webkit-text-fill-color: #6b6380; box-shadow: none; cursor: not-allowed; transform: none; opacity: 1; }
 @media (max-width: 420px) {
   .type-card { padding: 22px 16px 18px; }
   .type-choice { min-height: 68px; gap: 12px; padding: 12px 12px 12px 14px; }

@@ -207,6 +207,15 @@ export function SiteProvider({ children }) {
   const [sessionFresh, setSessionFresh] = useState(false);
   /* prints per sheet for each account type, from GET /api/config ({ parent, teacher, organization }) */
   const [printsTable, setPrintsTable] = useState(DEFAULT_PRINTS);
+  /* the account type picked in the popup right after "Create my account" ({ email, role, at }), kept in
+     this browser until the account's first sign-in saves it (the effect below). Older than 30 days, it
+     is forgotten. */
+  const [pendingType, _setPendingType] = useState(() => {
+    const p = read('lww_pending_type', null);
+    return p && p.email && p.role && Date.now() - (Number(p.at) || 0) < 30 * 864e5 ? p : null;
+  });
+  const setPendingType = useCallback(p => { write('lww_pending_type', p); _setPendingType(p); }, []);
+  const typeSaving = useRef(false);
 
   /* ---------- the cart ----------
      Signed in: the server's cart (serverCart, null until it answers or when the server has no cart yet).
@@ -248,9 +257,12 @@ export function SiteProvider({ children }) {
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
   const portalCloser = useRef(null);
   const portalKind = pathname === '/admin' ? 'admin' : pathname === '/developer' ? 'developer' : null;
-  /* Who will use these sheets? Asked once, when a signed-in customer (never staff) has no account type
-     yet, and only after the server confirmed who is signed in. It cannot be skipped. */
-  const askRole = !!(session && sessionFresh && !session.role && !session.staff && !portalKind && pathname !== '/account-blocked');
+  /* Who will use these sheets? Asked in a popup right after "Create my account" (AuthCard) and saved
+     at the first sign-in. After a sign-in the popup asks again only an account that still has no type
+     (one made before this, or one whose choice could not be saved), never staff, and only after the
+     server confirmed who is signed in. It cannot be skipped. */
+  const typeOnItsWay = !!(session && pendingType && pendingType.email === String(session.email || '').toLowerCase());
+  const askRole = !!(session && sessionFresh && !session.role && !session.staff && !typeOnItsWay && !portalKind && pathname !== '/account-blocked');
   const askRoleRef = useRef(false); askRoleRef.current = askRole;
 
   stage.onSection = setSection;
@@ -388,6 +400,10 @@ export function SiteProvider({ children }) {
       return !!(sessionRef.current && sessionRef.current.role);
     };
     a.setRole = role => { a.chooseAccountType(role).catch(err => toast(err.message)); };
+    /* the choice made right after sign-up, saved once that account first signs in */
+    a.rememberAccountType = (email, role) => {
+      if (email && role) setPendingType({ email: String(email).trim().toLowerCase(), role, at: Date.now() });
+    };
 
     /* ---------- the cart ---------- */
     const quietly = err => { if (err && err.status !== 401 && err.status !== 0) console.warn('cart', err.message); };
@@ -695,6 +711,18 @@ export function SiteProvider({ children }) {
     });
     return () => setUnauthorizedHandler(null);
   }, [actions, stage]);
+
+  /* the first sign-in of an account made on this browser saves the type picked right after sign-up;
+     if that fails the popup asks instead (askRole) */
+  useEffect(() => {
+    if (!typeOnItsWay || !sessionFresh) return;
+    if (session.role || session.staff) { setPendingType(null); return; }
+    if (typeSaving.current) return;
+    typeSaving.current = true;
+    actions.chooseAccountType(pendingType.role)
+      .catch(err => console.warn('account type', err.message))
+      .finally(() => { typeSaving.current = false; setPendingType(null); });
+  }, [typeOnItsWay, sessionFresh, session, pendingType, actions, setPendingType]);
 
   /* the server blocked the account, stopped this sign-in, paused paid access or wants the email confirmed */
   useEffect(() => {

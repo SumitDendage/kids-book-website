@@ -33,6 +33,7 @@ const warmUp = () => {
   import('../components/layout/Drawers.jsx');
   import('../components/modals/SheetModal.jsx');
   import('../components/ai/AIAssistant.jsx');
+  import('../components/account/AccountTypePopup.jsx');   /* it opens right after "Create my account" */
 };
 
 const STAFF = { admin: true, developer: true };
