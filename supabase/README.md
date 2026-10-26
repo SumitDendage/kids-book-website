@@ -1,13 +1,15 @@
-# Learn With Why: the Supabase backend
+# Learn With Why: server
 
-Everything the website needs on the server side, for the Supabase project **"SumitDendage's Project"**
-(`liaqgyskuhnxmlvmrnrl`, Mumbai region): Supabase Auth for passwords, PostgreSQL with row-level security,
-private storage for the worksheet PDFs, and one Edge Function, `api`, that serves every `/api/*` route the
-website calls.
+The server side of [www.learnwithwhy.com](https://www.learnwithwhy.com), running on Supabase in the
+project **"SumitDendage's Project"** (`liaqgyskuhnxmlvmrnrl`, Mumbai region):
 
-**Owner: start with [docs/SETUP.md](docs/SETUP.md)**, then read [docs/MISSING-CONFIG.md](docs/MISSING-CONFIG.md)
-for what is still missing. This folder is kept off GitHub on purpose (like `backend/` and `database/`); it
-reaches you as `supabase-backend.zip`.
+- **Supabase Auth** for customer and staff accounts, with 6-digit email codes for sign-up and sign-in
+- **PostgreSQL** with row-level security on every table
+- **Private storage** for the worksheet PDFs
+- **One Edge Function, `api`**, that serves every `/api/*` route the website calls
+
+New to this folder? Start with [docs/SETUP.md](docs/SETUP.md), then see
+[docs/MISSING-CONFIG.md](docs/MISSING-CONFIG.md) for what is still open.
 
 ## What is in this folder
 
@@ -17,20 +19,26 @@ reaches you as `supabase-backend.zip`.
 | `functions/api/` | The server program (Deno, TypeScript). `index.ts` starts it; `routes/` has one file per area; `services/` the business rules; `gateways/` Razorpay, Stripe and PayPal; `lib/` sign-in checks, database, email, settings. |
 | `scripts/upload-files.mjs` | Uploads the worksheet PDFs and page pictures to the private **worksheets** store. |
 | `scripts/build_seed_sql.py` | How the sheet list in `migrations/*_catalogue_data.sql` was built from the website's catalogue. |
+| `scripts/prepare-animals.py`, `scripts/animals-catalogue.sql` | One-off import of the Animals vocabulary sheets; see [docs/animals-import.md](docs/animals-import.md). |
 | `tests/` | The API tests (in-process, with fakes for Auth, Storage, the gateways and email), the database checks in `tests/sql/`, the local dev server and the browser tests in `tests/e2e/`. See [tests/README.md](tests/README.md). |
 | `deploy-server.bat` | Puts `api` online from a Windows PC (Supabase CLI, no Docker needed). |
 | `config.toml` | Only what the deploy needs: the project id and `verify_jwt = false` for `api` (the API checks every token itself). |
 | `.env.example` | Every secret the server reads, with no values. Real values go only in **Edge Functions → Secrets**. |
-| `docs/DESIGN.md` | The build contract: auth model, every endpoint, business rules. |
+| `docs/SETUP.md` | One-time setup of the live project, step by step. |
+| `docs/MISSING-CONFIG.md` | Configuration checklist and safe defaults. |
+| `docs/DESIGN.md` | The original build contract (October 2026): auth model, endpoints and business rules as first specified. The current route list is in [../docs/API.md](../docs/API.md). |
 | `docs/SECURITY.md` | The security and account-sharing policy in plain words. |
 
 ## How the pieces fit
 
 - The website (Hostinger, plain files) calls `https://liaqgyskuhnxmlvmrnrl.supabase.co/functions/v1/api/...`
   with a bearer token. Its central adapter is `frontend/src/services/api.js`.
-- Passwords live only in Supabase Auth. Sign-up generates the password on the server and emails it;
-  nothing logs or stores it. Each sign-in also gets an `app_sessions` row, so staff can end or block one
-  session without touching the others.
+- Passwords live only in Supabase Auth. Customers choose their own password at sign-up and confirm the
+  email with a 6-digit code. Sign-in goes through `/api/auth/login`, which checks the password and emails
+  a second 6-digit code; `/api/auth/verify-login-otp` checks it and opens the session. Each sign-in gets
+  an `app_sessions` row, so staff can end or block one session without touching the others.
+- Free sheets open without an account through a short-lived, view-only guest token, stamped as a free
+  copy; paid sheets always need a signed-in customer with access.
 - The API talks to Postgres as the role `lww_api`, which has only the grants it needs. Customers and
   the browser never get direct table access: row-level security is on for every table and most tables
   have no policy at all, which means "no access" for the public keys.
@@ -48,8 +56,8 @@ You need Postgres 16 or newer and Deno 2.
 cd supabase
 LWW_TEST_DB=lww_dev tests/local/reset-db.sh                  # fresh local database with every migration
 LWW_TEST_DB=lww_dev deno run -A --config functions/api/deno.json tests/dev-server.ts \
-    --port 54321 --origin http://127.0.0.1:5173 --files ../backend/protected
-# then, in frontend/: VITE_API_BASE_URL=http://127.0.0.1:54321/functions/v1 npm run dev
+    --port 54321 --origin http://127.0.0.1:5173   # optional: --files <folder of PDFs>
+# then, in frontend/: VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_PUBLISHABLE_KEY=dev npm run dev
 ```
 
 The dev server prints the seeded owner and customer passwords, captures email at `/__dev/mail` and fakes
@@ -75,6 +83,9 @@ you ever push this folder with `supabase db push`, run it once by hand instead, 
 `supabase migration repair --status applied 20261007125900`.
 
 ## Deploying the server program
+
+From GitHub: **Actions → Deploy server to Supabase → Run workflow** (`.github/workflows/deploy-server-once.yml`,
+needs the `SUPABASE_ACCESS_TOKEN` repository secret). From a Windows PC:
 
 ```bat
 deploy-server.bat
