@@ -730,3 +730,16 @@ test('reviews need past or present access; one per sheet, edits go back to pendi
   const n = await h.sql`select count(*)::int as n from reviews where user_id = ${c.id}`;
   assertEquals(n[0].n, 2);
 });
+
+test('reviews: a free sheet can be rated without opening it first; GET /api/me/reviews lists my own', async () => {
+  const c = await h.customer();
+  const other = await h.customer();
+  const free = await h.call('POST', '/api/me/reviews', { token: c.token, body: { worksheet: 'az-B', rating: 4, body: 'Nice and clear.' } });
+  assertStatus(free, 200);
+  assertEquals(free.body.review.status, 'pending');
+  await h.call('POST', '/api/me/reviews', { token: other.token, body: { worksheet: 'az-B', rating: 1 } });
+  const mine = await h.call('GET', '/api/me/reviews', { token: c.token });
+  assertStatus(mine, 200);
+  assertEquals(mine.body.reviews.map((r: { worksheet: string; rating: number; body: string; status: string }) => [r.worksheet, r.rating, r.body, r.status]), [['az-B', 4, 'Nice and clear.', 'pending']]);
+  assertStatus(await h.call('GET', '/api/me/reviews'), 401);
+});

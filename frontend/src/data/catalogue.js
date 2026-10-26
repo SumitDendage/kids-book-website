@@ -408,6 +408,9 @@ export function applyServerCatalogue(worksheets, extra) {
     it.sort = Number.isFinite(w.sort) ? w.sort : it.sort;
     it.wasPrice = w.wasPrice != null && w.wasPrice > w.price ? w.wasPrice : null;
     it.section = w.section || null;
+    /* customers' star ratings (published reviews only): the card's "4.6 ★" */
+    it.reviewAvg = w.reviewAvg != null && Number(w.reviewCount) > 0 ? Number(w.reviewAvg) : null;
+    it.reviewCount = Number(w.reviewCount) || 0;
     if (it.pdf) {
       /* the title, words and picture staff set; the site's own words stay when the server has none */
       if (typeof w.title === 'string' && w.title.trim()) it.title = w.title;

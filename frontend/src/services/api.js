@@ -171,6 +171,7 @@ export const meApi = {
   sessions: () => api('GET', '/api/me/sessions'),
   endSession: id => api('POST', '/api/me/sessions/' + enc(id) + '/end'),
   review: body => api('POST', '/api/me/reviews', body),                             /* { worksheet, rating, title?, body? } */
+  reviews: () => api('GET', '/api/me/reviews'),                                     /* my own reviews, any status */
 };
 
 /* ---------- the cart (kept on the server for a signed-in customer) ----------
@@ -217,6 +218,8 @@ export function fetchConfig() {
 export const fetchGeo = () => publicGet('/api/geo');
 export const fetchContent = () => publicGet('/api/content');
 export const fetchFaq = () => publicGet('/api/faq');
+/* the newest published reviews of every sheet, with the shop-wide { avg, count, stars: {1..5} } */
+export const fetchReviews = (limit = 12) => publicGet('/api/reviews?limit=' + limit);
 
 /* ---------- checkout: quote, order, verify ---------- */
 export const payApi = {

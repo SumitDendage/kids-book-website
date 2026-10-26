@@ -381,6 +381,7 @@ export function SiteProvider({ children }) {
       else if (n.do === 'pay' && n.ret) a.finishPayment(n.ret, n.pending || null);
       else if (n.do === 'account') a.openAccount(n.tab || 'sheets');
       else if (n.do === 'cart') a.openCart();
+      else if (n.do === 'review') a.openReview();
     };
 
     /* ---------- the account type (asked once; only staff can change it afterwards) ----------
@@ -489,6 +490,12 @@ export function SiteProvider({ children }) {
       const it = sheetOf(id); if (!it) return;
       if (!sessionRef.current && it.price !== 0) { a.showAccountPopup(id); return; }
       setModal({ open: true, kind: 'sheet', id });
+    };
+    /* "Write a review" (home page): pick one of your sheets and rate it; signed in only */
+    a.openReview = () => {
+      if (!sessionRef.current) { a.requireSignIn({ do: 'review' }, 'Sign in to write a review. Then pick the sheet you want to rate.', 'signin'); return; }
+      setDrawer(null);
+      setModal({ open: true, kind: 'review' });
     };
     /* after a verified payment: the popup gets purchaseOf(...) (see above) */
     /* the server takes paid sheets out of the cart when an order is paid, so the cart is read again */

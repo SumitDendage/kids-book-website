@@ -239,10 +239,11 @@ async function postReview(ctx: Ctx) {
   await rateLimit(ctx, 'review', u.id, 10, 3600);
 
   const review = await tx(async (q) => {
-    const p = await q<{ id: string; class_id: string }[]>`select id, class_id from products where id = ${worksheet}`;
+    const p = await q<{ id: string; class_id: string; price_inr: number }[]>`select id, class_id, price_inr from products where id = ${worksheet}`;
     if (!p[0]) throw new HttpError(404, 'No such worksheet.');
-    // only someone who bought or opened it (now or before), not counting refunded/revoked access
-    const has = await q`
+    // a free sheet: any signed-in customer; otherwise only someone who bought or opened it (now or
+    // before), not counting refunded/revoked access
+    const has = p[0].price_inr === 0 ? [1] : await q`
       select 1 from entitlements e
       where e.user_id = ${u.id} and e.revoked_at is null and e.starts_at <= now()
         and ((e.scope = 'worksheet' and e.product_id = ${p[0].id}) or (e.scope = 'class' and e.class_id = ${p[0].class_id}))
@@ -268,6 +269,22 @@ async function postReview(ctx: Ctx) {
   };
 }
 
+/** GET /api/me/reviews — the customer's own reviews (any status), so a sheet can show "Your rating". */
+async function myReviews(ctx: Ctx) {
+  const u = await requireUser(ctx);
+  const rows = await tx((q) => q<{ id: number; product_id: string; rating: number; title: string | null; body: string | null; status: string; created_at: Date; updated_at: Date }[]>`
+    select id, product_id, rating, title, body, status, created_at, updated_at
+    from reviews where user_id = ${u.id}
+    order by updated_at desc, id desc
+    limit 500`);
+  return {
+    reviews: rows.map((r) => ({
+      id: r.id, worksheet: r.product_id, rating: r.rating, title: r.title, body: r.body, status: r.status,
+      createdAt: ms(r.created_at), updatedAt: ms(r.updated_at),
+    })),
+  };
+}
+
 export function register(r: Router) {
   r.get('/api/me/security', getSecurity);
   r.post('/api/me/security/acknowledge', acknowledge);
@@ -277,5 +294,6 @@ export function register(r: Router) {
   r.post('/api/me/notifications/read', readNotifications);
   r.get('/api/me/sessions', listSessions);
   r.post('/api/me/sessions/:id/end', endSession);
+  r.get('/api/me/reviews', myReviews);
   r.post('/api/me/reviews', postReview);
 }

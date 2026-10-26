@@ -3,6 +3,7 @@ import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
 import { cardLabel, discountPct, LABEL_COLOUR } from '../../data/catalogue.js';
 import { sheetState, openForText, cartable } from './sheetAccess.js';
+import { CardRating } from '../reviews/Stars.jsx';
 
 /* the line beside a card's button: free, bought, in a plan, ended, or how long a purchase stays open */
 export const priceLine = (st, it) => (st.kind === 'free' ? (st.open ? 'Free · ready to open' : 'Free access sheet')
@@ -65,7 +66,7 @@ export default function SheetCard({ it, n, store = false }) {
         {shot ? <img src={it.img} alt="" loading="lazy" /> : <><small>{it.subject}</small><div className="glyph">{it.glyph}</div><small>Learn With Why · PDF</small></>}
         {tag}
       </div>
-      <p className="meta">{meta}{offLine}</p>
+      <p className="meta">{meta}{offLine}<CardRating it={it} /></p>
       <h3 className="card-title">{it.title}</h3>
       <p>{it.blurb}</p>
       {store && cartable(it, st)

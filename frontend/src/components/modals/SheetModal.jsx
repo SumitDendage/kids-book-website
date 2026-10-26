@@ -7,6 +7,9 @@ import Countdown from '../sheets/Countdown.jsx';
 import { dateTimeTz } from '../../utils/format.js';
 import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
 import { CartButton } from '../sheets/SheetCard.jsx';
+import { StarRow } from '../reviews/Stars.jsx';
+import SheetRatings from '../reviews/SheetRatings.jsx';
+import WriteReview from '../reviews/WriteReview.jsx';
 
 const tzOf = access => (access && access.session && access.session.timeZone) || undefined;
 
@@ -72,11 +75,12 @@ function SheetDetail({ id }) {
     <>
       <div className="sheet-view">{pic}</div>
       <div className="sheet-info">
-        <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3></div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
+        <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3>{it.reviewCount && it.reviewAvg != null ? <p className="head-rating"><b>{it.reviewAvg.toFixed(1)}</b><StarRow value={it.reviewAvg} /><small>{it.reviewCount === 1 ? '1 review' : it.reviewCount + ' reviews'}</small></p> : null}</div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
         <p className="lead">{it.blurb}</p>
         <ul className="about">{about.map((l, i) => <li key={i}>{l}</li>)}</ul>
         <div className="rows"><div><span>Pages</span><b>{it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b id="sheetAccess">{accessLine}</b></div><div><span>Prints</span><b id="sheetPrints">{printsLine(it, site)}</b></div></div>
         <div className="sheet-actions">{actions}</div>
+        <SheetRatings it={it} st={st} />
       </div>
     </>
   );
@@ -185,13 +189,14 @@ export default function SheetModal() {
     return () => removeEventListener('message', onMsg);
   }, [siteStage]);
 
-  const cls = modal.kind === 'account' ? 'modal account' : modal.kind === 'purchase' ? 'modal purchase' : 'modal sheet';
+  const cls = modal.kind === 'account' ? 'modal account' : modal.kind === 'purchase' ? 'modal purchase' : modal.kind === 'review' ? 'modal review' : 'modal sheet';
   return (
     <div className={'modal-scrim' + (modal.open ? ' open' : '')} id="modalScrim" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
       <div className={cls} id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabIndex={-1} ref={box} style={{ outline: 'none' }} aria-hidden={modal.open ? undefined : 'true'}>
         {modal.kind === 'account' && <AccountPopup id={modal.id} />}
         {modal.kind === 'sheet' && <SheetDetail id={modal.id} />}
         {modal.kind === 'purchase' && <PurchasePopup p={modal.purchase} />}
+        {modal.kind === 'review' && <WriteReview />}
       </div>
     </div>
   );
