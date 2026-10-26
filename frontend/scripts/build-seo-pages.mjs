@@ -199,7 +199,7 @@ function hubPage(topics) {
   for (const t of topics) { const g = t.groupLabel || 'More'; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(t); }
   const names = topics.map(t => t.label.toLowerCase());
   const description = `${all.length} printable Kindergarten worksheets in ${topics.length} topics: ${names.slice(0, 6).join(', ')} and more. ${free} free sheets to try${from ? ', others from ₹' + from : ''}.`;
-  const body = `<p class="lede">Printable worksheets for Kindergarten children, made by ${BRAND}. Pick a topic below to see every sheet in it with a preview of the page. Each topic has free sheets you can open without paying.</p>
+  const body = `<p class="lede">Printable worksheets for Kindergarten children, made by ${BRAND}. Pick a topic below to see every sheet in it with a preview of the page. ${topics.every(t => t.sheets.some(w => w.price === 0)) ? 'Each topic has' : 'Most topics have'} free sheets you can open without paying.</p>
 <ul class="facts"><li>${plural(all.length, 'worksheet', 'worksheets')}</li><li>${plural(topics.length, 'topic', 'topics')}</li><li>${free} free to try</li>${from ? `<li>Others from ₹${from}</li>` : ''}</ul>
 <a class="cta" href="/#sheets">Open the worksheet shop</a>
 ${[...groups].map(([g, ts]) => `<h2>${esc(g)} worksheets</h2><ul class="topics">${ts.map(topicLink).join('')}</ul>`).join('\n')}
@@ -220,11 +220,11 @@ function topicPage(t, topics) {
   const paid = t.sheets.filter(w => w.price > 0).map(w => w.price), from = paid.length ? Math.min(...paid) : 0;
   const name = `${t.label} Worksheets for Kindergarten`;
   const intro = t.description ? t.description.replace(/\.?\s*$/, '.') : `Printable ${t.label.toLowerCase()} worksheets for Kindergarten children.`;
-  const description = `${intro} ${plural(t.sheets.length, 'printable sheet', 'printable sheets')}${free ? ', ' + free + ' free to try' : ''}${from ? ', others ₹' + from : ''}. Preview every page before you print.`;
+  const description = `${intro} ${plural(t.sheets.length, 'printable sheet', 'printable sheets')}${free ? ', ' + free + ' free to try' : ''}${from ? (free ? ', others ₹' : ', each ₹') + from : ''}. Preview every page before you print.`;
   const others = topics.filter(x => x.id !== t.id);
   const same = others.filter(x => x.group === t.group), rest = others.filter(x => x.group !== t.group);
   const body = `<p class="lede">${esc(intro)} Here are all ${plural(t.sheets.length, 'sheet', 'sheets')} in this topic, each with a preview of the page${free ? '. The ones marked Free open without paying' : ''}.</p>
-<ul class="facts"><li>${plural(t.sheets.length, 'sheet', 'sheets')}</li>${free ? `<li>${free} free</li>` : ''}${from ? `<li>Others ₹${from}</li>` : ''}<li>Kindergarten · ${esc(t.groupLabel || 'English')}</li></ul>
+<ul class="facts"><li>${plural(t.sheets.length, 'sheet', 'sheets')}</li>${free ? `<li>${free} free</li>` : ''}${from ? `<li>${free ? 'Others' : 'Each'} ₹${from}</li>` : ''}<li>Kindergarten · ${esc(t.groupLabel || 'English')}</li></ul>
 <h2>All ${esc(t.label)} sheets</h2>
 <ul class="grid">${t.sheets.map(sheetCard).join('')}</ul>
 ${HOW}

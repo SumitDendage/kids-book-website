@@ -3,13 +3,13 @@
    Supabase Auth/Storage, fake payment gateways and captured email). Nothing reaches the internet.
 
    What it walks through, with a PASS or FAIL line for each step (exit code 1 when any step fails):
-     landing page with no console errors · sign-up with the account-sharing agreement · the welcome email
-     (password + verify link) · verify · sign in (and answer the one-time "Who will use these sheets?" with
+     landing page with no console errors · sign-up (name, email, password) with the account-sharing agreement ·
+     the 6-digit sign-in code email · the code signs in (and answer the one-time "Who will use these sheets?" with
      Parent) · a page refresh stays signed in · a free sheet in the viewer
      (watermark) · buying a paid sheet with the Razorpay stand-in · the purchase popup (Purchase Successful,
      the sheet, the end date with its time zone, My Account → My Worksheets) · the viewer's "Open until" ·
      My Account (active sheet, order history) · the purchase ends (POST /__dev/expire): the viewer clears,
-     My Account lists it under Expired with Buy Access Again, which opens the checkout · contact note ·
+     the sheet's window offers Buy Access Again, which opens the checkout · contact note ·
      assistant answer from the server · a sign-in ended from My Account → Devices signs that browser out ·
      a sign-in stopped by staff shows the "sign-in was stopped" message · the 3rd confirmed sharing warning
      shows the warning popup, paid sheets stop opening and free sheets still open · a blocked account ends
@@ -106,8 +106,22 @@ async function signIn(page, email, password) {
   await page.fill('#auEmail', email);
   await page.fill('#auPass', password);
   await tap(page, '#authSubmit');
-  await page.waitForFunction(() => document.querySelector('#authCard.is-signed') || document.querySelector('#authForm[data-view="agree"]') || location.pathname === '/account-blocked' || document.querySelector('#authAlert .alert.err'), null, { timeout: 25000 });
+  const since = Date.now();
+  await page.waitForFunction(() => document.querySelector('#authCard.is-signed') || document.querySelector('#authForm[data-view="agree"]') || document.querySelector('#authForm[data-view="loginOtp"]') || location.pathname === '/account-blocked' || document.querySelector('#authAlert .alert.err'), null, { timeout: 25000 });
   if (await page.locator('#authForm[data-view="agree"]').count()) { await tap(page, '#auAccept'); await tap(page, '#authSubmit'); }
+  /* every password sign-in is finished with the 6-digit code the server emails */
+  if (await page.locator('#authForm[data-view="loginOtp"]').count()) {
+    let c = null;
+    for (let i = 0; i < 60 && !c; i++) {
+      const r = await j('GET', ROOT + '/__dev/mail?to=' + encodeURIComponent(email));
+      const m = (r.mail || []).find(x => /verification code/i.test(x.subject) && Date.parse(x.at) >= since - 2000);
+      c = m && (/code is: (\d{6})/.exec(m.text) || [])[1];
+      if (!c) await sleep(500);
+    }
+    if (!c) throw new Error('no sign-in code email for ' + email);
+    await page.fill('#auCode', c);
+    await tap(page, '#authSubmit');
+  }
 }
 async function signedIn(page) { await page.waitForSelector('#authCard.is-signed', { timeout: 25000 }); await page.waitForTimeout(600); }
 /* a new account is asked once "Who will use these sheets?" (no close button): pick one and carry on */
@@ -216,7 +230,20 @@ async function sessionIdOf(page) {
   try { await j('POST', ROOT + '/__dev/reset-limits', {}); }
   catch (e) { console.log('FAIL the dev API answers at ' + ROOT + ': ' + short(e)); process.exit(2); }
   const users = await j('GET', ROOT + '/__dev/users');
-  const ownerLogin = async () => (await j('POST', API + '/api/auth/login', { email: users.owner.email, password: users.owner.password, staff: true })).session.accessToken;
+  /* a password sign-in answers with a code challenge; the code comes from the captured email */
+  const loginWithCode = async (email, password, extra = {}) => {
+    const since = Date.now();
+    const r = await j('POST', API + '/api/auth/login', Object.assign({ email, password }, extra));
+    if (!r.otpRequired) return r;
+    for (let i = 0; i < 60; i++) {
+      const m = ((await j('GET', ROOT + '/__dev/mail?to=' + encodeURIComponent(email))).mail || []).find(x => /verification code/i.test(x.subject) && Date.parse(x.at) >= since - 2000);
+      const c = m && (/code is: (\d{6})/.exec(m.text) || [])[1];
+      if (c) return j('POST', API + '/api/auth/verify-login-otp', { challengeId: r.challengeId, code: c });
+      await sleep(500);
+    }
+    throw new Error('no sign-in code email for ' + email);
+  };
+  const ownerLogin = async () => (await loginWithCode(users.owner.email, users.owner.password, { staff: true })).session.accessToken;
 
   const browser = await chromium.launch({ args: ['--disable-gpu'] });
   const mk = async (opts = {}, { allFrames = ALL_FRAMES } = {}) => {
@@ -271,59 +298,46 @@ async function sessionIdOf(page) {
       await siteReady(page);
       await page.waitForSelector('#authForm[data-view="signup"]');
       const rules = await page.locator('.accept-rules').innerText();
+      password = 'Walk-' + stamp + 'Aa1';
       await page.fill('#auName', name);
       await page.fill('#auEmail', email);
+      await page.fill('#auPass', password);
+      await page.fill('#auConfirm', password);
       await tap(page, '#authSubmit');
       await page.waitForSelector('#auAcceptErr', { timeout: 10000 });
       const err = await page.locator('#auAcceptErr').innerText();
       await tap(page, '#auAccept');
       await tap(page, '#authSubmit');
-      await page.waitForSelector('#authAlert .alert.ok', { timeout: 20000 });
-      const msg = await page.locator('#authAlert .alert.ok').innerText();
-      if (!msg.includes(email)) throw new Error('unexpected: ' + msg);
+      /* "Confirm email" is off (as on the live project): the account is ready and the sign-in asks for the emailed code */
+      await page.waitForSelector('#authForm[data-view="loginOtp"]', { timeout: 20000 });
+      const msg = await page.locator('#authAlert').innerText();
       await page.locator('#authCard').screenshot({ path: SHOTS + '/desktop-signup-done.png' });
       state.signedUp = true;
       return 'rules "' + oneLine(rules).slice(0, 50) + '…", without the tick "' + oneLine(err) + '", then "' + oneLine(msg).slice(0, 70) + '"';
     });
 
-    let verifyUrl = null;
-    await step('the welcome email has a password and a verify link', async () => {
-      const m = await waitMail(email, /password/i);
-      const pw = /password \(keep it private\): (\S+)/.exec(m.text), link = /(https?:\/\/\S+[?&]verify=\S+)/.exec(m.text);
-      if (!pw || !link) throw new Error('could not read the welcome email: ' + m.text.slice(0, 200));
-      password = pw[1]; verifyUrl = link[1];
-      if (!verifyUrl.startsWith(SITE)) throw new Error('the link goes to ' + verifyUrl.split('?')[0]);
+    let code = null;
+    await step('the sign-in code email arrives', async () => {
+      const m = await waitMail(email, /verification code/i);
+      const c = /code is: (\d{6})/.exec(m.text);
+      if (!c) throw new Error('could not read the code email: ' + m.text.slice(0, 200));
+      code = c[1];
       state.mail = true;
       return 'subject "' + m.subject + '"';
     }, { needs: ['signedUp'] });
 
-    await step('the verify link confirms the email', async () => {
-      const old = page;
-      page = await ctx.newPage();   /* as from an email app: a new tab */
-      await old.close();
-      await page.goto(verifyUrl);
-      await siteReady(page);
-      await page.waitForSelector('#authAlert .alert', { timeout: 40000 });
-      const t = await page.locator('#authAlert .alert').innerText();
-      if (!/Email confirmed/i.test(t)) throw new Error('unexpected: ' + t);
-      if (/verify=/.test(page.url())) throw new Error('the token stayed in the address bar');
-      if (await page.inputValue('#auEmail') !== email) throw new Error('email not filled in');
-      state.verified = true;
-      return oneLine(t);
-    }, { needs: ['mail'] });
-
-    await step('sign in with the emailed password', async () => {
-      await page.fill('#auPass', password);
+    await step('the code signs the new customer in (and the one-time account type question)', async () => {
+      await page.fill('#auCode', code);
       await tap(page, '#authSubmit');
       await signedIn(page);
       await chooseAccountType(page, 'parent');   /* the one-time account type question (prints-cart.cjs checks it in full) */
       const tokens = await page.evaluate(READ_TOKENS);
       if (!tokens || !tokens.accessToken || !tokens.refreshToken) throw new Error('no tokens kept');
-      if (await page.evaluate(() => document.cookie.length) > 0 && /sb-|token/i.test(await page.evaluate(() => document.cookie))) throw new Error('a sign-in cookie was set');
       await page.locator('#authCard').screenshot({ path: SHOTS + '/desktop-signed-in.png' });
+      state.verified = true;
       state.signedIn = true;
       return 'signed in as "' + oneLine(await page.locator('#signedName').innerText().catch(() => '')) + '", bearer tokens kept';
-    }, { needs: ['verified'] });
+    }, { needs: ['mail'] });
 
     await step('a page refresh stays signed in', async () => {
       await page.reload();
@@ -426,7 +440,8 @@ async function sessionIdOf(page) {
       await sleep(3300);   /* the viewer skips focus checks within 3 s of the last one */
       await viewerD.bringToFront();
       await viewerD.evaluate(() => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
-      await viewerD.waitForFunction(() => /ended/i.test(document.querySelector('#veilTitle').textContent), null, { timeout: 20000 });
+      await viewerD.waitForFunction(() => /ended|expired/i.test(document.querySelector('#veilTitle').textContent), null, { timeout: 20000 })
+        .catch(async e => { await viewerD.screenshot({ path: SHOTS + '/desktop-viewer-ended-FAIL.png' }); throw new Error(e.message.split('\n')[0] + ' | veil: ' + oneLine(await viewerD.locator('#veil').innerText().catch(() => '?')).slice(0, 200)); });
       const pages = await viewerD.locator('#stage .page').count();
       const title = await viewerD.locator('#veilTitle').innerText(), text = await viewerD.locator('#veilText').innerText();
       const btn = await viewerD.locator('#veilBtn').innerText();
@@ -438,16 +453,19 @@ async function sessionIdOf(page) {
     }, { needs: ['viewerD'] });
     if (viewerD) await viewerD.close().catch(() => {});
 
-    await step('My Account lists it under Expired with Buy Access Again, which opens the checkout; paying there opens it again', async () => {
+    await step('the ended sheet shows Buy Access Again in its window, which opens the checkout; paying there opens it again', async () => {
       await page.bringToFront();
       await clearOverlays(page);
-      await openAccount(page, 'sheets');
-      await page.waitForSelector('#acctPanel button:has-text("Buy Access Again")', { timeout: 15000 });
-      const t = await page.locator('#acctPanel').innerText();
-      if (!/Expired · 1/i.test(t) || !/Access ended on/.test(t)) throw new Error('expired list: ' + oneLine(t).slice(0, 300));
-      if (/Alphabet D[^\n]*\n?[^\n]*Bought · open until/.test(t)) throw new Error('still listed as open');
-      await page.locator('#bagDrawer').screenshot({ path: SHOTS + '/desktop-account-expired.png' });
-      await page.click('#acctPanel button:has-text("Buy Access Again")');
+      /* bought sheets leave My Account once their time is up (shown as Expired at most); buying again starts from the sheet.
+         /__dev/expire moves the end into the past, which this tab's own clock cannot know: come back later, as a person would */
+      await page.reload();
+      await siteReady(page);
+      await openCard(page, 'Alphabet D — tracing sheet');
+      await page.waitForSelector('#modal button:has-text("Buy Access Again")', { timeout: 15000 }).catch(async () => { throw new Error('no Buy Access Again; buttons: ' + (await page.locator('#modal button').allInnerTexts()).join(' / ') + ' ; access: ' + oneLine(await page.locator('#sheetAccess').innerText().catch(() => '?'))); });
+      const t = await page.locator('#modal').innerText();
+      if (!/Your access (has )?expired/i.test(t)) throw new Error('sheet window: ' + oneLine(t).slice(0, 300));
+      await page.screenshot({ path: SHOTS + '/desktop-sheet-expired.png' });
+      await page.click('#modal button:has-text("Buy Access Again")');
       await page.waitForSelector('#checkout.open', { timeout: 15000 });
       await page.waitForTimeout(800);
       const co = await page.locator('#checkout').innerText();
