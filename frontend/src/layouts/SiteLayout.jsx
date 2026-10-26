@@ -14,6 +14,7 @@ import AboutChapter from '../components/home/AboutChapter.jsx';
 import WhatWeDoChapter from '../components/home/WhatWeDoChapter.jsx';
 import SheetsChapter from '../components/sheets/SheetsChapter.jsx';
 import ContactChapter from '../components/home/ContactChapter.jsx';
+import ReviewsChapter from '../components/home/ReviewsChapter.jsx';
 import TestimonialsChapter from '../components/home/TestimonialsChapter.jsx';
 import { IDS } from '../data/content.js';
 
@@ -111,6 +112,7 @@ function Site() {
           <WhatWeDoChapter />
           <SheetsChapter />
           <ContactChapter />
+          <ReviewsChapter />
           <TestimonialsChapter />
         </div>
       </main>
