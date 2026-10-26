@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext.jsx';
 import { authApi } from '../../services/api.js';
@@ -6,18 +6,21 @@ import { write } from '../../services/storage.js';
 import { getSiteRules, markAccountBlocked, DEFAULT_AGREEMENT } from '../../services/security.js';
 import AcceptRules from '../security/AcceptRules.jsx';
 import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
-import { ACCOUNT_TYPES, classById, printsText } from '../../data/content.js';
+import { classById, printsText } from '../../data/content.js';
 
-/* Two ways in: Sign up (name, email, who the sheets are for, a password the customer picks and the account rules; Supabase
+const AccountTypePopup = lazy(() => import('../account/AccountTypePopup.jsx'));
+
+/* Two ways in: Sign up (name, email, a password the customer picks and the account rules; Supabase
    Auth emails a 6-digit code, view 'verify' takes it, and only then is the account open and signed
    in through our server) and Sign in. Forgot password emails a reset
    link; the link opens the new-password form here (view 'reset', token in auth.token). When the
    account rules change, sign-in asks for them once more (view 'agree'). Every branch is one call
-   to /api/auth/*; the server keeps the record of who signed in and when. The account type chosen on
-   the sign-up form (Parent, Teacher or Organization) is kept in this browser and saved to the account
-   by itself at the first sign-in (SiteContext, rememberAccountType). */
+   to /api/auth/*; the server keeps the record of who signed in and when. Right after "Create my
+   account" the "Who will use these sheets?" popup asks Parent, Teacher or Organization once; the
+   choice is kept in this browser and saved to the account by itself at its first sign-in
+   (SiteContext, rememberAccountType), and only then does the sign-in code step follow. */
 const COPY = {
-  signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, who the sheets are for, and choose a password.', submit: 'Create my account →' },
+  signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, and choose a password.', submit: 'Create my account →' },
   signin: { title: 'Welcome back.', sub: 'Sign in to open your worksheets, plans and orders.', submit: 'Sign in →' },
    loginOtp: {
   title: 'Check your email.',
@@ -30,7 +33,7 @@ const COPY = {
   agree: { title: 'One more step.', sub: 'Our account rules have changed. Please read them and tick the box to sign in.', submit: 'Accept and sign in →' },
 };
 const TAB_OF = { signup: 'signup', loginOtp: 'signin', verify: 'signup', signin: 'signin', forgot: 'signin', reset: 'signin', agree: 'signin' };
-const EMPTY = { name: '', email: '', kind: '', pass: '', confirm: '', code: '' };
+const EMPTY = { name: '', email: '', pass: '', confirm: '', code: '' };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (_) { return undefined; } };
 
 /* the server's words for most answers; our own for the ones a parent should read differently */
@@ -51,30 +54,6 @@ function friendly(err, email) {
   return err.message;
 }
 
-/* Who will use these sheets? Parent, Teacher or Organization, each with its prints per sheet
-   (GET /api/config prints, which staff change in Admin → Settings). Radio buttons: the arrow keys
-   move between them. */
-function KindChoice({ value, onChange, prints, error }) {
-  return (
-    <div className={'field kind-field' + (error ? ' bad' : '')}>
-      <span className="kind-label" id="auKindLabel">Who will use these sheets?</span>
-      <div className="kind-choices" role="radiogroup" aria-labelledby="auKindLabel" aria-describedby="auKindErr">
-        {ACCOUNT_TYPES.map(t => {
-          const n = prints[t.key];
-          return (
-            <label key={t.id} className={'kind-choice' + (value === t.id ? ' on' : '')} data-type={t.key}>
-              <input type="radio" name="auKind" value={t.id} checked={value === t.id} onChange={() => onChange(t.id)} />
-              <span className="kind-name"><b>{t.label}</b><small>{t.hint}</small></span>
-              <span className="kind-prints"><b>{n}</b><small>{n === 1 ? 'print' : 'prints'} per sheet</small></span>
-            </label>
-          );
-        })}
-      </div>
-      <div className="err" id="auKindErr" role={error ? 'alert' : undefined}>{error || ''}</div>
-    </div>
-  );
-}
-
 function Field({ id, label, show, error, children }) {
   return (
     <div className={'field' + (error ? ' bad' : '')} style={show ? undefined : { display: 'none' }}>
@@ -85,7 +64,7 @@ function Field({ id, label, show, error, children }) {
 
 export default function AuthCard() {
   const site = useSite();
-  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet, printsTable, rememberAccountType } = site;
+  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet, rememberAccountType } = site;
   const navigate = useNavigate();
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
@@ -97,6 +76,8 @@ export default function AuthCard() {
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  /* a sign-up that just worked, waiting for the account type: { email, pass, name, ready, to } */
+  const [typeAsk, setTypeAsk] = useState(null);
   const busyRef = useRef(false);
 
   /* the account rules as the server words them (GET /api/config) */
@@ -150,6 +131,28 @@ export default function AuthCard() {
     await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
   }
 
+  /* the account type was picked in the popup after "Create my account": keep it for the first
+     sign-in, then sign straight in (the ticked rules are recorded with it), or, while Supabase is
+     confirming emails, ask for the code it sent */
+  async function afterSignUp(role) {
+    const t = typeAsk; if (!t) return;
+    rememberAccountType(t.email, role);
+    setTypeAsk(null);
+    if (!t.ready) {
+      setAuthView('verify', null, { email: t.to });
+      setTimeout(() => setAuthAlert({
+        type: 'ok',
+        msg: 'We sent a 6-digit code to ' + t.to + '. It can take a minute. Look in Spam too.',
+        action: { label: 'No email? Send a new code', run: () => resendWelcome(t.to) },
+      }), 0);
+      return;
+    }
+    busyRef.current = true; setBusy(true);
+    try { await signInWith(t.email, t.pass, { agreement: true }); }
+    catch (err) { setAuthAlert({ type: 'err', msg: friendly(err, t.email) }); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+
   async function onSubmit(e) {
     e.preventDefault(); setAuthAlert(null); if (busyRef.current) return;
     const email = f.email.trim().toLowerCase(), pass = f.pass, confirm = f.confirm, name = f.name.trim();
@@ -160,7 +163,6 @@ export default function AuthCard() {
       if (view === 'signup') {
         const b = bad('auName', name ? (name.length > 80 ? 'Keep the name under 80 letters.' : '') : 'Tell us your name.')
           | bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')
-          | bad('auKind', f.kind ? '' : 'Choose Parent, Teacher or Organization.')
           | bad('auPass', strongPass(pass))
           | bad('auConfirm', confirm === pass ? '' : 'Both passwords must match.')
           | bad('auAccept', agreed ? '' : 'Please tick the box to agree. Your account is just for you.');
@@ -180,18 +182,8 @@ export default function AuthCard() {
           throw err;
         }
         write('lww_seen', true);
-        /* the type chosen above is saved to the account by itself once it first signs in */
-        rememberAccountType(email, f.kind);
-        /* ready: sign in now (the ticked rules are recorded with this first sign-in) */
-        if (r && r.ready) { await signInWith(email, pass, { agreement: true }); return; }
-        /* Supabase is confirming emails: the code is in the inbox, and the account opens once it is typed here */
-        const to = (r && r.email) || email;
-        setAuthView('verify', null, { email: to });
-        setTimeout(() => setAuthAlert({
-          type: 'ok',
-          msg: 'We sent a 6-digit code to ' + to + '. It can take a minute. Look in Spam too.',
-          action: { label: 'No email? Send a new code', run: () => resendWelcome(to) },
-        }), 0);
+        /* the account is made: the popup asks who will use the sheets, then afterSignUp carries on */
+        setTypeAsk({ email, pass, name, ready: !!(r && r.ready), to: (r && r.email) || email });
       } else if (view === 'verify') {
         const code = f.code.replace(/\s+/g, '');
         const b = bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')
@@ -257,7 +249,7 @@ export default function AuthCard() {
       }
     } catch (err) {
       const fe = err.body && err.body.errors;
-      if (fe) setErrs({ auName: fe.name, auEmail: fe.email, auKind: fe.role, auPass: fe.password, auAccept: fe.agreement });
+      if (fe) setErrs({ auName: fe.name, auEmail: fe.email, auPass: fe.password, auAccept: fe.agreement });
       setAuthAlert({ type: 'err', msg: friendly(err, email) });
     } finally { busyOn(false); }
   }
@@ -293,7 +285,6 @@ export default function AuthCard() {
           {view === 'agree' ? <p className="auth-note">Signing in as <b>{f.email}</b></p> : null}
           <Field id="auName" label="Your name" show={shows('signup')} error={errs.auName}><input id="auName" type="text" autoComplete="name" placeholder="Your name" maxLength={80} value={f.name} onChange={set('name')} /></Field>
           <Field id="auEmail" label="Email address" show={shows('signup signin forgot verify')} error={errs.auEmail}><input id="auEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} /></Field>
-          {view === 'signup' ? <KindChoice value={f.kind} prints={printsTable} error={errs.auKind} onChange={k => { setF(x => ({ ...x, kind: k })); setErrs(x => ({ ...x, auKind: undefined })); }} /> : null}
           <Field id="auCode" label="6-digit code" show={shows('verify loginOtp')} error={errs.auCode}><input id="auCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" placeholder="123456" maxLength={10} value={f.code} onChange={e => setF(x => ({ ...x, code: e.target.value.replace(/[^0-9]/g, '') }))} /></Field>
           <Field id="auPass" label={view === 'reset' ? 'New password' : 'Password'} show={shows('signup signin reset')} error={errs.auPass}>
             <div className="pw-wrap"><input id="auPass" type={showPass ? 'text' : 'password'} autoComplete={view === 'signin' ? 'current-password' : 'new-password'} placeholder={view === 'signin' ? 'Your password' : 'At least 8 characters'} maxLength={128} value={f.pass} onChange={set('pass')} /><button type="button" className="pw-toggle" id="pwToggle" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(v => !v)}>{showPass ? 'HIDE' : 'SHOW'}</button></div>
@@ -306,6 +297,7 @@ export default function AuthCard() {
           <p className="switch" id="authSwitch">{switchLine}</p>
         </form>
       </div>
+      {typeAsk ? <Suspense fallback={null}><AccountTypePopup name={typeAsk.name} onChoose={afterSignUp} /></Suspense> : null}
       <div className="signed">
         <h2 className="card-title">You&apos;re in, <span id="signedName">{session ? session.name : ''}</span>.</h2>
         <p className="auth-sub" id="roleLine" hidden={!hasRole}><b id="signedRole">{hasRole ? accountType.label : ''}</b> account · {hasRole ? printsText(printsPerSheet).toLowerCase() : ''} per sheet. Your plans and sheets are kept with it.</p>

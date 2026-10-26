@@ -1,13 +1,14 @@
-/* Learn With Why: the account type on the sign-up form, in a real browser (Playwright library, headless
-   Chromium), against the dev API (tests/dev-server.ts: the real `api` Edge Function on a local database,
-   fake Supabase Auth with "Confirm email" off as on the live project, captured email).
+/* Learn With Why: the account-type question right after sign-up, in a real browser (Playwright library,
+   headless Chromium), against the dev API (tests/dev-server.ts: the real `api` Edge Function on a local
+   database, fake Supabase Auth with "Confirm email" off as on the live project, captured email).
 
    What it checks, with a PASS or FAIL line for each step (exit code 1 when any step fails):
-     the sign-up form shows Parent, Teacher and Organization with the prints from GET /api/config ·
-     it refuses to go on with none picked · a Teacher sign-up, then the 6-digit sign-in code, ends signed
-     in as a Teacher with 3 prints per sheet, and the old "Who will use these sheets?" popup never shows ·
-     the server keeps the type · the same on a phone-size screen as an Organization (300 prints) · an
-     account made before the form asked (no type yet) still gets the popup once.
+     the sign-up form itself has no account-type question · pressing "Create my account" opens the
+     "Who will use these sheets?" popup with Parent, Teacher and Organization and the prints from
+     GET /api/config · it cannot go on with none picked · a Teacher, then the 6-digit sign-in code, ends
+     signed in as a Teacher with 3 prints per sheet, asked only that once · the server keeps the type ·
+     a reload does not ask again · the same on a phone-size screen as an Organization (300 prints) · an
+     account made elsewhere (no type yet) gets the popup after it signs in.
 
    HOW TO RUN
      1. cd supabase && LWW_TEST_DB=lww_dev tests/local/reset-db.sh
@@ -48,10 +49,15 @@ async function siteReady(page) {
   await page.goto(SITE + '/');
   await page.waitForFunction(() => document.body.dataset.stage === 'site', null, { timeout: 45000 });
   await page.waitForTimeout(800);
-  /* note any moment the old popup is on screen */
+  /* count each time the popup comes on screen */
   await page.evaluate(() => {
     window.__typePopup = 0;
-    new MutationObserver(() => { if (document.querySelector('.type-card')) window.__typePopup++; }).observe(document.body, { childList: true, subtree: true });
+    let on = false;
+    new MutationObserver(() => {
+      const now = !!document.querySelector('.type-card');
+      if (now && !on) window.__typePopup++;
+      on = now;
+    }).observe(document.body, { childList: true, subtree: true });
   });
 }
 async function tap(page, sel) {
@@ -84,6 +90,16 @@ async function fillSignUp(page, name, email) {
   await page.fill('#auConfirm', PASSWORD);
   await tap(page, '#auAccept');
 }
+/* the popup's three rows, as "type:prints" */
+const popupRows = page => page.locator('.type-choice').evaluateAll(els => els.map(e => e.dataset.type + ':' + e.querySelector('.type-prints b').textContent));
+/* pick one in the popup and carry on */
+async function pickType(page, type, photo) {
+  await page.locator('.type-choice[data-type="' + type + '"]').click();
+  await page.waitForTimeout(300);
+  if (photo) await page.screenshot({ path: SHOTS + '/' + photo + '.png' });
+  await page.locator('.type-go').click();
+  await page.waitForSelector('.type-card', { state: 'detached', timeout: 20000 });
+}
 /* after the password: the 6-digit code from the email, then signed in */
 async function enterCode(page, email, since) {
   await page.waitForSelector('#authForm[data-view="loginOtp"]', { timeout: 25000 });
@@ -104,6 +120,7 @@ async function serverRole(page) {
 (async () => {
   const config = await (await fetch(API + '/functions/v1/api/api/config')).json();
   const prints = config.prints || {};
+  const expected = JSON.stringify(['parent:' + prints.parent, 'teacher:' + prints.teacher, 'organization:' + prints.organization]);
   const browser = await chromium.launch();
 
   /* ── computer: a Teacher ── */
@@ -111,42 +128,39 @@ async function serverRole(page) {
   const page = await desk.newPage();
   const teacher = 'teacher-' + stamp + '@test.local';
   await step('computer: the site opens', () => siteReady(page));
-  await step('sign-up form shows Parent, Teacher and Organization with their prints', async () => {
-    await tap(page, '#authCard .tabs .tab:nth-child(1)');
-    await page.waitForSelector('#authForm[data-view="signup"] .kind-choice');
-    const tiles = await page.locator('.kind-choice').evaluateAll(els => els.map(e => e.dataset.type + ':' + e.querySelector('.kind-prints b').textContent));
-    must(JSON.stringify(tiles) === JSON.stringify(['parent:' + prints.parent, 'teacher:' + prints.teacher, 'organization:' + prints.organization]), 'tiles ' + tiles.join(', '));
+  await step('the sign-up form itself does not ask the account type', async () => {
     must(prints.parent === 2 && prints.teacher === 3 && prints.organization === 300, 'config prints ' + JSON.stringify(prints));
-    await shot(page, '01-signup-computer');
-  });
-  await step('sign-up refuses to go on with no type picked', async () => {
     await fillSignUp(page, 'Tara Teacher', teacher);
-    await tap(page, '#authSubmit');
-    await page.waitForSelector('#auKindErr[role="alert"]');
-    must(/Choose Parent, Teacher or Organization/.test(await page.locator('#auKindErr').innerText()), 'no message');
-    must(await page.locator('#authForm[data-view="signup"]').count() === 1, 'left the form');
-    await shot(page, '02-signup-none-picked-computer');
+    must(await page.locator('#authForm .type-choice, #authForm input[name="accountType"]').count() === 0, 'the form has the choice');
+    await shot(page, '01-signup-form-computer');
   });
-  await step('Teacher sign-up, email code, signed in as Teacher with 3 prints and no popup', async () => {
-    await tap(page, '.kind-choice[data-type="teacher"]');
-    must(await page.locator('.kind-choice.on[data-type="teacher"]').count() === 1, 'Teacher not picked');
-    await shot(page, '03-signup-teacher-picked-computer');
-    const since = new Date(Date.now() - 2000).toISOString();
+  await step('"Create my account" opens the question with Parent 2, Teacher 3, Organization 300', async () => {
     await tap(page, '#authSubmit');
+    await page.waitForSelector('.type-card', { timeout: 20000 });
+    await page.waitForTimeout(600);
+    const rows = JSON.stringify(await popupRows(page));
+    must(rows === expected, 'rows ' + rows);
+    must(/Welcome, Tara/i.test(await page.locator('.type-card .eyebrow').innerText()), 'no welcome with the name');
+    must(await page.locator('.type-go').isDisabled(), 'can carry on with none picked');
+    await page.screenshot({ path: SHOTS + '/02-after-signup-question-computer.png' });
+  });
+  await step('Teacher, then the email code: signed in as Teacher with 3 prints, asked only once', async () => {
+    const since = new Date(Date.now() - 2000).toISOString();
+    await pickType(page, 'teacher', '03-teacher-picked-computer');
     await enterCode(page, teacher, since);
     const line = (await page.locator('#roleLine').innerText()).replace(/\s+/g, ' ');
     must(/Teacher account · 3 prints per sheet/.test(line), 'role line "' + line + '"');
-    must(await page.evaluate(() => window.__typePopup) === 0, 'the old popup showed');
+    must(await page.evaluate(() => window.__typePopup) === 1, 'asked ' + await page.evaluate(() => window.__typePopup) + ' times');
     await shot(page, '04-signed-in-teacher-computer');
   });
   await step('the server keeps Teacher with 3 prints', async () => {
     const u = await serverRole(page);
     must(u.role === 'teacher' && u.printsPerSheet === 3, JSON.stringify({ role: u.role, prints: u.printsPerSheet }));
   });
-  await step('after a reload it stays a Teacher and the popup still does not show', async () => {
+  await step('after a reload it is not asked again', async () => {
     await siteReady(page);
     await page.waitForTimeout(2500);
-    must(await page.evaluate(() => window.__typePopup) === 0, 'the old popup showed');
+    must(await page.evaluate(() => window.__typePopup) === 0, 'asked again');
   });
   await desk.close();
 
@@ -155,36 +169,38 @@ async function serverRole(page) {
   const p2 = await phone.newPage();
   const org = 'school-' + stamp + '@test.local';
   await step('phone: the site opens', () => siteReady(p2));
-  await step('phone: the three choices fit the card, no words cut off', async () => {
-    await tap(p2, '#authCard .tabs .tab:nth-child(1)');
-    await p2.waitForSelector('.kind-choice');
-    const cut = await p2.locator('.kind-choice').evaluateAll(els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.dataset.type));
-    must(!cut.length, 'cut off: ' + cut.join(', '));
-    await p2.waitForTimeout(6500);   /* the "Scroll to discover" hint fades out */
-    await shot(p2, '05-signup-phone', '.kind-choices');
-  });
-  await step('phone: Organization sign-up ends signed in with 300 prints and no popup', async () => {
+  await step('phone: right after sign-up the question pops up, nothing cut off', async () => {
     await fillSignUp(p2, 'Sunrise School', org);
-    await tap(p2, '.kind-choice[data-type="organization"]');
-    must(await p2.locator('.kind-choice.on[data-type="organization"]').count() === 1, 'Organization not picked');
-    await shot(p2, '06-signup-organization-picked-phone', '.kind-choices');
-    const since = new Date(Date.now() - 2000).toISOString();
+    await p2.waitForTimeout(6500);   /* the "Scroll to discover" hint fades out */
+    await shot(p2, '05-signup-form-phone', '#authSubmit');
     await tap(p2, '#authSubmit');
+    await p2.waitForSelector('.type-card', { timeout: 20000 });
+    await p2.waitForTimeout(600);
+    must(JSON.stringify(await popupRows(p2)) === expected, 'rows');
+    const cut = await p2.locator('.type-choice').evaluateAll(els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.dataset.type));
+    must(!cut.length, 'cut off: ' + cut.join(', '));
+    const box = await p2.locator('.type-card').boundingBox();
+    must(box && box.x >= 0 && box.x + box.width <= 390, 'the popup is wider than the screen');
+    await p2.screenshot({ path: SHOTS + '/06-after-signup-question-phone.png' });
+  });
+  await step('phone: Organization ends signed in with 300 prints, asked only once', async () => {
+    const since = new Date(Date.now() - 2000).toISOString();
+    await pickType(p2, 'organization', '07-organization-picked-phone');
     await enterCode(p2, org, since);
     const line = (await p2.locator('#roleLine').innerText()).replace(/\s+/g, ' ');
     must(/Organization account · 300 prints per sheet/.test(line), 'role line "' + line + '"');
-    must(await p2.evaluate(() => window.__typePopup) === 0, 'the old popup showed');
+    must(await p2.evaluate(() => window.__typePopup) === 1, 'asked ' + await p2.evaluate(() => window.__typePopup) + ' times');
     const u = await serverRole(p2);
     must(u.role === 'school' && u.printsPerSheet === 300, JSON.stringify({ role: u.role, prints: u.printsPerSheet }));
-    await shot(p2, '07-signed-in-organization-phone', '#roleLine');
+    await shot(p2, '08-signed-in-organization-phone', '#roleLine');
   });
   await phone.close();
 
-  /* ── an older account with no type yet: the popup asks once ── */
+  /* ── an account made elsewhere, with no type yet: the popup asks after it signs in ── */
   const old = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p3 = await old.newPage();
-  await step('an account made before the form asked still gets the popup', async () => {
-    /* an account made straight with Supabase Auth, not through this browser's sign-up form */
+  await step('an account with no type yet gets the question after signing in', async () => {
+    /* made straight with Supabase Auth, not through this browser's sign-up */
     const email = 'older-' + stamp + '@test.local';
     const made = await fetch(API + '/auth/v1/signup', { method: 'POST', headers: { apikey: 'dev', 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: PASSWORD, data: { name: 'Olive Older' } }) });
     must(made.ok, 'could not make the account: ' + made.status);
@@ -198,10 +214,9 @@ async function serverRole(page) {
     if (await p3.locator('#authForm[data-view="agree"]').count()) { await tap(p3, '#auAccept'); await tap(p3, '#authSubmit'); }
     await enterCode(p3, email, since);
     await p3.waitForSelector('.type-card', { timeout: 20000 });
-    await p3.screenshot({ path: SHOTS + '/08-older-account-popup-computer.png' });
-    await p3.locator('.type-choice[data-type="parent"]').click();
-    await p3.locator('.type-go').click();
-    await p3.waitForSelector('.type-card', { state: 'detached', timeout: 20000 });
+    await pickType(p3, 'parent');
+    const u = await serverRole(p3);
+    must(u.role === 'parent' && u.printsPerSheet === 2, JSON.stringify({ role: u.role, prints: u.printsPerSheet }));
   });
   await old.close();
 
