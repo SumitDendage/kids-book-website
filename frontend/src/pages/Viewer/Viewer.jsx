@@ -59,7 +59,7 @@ function reasonOf(status, b, meta) {
 /* The protected sheet viewer. The view token comes from the site in the URL hash (never sent to a
    server as a URL); every request carries it in the X-View-Token header together with the
    customer's own sign-in (the bearer token shared with the site tab). The SERVER decides what may
-   be shown: meta, the stamped PDF or page images, a fresh check every recheckSeconds and whenever
+   be shown: meta, the PDF or page images, a fresh check every recheckSeconds and whenever
    this tab comes back, and the counted prints and downloads some sheets come with. */
 export default function Viewer() {
   const stageRef = useRef(null);
@@ -176,20 +176,18 @@ export default function Viewer() {
       document.title = meta.title + ' · Learn With Why';
       const info = describe(meta);
       setHead(info); keepCounts(meta); watchEnd(meta); schedule();
-      const wm = meta.watermark || {}, when = new Date(wm.issuedAt || Date.now());
-      const stamp = (meta.guest ? 'Free sheet from ' + (wm.email || 'learnwithwhy.com') : info.who) + (wm.orderId ? ' · ' + wm.orderId : '') + ' · ' + when.toLocaleDateString('en-IN') + ' ' + when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const email = (meta.user && meta.user.email) || '';
       const lic = meta.guest ? 'A free sheet from Learn With Why' : 'Licensed to ' + email;
       screen('Loading ' + meta.title + '…', lic + '. Please do not copy, share or take screenshots of it.', { spin: true });
       const isEnded = () => r0.ended || r0.cancelled;
-      const images = () => renderImages(stage, { pages: meta.pages, stamp, isEnded, fetchPage: n => api('/api/view/page?n=' + n), onDenied: closed });
+      const images = () => renderImages(stage, { pages: meta.pages, isEnded, fetchPage: n => api('/api/view/page?n=' + n), onDenied: closed });
       try {
         if (meta.hasPdf !== false) {
           const f = await api('/api/view/file');
           if (!f.ok) { const e = await f.json().catch(() => ({})); if (isDenial(f.status, e) && e.code !== 'nofile') { closed(f.status, e); return; } if (!meta.hasImages) throw new Error(e.error || 'The PDF could not be loaded'); await images(); }
           else {
             const data = await f.arrayBuffer();
-            try { await renderPdf(stage, data, { stamp, isEnded, onPages: n => { meta.pages = n; } }); }
+            try { await renderPdf(stage, data, { isEnded, onPages: n => { meta.pages = n; } }); }
             catch (err) { if (meta.hasImages && !isEnded()) await images(); else throw err; }
           }
         } else if (meta.hasImages) await images();
@@ -265,7 +263,7 @@ export default function Viewer() {
       const b = await r.json().catch(() => ({}));
       if (!r.ok) { copyFailed(r, b, 'print'); return; }
       setCopies(c => ({ ...c, printsLeft: Math.max(0, Number(b.printsLeft) || 0), printLimit: Math.max(c.printLimit, Number(b.printLimit) || 0) }));
-      /* the print styles show only the pages (with their watermark) while this class is on */
+      /* the print styles show only the pages while this class is on */
       const body = document.body, done = () => { body.classList.remove('printing'); removeEventListener('afterprint', done); };
       setBlur(false); body.classList.add('printing'); addEventListener('afterprint', done);
       await new Promise(res => requestAnimationFrame(() => setTimeout(res, 60)));

@@ -6,7 +6,7 @@
      landing page with no console errors · sign-up with the account-sharing agreement · the welcome email
      (password + verify link) · verify · sign in (and answer the one-time "Who will use these sheets?" with
      Parent) · a page refresh stays signed in · a free sheet in the viewer
-     (watermark) · buying a paid sheet with the Razorpay stand-in · the purchase popup (Purchase Successful,
+     (no watermark) · buying a paid sheet with the Razorpay stand-in · the purchase popup (Purchase Successful,
      the sheet, the end date with its time zone, My Account → My Worksheets) · the viewer's "Open until" ·
      My Account (active sheet, order history) · the purchase ends (POST /__dev/expire): the viewer clears,
      My Account lists it under Expired with Buy Access Again, which opens the checkout · contact note ·
@@ -334,21 +334,21 @@ async function sessionIdOf(page) {
       return 'still signed in as "' + n + '"';
     }, { needs: ['signedIn'] });
 
-    await step('a free sheet opens in the viewer with the watermark', async () => {
+    await step('a free sheet opens in the viewer with no watermark', async () => {
       await openCard(page, 'Alphabet A — tracing sheet');
       const access = await page.locator('#sheetAccess').innerText();
       const [viewer] = await Promise.all([ctx.waitForEvent('page', { timeout: 15000 }), page.locator('#modal button', { hasText: 'Open it free' }).click()]);
       try {
         await viewerOpen(viewer);
-        const wm = await viewer.locator('#stage .page .wm span').first().innerText();
+        const wm = await viewer.locator('#stage .page .wm').count();
         const pill = await viewer.locator('#lic .l').innerText();
         const veil = await viewer.locator('#veilText').innerText();
         const foot = await viewer.locator('#foot').innerText();
         await viewer.screenshot({ path: SHOTS + '/desktop-viewer-free.png' });
-        if (!wm.includes(email)) throw new Error('watermark without the email: ' + wm);
+        if (wm) throw new Error('the viewer still draws a watermark');
         if (FOREVER.test(pill + veil + foot)) throw new Error('permanence wording in the viewer: ' + oneLine(pill + ' / ' + foot));
         if (/screenshots? (are|is) (blocked|impossible|prevented)|cannot be copied/i.test(veil + foot)) throw new Error('claims copying is impossible: ' + veil);
-        return 'access row "' + oneLine(access) + '", pill "' + pill + '", watermark "' + wm.slice(0, 50) + '…"';
+        return 'access row "' + oneLine(access) + '", pill "' + pill + '"';
       } finally { await viewer.close().catch(() => {}); await page.bringToFront(); await clearOverlays(page); }
     }, { needs: ['signedIn'] });
 
@@ -388,17 +388,17 @@ async function sessionIdOf(page) {
       viewerD = viewer;
       await viewerOpen(viewer);
       const pill = await viewer.locator('#lic .l').innerText();
-      const wm = await viewer.locator('#stage .page .wm span').first().innerText();
+      const wm = await viewer.locator('#stage .page .wm').count();
       const foot = await viewer.locator('#foot').innerText();
       await viewer.screenshot({ path: SHOTS + '/desktop-viewer-bought.png' });
-      /* past the welcome card: the page itself, with the watermark and the bar */
+      /* past the welcome card: the page itself, with the bar */
       await viewer.click('#veilBtn');
       await viewer.waitForTimeout(900);
       await viewer.mouse.move(500, 300);
       await viewer.waitForTimeout(300);
       await viewer.screenshot({ path: SHOTS + '/desktop-viewer-bought-page.png' });
       if (!/^Open until /.test(pill) || !DATE_TZ.test(pill)) throw new Error('pill: ' + pill);
-      if (!wm.includes(email)) throw new Error('watermark without the email');
+      if (wm) throw new Error('the viewer still draws a watermark');
       if (FOREVER.test(pill + foot)) throw new Error('permanence wording in the viewer');
       state.viewerD = true;
       return 'pill "' + pill + '"; footer "' + oneLine(foot).slice(0, 120) + '"';
@@ -609,8 +609,8 @@ async function sessionIdOf(page) {
       const [viewer] = await Promise.all([ctx.waitForEvent('page', { timeout: 15000 }), page.locator('#modal button', { hasText: 'Open it free' }).click()]);
       try {
         await viewerOpen(viewer);
-        const wm = await viewer.locator('#stage .page .wm span').first().innerText();
-        if (!wm.includes(email)) throw new Error('free sheet watermark');
+        await viewer.waitForSelector('#stage .page canvas');
+        if (await viewer.locator('#stage .page .wm').count()) throw new Error('free sheet watermark');
       } finally { await viewer.close().catch(() => {}); await page.bringToFront(); await clearOverlays(page); }
       return 'popups ' + seen.map(s => (/(\d) of 3/.exec(s) || [])[0]).join(', ') + '; paid sheet: "' + oneLine(n).slice(0, 90) + '…"; the free sheet opened and drew its pages';
     }, { needs: ['signedIn', 'userId'] });
