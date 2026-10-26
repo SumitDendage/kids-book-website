@@ -1,0 +1,77 @@
+/* Customer reviews and Play Store style star ratings (Oct 26): the stars on sheet cards, "Ratings and
+   reviews" in a sheet's window, the home page's reviews line and the "Write a review" window.
+   Never write -webkit-backdrop-filter by hand (the minifier adds it). */
+.star-row { position: relative; display: inline-block; line-height: 1; letter-spacing: 0.08em; font-size: 0.95rem; vertical-align: middle; white-space: nowrap; }
+.star-row-off { color: rgba(29, 33, 38, 0.2); }
+.star-row-on { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: #f5a623; }
+
+.card-rating { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 2px 7px; border-radius: 100px; background: rgba(245, 166, 35, 0.16); color: #7a4b00; letter-spacing: 0; text-transform: none; font-size: 0.72rem; font-weight: 700; vertical-align: middle; }
+.card-rating i { font-style: normal; color: #f5a623; }
+.card-rating small { font-weight: 600; opacity: 0.8; }
+
+.star-pick { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.star-pick button { border: 0; background: none; padding: 2px; font-size: 2rem; line-height: 1; color: rgba(29, 33, 38, 0.22); cursor: pointer; transition: transform 0.15s, color 0.15s; }
+.star-pick button.on { color: #f5a623; }
+.star-pick button:hover:not(:disabled) { transform: scale(1.15); }
+.star-pick button:focus-visible { outline: 2px solid #f5a623; outline-offset: 2px; border-radius: 6px; }
+.star-pick .star-word { margin-left: 8px; font-size: 0.85rem; font-weight: 700; color: #5b4a20; }
+
+.star-bars { display: grid; gap: 5px; flex: 1; min-width: 140px; }
+.star-bar { display: grid; grid-template-columns: 12px 1fr; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 700; color: #3b4047; }
+.star-bar i { display: block; height: 9px; border-radius: 100px; background: rgba(29, 33, 38, 0.1); overflow: hidden; }
+.star-bar b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f7c04a, #f5a623); }
+
+.rating-big { display: grid; justify-items: center; gap: 4px; min-width: 96px; }
+.rating-big > b { font-family: var(--font-display); font-size: 3rem; line-height: 1; color: #1d2126; }
+.rating-big small { font-size: 0.75rem; color: #5a6068; }
+
+/* in a sheet's window */
+.head-rating { display: flex; align-items: center; gap: 6px; margin: -2px 0 10px; font-size: 0.85rem; color: #3b4047; }
+.head-rating b { font-weight: 800; }
+.head-rating small { color: #5a6068; }
+.sheet-ratings { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(29, 33, 38, 0.1); }
+.sheet-ratings h4 { font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 10px; color: #1d2126; }
+.rating-sum { display: flex; align-items: center; gap: 18px; }
+.rating-none { font-size: var(--fs-small); color: #5a6068; margin: 4px 0 8px; }
+.rate-it { margin: 14px 0 6px; padding: 12px 14px; border-radius: 14px; background: rgba(245, 166, 35, 0.09); border: 1px solid rgba(245, 166, 35, 0.25); }
+.rate-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #7a4b00; margin-bottom: 6px; }
+.my-review-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pill-s { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 100px; background: rgba(29, 33, 38, 0.07); color: #3b4047; }
+.review-form { display: grid; gap: 10px; }
+.review-form textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(29, 33, 38, 0.18); background: #fff; color: #1d2126; font: inherit; font-size: 0.9rem; }
+.review-form .btn { justify-self: start; }
+.review-items { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 14px; }
+.review-items li { display: grid; gap: 4px; }
+.review-who { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #1d2126; }
+.review-who i { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #ffe2b0; color: #7a4b00; font-style: normal; font-weight: 800; font-size: 0.66rem; }
+.review-meta { display: flex; align-items: center; gap: 8px; }
+.review-meta .star-row { font-size: 0.78rem; }
+.review-meta small { font-size: 0.72rem; color: #5a6068; }
+.review-title { font-weight: 800; font-size: 0.9rem; color: #1d2126; }
+.review-text { font-size: 0.88rem; line-height: 1.5; color: #3b4047; white-space: pre-line; overflow-wrap: anywhere; }
+.sheet-ratings .arrow-link { margin-top: 10px; color: #7a4b00; }
+
+/* the "Write a review" window */
+.modal.review .lead { margin: 6px 0 14px; color: #3b4047; }
+.modal.review .field-label { display: block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #3b4047; margin-bottom: 6px; }
+.review-select { width: 100%; margin-bottom: 14px; padding: 11px 12px; border-radius: 12px; border: 1px solid rgba(29, 33, 38, 0.18); background: #fff; color: #1d2126; font: inherit; }
+
+/* the home page: the stars on each quote card, the reviews line and the Write a review button */
+.quote-card .stars { color: #f5a623; font-size: 0.85rem; letter-spacing: 0.18em; }
+.quote-card .stars i { font-style: normal; color: rgba(29, 33, 38, 0.18); }
+.quote-card .verified { margin-left: auto; font-style: normal; font-size: 0.66rem; font-weight: 700; padding: 3px 8px; border-radius: 100px; background: rgba(31, 107, 71, 0.12); color: #1f6b47; white-space: nowrap; }
+.trust-line .trust-rating { font-size: 0.85rem; }
+.trust-line .trust-rating .star-row-off { color: rgba(255, 255, 255, 0.35); }
+.flow-ctrl .write-review { gap: 6px; }
+.flow-ctrl .write-review span { color: #fff6c9; }
+@media (max-width: 760px) {
+  .rating-sum { gap: 12px; }
+  .flow-ctrl { flex-wrap: wrap; }
+}
+/* the thank-you line under a review form sits on the light paper of a window, not on glass */
+.review-form .alert.ok { color: #0f5a32; background: #e6f6ec; border-color: #b7dec6; }
+.review-form .alert.err { color: #8a1c1c; background: #fdeaea; border-color: #f2c1c1; }
+.my-review-row .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+.tile-rating { display: inline-flex; align-items: center; gap: 2px; align-self: center; justify-self: center; margin-top: 3px; padding: 1px 7px; border-radius: 100px; background: rgba(255, 255, 255, 0.85); color: #7a4b00; font-size: 0.68rem; font-weight: 800; letter-spacing: 0; text-transform: none; line-height: 1.5; }
+.tile-rating i { font-style: normal; color: #f5a623; }
+.rc-name .tile-rating { display: flex; width: max-content; margin: 4px auto 0; }

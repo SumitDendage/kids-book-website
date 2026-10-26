@@ -291,8 +291,30 @@ test('reviews: published only, initials instead of names, never ids or emails', 
   assertEquals(r.body.reviews.length, 1);
   assertEquals([r.body.reviews[0].name, r.body.reviews[0].rating, r.body.reviews[0].title], ['P. S.', 5, 'Lovely']);
   assertEquals([r.body.count, r.body.avg], [1, 5]);
+  assertEquals(r.body.stars, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 });
   assert(!r.text.includes(a.id) && !r.text.includes(a.email) && !r.text.includes('Priya') && !r.text.includes('Pending one'));
   assertStatus(await h.call('GET', '/api/worksheets/no-such/reviews'), 404);
   assertStatus(await h.call('GET', '/api/worksheets/' + encodeURIComponent('../x') + '/reviews'), 404);
   assertEquals([initials('Priya Sharma'), initials(''), initials('  émile  zola '), initials('a b c d')], ['P. S.', 'A customer', 'É. Z.', 'A. B. C.']);
+});
+
+test('GET /api/reviews: newest published reviews of listed sheets, with the shop-wide stars', async () => {
+  const a = await h.customer({ name: 'Meera Joshi' });
+  const b = await h.customer({ name: 'Arjun' });
+  const c = await h.customer({ name: 'Hidden Person' });
+  await h.sql`
+    insert into reviews (product_id, user_id, rating, title, body, status) values
+      ('az-D', ${a.id}, 5, 'Great', 'We print it every week.', 'published'),
+      ('az-E', ${b.id}, 3, null, null, 'published'),
+      ('az-F', ${c.id}, 1, 'Waiting', 'Not checked yet.', 'pending')`;
+  await h.sql`update products set status = 'draft' where id = 'az-E'`;
+  const r = await h.call('GET', '/api/reviews');
+  assertStatus(r, 200);
+  const mine = r.body.reviews.filter((x: { worksheet: string }) => x.worksheet === 'az-D');
+  assertEquals(mine.length, 1);
+  assertEquals([mine[0].name, mine[0].rating, mine[0].body, typeof mine[0].worksheetTitle], ['M. J.', 5, 'We print it every week.', 'string']);
+  assert(!r.body.reviews.some((x: { worksheet: string }) => x.worksheet === 'az-E' || x.worksheet === 'az-F'));
+  assert(r.body.count >= 1 && r.body.stars[5] >= 1);
+  assert(!r.text.includes(a.id) && !r.text.includes(a.email) && !r.text.includes('Meera') && !r.text.includes('Waiting'));
+  assertStatus(await h.call('GET', '/api/reviews?limit=1'), 200);
 });

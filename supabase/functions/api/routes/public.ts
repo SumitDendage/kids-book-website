@@ -226,7 +226,7 @@ async function events(ctx: Ctx) {
   return { ok: true };
 }
 
-// ── GET /api/content, /api/faq, /api/worksheets/:id/reviews ──────────────────────────────
+// ── GET /api/content, /api/faq, /api/worksheets/:id/reviews, /api/reviews ──────────────────────────────
 
 async function content(_ctx: Ctx) {
   const rows = await tx((q) => q<{ key: string; value: unknown }[]>`select key, value from site_content where published order by key`);
@@ -268,15 +268,59 @@ async function reviews(ctx: Ctx) {
       where r.product_id = ${id} and r.status = 'published'
       order by r.created_at desc, r.id desc
       limit ${limit} offset ${offset}`;
-    return { product: p[0], rows };
+    const stars = await q<{ rating: number; n: number }[]>`
+      select rating, count(*)::int as n from reviews
+      where product_id = ${id} and status = 'published' group by rating`;
+    return { product: p[0], rows, stars };
   });
   if (!out) throw new HttpError(404, 'No such worksheet.');
   return {
     worksheet: id,
     avg: out.product.review_avg,
     count: out.product.review_count,
+    stars: starCounts(out.stars),
     reviews: out.rows.map((r) => ({ id: r.id, rating: r.rating, title: r.title, body: r.body, at: new Date(r.created_at).getTime(), name: initials(r.name) })),
   };
+}
+
+/** { 1: n, 2: n, … 5: n } — how many published reviews gave each number of stars (the Play Store bars). */
+function starCounts(rows: { rating: number; n: number }[]) {
+  const out: Record<string, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const r of rows) if (r.rating >= 1 && r.rating <= 5) out[r.rating] = r.n;
+  return out;
+}
+
+/** GET /api/reviews?limit= — the newest published reviews of every listed sheet (the home page's
+ *  customer reviews), with the shop-wide average, count and star bars. */
+async function recentReviews(ctx: Ctx) {
+  const limit = intParam(ctx.query.get('limit'), 12, 1, 30);
+  const out = await tx(async (q) => {
+    const rows = await q<{ id: number; rating: number; title: string | null; body: string | null; created_at: Date; name: string; product_id: string; product_title: string }[]>`
+      select r.id, r.rating, r.title, r.body, r.created_at, pf.name, p.id as product_id, p.title as product_title
+      from reviews r
+      join profiles pf on pf.id = r.user_id
+      join products p on p.id = r.product_id
+      join classes c on c.id = p.class_id
+      where r.status = 'published' and p.status = 'active' and c.status <> 'hidden'
+      order by (r.body is not null) desc, r.created_at desc, r.id desc
+      limit ${limit}`;
+    const stars = await q<{ rating: number; n: number }[]>`
+      select r.rating, count(*)::int as n
+      from reviews r join products p on p.id = r.product_id join classes c on c.id = p.class_id
+      where r.status = 'published' and p.status = 'active' and c.status <> 'hidden'
+      group by r.rating`;
+    return { rows, stars };
+  });
+  const stars = starCounts(out.stars);
+  const count = Object.values(stars).reduce((a, b) => a + b, 0);
+  const avg = count ? Math.round((Object.entries(stars).reduce((a, [k, n]) => a + Number(k) * n, 0) / count) * 100) / 100 : null;
+  return json(200, {
+    avg, count, stars,
+    reviews: out.rows.map((r) => ({
+      id: r.id, rating: r.rating, title: r.title, body: r.body, at: new Date(r.created_at).getTime(), name: initials(r.name),
+      worksheet: r.product_id, worksheetTitle: r.product_title,
+    })),
+  }, { 'Cache-Control': 'public, max-age=60' });
 }
 
 export function register(r: Router) {
@@ -289,4 +333,5 @@ export function register(r: Router) {
   r.get('/api/content', content);
   r.get('/api/faq', faq);
   r.get('/api/worksheets/:id/reviews', reviews);
+  r.get('/api/reviews', recentReviews);
 }

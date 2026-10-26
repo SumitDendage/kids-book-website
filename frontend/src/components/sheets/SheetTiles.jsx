@@ -1,5 +1,6 @@
 import { useSite } from '../../context/SiteContext.jsx';
 import { RC_WORDS } from '../../data/catalogue.js';
+import { TileRating } from '../reviews/Stars.jsx';
 
 /* the price is shown when the sheet is opened, not on the tile */
 const useBadge = () => { const { access } = useSite(); return it => (it.price === 0 ? 'Free' : (access.canOpen(it) ? 'Yours' : '🔒')); };
@@ -15,6 +16,7 @@ export function AzTile({ it, n }) {
         ? <span className="az-pic"><img src={it.img} alt="" loading="lazy" /></span>
         : <span className="glyph">{L}<small>{L.toLowerCase()}</small></span>}
       <span>{it.tileLabel || 'Alphabet ' + L}</span>
+      <TileRating it={it} />
     </button>
   );
 }
@@ -25,7 +27,7 @@ export function PicTile({ it, n }) {
   return (
     <button type="button" className={'rc-card' + (it.landscape ? '' : ' portrait') + (it.price === 0 ? '' : ' paid')} style={{ '--n': n }} aria-label={it.title} onClick={() => openSheet(it.id)}>
       <span className="rc-pic"><img src={it.img} alt="" loading="lazy" /><b>{badge(it)}</b></span>
-      <span className="rc-name">{it.rc ? 'Letter ' + it.rc : it.tileName}<small>{it.rc ? RC_WORDS[it.rc].split(',').slice(0, 2).join(' · ') + ' · …' : it.tileSub}</small></span>
+      <span className="rc-name">{it.rc ? 'Letter ' + it.rc : it.tileName}<small>{it.rc ? RC_WORDS[it.rc].split(',').slice(0, 2).join(' · ') + ' · …' : it.tileSub}</small><TileRating it={it} /></span>
     </button>
   );
 }
