@@ -1,26 +1,24 @@
-import { useEffect, useState } from 'react';
-import DataTable from '../../components/dashboard/DataTable.jsx';
+import { useState } from 'react';
 import Pill from '../../components/dashboard/Pill.jsx';
 import Icon from '../../components/dashboard/Icon.jsx';
 import Modal from '../../components/dashboard/Modal.jsx';
 import { Guard, ErrorNote } from '../../components/dashboard/States.jsx';
 import { useDash } from '../Portal/DashContext.js';
-import { useStaffGet, fmt, qs, problem, fieldErrors, plural } from '../Portal/dashboard.js';
+import { useStaffGet, fmt, qs, problem, fieldErrors } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 import { HERO, WHYS } from '../../data/content.js';
 import Homepage from './Homepage.jsx';
 
 const keep = { tab: null };
 
-/* The Homepage section: the lists of sheets, the home page's first screen, the questions and
-   answers (the site's help and the assistant use the published public ones), and customer reviews
-   waiting to be published. There is no separate Content item in the menu (Sumit, Oct 26). */
+/* The Homepage section: the lists of sheets, the home page's first screen and customer reviews
+   waiting to be published. There is no separate Content item in the menu, and no questions and
+   answers tab (Sumit, Oct 26); the answers already published stay on the site. */
 export default function Content() {
   const { can, stats } = useDash();
   const tabs = [
     can('catalogue.read') ? ['lists', 'Sheet lists'] : null,
     can('content.write') ? ['home', 'Home page text'] : null,
-    can('content.write') ? ['faq', 'Questions and answers'] : null,
     can('reviews.moderate') ? ['reviews', 'Reviews'] : null,
   ].filter(Boolean);
   const [tab, setTabState] = useState(() => (tabs.some(([id]) => id === keep.tab) ? keep.tab : (tabs[0] || [''])[0]));
@@ -29,7 +27,7 @@ export default function Content() {
   return (
     <>
       <div className="tabs-s" role="tablist">{tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}{id === 'reviews' && pending ? <small>{pending}</small> : null}</button>)}</div>
-      {tab === 'lists' ? <Homepage /> : tab === 'home' ? <HomeText /> : tab === 'faq' ? <Faq /> : tab === 'reviews' ? <Reviews /> : null}
+      {tab === 'lists' ? <Homepage /> : tab === 'home' ? <HomeText /> : tab === 'reviews' ? <Reviews /> : null}
     </>
   );
 }
@@ -85,69 +83,6 @@ function HomeText() {
         <p>Your saved home page text is removed and the site shows its original lines again.</p></Modal> : null}
     </Guard>
   );
-}
-
-/* ---------- questions and answers ---------- */
-const FAQ_STATUS = { published: 'Published', draft: 'Draft', planned: 'Planned' };
-const FAQ_FOR = { public: 'Customers', staff: 'Staff only' };
-function Faq() {
-  const { toast } = useDash();
-  const [audience, setAudience] = useState(''), [status, setStatus] = useState(''), [text, setText] = useState(''), [search, setSearch] = useState('');
-  useEffect(() => { const t = setTimeout(() => setSearch(text.trim()), 300); return () => clearTimeout(t); }, [text]);
-  const q = useStaffGet('/api/admin/faq' + qs({ audience, status, q: search }), { keep: true });
-  const [edit, setEdit] = useState(null), [drop, setDrop] = useState(null);
-  const rows = (q.data && q.data.faq) || [];
-  return (
-    <section className="panel">
-      <div className="row-between"><div><p className="eyebrow">Questions and answers</p><p className="auth-sub">Published answers for customers show in the site's help and the assistant. {q.data ? plural(q.data.counts.public, 'answer') + ' are public now.' : ''}</p></div>
-        <div className="btn-row"><input className="search" type="search" placeholder="Search answers…" aria-label="Search answers" value={text} onChange={e => setText(e.target.value)} /><button type="button" className="btn btn-primary" onClick={() => setEdit('new')}><Icon id="plus" />New answer</button></div></div>
-      <div className="chips" role="group" aria-label="Filter">
-        {[['', 'Everyone'], ['public', 'Customers'], ['staff', 'Staff only']].map(([v, l]) => <button key={'a' + v} type="button" className={'chip' + (audience === v ? ' on' : '')} onClick={() => setAudience(v)}>{l}</button>)}
-        <span className="chip-sep" aria-hidden="true" />
-        {[['', 'Any status'], ['published', 'Published'], ['draft', 'Drafts'], ['planned', 'Planned']].map(([v, l]) => <button key={'s' + v} type="button" className={'chip' + (status === v ? ' on' : '')} onClick={() => setStatus(v)}>{l}</button>)}
-      </div>
-      {q.error ? <ErrorNote error={q.error} onRetry={q.reload} compact /> : null}
-      <DataTable plain={rows.length <= 10} head={['Question', 'For', 'Status', 'Updated', '']} empty={q.loading ? 'Loading…' : 'No answers match.'}
-        rows={rows.map(f => ({ key: f.id, cells: [
-          <span key="q"><b>{f.question}</b><small className="clip">{f.answer}</small></span>,
-          FAQ_FOR[f.audience] || f.audience, <Pill key="s" tone={f.status === 'published' ? 'ok' : 'neutral'}>{FAQ_STATUS[f.status] || f.status}</Pill>, fmt(f.updatedAt),
-          <span key="a" className="row-actions"><button type="button" className="link" onClick={() => setEdit(f)}>Edit</button><button type="button" className="link danger" onClick={() => setDrop(f)}>Delete</button></span>,
-        ] }))} />
-      {edit ? <FaqDialog item={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onDone={() => { setEdit(null); q.reload(true); toast(edit === 'new' ? 'Answer added' : 'Saved'); }} /> : null}
-      {drop ? <DeleteFaq item={drop} onClose={() => setDrop(null)} onDone={() => { setDrop(null); q.reload(true); toast('Deleted'); }} /> : null}
-    </section>
-  );
-}
-
-function FaqDialog({ item, onClose, onDone }) {
-  const f0 = item || {};
-  const [busy, setBusy] = useState(false), [err, setErr] = useState(null), [errs, setErrs] = useState({});
-  const submit = async e => {
-    const f = new FormData(e.currentTarget);
-    const body = { question: String(f.get('question') || '').trim(), answer: String(f.get('answer') || '').trim(), keywords: String(f.get('keywords') || '').split(',').map(x => x.trim()).filter(Boolean), audience: f.get('audience'), status: f.get('status'), sort: Number(f.get('sort')) || 0 };
-    setBusy(true); setErr(null); setErrs({});
-    try { if (item) await staffApi('PUT', '/api/admin/faq/' + item.id, body); else await staffApi('POST', '/api/admin/faq', body); onDone(); }
-    catch (x) { const fe = fieldErrors(x); setErrs(fe); setErr(Object.keys(fe).length ? 'Please check the fields marked in red.' : problem(x)); setBusy(false); }
-  };
-  const fe = k => (errs[k] ? <small className="bad">{errs[k]}</small> : null);
-  return (
-    <Modal title={item ? 'Edit the answer' : 'New answer'} onClose={onClose} onSubmit={submit} submitLabel={item ? 'Save' : 'Add the answer'} busyLabel="Saving…" busy={busy} error={err} wide>
-      <div className="field"><label htmlFor="fqQ">Question</label><input id="fqQ" name="question" maxLength={300} defaultValue={f0.question || ''} />{fe('question')}</div>
-      <div className="field"><label htmlFor="fqA">Answer</label><textarea id="fqA" name="answer" rows={6} maxLength={2000} defaultValue={f0.answer || ''} />{fe('answer')}</div>
-      <div className="field"><label htmlFor="fqK">Keywords</label><input id="fqK" name="keywords" defaultValue={(f0.keywords || []).join(', ')} placeholder="e.g. refund, money back" /><small>Words customers might use, separated by commas. They help the assistant find this answer.</small>{fe('keywords')}</div>
-      <div className="grid-3">
-        <div className="field"><label htmlFor="fqFor">For</label><select id="fqFor" name="audience" defaultValue={f0.audience || 'public'}><option value="public">Customers</option><option value="staff">Staff only</option></select></div>
-        <div className="field"><label htmlFor="fqS">Status</label><select id="fqS" name="status" defaultValue={f0.status || 'published'}><option value="published">Published</option><option value="draft">Draft</option><option value="planned">Planned</option></select></div>
-        <div className="field"><label htmlFor="fqO">Order</label><input id="fqO" name="sort" type="number" defaultValue={f0.sort || 0} /><small>Lower numbers come first.</small></div>
-      </div>
-    </Modal>
-  );
-}
-
-function DeleteFaq({ item, onClose, onDone }) {
-  const [busy, setBusy] = useState(false), [err, setErr] = useState(null);
-  const submit = async () => { setBusy(true); try { await staffApi('DELETE', '/api/admin/faq/' + item.id); onDone(); } catch (x) { setErr(problem(x)); setBusy(false); } };
-  return <Modal title="Delete this answer?" onClose={onClose} onSubmit={submit} submitLabel="Delete it" busyLabel="Deleting…" danger busy={busy} error={err}><p><b>{item.question}</b> is removed from the help and the assistant.</p></Modal>;
 }
 
 /* ---------- reviews ---------- */

@@ -22,7 +22,7 @@ export const GROUPS = {
 /* the line under each section's title (the developer panel's own security page keeps its line) */
 export const DESC = {
   admin: {
-    overview: "Here's what is happening in your store today.", products: 'Every sheet by class and section: upload one or many PDFs, change any sheet, add a class, subject or section. Changes show on the website by themselves.', homepage: 'The lists of sheets on the home page and in the shop, the home page text, questions and answers, and reviews.', orders: 'Every order, its payments and the access it gave.',
+    overview: "Here's what is happening in your store today.", products: 'Every sheet by class and section: upload one or many PDFs, change any sheet, add a class, subject or section. Changes show on the website by themselves.', homepage: 'The lists of sheets on the home page and in the shop, the home page text and reviews.', orders: 'Every order, its payments and the access it gave.',
     customers: 'Customer accounts, their orders and their access.', security: 'Account sharing: sessions, incidents, warnings and appeals.', messages: 'Notes customers sent through the contact form.',
     analytics: 'Sales, visitors and conversion.', money: 'Money in, refunds, your costs, and the profit or loss each month.', coupons: 'Coupon codes and class discounts.',
     settings: 'How long access lasts, prices, rates, fees and sign-in rules.', audit: 'Everything staff changed, newest first.',
