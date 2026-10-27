@@ -10,7 +10,6 @@ import { AUDIENCE_LABEL, LABELS, HOME_TAG, VISIBILITY, visibilityOf } from './co
 
 /* the filters survive moving between sections */
 const keep = { status: 'all', cls: 'all', query: '', view: 'sections' };
-const VIEWS = [['sections', 'By class and section'], ['grid', 'All sheets']];
 const PAGE = 24;
 const STATUS_TABS = [['all', 'All'], ['published', 'Published'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['hidden', 'Hidden'], ['missing', 'Missing PDF']];
 const VIS_LABEL = Object.fromEntries(VISIBILITY);
@@ -80,10 +79,10 @@ export default function Products() {
   const filesQ = useStaffGet('/api/admin/files', { keep: true });
   const sectionsQ = useStaffGet('/api/admin/sections', { keep: true });
   const subjectsQ = useStaffGet('/api/admin/subjects', { keep: true });
-  const [view, setViewState] = useState(keep.view);
+  /* one view only: sheets by class and section (the All sheets switch is gone, Sumit, Oct 27) */
+  const view = 'sections';
   const [page, setPage] = useState(1);
   const [preset, setPreset] = useState(null);   /* class, subject and section for a new sheet started from a section */
-  const setView = v => { keep.view = v; setViewState(v); };
   const [status, setStatusState] = useState(keep.status), [cls, setClsState] = useState(keep.cls), [query, setQueryState] = useState(keep.query);
   const [quickBusy, setQuickBusy] = useState(false);
   const setStatus = v => { keep.status = v; setStatusState(v); };
@@ -165,9 +164,6 @@ export default function Products() {
         <p className="eyebrow">Best sellers</p>
         <ul className="top-sellers">{top.map(s => <li key={s.id}><button type="button" className="link" onClick={() => setEditing(s.id)}>{s.title}</button><span>{plural(s.sold, 'sale')} · {inr(s.revenue)}</span></li>)}</ul>
       </section> : null}
-      <div className="tabs-s" role="tablist" aria-label="How to show the sheets">
-        {VIEWS.map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? 'on' : ''} onClick={() => setView(id)}>{name}</button>)}
-      </div>
       {view === 'sections' && classes.length ? <SheetBrowser all={all} classes={classes} sections={sections} subjectList={subjectList} onEdit={setEditing} onNew={newIn} onSaved={onSaved} onMade={onMade} /> : null}
       {view === 'grid' ? <section className="panel">
         <div className="row-between"><div><p className="eyebrow">Books on the shelf</p><p className="auth-sub">{plural(list.length, 'sheet')} shown{canWrite ? ' · click a card to edit it' : ' · your role can look but not change sheets'}</p></div>

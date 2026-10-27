@@ -630,6 +630,11 @@
 .field-title { margin: 14px 0 6px; font-size: 14px; font-weight: 500; }
 
 /* Products → sections as folders (Oct 25 "make it so organized") */
+.br-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.br-head h3 { margin: 0; font-size: 1.15rem; }
+.br-other { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9rem; }
+.browser > .st-note { margin-top: 12px; }
+.browser > .st-note .btn { margin-left: auto; }
 .br-classes { display: flex; flex-wrap: wrap; gap: 8px; }
 .br-class { display: grid; gap: 2px; min-width: 128px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--background); color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
 .br-class b { font-size: 14px; font-weight: 600; } .br-class small { font-size: 12px; color: var(--muted-foreground); }
