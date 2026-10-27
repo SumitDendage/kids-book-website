@@ -94,6 +94,12 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await shot('00-settings-staff');
   });
 
+  await step('no Add your own section box', async () => {
+    await go('Products');
+    await page.locator('.browser').waitFor({ timeout: 15000 });
+    must(!(await page.locator('.br-sec.add').count()), 'the Add your own section box is still there');
+  });
+
   await step('Products opens on sheets by class and section', async () => {
     await go('Products');
     await page.locator('.browser').waitFor({ timeout: 15000 });
@@ -109,7 +115,8 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.locator('.br-sheet').first().click();
     await page.locator('#psTitle').waitFor();
     for (const id of ['psTags', 'psAge', 'psSku', 'psStock', 'psSort', 'psSeoT', 'psSeoD']) must(!(await page.locator('#' + id).count()), id + ' is still there');
-    must(!(await page.locator('.studio legend', { hasText: /Category|Search engines/ }).count()), 'old fieldsets still there');
+    must(!(await page.locator('.studio legend', { hasText: /Category|Search engines|Visibility|Access and limits/ }).count()), 'old fieldsets still there');
+    for (const id of ['psDays', 'psRule', 'psPrint', 'psDl']) must(!(await page.locator('#' + id).count()), id + ' is still there');
     must(!(await page.locator('.studio', { hasText: 'Academic sessions' }).count()), 'academic sessions still there');
     must(await page.locator('#psTopic').evaluate(e => e.tagName === 'INPUT'), 'the section is not a typed box');
     await page.locator('.studio legend', { hasText: 'Where it goes' }).scrollIntoViewIfNeeded();
@@ -148,7 +155,7 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
 
   await step('Add section with its PDFs in one step', async () => {
     await page.locator('.br-crumbs button').click();
-    await page.locator('.br-sec.add').click();
+    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
     await page.fill('#buName', 'Number fun ' + STAMP);
     await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('count_to_10.pdf'), tinyPdf('count_to_20.pdf')]);
     await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
@@ -166,7 +173,7 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
   });
 
   await step('an empty section can be deleted from Products', async () => {
-    await page.locator('.br-sec.add').click();
+    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
     await page.fill('#buName', 'Empty one ' + STAMP);
     await submitModal('Add section');
     await page.locator('.br-open h3', { hasText: 'Empty one ' + STAMP }).waitFor({ timeout: 15000 });

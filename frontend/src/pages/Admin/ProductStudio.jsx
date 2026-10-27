@@ -5,9 +5,8 @@ import Modal from '../../components/dashboard/Modal.jsx';
 import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
-import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, VISIBILITY, localInput, fromLocalInput } from './common.js';
+import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, localInput, fromLocalInput } from './common.js';
 import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
-import { spanText } from '../../data/content.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -83,7 +82,6 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState(null), [errs, setErrs] = useState({});
   const [dialog, setDialog] = useState(null);     /* 'archive' | 'restore' | 'delete' */
-  const [printRule, setPrintRule] = useState(it.printRule === 'sheet' ? 'sheet' : 'account');
   /* price: original price, discount and selling price work each other out; Free makes it 0 */
   const startPrice = it.price == null ? 19 : it.price;
   const [free, setFree] = useState(startPrice === 0);
@@ -97,8 +95,11 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
   const finalPrice = free ? 0 : num(sell);
   const origPrice = num(orig);
   /* where and when it shows */
-  const [vis, setVis] = useState(isNew ? 'draft' : visibilityOf(it));
-  const [when, setWhen] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
+  /* no Visibility box (Sumit, Oct 27): a new sheet goes on the website once its PDF is there, and
+     a saved sheet keeps how it shows now (Hide and Restore change that). Access days, prints and
+     downloads come from Settings; a sheet that already has its own numbers keeps them. */
+  const vis = isNew ? 'published' : visibilityOf(it);
+  const [when] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
   const [labels, setLabels] = useState(() => new Set((it.tags || []).filter(t => LABELS.some(([x]) => x === t) || t === HOME_TAG)));
   const toggleLabel = t => setLabels(cur => { const n = new Set(cur); if (n.has(t)) n.delete(t); else n.add(t); return n; });
   /* where it goes: a class (or a new one), a subject and a section, picked or typed */
@@ -118,8 +119,6 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
     return list;
   }, [subjectList, all, it.subject]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
-  const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
-  const shopSpan = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && (x.effectiveAccessHours || x.effectiveAccessDays)); return s ? (s.effectiveAccessHours ? spanText(s.effectiveAccessHours) : s.effectiveAccessDays + ' days') : null; }, [all]);
   /* the sections of the chosen class, to pick from (a new class has none yet) */
   const classSections = useMemo(() => (newClass ? [] : sectionsOfClass(sections, cls)).slice().sort((a, b) => a.label.localeCompare(b.label)), [sections, cls, newClass]);
   const secIsNew = !!secName.trim() && !classSections.some(x => sameName(x.label, secName)) && !(it.section && sameName(secName, startSec));
@@ -138,10 +137,6 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
       subject: String(f.get('subject') || '').trim(),
       pages: n('pages') || 1,
       audience: f.get('audience') || null,
-      accessDays: n('accessDays'),
-      printRule: f.get('printRule') === 'sheet' ? 'sheet' : 'account',
-      printLimit: n('printLimit') ?? 0,
-      downloadLimit: n('downloadLimit') ?? 0,
       landscape: f.get('landscape') === 'on',
       /* the labels ticked below; any older words on the sheet are kept as they were */
       tags: [...new Set((it.tags || []).filter(t => !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
@@ -198,7 +193,7 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
       }
       /* visibility last: a sheet goes on sale only once its PDF is there */
       const want = publish ? 'published' : vis;
-      if (canWrite && want !== visibilityOf(ws)) {
+      if (canWrite && want !== visibilityOf(ws) && !(want === 'published' && !ws.available)) {
         step = 'publish'; setBusy(want === 'hidden' ? 'Hiding it…' : want === 'draft' ? 'Taking it off the shop…' : 'Publishing…');
         const v = { draft: { status: 'draft' }, published: { status: 'active', publishAt: null }, scheduled: { status: 'active', publishAt: new Date(fromLocalInput(when)).toISOString() }, hidden: { status: 'archived' } }[want];
         ws = (await staffApi('PUT', base, v)).worksheet;
@@ -314,25 +309,9 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
             </div>
             <label className="check"><input type="checkbox" checked={labels.has(HOME_TAG)} onChange={() => toggleLabel(HOME_TAG)} />Show on the home page</label>
           </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Visibility</legend>
-            <div className="seg" role="radiogroup" aria-label="Visibility">
-              {VISIBILITY.map(([id, name]) => <label key={id} className={'seg-opt' + (vis === id ? ' on' : '')}><input type="radio" name="visibility" value={id} checked={vis === id} onChange={() => setVis(id)} />{name}</label>)}
-            </div>
-            {vis === 'scheduled' ? <div className="grid-3"><div className="field"><label htmlFor="psWhen">Publish on</label><input id="psWhen" type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} aria-invalid={!!errs.publishAt} />{err1('publishAt')}</div></div> : null}
-            <small className="muted">{{ draft: 'Not on the website. Only staff can see it.', published: hasPdf ? 'On the website as soon as you save.' : 'Add the PDF first: a sheet goes on the website only with its PDF.', scheduled: 'Goes on the website by itself at the time you pick.', hidden: 'Taken off the website. Customers who bought it keep their access until it ends.' }[vis]}</small>
-          </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Access and limits per customer</legend>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopSpan ? 'Shop setting: ' + shopSpan : 'Shop setting'} /><small>How long a buyer can open it, in days. Empty uses the shop setting{shopSpan ? ' (' + shopSpan + ')' : ''}, set in hours under Settings.</small>{err1('accessDays')}</div>
-              <div className="field"><label htmlFor="psRule">Prints come from</label><select id="psRule" name="printRule" value={printRule} onChange={e => setPrintRule(e.target.value)}><option value="account">The account type</option><option value="sheet">This sheet only</option></select>
-                <small>{printRule === 'sheet' ? 'Every customer gets the number below.' : typePrints ? 'Parents ' + typePrints.parent + ' · Teachers ' + typePrints.teacher + ' · Organizations ' + typePrints.organization + '. Change these in Settings.' : 'The numbers in Settings → Prints per sheet.'}</small>{err1('printRule')}</div>
-              <div className="field"><label htmlFor="psPrint">Prints with this sheet only</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} aria-describedby="psPrintHelp" /><small id="psPrintHelp">{printRule === 'sheet' ? '0 means view only.' : 'Used only when prints come from this sheet.'}</small>{err1('printLimit')}</div>
-              <div className="field"><label htmlFor="psDl">Downloads</label><input id="psDl" name="downloadLimit" type="number" min="0" max="100" defaultValue={it.downloadLimit == null ? 0 : it.downloadLimit} /><small>0 means view only.</small>{err1('downloadLimit')}</div>
-            </div>
-          </fieldset>
           {err ? <div className="st-note err" role="alert"><Icon id="alert" size={16} /><span>{err}</span></div> : null}
           <div className="btn-row studio-actions">
-            {canWrite || canUpload ? <button type="submit" value="save" className="btn btn-primary" disabled={!!busy}>{busy ? <><span className="dm-spin" aria-hidden="true" />{busy}</> : isNew ? (vis === 'draft' ? 'Save as draft' : 'Save') : canWrite ? 'Save changes' : 'Upload the files'}</button> : null}
+            {canWrite || canUpload ? <button type="submit" value="save" className="btn btn-primary" disabled={!!busy}>{busy ? <><span className="dm-spin" aria-hidden="true" />{busy}</> : isNew ? 'Save' : canWrite ? 'Save changes' : 'Upload the files'}</button> : null}
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={!!busy}>{canWrite ? 'Cancel' : 'Close'}</button>
             {!isNew && canWrite ? <span className="studio-more">
               <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={duplicate}><Icon id="copy" />Duplicate</button>
