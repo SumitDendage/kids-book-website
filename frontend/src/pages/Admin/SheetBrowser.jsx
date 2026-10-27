@@ -138,11 +138,8 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
               <b>{x.label}</b>
               <small>{x.list.length ? plural(x.list.length, 'sheet') + ' · ' + live(x.list) + ' live' : 'Empty'}{x.visible === false ? ' · hidden' : ''}</small>
             </button></li>;
-          })}
-          {canWrite && g === 'Your sections' ? <li><button type="button" className="br-sec add" onClick={() => setDialog({ kind: 'section' })}><span className="br-cover" aria-hidden="true"><Icon id="plus" size={24} /></span><b>Add section</b><small>Name, PDFs, save</small></button></li> : null}</ul>
+          })}</ul>
         </div>)}
-        {canWrite && !groups.some(([g]) => g === 'Your sections') && !q ? <div className="br-group"><p className="sec-group">Your sections</p>
-          <ul className="br-secs"><li><button type="button" className="br-sec add" onClick={() => setDialog({ kind: 'section' })}><span className="br-cover" aria-hidden="true"><Icon id="plus" size={24} /></span><b>Add your own section</b><small>Name, PDFs, save</small></button></li></ul></div> : null}
         {sheetHits.length ? <div className="br-group"><p className="sec-group">Sheets matching "{find.trim()}"</p><ul className="br-sheets">{sheetHits.map(sheetCard)}</ul></div> : null}
         {q && !visible.length && !sheetHits.length ? <p className="cart-empty">Nothing in {cur.name} matches "{find.trim()}".</p> : null}
         {!q && empty ? <button type="button" className="link br-more" onClick={() => setShowEmpty(v => !v)}>{showEmpty ? 'Hide the empty sections' : 'Show ' + plural(empty, 'empty section') + ' too'}</button> : null}
