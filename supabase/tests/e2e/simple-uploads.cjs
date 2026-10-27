@@ -94,10 +94,12 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await shot('00-settings-staff');
   });
 
-  await step('no Add your own section box', async () => {
+  await step('no Add your own box, class tabs, tool bar or All sheets switch', async () => {
     await go('Products');
     await page.locator('.browser').waitFor({ timeout: 15000 });
     must(!(await page.locator('.br-sec.add').count()), 'the Add your own section box is still there');
+    must(!(await page.locator('.br-classes, .br-tools').count()), 'the class tabs or tool bar are still there');
+    must(!(await page.locator('.tabs-s button', { hasText: 'All sheets' }).count()), 'the All sheets switch is still there');
   });
 
   await step('Products opens on sheets by class and section', async () => {
@@ -124,71 +126,40 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.locator('.studio button[aria-label="Close"]').click();
   });
 
-  await step('add a new class, a subject and a section', async () => {
-    await page.locator('.br-class.add').click();
-    await page.fill('#ndName', CLASS); await shot('03-new-class');
-    await submitModal('Save'); await toast(/added/);
-    must(await page.locator('.br-class.on', { hasText: CLASS }).count(), 'the new class is not picked');
-    await page.selectOption('.br-tools select[aria-label="Subject"]', '+new');
-    await page.fill('#ndName', SUBJECT); await submitModal('Save'); await toast(/is ready/);
-    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
-    await page.fill('#buName', SECTION); await shot('04a-add-section-dialog');
-    await submitModal('Add section'); await toast(/Section .* added/);
-    await page.locator('.br-open h3', { hasText: SECTION }).waitFor();
-    await shot('04-new-class-and-section');
+  await step('a new sheet makes a new class, subject and section', async () => {
+    await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
+    await page.locator('#psTitle').waitFor();
+    await page.fill('#psTitle', 'Rhymes ' + STAMP);
+    await page.selectOption('#psCls', '+new');
+    await page.fill('#psNewCls', CLASS);
+    await page.fill('#psSubj', SUBJECT);
+    await page.fill('#psTopic', SECTION);
+    await page.locator('.studio input[type=file][accept*="pdf"]').setInputFiles(tinyPdf('rhymes.pdf'));
+    await shot('03-new-class-on-a-sheet');
+    await page.locator('.studio-actions button[type=submit]').click();
+    await toast(/Saved|website/);
+    await page.locator('.studio button[aria-label="Close"]').click().catch(() => {});
+    await sleep(500);
   });
 
-  await step('upload two PDFs at once into the section, straight to the website', async () => {
+  await step('open the new class, then upload two PDFs into its section', async () => {
+    await page.locator('.br-other button', { hasText: CLASS }).click();
+    await page.locator('.br-head h3', { hasText: CLASS }).waitFor();
+    await page.locator('.browser .st-note button', { hasText: 'Open it on the website' }).click();
+    await toast(/Open on the website/);
+    await page.locator('.br-sec', { hasText: SECTION }).click();
     await page.locator('.br-open-head button', { hasText: 'Upload PDFs' }).click();
     await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('rhymes_part-1.pdf'), tinyPdf('rhymes_part-2.pdf')]);
-    must(await page.locator('#buSubj').inputValue(), 'no subject');
     await page.fill('#buSubj', SUBJECT);
     await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
     await shot('05-upload-many');
     await submitModal('Upload 2 PDFs');
     await page.locator('.dm button[type=submit]', { hasText: 'Done' }).waitFor({ timeout: 30000 });
-    await shot('06-upload-many-done');
     await submitModal('Done');
-    const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === SECTION);
-    must(ws.length === 2 && ws.every(w => w.title.startsWith('Rhymes part') && w.subject === SUBJECT), 'not public: ' + JSON.stringify(ws.map(w => [w.title, w.subject])));
-  });
-
-  await step('Add section with its PDFs in one step', async () => {
-    await page.locator('.br-crumbs button').click();
-    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
-    await page.fill('#buName', 'Number fun ' + STAMP);
-    await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('count_to_10.pdf'), tinyPdf('count_to_20.pdf')]);
-    await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
-    await shot('04b-add-section-with-pdfs');
-    await submitModal('Add section with 2 PDFs');
-    await page.locator('.dm button[type=submit]', { hasText: 'Done' }).waitFor({ timeout: 30000 });
-    await submitModal('Done');
-    await page.locator('.br-open h3', { hasText: 'Number fun ' + STAMP }).waitFor();
-    await page.locator('.br-sheet').nth(1).waitFor({ timeout: 10000 });
-    await shot('04c-section-with-its-sheets');
     await page.locator('.br-crumbs button').click(); await sleep(300);
-    await shot('04d-class-4-sections');
-    const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === 'Number fun ' + STAMP);
-    must(ws.length === 2, 'expected 2 public sheets, got ' + ws.length);
-  });
-
-  await step('an empty section can be deleted from Products', async () => {
-    await page.locator('.br-acts button', { hasText: 'Add section' }).click();
-    await page.fill('#buName', 'Empty one ' + STAMP);
-    await submitModal('Add section');
-    await page.locator('.br-open h3', { hasText: 'Empty one ' + STAMP }).waitFor({ timeout: 15000 });
-    await page.getByRole('button', { name: 'Delete section' }).click();
-    await shot('04e-delete-empty-section');
-    await submitModal('Delete it');
-    await toast(/Section deleted/);
-    await page.locator('.br-open').waitFor({ state: 'detached', timeout: 15000 });
-  });
-
-  await step('All sheets has no filter boxes', async () => {
-    await page.locator('.tabs-s button', { hasText: 'All sheets' }).click();
-    await page.locator('.book-grid').waitFor();
-    must(!(await page.locator('.filters-row').count()), 'filter boxes still there');
-    await page.locator('.tabs-s button', { hasText: 'By class and section' }).click();
+    await shot('04-class-4-sections');
+    const ws = (await catalogue()).worksheets.filter(w => w.sectionLabel === SECTION);
+    must(ws.length === 3, 'expected 3 public sheets, got ' + JSON.stringify(ws.map(w => w.title)));
   });
 
   await step('a new sheet with a typed new section', async () => {

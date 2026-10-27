@@ -18,9 +18,8 @@ export const titleFromFile = name => {
   const t = String(name || '').replace(/\.pdf$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
   return t ? t[0].toUpperCase() + t.slice(1) : 'New sheet';
 };
-let keepCls = null, keepSubject = 'all', keepOpen = null;
+let keepCls = null, keepOpen = null;
 const glyph = t => String(t || '?').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-const hasText = (q, ...xs) => xs.some(x => String(x || '').toLowerCase().includes(q));
 
 /* Sheets by class and section, laid out like folders: pick a class at the top, then every section
    with sheets is a card (its cover, name and count) under its group. Open a card to see its sheets
@@ -29,17 +28,15 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
   const { can, toast } = useDash();
   const canWrite = can('catalogue.write'), canUpload = can('files.upload');
   const [cls, setClsState] = useState(() => (keepCls && classes.some(c => c.id === keepCls) ? keepCls : (classes[0] && classes[0].id) || 'kg'));
-  const [subject, setSubjectState] = useState(keepSubject);
+  const subject = 'all';
   const [opened, setOpenedState] = useState(keepOpen);   /* the open section's id ('' = the class shelf), or null for all sections */
   const setCls = v => { keepCls = v; setClsState(v); setOpened(null); };
-  const setSubject = v => { keepSubject = v; setSubjectState(v); };
   const setOpened = v => { keepOpen = v; setOpenedState(v); };
-  const [dialog, setDialog] = useState(null);   /* { kind: 'class' | 'subject' | 'section' | 'rename' | 'bulk', section? } */
+  const [dialog, setDialog] = useState(null);   /* { kind: 'rename' | 'delete' | 'bulk', section } */
   const [showEmpty, setShowEmpty] = useState(false);
-  const [find, setFind] = useState('');
   const [busy, setBusy] = useState(false);
   const cur = classes.find(c => c.id === cls) || classes[0] || { id: cls, name: cls, status: 'available' };
-  const q = find.trim().toLowerCase();
+  const others = classes.filter(c => c.id !== cur.id && all.some(s => s.cls === c.id));
 
   const inClass = useMemo(() => all.filter(s => s.cls === cur.id), [all, cur.id]);
   const subjects = useMemo(() => [...new Set((subjectList || []).filter(x => x.active).map(x => x.name).concat(inClass.map(s => s.subject).filter(Boolean)))], [subjectList, inClass]);
@@ -57,14 +54,13 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
   }, [sections, shown, cur.id]);
   const filled = secs.filter(x => x.list.length);
   const empty = secs.length - filled.length;
-  const visible = q ? secs.filter(x => hasText(q, x.label, x.group) || x.list.some(s => hasText(q, s.title))) : showEmpty ? secs : filled;
+  const visible = showEmpty ? secs : filled;
   const groups = useMemo(() => {
     const m = new Map();
     visible.forEach(x => { if (!m.has(x.group)) m.set(x.group, []); m.get(x.group).push(x); });
     /* staff's own sections first */
     return [...m.entries()].sort((a, b) => (b[0] === 'Your sections') - (a[0] === 'Your sections'));
   }, [visible]);
-  const sheetHits = q ? shown.filter(s => hasText(q, s.title, s.id)).slice(0, 30) : [];
   const open = opened === null ? null : secs.find(x => x.id === opened) || null;
 
   const setStatus = async st => {
@@ -93,26 +89,15 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
 
   return (
     <section className="panel browser" aria-label="Sheets by class and section">
-      <div className="br-classes" role="tablist" aria-label="Class">
-        {classes.map(c => <button key={c.id} type="button" role="tab" aria-selected={c.id === cur.id} className={'br-class' + (c.id === cur.id ? ' on' : '')} onClick={() => setCls(c.id)}>
-          <b>{c.name}</b><small>{plural(all.filter(s => s.cls === c.id).length, 'sheet')}{c.status !== 'available' ? ' · ' + (CLASS_STATUS.find(x => x[0] === c.status) || [])[1] : ''}</small></button>)}
-        {canWrite ? <button type="button" className="br-class add" onClick={() => setDialog({ kind: 'class' })}><Icon id="plus" size={16} /><b>New class</b></button> : null}
+      {/* no class tabs or tool bar (Sumit, Oct 27): one line names the class, and other classes
+          show as plain links once they have sheets. New classes, subjects and sections are typed
+          on a sheet ("Upload new book"); many PDFs go in from inside a section. */}
+      <div className="br-head">
+        <h3>{cur.name} <small className="muted">{plural(inClass.length, 'sheet')}</small></h3>
+        {others.length ? <span className="br-other">{others.map(c => <button key={c.id} type="button" className="link" onClick={() => setCls(c.id)}>{c.name}</button>)}</span> : null}
       </div>
-      <div className="br-tools">
-        <input className="search" type="search" placeholder={'Find a section or sheet in ' + cur.name + '…'} aria-label="Find a section or sheet" value={find} onChange={e => { setFind(e.target.value); if (e.target.value) setOpened(null); }} />
-        <select aria-label="Subject" value={subject} onChange={e => { if (e.target.value === '+new') setDialog({ kind: 'subject' }); else setSubject(e.target.value); }}>
-          <option value="all">Every subject ({inClass.length})</option>
-          {subjects.map(x => <option key={x} value={x}>{x} ({inClass.filter(s => s.subject === x).length})</option>)}
-          {canWrite ? <option value="+new">+ New subject…</option> : null}</select>
-        {canWrite ? <label className="inline-field"><span className="muted">On the website</span>
-          <select value={cur.status} disabled={busy} onChange={e => setStatus(e.target.value)} aria-label={cur.name + ' on the website'}>{CLASS_STATUS.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></label>
-          : <Pill>{(CLASS_STATUS.find(x => x[0] === cur.status) || [])[1]}</Pill>}
-        {canWrite ? <span className="br-acts">
-          <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'section' })}><Icon id="plus" />Add section</button>
-          {canUpload ? <button type="button" className="btn btn-ghost" onClick={() => setDialog({ kind: 'bulk', section: open && open.id ? open : null })}><Icon id="download" />Upload PDFs</button> : null}
-        </span> : null}
-      </div>
-      {cur.status !== 'available' ? <div className="st-note warn compact"><Icon id="lock" size={16} /><span>{cur.name} is {cur.status === 'hidden' ? 'hidden' : '"Coming soon"'} on the website, so customers can't buy its sheets yet. Set "On the website" to Open when it is ready.</span></div> : null}
+      {cur.status !== 'available' ? <div className="st-note warn compact"><Icon id="lock" size={16} /><span>{cur.name} is {cur.status === 'hidden' ? 'hidden' : '"Coming soon"'} on the website, so customers can't buy its sheets yet.</span>
+        {canWrite ? <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setStatus('available')}>Open it on the website</button> : null}</div> : null}
 
       {open ? <div className="br-open">
         <nav className="br-crumbs" aria-label="Where you are"><button type="button" className="link" onClick={() => setOpened(null)}>← All sections</button><span>{cur.name}</span><span>{open.group}</span><b>{open.label}</b></nav>
@@ -133,31 +118,17 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
           <p className="sec-group">{g} <small>{plural(list.length, 'section')}</small></p>
           <ul className="br-secs">{list.map(x => {
             const pic = (x.list.find(s => s.thumb) || {}).thumb;
-            return <li key={x.id || 'none'}><button type="button" className={'br-sec' + (x.visible === false ? ' off' : '')} data-section={x.id || 'none'} onClick={() => { setOpened(x.id); setFind(''); }}>
+            return <li key={x.id || 'none'}><button type="button" className={'br-sec' + (x.visible === false ? ' off' : '')} data-section={x.id || 'none'} onClick={() => setOpened(x.id)}>
               <span className="br-cover" style={pic ? { backgroundImage: 'url("' + pic + '")' } : undefined} aria-hidden="true">{pic ? null : <Icon id="file" size={22} />}</span>
               <b>{x.label}</b>
               <small>{x.list.length ? plural(x.list.length, 'sheet') + ' · ' + live(x.list) + ' live' : 'Empty'}{x.visible === false ? ' · hidden' : ''}</small>
             </button></li>;
           })}</ul>
         </div>)}
-        {sheetHits.length ? <div className="br-group"><p className="sec-group">Sheets matching "{find.trim()}"</p><ul className="br-sheets">{sheetHits.map(sheetCard)}</ul></div> : null}
-        {q && !visible.length && !sheetHits.length ? <p className="cart-empty">Nothing in {cur.name} matches "{find.trim()}".</p> : null}
-        {!q && empty ? <button type="button" className="link br-more" onClick={() => setShowEmpty(v => !v)}>{showEmpty ? 'Hide the empty sections' : 'Show ' + plural(empty, 'empty section') + ' too'}</button> : null}
+        {!filled.length && !showEmpty ? <p className="cart-empty">No sheets in {cur.name} yet. Use "Upload new book" at the top to add the first one.</p> : null}
+        {empty ? <button type="button" className="link br-more" onClick={() => setShowEmpty(v => !v)}>{showEmpty ? 'Hide the empty sections' : 'Show ' + plural(empty, 'empty section') + ' too'}</button> : null}
       </>}
 
-      {dialog && dialog.kind === 'class' ? <NameDialog title="Add a class" label="Class name" placeholder="e.g. Class 4" note='It shows as "Coming soon" on the website until you set it to Open.'
-        onClose={() => setDialog(null)} onSave={async name => {
-          if (classes.some(c => sameName(c.name, name))) throw Object.assign(new Error('There is already a class with that name.'), { field: true });
-          const r = await ensurePlace({ classes, newClass: name }, onMade);
-          setCls(r.cls); setSubject('all'); toast(name + ' added. Add its first section now.');
-        }} /> : null}
-      {dialog && dialog.kind === 'subject' ? <NameDialog title="Add a subject" label="Subject name" placeholder="e.g. Hindi"
-        onClose={() => setDialog(null)} onSave={async name => {
-          const r = await ensurePlace({ subjects: subjectList, subject: name }, onMade);
-          setSubject(r.subject); toast(r.subject + ' is ready. Pick it on a sheet.');
-        }} /> : null}
-      {dialog && dialog.kind === 'section' ? <BulkUpload make cls={cur} section={null} sections={sections} classes={classes} subjects={subjects} subjectList={subjectList} startSubject={subject !== 'all' ? subject : ''}
-        onSaved={onSaved} onMade={onMade} onSection={id => { setOpened(id); setSubject('all'); setFind(''); }} onClose={() => setDialog(null)} /> : null}
       {dialog && dialog.kind === 'rename' ? <NameDialog title="Rename section" label="Section name" start={dialog.section.label}
         onClose={() => setDialog(null)} onSave={async name => {
           onMade('sections', await staffApi('PUT', '/api/admin/sections/' + encodeURIComponent(dialog.section.id), { label: name }));
