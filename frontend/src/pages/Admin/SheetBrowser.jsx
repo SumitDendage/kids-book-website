@@ -8,14 +8,14 @@ import { staffApi } from '../../services/api.js';
 import { VISIBILITY, VISIBILITY_TONE, visibilityOf } from './common.js';
 import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
 import { sendRaw, uploadProblem } from './ProductStudio.jsx';
+import { ANY_ACCEPT, isPdfFile, isPictureFile, pictureToPdf } from '../../services/fileConvert.js';
 
 const VIS_LABEL = Object.fromEntries(VISIBILITY);
 const CLASS_STATUS = [['available', 'Open'], ['coming_soon', 'Coming soon'], ['hidden', 'Hidden']];
 const PDF_MAX = 40 * 1024 * 1024;
-const isPdf = f => f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
 /* "alphabet_tracing-A.pdf" → "Alphabet tracing A" */
 export const titleFromFile = name => {
-  const t = String(name || '').replace(/\.pdf$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const t = String(name || '').replace(/\.(pdf|jpe?g|png|webp)$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
   return t ? t[0].toUpperCase() + t.slice(1) : 'New sheet';
 };
 let keepCls = null, keepOpen = null;
@@ -184,8 +184,8 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
   const classSecs = sectionsOfClass(sections, cls.id);
   const add = list => {
     const fs = Array.from(list || []);
-    const good = fs.filter(f => isPdf(f) && f.size <= PDF_MAX);
-    if (good.length !== fs.length) toast('Some files were skipped: only PDFs up to 40 MB.');
+    const good = fs.filter(f => (isPdfFile(f) || isPictureFile(f)) && f.size <= PDF_MAX);
+    if (good.length !== fs.length) toast('Some files were skipped: use a PDF, JPG or PNG up to 40 MB.');
     setFiles(cur => cur.concat(good.filter(f => !cur.some(c => c.name === f.name && c.size === f.size))).slice(0, 50));
   };
   const finished = files.length > 0 && files.every(f => done[f.name] === 'ok');
@@ -211,7 +211,8 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
         const body = { title: titleFromFile(f.name), cls: place.cls, subject: place.subject, ...sectionFields(place.section) };
         if (canPrice) body.price = p;
         const ws = (await staffApi('POST', '/api/admin/worksheets', body)).worksheet;
-        try { onSaved((await sendRaw('/api/admin/worksheets/' + encodeURIComponent(ws.id) + '/file' + (publish ? '?publish=1' : ''), f)).worksheet); }
+        /* a JPG or PNG goes in as a one-page PDF */
+        try { onSaved((await sendRaw('/api/admin/worksheets/' + encodeURIComponent(ws.id) + '/file' + (publish ? '?publish=1' : ''), isPdfFile(f) ? f : await pictureToPdf(f))).worksheet); }
         catch (x) { onSaved(ws); throw Object.assign(x, { pdf: true }); }
         ok++; setDone(d => ({ ...d, [f.name]: 'ok' }));
       } catch (x) {
@@ -233,8 +234,8 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
         <div className={'drop small' + (over ? ' over' : '')} role="button" tabIndex={0} aria-label="Choose the PDFs"
           onClick={() => !busy && input.current.click()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!busy) input.current.click(); } }}
           onDragEnter={drag(true)} onDragOver={drag(true)} onDragLeave={drag(false)} onDrop={e => { e.preventDefault(); setOver(false); if (!busy) add(e.dataTransfer.files); }}>
-          <input ref={input} type="file" multiple accept="application/pdf,.pdf" hidden onChange={e => { add(e.target.files); e.target.value = ''; }} />
-          <div className="drop-preview"><span className="drop-icon"><Icon id="download" size={24} /></span><b>Drop the PDFs here</b><small>or click to choose · up to 50 at a time · 40 MB each</small></div>
+          <input ref={input} type="file" multiple accept={ANY_ACCEPT} hidden onChange={e => { add(e.target.files); e.target.value = ''; }} />
+          <div className="drop-preview"><span className="drop-icon"><Icon id="download" size={24} /></span><b>Drop the PDFs here</b><small>or click to choose · PDF, JPG or PNG · up to 50 at a time · 40 MB each</small></div>
         </div>
         {files.length ? <ul className="bulk-list">{files.map(f => {
           const st = done[f.name];

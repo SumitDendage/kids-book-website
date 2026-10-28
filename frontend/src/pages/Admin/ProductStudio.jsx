@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/dashboard/Icon.jsx';
 import Pill from '../../components/dashboard/Pill.jsx';
 import Modal from '../../components/dashboard/Modal.jsx';
@@ -7,6 +7,7 @@ import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboar
 import { staffApi, staffFetch } from '../../services/api.js';
 import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, localInput, fromLocalInput } from './common.js';
 import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
+import { ANY_ACCEPT, isPdfFile, isPictureFile, pictureToPdf, pdfToPictures } from '../../services/fileConvert.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -27,40 +28,66 @@ export function uploadProblem(e, what) {
   return problem(e);
 }
 
-/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it */
+/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it. The box keeps
+   its size while a file is dragged over it (a count of enter and leave, so passing over its own
+   text does not make it flicker), and once a file is there it folds into one short line: a small
+   picture, the file's name and "Change" (Sumit, Oct 28). Both boxes take a PDF, JPG or PNG: a PDF
+   dropped on the cover gives its first page as the picture, and a picture dropped on the book file
+   becomes a one-page PDF (services/fileConvert.js). */
 function Drop({ kind, current, picked, onPick, toast, disabled }) {
   const input = useRef(null);
+  const depth = useRef(0);
   const [over, setOver] = useState(false);
-  const accept = f => {
-    if (!f) return;
-    const ok = kind === 'image' ? IMAGE_TYPES.includes(f.type) : (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-    if (!ok) { toast(kind === 'image' ? 'Choose a JPG, PNG or WebP picture' : 'Choose a PDF file'); return; }
-    if (f.size > (kind === 'image' ? IMAGE_MAX : PDF_MAX)) { toast(kind === 'image' ? 'That picture is over 5 MB' : 'That PDF is over 40 MB'); return; }
-    onPick(f);
+  const [making, setMaking] = useState(false);   /* turning a PDF into a picture, or a picture into a PDF */
+  const [from, setFrom] = useState('');          /* the name of the file it was made from */
+  const accept = async f => {
+    if (!f || making) return;
+    const pdfIn = isPdfFile(f);
+    if (!pdfIn && !isPictureFile(f)) { toast('Choose a PDF, JPG or PNG file'); return; }
+    if (f.size > PDF_MAX) { toast('That file is over 40 MB'); return; }
+    const same = kind === 'image' ? !pdfIn : pdfIn;
+    if (same) {
+      if (kind === 'image' && f.size > IMAGE_MAX) { toast('That picture is over 5 MB'); return; }
+      setFrom(''); onPick(f); return;
+    }
+    setMaking(true);
+    try {
+      const made = kind === 'image' ? (await pdfToPictures(f, { count: 1, maxBytes: IMAGE_MAX }))[0] : await pictureToPdf(f);
+      if (!made) throw new Error('empty');
+      setFrom(f.name); onPick(made);
+    } catch (_) { toast(kind === 'image' ? 'That PDF could not be turned into a cover picture' : 'That picture could not be turned into a PDF'); }
+    finally { setMaking(false); }
   };
-  const drag = on => e => { e.preventDefault(); if (!disabled) setOver(on); };
+  const off = disabled || making;
+  const enter = e => { e.preventDefault(); if (off) return; depth.current += 1; setOver(true); };
+  const leave = e => { e.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); };
+  const url = kind === 'image' ? (picked ? picked.url : current) : null;
+  const has = !!(picked || current);
   const zone = {
-    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (over ? ' over' : '') + (disabled ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: disabled ? -1 : 0, 'aria-disabled': disabled || undefined,
-    onClick: e => { if (!disabled && !e.target.closest('input')) input.current.click(); },
-    onKeyDown: e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current.click(); } },
-    onDragEnter: drag(true), onDragOver: drag(true), onDragLeave: drag(false),
-    onDrop: e => { e.preventDefault(); setOver(false); if (!disabled) accept(e.dataTransfer.files[0]); },
+    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (has || making ? ' compact' : '') + (over ? ' over' : '') + (off ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: off ? -1 : 0, 'aria-disabled': off || undefined, 'aria-busy': making || undefined,
+    onClick: e => { if (!off && !e.target.closest('input')) input.current.click(); },
+    onKeyDown: e => { if (!off && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current.click(); } },
+    onDragEnter: enter, onDragOver: e => { e.preventDefault(); if (off) e.dataTransfer.dropEffect = 'none'; }, onDragLeave: leave,
+    onDrop: e => { e.preventDefault(); depth.current = 0; setOver(false); if (!off) accept(e.dataTransfer.files[0]); },
+    'aria-label': kind === 'image' ? 'Choose the cover picture' : 'Choose the book file',
   };
-  const pick = <input ref={input} type="file" accept={kind === 'image' ? IMAGE_TYPES.join(',') : 'application/pdf,.pdf'} hidden onChange={e => { accept(e.target.files[0]); e.target.value = ''; }} />;
-  if (kind === 'image') {
-    const url = picked ? picked.url : current;
+  const pick = <input ref={input} type="file" accept={ANY_ACCEPT} hidden onChange={e => { accept(e.target.files[0]); e.target.value = ''; }} />;
+  if (has || making) {
+    const name = making ? 'Getting it ready…' : picked ? picked.file.name : kind === 'image' ? 'Cover picture' : 'PDF attached';
+    const note = making ? '' : picked ? size(picked.file.size) + (from ? ' · made from ' + from : '') + ' · uploads when you save' : kind === 'pdf' && current ? current : '';
     return (
-      <div {...zone} aria-label="Choose the cover picture">{pick}
-        <div className="drop-preview" style={url ? { backgroundImage: 'url("' + url + '")' } : undefined}>{url ? null : <><span className="drop-icon"><Icon id="image" size={28} /></span><b>Drop the cover picture here</b><small>or click to choose · JPG, PNG or WebP · up to 5 MB</small></>}</div>
-        <p className="drop-name">{picked ? picked.file.name + ' · ' + size(picked.file.size) + ' · uploads when you save' : current ? (disabled ? 'Cover picture' : 'Cover set. Drop a new one to replace it.') : ''}</p>
+      <div {...zone}>{pick}
+        <span className={'drop-thumb' + (url ? '' : ' icon')} style={url ? { backgroundImage: 'url("' + url + '")' } : undefined} aria-hidden="true">{url ? null : <Icon id={kind === 'image' ? 'image' : 'file'} size={20} />}</span>
+        <span className="drop-line"><b>{over ? 'Drop to replace it' : name}</b>{note ? <small>{note}</small> : null}</span>
+        {off ? null : <span className="drop-change">Change</span>}
       </div>
     );
   }
   return (
-    <div {...zone} aria-label="Choose the PDF">{pick}
-      <div className="drop-preview"><span className="drop-icon"><Icon id="file" size={24} /></span>
-        <b>{picked ? picked.file.name : current ? 'PDF attached' : 'Drop the PDF here'}</b>
-        <small>{picked ? size(picked.file.size) + ' · uploads when you save' : current ? current + (disabled ? '' : ' · drop a new file to replace it') : 'or click to choose · up to 40 MB'}</small></div>
+    <div {...zone}>{pick}
+      <div className="drop-preview"><span className="drop-icon"><Icon id={kind === 'image' ? 'image' : 'file'} size={kind === 'image' ? 28 : 24} /></span>
+        <b>{over ? 'Drop it here' : kind === 'image' ? 'Drop the cover here' : 'Drop the book file here'}</b>
+        <small>{kind === 'image' ? 'or click to choose · PDF, JPG or PNG' : 'or click to choose · PDF, JPG or PNG · up to 40 MB'}</small></div>
     </div>
   );
 }
@@ -71,6 +98,12 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
    preset = { cls, subject, section } for a new sheet started from a section. */
 export default function ProductStudio({ sheet, preset, all, classes, sections, subjectList, onSaved, onMade, onClose }) {
   const { toast, can, setEditing } = useDash();
+  /* a file dropped beside a drop box must not open in the browser and leave the form */
+  useEffect(() => {
+    const stop = e => { if (!(e.target.closest && e.target.closest('.drop')) && e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'none'; } };
+    addEventListener('dragover', stop); addEventListener('drop', stop);
+    return () => { removeEventListener('dragover', stop); removeEventListener('drop', stop); };
+  }, []);
   const it = sheet || {};
   const isNew = !sheet;
   const canWrite = can('catalogue.write'), canPrice = can('pricing.write'), canUpload = can('files.upload');
@@ -123,6 +156,19 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
   const classSections = useMemo(() => (newClass ? [] : sectionsOfClass(sections, cls)).slice().sort((a, b) => a.label.localeCompare(b.label)), [sections, cls, newClass]);
   const secIsNew = !!secName.trim() && !classSections.some(x => sameName(x.label, secName)) && !(it.section && sameName(secName, startSec));
 
+  /* page pictures: pictures as they are, and a PDF gives one picture per page (up to 50) */
+  const choosePagePics = async list => {
+    const out = []; let skipped = 0;
+    if (list.some(isPdfFile)) setBusy('Getting the pages ready…');
+    for (const f of list) {
+      if (isPictureFile(f) && !isPdfFile(f) && f.size <= IMAGE_MAX) out.push(f);
+      else if (isPdfFile(f) && f.size <= PDF_MAX) { try { out.push(...await pdfToPictures(f, { count: 50 - out.length, maxBytes: IMAGE_MAX })); } catch (_) { skipped++; } }
+      else skipped++;
+      if (out.length >= 50) break;
+    }
+    setBusy(''); setPagePics(out.slice(0, 50));
+    if (skipped) toast('Some files were skipped: use a PDF, JPG or PNG (pictures up to 5 MB)');
+  };
   const pickCover = f => { const r = new FileReader(); r.onload = () => setCover({ file: f, url: r.result }); r.readAsDataURL(f); };
   const v = k => (it[k] == null ? '' : it[k]);
   const err1 = k => (errs[k] ? <small className="bad">{errs[k]}</small> : null);
@@ -249,7 +295,7 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
             <Drop kind="image" current={it.thumb} picked={cover} onPick={pickCover} toast={toast} disabled={!!busy} />
             <Drop kind="pdf" current={it.available ? size(it.pdfBytes) : ''} picked={pdf} onPick={f => setPdf({ file: f })} toast={toast} disabled={!!busy} />
             <div className="field"><label htmlFor="psPics">Page pictures (optional)</label>
-              <input id="psPics" type="file" multiple accept={IMAGE_TYPES.join(',')} disabled={!!busy} onChange={e => { const fs = Array.from(e.target.files || []).filter(f => IMAGE_TYPES.includes(f.type) && f.size <= IMAGE_MAX); setPagePics(fs); if (fs.length !== (e.target.files || []).length) toast('Some files were skipped: use JPG, PNG or WebP up to 5 MB'); }} />
+              <input id="psPics" type="file" multiple accept={ANY_ACCEPT} disabled={!!busy} onChange={e => { choosePagePics(Array.from(e.target.files || [])); e.target.value = ''; }} />
               <div className="inline-field"><label htmlFor="psFirst">Starting at page</label><input id="psFirst" type="number" min="1" max="500" value={firstPage} onChange={e => setFirstPage(Math.max(1, parseInt(e.target.value, 10) || 1))} disabled={!!busy} /></div>
               <small>{pagePics.length ? plural(pagePics.length, 'picture') + ' for pages ' + firstPage + (pagePics.length > 1 ? ' to ' + (Number(firstPage) + pagePics.length - 1) : '') + ', uploaded when you save.' : donePages ? 'Pages with a picture: ' + (donePages.length ? donePages.join(', ') : 'none') + '.' : 'Pictures of each page, shown in the viewer. A new picture replaces the old one for that page.'}</small>
             </div>

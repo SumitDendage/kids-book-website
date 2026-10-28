@@ -16,6 +16,8 @@ const STAMP = Date.now().toString(36).slice(-4);
 const CLASS = process.env.E2E_CLASS || 'Class ' + (4 + (parseInt(STAMP, 36) % 90)), SUBJECT = 'Hindi ' + STAMP, SECTION = 'Story time ' + STAMP, TYPED = 'Poems ' + STAMP;
 fs.mkdirSync(SHOTS, { recursive: true });
 
+/* a small red PNG (8 x 10) */
+const tinyPng = name => { const f = path.join(SHOTS, name); fs.writeFileSync(f, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAKCAIAAAAGpYjXAAAAEUlEQVR4nGO4a2yMFTEMdwkAgilk8QWLfaMAAAAASUVORK5CYII=', 'base64')); return f; };
 function tinyPdf(name) {
   const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>'];
   let out = '%PDF-1.4\n'; const offs = [];
@@ -126,6 +128,35 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.locator('.studio button[aria-label="Close"]').click();
   });
 
+  await step('drop boxes keep their size while dragging and fold to one line after a drop', async () => {
+    await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
+    await page.locator('#psTitle').waitFor();
+    const box = page.locator('.drop[data-drop="image"]');
+    const h0 = (await box.boundingBox()).height;
+    const r = await box.evaluate(async el => {
+      const c = document.createElement('canvas'); c.width = 30; c.height = 40; c.getContext('2d').fillRect(0, 0, 30, 40);
+      const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+      const dt = new DataTransfer(); dt.items.add(new File([blob], 'cover.png', { type: 'image/png' }));
+      const fire = (t, type) => t.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      const inner = el.querySelector('b');
+      fire(el, 'dragenter'); fire(inner, 'dragenter'); fire(el, 'dragleave');   /* the pointer moves onto the box's own text */
+      await new Promise(res => setTimeout(res, 100));
+      const mid = { over: el.classList.contains('over'), h: el.getBoundingClientRect().height };
+      /* a drop beside the box must not open the file */
+      const outside = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }); document.querySelector('#psTitle').dispatchEvent(outside);
+      fire(inner, 'drop');
+      await new Promise(res => setTimeout(res, 300));
+      const after = document.querySelector('.drop[data-drop="image"]');
+      return { mid, outsideBlocked: outside.defaultPrevented, compact: after.classList.contains('compact'), h: after.getBoundingClientRect().height, text: after.innerText };
+    });
+    must(r.mid.over && Math.abs(r.mid.h - h0) < 1, 'the box changed while dragging: ' + JSON.stringify(r.mid) + ' vs ' + h0);
+    must(r.outsideBlocked, 'a drop beside the box was not stopped');
+    must(r.compact && r.h < 90 && /cover\.png/.test(r.text) && /Change/.test(r.text), 'not folded: ' + JSON.stringify(r));
+    await shot('02b-cover-dropped');
+    await page.locator('.studio button[aria-label="Close"]').click();
+    await sleep(400);
+  });
+
   await step('a new sheet makes a new class, subject and section', async () => {
     await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
     await page.locator('#psTitle').waitFor();
@@ -134,7 +165,10 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.fill('#psNewCls', CLASS);
     await page.fill('#psSubj', SUBJECT);
     await page.fill('#psTopic', SECTION);
-    await page.locator('.studio input[type=file][accept*="pdf"]').setInputFiles(tinyPdf('rhymes.pdf'));
+    /* a PNG on the book file box goes in as a one-page PDF (Sumit, Oct 28: PDF, JPG and PNG in every box) */
+    await page.locator('.drop[data-drop="pdf"] input[type=file]').setInputFiles(tinyPng('rhymes.png'));
+    await page.locator('.drop[data-drop="pdf"]', { hasText: 'made from rhymes.png' }).waitFor({ timeout: 20000 });
+    must(/rhymes\.pdf/.test(await page.locator('.drop[data-drop="pdf"]').innerText()), 'the picture was not turned into a PDF');
     await shot('03-new-class-on-a-sheet');
     await page.locator('.studio-actions button[type=submit]').click();
     await toast(/Saved|website/);
@@ -149,7 +183,7 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await toast(/Open on the website/);
     await page.locator('.br-sec', { hasText: SECTION }).click();
     await page.locator('.br-open-head button', { hasText: 'Upload PDFs' }).click();
-    await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('rhymes_part-1.pdf'), tinyPdf('rhymes_part-2.pdf')]);
+    await page.locator('.dm input[type=file]').setInputFiles([tinyPdf('rhymes_part-1.pdf'), tinyPng('rhymes_part-2.png')]);
     await page.fill('#buSubj', SUBJECT);
     await page.locator('.dm label.check', { hasText: 'Put them on the website now' }).click();
     await shot('05-upload-many');
@@ -169,12 +203,17 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.fill('#psSubj', 'English');
     await page.fill('#psTopic', TYPED);
     must(/New section/.test(await page.locator('#psTopic ~ small').innerText()), 'no new-section note');
-    await page.locator('.studio input[type=file][accept*="pdf"]').setInputFiles(tinyPdf('poems.pdf'));
+    await page.locator('.drop[data-drop="pdf"] input[type=file]').setInputFiles(tinyPdf('poems.pdf'));
+    /* a PDF on the cover box gives its first page as the cover picture */
+    await page.locator('.drop[data-drop="image"] input[type=file]').setInputFiles(tinyPdf('poems-cover.pdf'));
+    await page.locator('.drop[data-drop="image"]', { hasText: 'made from poems-cover.pdf' }).waitFor({ timeout: 20000 });
+    must(/poems-cover\.jpg/.test(await page.locator('.drop[data-drop="image"]').innerText()), 'the PDF was not turned into a cover picture');
     await shot('07-new-sheet-typed-section');
     await page.locator('.studio-actions button[type=submit]').click();
     await toast(/Saved|draft|website/);
-    const secs = (await catalogue()).sections || [];
+    const cat = await catalogue(), secs = cat.sections || [];
     must(secs.some(x => x.label === TYPED), 'the typed section was not made');
+    await page.waitForFunction(() => !document.querySelector('.studio [aria-busy="true"], .studio-actions button[disabled]'), null, { timeout: 20000 }).catch(() => {});
   });
 
   await step('the website lists the new class', async () => {
