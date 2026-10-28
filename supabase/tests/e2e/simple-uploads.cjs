@@ -126,6 +126,35 @@ const catalogue = async () => (await fetch(API + '/functions/v1/api/worksheets')
     await page.locator('.studio button[aria-label="Close"]').click();
   });
 
+  await step('drop boxes keep their size while dragging and fold to one line after a drop', async () => {
+    await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
+    await page.locator('#psTitle').waitFor();
+    const box = page.locator('.drop[data-drop="image"]');
+    const h0 = (await box.boundingBox()).height;
+    const r = await box.evaluate(async el => {
+      const c = document.createElement('canvas'); c.width = 30; c.height = 40; c.getContext('2d').fillRect(0, 0, 30, 40);
+      const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+      const dt = new DataTransfer(); dt.items.add(new File([blob], 'cover.png', { type: 'image/png' }));
+      const fire = (t, type) => t.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      const inner = el.querySelector('b');
+      fire(el, 'dragenter'); fire(inner, 'dragenter'); fire(el, 'dragleave');   /* the pointer moves onto the box's own text */
+      await new Promise(res => setTimeout(res, 100));
+      const mid = { over: el.classList.contains('over'), h: el.getBoundingClientRect().height };
+      /* a drop beside the box must not open the file */
+      const outside = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }); document.querySelector('#psTitle').dispatchEvent(outside);
+      fire(inner, 'drop');
+      await new Promise(res => setTimeout(res, 300));
+      const after = document.querySelector('.drop[data-drop="image"]');
+      return { mid, outsideBlocked: outside.defaultPrevented, compact: after.classList.contains('compact'), h: after.getBoundingClientRect().height, text: after.innerText };
+    });
+    must(r.mid.over && Math.abs(r.mid.h - h0) < 1, 'the box changed while dragging: ' + JSON.stringify(r.mid) + ' vs ' + h0);
+    must(r.outsideBlocked, 'a drop beside the box was not stopped');
+    must(r.compact && r.h < 90 && /cover\.png/.test(r.text) && /Change/.test(r.text), 'not folded: ' + JSON.stringify(r));
+    await shot('02b-cover-dropped');
+    await page.locator('.studio button[aria-label="Close"]').click();
+    await sleep(400);
+  });
+
   await step('a new sheet makes a new class, subject and section', async () => {
     await page.locator('.mn-head button', { hasText: 'Upload new book' }).click();
     await page.locator('#psTitle').waitFor();

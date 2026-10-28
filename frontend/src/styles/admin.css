@@ -342,6 +342,18 @@
 .drop:hover, .drop.over { border-color: var(--ring); background: var(--accent); }
 .drop-preview { aspect-ratio: 4 / 3; border-radius: calc(var(--radius) - 4px); background: var(--muted) center / cover no-repeat; display: grid; place-items: center; align-content: center; gap: 4px; text-align: center; padding: 14px; color: var(--foreground); }
 .drop.small .drop-preview { aspect-ratio: auto; padding: 18px 14px; }
+/* dragging over a box changes only its colour, never its size; the text inside lets the drag pass */
+.drop.over * { pointer-events: none; }
+.drop.over .drop-preview { background-color: transparent; }
+/* once a file is there the box folds into one short line */
+.drop.compact { display: flex; align-items: center; gap: 12px; padding: 8px 12px; min-height: 64px; border-style: solid; border-width: 1px; }
+.drop.compact.over { border-style: dashed; border-width: 1px; }
+.drop-thumb { flex: none; width: 48px; height: 48px; border-radius: calc(var(--radius) - 4px); background: var(--muted) center / cover no-repeat; display: grid; place-items: center; color: var(--muted-foreground); }
+.drop-line { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.drop-line b { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop-line small { font-size: 12px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop-change { flex: none; font-size: 13px; font-weight: 500; color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
+.drop.off .drop-change { display: none; }
 .drop-icon { color: var(--muted-foreground); }
 .drop-preview b { font-size: 14px; font-weight: 500; } .drop-preview small { font-size: 12px; color: var(--muted-foreground); }
 .drop-name { font-size: 12px; color: var(--muted-foreground); text-align: center; margin: 6px 0 0; min-height: 1em; }

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/dashboard/Icon.jsx';
 import Pill from '../../components/dashboard/Pill.jsx';
 import Modal from '../../components/dashboard/Modal.jsx';
@@ -27,9 +27,13 @@ export function uploadProblem(e, what) {
   return problem(e);
 }
 
-/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it */
+/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it. The box keeps
+   its size while a file is dragged over it (a count of enter and leave, so passing over its own
+   text does not make it flicker), and once a file is there it folds into one short line: a small
+   picture, the file's name and "Change" (Sumit, Oct 28). */
 function Drop({ kind, current, picked, onPick, toast, disabled }) {
   const input = useRef(null);
+  const depth = useRef(0);
   const [over, setOver] = useState(false);
   const accept = f => {
     if (!f) return;
@@ -38,29 +42,35 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
     if (f.size > (kind === 'image' ? IMAGE_MAX : PDF_MAX)) { toast(kind === 'image' ? 'That picture is over 5 MB' : 'That PDF is over 40 MB'); return; }
     onPick(f);
   };
-  const drag = on => e => { e.preventDefault(); if (!disabled) setOver(on); };
+  const enter = e => { e.preventDefault(); if (disabled) return; depth.current += 1; setOver(true); };
+  const leave = e => { e.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); };
+  const url = kind === 'image' ? (picked ? picked.url : current) : null;
+  const has = !!(picked || current);
   const zone = {
-    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (over ? ' over' : '') + (disabled ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: disabled ? -1 : 0, 'aria-disabled': disabled || undefined,
+    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (has ? ' compact' : '') + (over ? ' over' : '') + (disabled ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: disabled ? -1 : 0, 'aria-disabled': disabled || undefined,
     onClick: e => { if (!disabled && !e.target.closest('input')) input.current.click(); },
     onKeyDown: e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current.click(); } },
-    onDragEnter: drag(true), onDragOver: drag(true), onDragLeave: drag(false),
-    onDrop: e => { e.preventDefault(); setOver(false); if (!disabled) accept(e.dataTransfer.files[0]); },
+    onDragEnter: enter, onDragOver: e => { e.preventDefault(); if (disabled) e.dataTransfer.dropEffect = 'none'; }, onDragLeave: leave,
+    onDrop: e => { e.preventDefault(); depth.current = 0; setOver(false); if (!disabled) accept(e.dataTransfer.files[0]); },
+    'aria-label': kind === 'image' ? 'Choose the cover picture' : 'Choose the PDF',
   };
   const pick = <input ref={input} type="file" accept={kind === 'image' ? IMAGE_TYPES.join(',') : 'application/pdf,.pdf'} hidden onChange={e => { accept(e.target.files[0]); e.target.value = ''; }} />;
-  if (kind === 'image') {
-    const url = picked ? picked.url : current;
+  if (has) {
+    const name = picked ? picked.file.name : kind === 'image' ? 'Cover picture' : 'PDF attached';
+    const note = picked ? size(picked.file.size) + ' · uploads when you save' : kind === 'pdf' && current ? current : '';
     return (
-      <div {...zone} aria-label="Choose the cover picture">{pick}
-        <div className="drop-preview" style={url ? { backgroundImage: 'url("' + url + '")' } : undefined}>{url ? null : <><span className="drop-icon"><Icon id="image" size={28} /></span><b>Drop the cover picture here</b><small>or click to choose · JPG, PNG or WebP · up to 5 MB</small></>}</div>
-        <p className="drop-name">{picked ? picked.file.name + ' · ' + size(picked.file.size) + ' · uploads when you save' : current ? (disabled ? 'Cover picture' : 'Cover set. Drop a new one to replace it.') : ''}</p>
+      <div {...zone}>{pick}
+        <span className={'drop-thumb' + (url ? '' : ' icon')} style={url ? { backgroundImage: 'url("' + url + '")' } : undefined} aria-hidden="true">{url ? null : <Icon id={kind === 'image' ? 'image' : 'file'} size={20} />}</span>
+        <span className="drop-line"><b>{over ? 'Drop to replace it' : name}</b>{note ? <small>{note}</small> : null}</span>
+        {disabled ? null : <span className="drop-change">Change</span>}
       </div>
     );
   }
   return (
-    <div {...zone} aria-label="Choose the PDF">{pick}
-      <div className="drop-preview"><span className="drop-icon"><Icon id="file" size={24} /></span>
-        <b>{picked ? picked.file.name : current ? 'PDF attached' : 'Drop the PDF here'}</b>
-        <small>{picked ? size(picked.file.size) + ' · uploads when you save' : current ? current + (disabled ? '' : ' · drop a new file to replace it') : 'or click to choose · up to 40 MB'}</small></div>
+    <div {...zone}>{pick}
+      <div className="drop-preview"><span className="drop-icon"><Icon id={kind === 'image' ? 'image' : 'file'} size={kind === 'image' ? 28 : 24} /></span>
+        <b>{over ? 'Drop it here' : kind === 'image' ? 'Drop the cover picture here' : 'Drop the PDF here'}</b>
+        <small>{kind === 'image' ? 'or click to choose · JPG, PNG or WebP · up to 5 MB' : 'or click to choose · up to 40 MB'}</small></div>
     </div>
   );
 }
@@ -71,6 +81,12 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
    preset = { cls, subject, section } for a new sheet started from a section. */
 export default function ProductStudio({ sheet, preset, all, classes, sections, subjectList, onSaved, onMade, onClose }) {
   const { toast, can, setEditing } = useDash();
+  /* a file dropped beside a drop box must not open in the browser and leave the form */
+  useEffect(() => {
+    const stop = e => { if (!(e.target.closest && e.target.closest('.drop')) && e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'none'; } };
+    addEventListener('dragover', stop); addEventListener('drop', stop);
+    return () => { removeEventListener('dragover', stop); removeEventListener('drop', stop); };
+  }, []);
   const it = sheet || {};
   const isNew = !sheet;
   const canWrite = can('catalogue.write'), canPrice = can('pricing.write'), canUpload = can('files.upload');
