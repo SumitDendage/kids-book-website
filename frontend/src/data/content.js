@@ -111,7 +111,7 @@ export const THANKS = ['Books bhut aachi hai apki 💛 — Sanvi Gahlyan', 'Yes,
 export const WHYS = ['Why do foxes have such fluffy tails?', 'Why is the sky blue and not green?', 'Why do leaves change colour?', 'Why does the moon follow us home?', 'Why do rabbits have long ears?', 'Why does bread rise?', 'Why do we have to sleep?', 'Why is the sea salty?'];
 /* the first screen's lines (the admin's Content section can replace them) */
 export const HERO = {
-  badge: 'Small questions, extraordinary discoveries',
-  titleHtml: 'Every great adventure begins with <em>why</em>.',
-  lede: 'A little wonder for every learner. Beautiful printable activity sheets and playful worksheets from Kindergarten to Class 3 — for families, classrooms, and curious minds.',
+  badge: 'Big curiosity starts with little questions',
+  titleHtml: 'Little learners. <em>Big discoveries.</em>',
+  lede: 'Turn curious moments into confident learning. Explore playful, printable phonics, alphabet, maths and activity worksheets for Kindergarten to Class 3 — made for parents, teachers and little minds that love to ask why.',
 };
