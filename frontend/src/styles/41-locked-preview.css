@@ -1,0 +1,10 @@
+/* A paid sheet's picture is blurred until the customer has bought it (or has it in a plan):
+   shop cards, letter and picture tiles, the sheet window, the cart and the review notes.
+   Free sheets stay clear. The full sheet only ever opens in the protected viewer. */
+.pic-locked { position: relative; overflow: hidden; }
+.pic-locked img, img.pic-locked { filter: blur(9px) saturate(0.9); transform: scale(1.08); pointer-events: none; -webkit-user-drag: none; user-select: none; }
+.paper-mini.pic-locked img, img.pic-locked { filter: blur(3px); }
+.az-card .az-pic.pic-locked img, .rc-pic.pic-locked img { filter: blur(6px); }
+/* the words over the blurred page in the sheet window */
+.sheet-view.pic-locked { position: relative; }
+.sheet-view .lock-note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 18px; border-radius: 100px; background: rgba(20, 24, 28, 0.82); color: #fff; font-weight: 700; font-size: 0.95rem; white-space: nowrap; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
