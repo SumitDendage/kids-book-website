@@ -5,7 +5,7 @@ import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf, accessSpan } from '../../data/content.js';
 import Countdown from '../sheets/Countdown.jsx';
 import { dateTimeTz } from '../../utils/format.js';
-import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
+import { sheetState, openForText, printsLine, picLocked } from '../sheets/sheetAccess.js';
 import { CartButton } from '../sheets/SheetCard.jsx';
 import { StarRow } from '../reviews/Stars.jsx';
 import SheetRatings from '../reviews/SheetRatings.jsx';
@@ -45,7 +45,7 @@ function SheetDetail({ id }) {
   const span = accessSpan(it);
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const buyAgain = () => (site.buyAgain ? site.buyAgain(it.id) : (closeModal(), site.openCheckout({ worksheet: it.id, again: true })));
-  const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} />
+  const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} draggable={false} />
     : (
       <div className="sheet-mock" aria-hidden="true"><div className="brand"><b>Learn With Why</b><span>{it.subject}</span></div>
         <div className="boxes"><div><span className="glyph">{it.glyph}</span>{it.skills ? it.skills[0] : it.subject}</div><div><span className="pic">{it.pages ? it.pages : '✎'}</span>{it.pages ? 'A4 pages' : 'Activity'}</div></div>
@@ -73,7 +73,7 @@ function SheetDetail({ id }) {
             : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
   return (
     <>
-      <div className="sheet-view">{pic}</div>
+      <div className={'sheet-view' + (it.img && picLocked(st) ? ' pic-locked' : '')}>{pic}{it.img && picLocked(st) ? <span className="lock-note">🔒 Buy to see the whole sheet</span> : null}</div>
       <div className="sheet-info">
         <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3>{it.reviewCount && it.reviewAvg != null ? <p className="head-rating"><b>{it.reviewAvg.toFixed(1)}</b><StarRow value={it.reviewAvg} /><small>{it.reviewCount === 1 ? '1 review' : it.reviewCount + ' reviews'}</small></p> : null}</div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
         <p className="lead">{it.blurb}</p>

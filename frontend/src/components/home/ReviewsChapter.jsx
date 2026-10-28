@@ -4,6 +4,7 @@ import Rise from '../common/Rise.jsx';
 import { useSite } from '../../context/SiteContext.jsx';
 import { fetchReviews } from '../../services/api.js';
 import { sheetOf } from '../../data/catalogue.js';
+import { sheetState, picLocked } from '../sheets/sheetAccess.js';
 import { dateOf } from '../../utils/format.js';
 import { StarRow, StarBars } from '../reviews/Stars.jsx';
 import { QUOTES } from '../../data/content.js';
@@ -18,7 +19,7 @@ const initialsOf = name => String(name || '').replace(/[^A-Za-zÀ-ÿ]/g, '').sli
 const fromChat = QUOTES.map((q, i) => ({ id: 'q' + i, chat: true, body: q.text, name: q.who, meta: q.meta, initials: q.initials }));
 
 function ReviewNote({ r, n }) {
-  const { openSheet } = useSite();
+  const { openSheet, access } = useSite();
   const it = r.chat ? null : sheetOf(r.worksheet);
   return (
     <article className={'rv-note' + (r.chat ? ' chat' : '')} style={{ '--n': n % 6 }}>
@@ -28,7 +29,7 @@ function ReviewNote({ r, n }) {
       <div className="rv-note-foot">
         <span className="rv-who"><i aria-hidden="true">{r.initials || initialsOf(r.name)}</i><b>{r.name}</b></span>
         {r.chat ? (r.meta ? <span className="rv-sheet plain"><span>{r.meta}</span></span> : null) : it ? <button type="button" className="rv-sheet" onClick={() => openSheet(it.id)} aria-label={'Open ' + it.title}>
-          {it.img ? <img src={it.img} alt="" loading="lazy" /> : null}<span>{it.title}</span>
+          {it.img ? <img src={it.img} alt="" loading="lazy" draggable={false} className={picLocked(sheetState(access, it)) ? 'pic-locked' : undefined} /> : null}<span>{it.title}</span>
         </button> : r.worksheetTitle ? <span className="rv-sheet plain"><span>{r.worksheetTitle}</span></span> : null}
       </div>
     </article>
