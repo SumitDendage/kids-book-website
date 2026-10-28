@@ -15,7 +15,7 @@ export function pageEl(stage, n, total) {
 const shape = (cv, W, H) => { if (cv.parentElement && W > 0 && H > 0) cv.parentElement.style.aspectRatio = W + ' / ' + H; };
 
 let pdfjs = null;
-async function loadPdfjs() {
+export async function loadPdfjs() {
   if (!pdfjs) {
     const [lib, worker] = await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]);
     lib.GlobalWorkerOptions.workerSrc = worker.default;
