@@ -1,13 +1,14 @@
 /* ---------- the "Ask AI" assistant on the landing page (components/ai/) ----------
-   Built from the page's own pieces: the white round logo tile with a soft gold glow,
+   Built from the page's own pieces: the silver robot on a dark round button with a soft lilac glow,
    the tinted glass of the cards, Cormorant for the name, Inter for the words, white
    pill buttons, and the same easing. The panel slides in from the right over the page. */
 .ai-assistant { --ai-gold: #ffd977; --ai-mint: #a8f0c6; --ai-tint: 214, 184, 255; }
 
 /* the round button */
-.ai-fab { position: fixed; right: clamp(20px, 5vw, 72px); bottom: calc(54px + env(safe-area-inset-bottom)); z-index: 200; width: 60px; height: 60px; padding: 0; border: none; border-radius: 50%; background: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 30px rgba(0,0,0,0.35); transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), opacity var(--d-base), visibility 0s; animation: aiFabIn 0.8s var(--ease) backwards; }
-.ai-fab::before { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,217,119,0.32), 0 0 30px 6px rgba(255,217,119,0.5); animation: aiGlow 3.6s ease-in-out infinite; pointer-events: none; }
-.ai-fab img { width: 72%; height: auto; display: block; pointer-events: none; user-select: none; }
+.ai-fab { position: fixed; right: clamp(20px, 5vw, 72px); bottom: calc(54px + env(safe-area-inset-bottom)); z-index: 200; width: 60px; height: 60px; padding: 0; border: none; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #1d0f3d, #0a0120 72%); display: grid; place-content: center; justify-items: center; gap: 1px; cursor: pointer; box-shadow: 0 12px 30px rgba(0,0,0,0.35); transition: transform var(--d-base) var(--ease), box-shadow var(--d-base), opacity var(--d-base), visibility 0s; animation: aiFabIn 0.8s var(--ease) backwards; }
+.ai-fab::before { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(var(--ai-tint), 0.32), 0 0 30px 6px rgba(var(--ai-tint), 0.5); animation: aiGlow 3.6s ease-in-out infinite; pointer-events: none; }
+.ai-fab svg { width: 32px; height: 32px; display: block; pointer-events: none; }
+.ai-fab b { font: 800 9px/1 var(--font-body); letter-spacing: 0.16em; margin-right: -0.16em; color: #e6ecf7; pointer-events: none; user-select: none; }
 .ai-fab:hover { transform: scale(1.08); box-shadow: 0 16px 36px rgba(0,0,0,0.4); }
 .ai-fab:active { transform: scale(0.96); }
 .ai-fab:focus-visible { outline: 2px solid var(--ai-gold); outline-offset: 5px; }
@@ -22,7 +23,7 @@
 .ai-panel { position: fixed; right: clamp(16px, 3vw, 40px); bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 200; width: min(410px, calc(100vw - 32px)); height: min(620px, calc(100vh - 116px)); height: min(620px, calc(100dvh - 116px)); display: flex; flex-direction: column; overflow: hidden; color: var(--fg); font-family: var(--font-body); border-radius: var(--r-lg); border: 1px solid rgba(var(--ai-tint), 0.55); background: linear-gradient(165deg, rgba(var(--ai-tint), 0.26) 0%, rgba(10,22,30,0.6) 45%, rgba(8,18,26,0.74) 100%); box-shadow: 0 24px 60px rgba(4,10,16,0.45), inset 0 1px 0 rgba(255,255,255,0.3); backdrop-filter: blur(20px) saturate(1.15); transform-origin: bottom right; opacity: 0; visibility: hidden; transform: translateX(32px) scale(0.98); pointer-events: none; transition: opacity var(--d-base) var(--ease), transform 0.5s var(--ease), visibility var(--d-base); }
 .ai-panel.open { opacity: 1; visibility: visible; transform: none; pointer-events: auto; transition: opacity var(--d-base) var(--ease), transform 0.5s var(--ease), visibility 0s; }   /* visible at once, so the typing box can take focus */
 
-/* header: logo, name, Online, minimize, close */
+/* header: robot, name, Online, minimize, close */
 .ai-head { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
 .ai-head-text { flex: 1; min-width: 0; }
 .ai-name { margin: 0; font-family: var(--font-display); font-size: 1.32rem; font-weight: 600; line-height: 1.1; letter-spacing: 0.01em; color: var(--ai-gold); text-shadow: 0 1px 14px rgba(6,14,20,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -32,9 +33,9 @@
 .ai-head .icon-btn svg { width: 16px; height: 16px; }
 @keyframes aiOnline { 0% { box-shadow: 0 0 0 0 rgba(168,240,198,0.6); } 70%, 100% { box-shadow: 0 0 0 7px rgba(168,240,198,0); } }
 
-/* the logo in a white circle */
-.ai-avatar { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 2px rgba(255,217,119,0.35); }
-.ai-avatar img { width: 74%; height: auto; display: block; user-select: none; }
+/* the robot in a dark circle */
+.ai-avatar { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: #0a0120; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 2px rgba(var(--ai-tint), 0.35); }
+.ai-avatar svg { width: 76%; height: auto; display: block; }
 .ai-avatar.lg { width: 42px; height: 42px; }
 
 /* messages */
@@ -75,6 +76,8 @@
    --ai-vv-* (set while open) keep the input above the on-screen keyboard. */
 @media (max-width: 600px) {
   .ai-fab { width: 54px; height: 54px; bottom: calc(56px + env(safe-area-inset-bottom)); }
+  .ai-fab svg { width: 29px; height: 29px; }
+  .ai-fab b { font-size: 8px; }
   .ai-fab-tip { display: none; }
   .ai-panel { top: calc(var(--ai-vv-top, 0px) + max(10px, env(safe-area-inset-top))); left: 10px; right: 10px; bottom: auto; width: auto; height: calc(var(--ai-vv-h, 100dvh) - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom))); border-radius: 20px; }
   .ai-msg { max-width: 92%; }
