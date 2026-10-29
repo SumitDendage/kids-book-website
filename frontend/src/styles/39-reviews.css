@@ -144,6 +144,9 @@
 /* seven chapters in the menu bar (Reviews joined it): a little tighter until the screen is wide */
 @media (min-width: 1100px) and (max-width: 1439px) {
   .nav-link { padding: 8px 9px; font-size: 0.8rem; }
+}
+/* kept to the right: centred, the bar would run into the brand until the screen is this wide */
+@media (min-width: 1100px) and (max-width: 1599px) {
   .nav-links { left: auto; right: clamp(16px, 3vw, 48px); transform: translateY(-50%); }
 }
 @media (min-width: 1100px) and (max-width: 1259px) {
