@@ -78,7 +78,7 @@ export default function Homepage() {
     <Guard state={q} rows={6}>
       {q.error ? <ErrorNote error={q.error} onRetry={q.reload} compact /> : null}
       <section className="panel">
-        <div className="row-between"><div><p className="eyebrow">On the home page</p><p className="auth-sub">Rows of sheets under "Sheets" on the home page, in this order. Hidden rows and rows with no sheets do not show.</p></div>
+        <div className="row-between"><div><p className="eyebrow">On the home page</p><p className="auth-sub">Rows of sheets under "Worksheets" on the home page, in this order. Hidden rows and rows with no sheets do not show.</p></div>
           {canWrite ? <button type="button" className="btn btn-primary" onClick={() => setEdit({ placement: 'home' })}><Icon id="plus" />Add a row</button> : null}</div>
         <div className="sec-list">{home.map(row)}</div>
       </section>

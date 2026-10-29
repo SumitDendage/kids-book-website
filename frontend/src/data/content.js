@@ -11,7 +11,7 @@ export const INSTAGRAM = 'https://www.instagram.com/learnwithwhy_01';
    is meant to sit in the page: it can only send notes to that one inbox. */
 export const WEB3FORMS_KEY = '5b22ccce-85d2-48af-82e1-6523e1b2bd87';
 
-export const NAV = ['Home', 'About us', 'What we do', 'Sheets', 'Contact us', 'Reviews', 'Testimonials'];
+export const NAV = ['Home', 'About us', 'What we do', 'Worksheets', 'Contact us', 'Reviews', 'Testimonials'];
 /* the chapter anchors: /#home, /#about, … /#testimonials */
 export const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'reviews', 'testimonials'];
 
