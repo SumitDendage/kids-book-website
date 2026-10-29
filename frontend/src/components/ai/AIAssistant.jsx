@@ -11,7 +11,7 @@ let lastId = 0;
 const note = (from, text, file) => ({ id: ++lastId, from, text, file });
 const fresh = () => [note('ai', AI_WELCOME)];
 
-/* The "Ask AI" helper: a round logo button at the bottom right that opens a chat
+/* The "Ask AI" helper: a round robot button at the bottom right that opens a chat
    panel over the landing page (no new address; the page stays behind it).
    It shows on the landing page only, once the opening veil has lifted.
    Minimize keeps the conversation; Close ends it and starts fresh next time. */
