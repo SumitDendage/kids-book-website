@@ -15,6 +15,9 @@ RedirectMatch 404 ^/_live(/|$)
   # The backend API is never answered by the React app.
   RewriteRule ^api(/|$) - [L]
 
+  # The old square icon may still be on the server (the copy job never deletes): send it to the round one.
+  RewriteRule ^favicon\.svg$ /favicon-192.png [R=301,L]
+
   # Real files and folders are served as they are: assets, fonts, frames,
   # preview frames, sheet thumbnails, robots.txt, sitemap.xml, viewer.html, ...
   RewriteCond %{REQUEST_FILENAME} -f [OR]
