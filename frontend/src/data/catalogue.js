@@ -367,9 +367,10 @@ export const homeRows = () => {
 };
 /* display order: the order staff set (Admin → Products), then the site's own order */
 export const byOrder = (a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9);
-/* the sections staff added in Admin → Categories, and the website's own topics outside Alphabet and
-   Vocabulary, that have sheets: the shop lists them under "More sections" */
-export const extraSections = () => SERVER.sections.filter(x => x.group !== 'alpha' && x.group !== 'vocab')
+/* the sections staff added in Admin (also new sub-sections of Alphabet and Vocabulary, which their
+   boards do not draw), and the website's own topics outside Alphabet and Vocabulary, that have
+   sheets: the shop lists them under "More sections" */
+export const extraSections = () => SERVER.sections.filter(x => !x.builtin || (x.group !== 'alpha' && x.group !== 'vocab'))
   .map(x => ({ ...x, list: topicSheets(x.id).filter(it => it.pdf) }))
   /* a website topic joins the list once staff put a sheet in it (its own sheets are shown elsewhere already) */
   .filter(x => x.list.length && (!x.builtin || x.list.some(it => it.dynamic || it.movedTo === x.id)));

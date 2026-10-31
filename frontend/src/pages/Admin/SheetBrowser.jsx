@@ -6,7 +6,8 @@ import { useDash } from '../Portal/DashContext.js';
 import { inr, plural, problem, fieldErrors, size } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 import { VISIBILITY, VISIBILITY_TONE, visibilityOf } from './common.js';
-import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
+import { ensurePlace, sectionFields, sectionsOfClass, sameName, OTHER } from './place.js';
+import SectionPicker, { placeOf, placeProblem } from './SectionPicker.jsx';
 import { sendRaw, uploadProblem } from './ProductStudio.jsx';
 import { ANY_ACCEPT, isPdfFile, isPictureFile, pictureToPdf } from '../../services/fileConvert.js';
 
@@ -75,7 +76,7 @@ export default function SheetBrowser({ all, classes, sections, subjectList, onEd
     catch (e) { toast(problem(e)); }
     setBusy(false);
   };
-  const preset = x => ({ cls: cur.id, subject: subject !== 'all' ? subject : '', sectionLabel: x && x.id ? x.label : '' });
+  const preset = x => ({ cls: cur.id, subject: subject !== 'all' ? subject : '', section: x && x.id ? x.id : '', sectionLabel: x && x.id ? x.label : '' });
   const live = list => list.filter(s => visibilityOf(s) === 'published').length;
   const sheetCard = s => {
     const vis = visibilityOf(s);
@@ -165,8 +166,9 @@ function NameDialog({ title, label, placeholder, note, start = '', onSave, onClo
   );
 }
 
-/* many PDFs at once: each file becomes a sheet in the section, named after the file. They are saved
+/* many PDFs at once: each file becomes a sheet in the sub-section, named after the file. They are saved
    as drafts unless "Put them on the website now" is ticked. A file that fails is listed; the rest go on.
+   The section and sub-section start as the one it was opened from and can be changed in their drop lists.
    make = "Add section": the section's name comes first and the PDFs are optional. */
 function BulkUpload({ make, cls, section, sections, classes, subjects, subjectList, startSubject, onSaved, onMade, onSection, onClose }) {
   const { can, toast } = useDash();
@@ -175,7 +177,9 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
   const [files, setFiles] = useState([]);
   const [over, setOver] = useState(false);
   const [subject, setSubject] = useState(startSubject || subjects[0] || '');
-  const [secName, setSecName] = useState(section ? section.label : '');
+  const [secName, setSecName] = useState(section ? section.label : '');   /* "Add section" */
+  const [where, setWhere] = useState(() => placeOf(sections, section && section.id));
+  const [placeErrs, setPlaceErrs] = useState({});
   const [free, setFree] = useState(false), [price, setPrice] = useState('19');
   const [publish, setPublish] = useState(false);
   const [busy, setBusy] = useState(false), [err, setErr] = useState(null);
@@ -194,12 +198,15 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
     if (make && !secName.trim()) { setBad('Type a name for the section.'); return; }
     if (make && !made && classSecs.some(x => sameName(x.label, secName))) { setBad(cls.name + ' already has a section called "' + secName.trim() + '".'); return; }
     if (!make && !files.length) { setErr('Choose the PDFs first.'); return; }
+    const placeBad = !make && placeProblem(where);
+    setPlaceErrs(placeBad || {});
+    if (placeBad) return;
     if (!subject.trim()) { setErr('Pick or type a subject.'); return; }
     const p = free ? 0 : Number(price);
     if (canPrice && !free && !(Number.isInteger(p) && p >= 0)) { setErr('Enter the price in whole rupees.'); return; }
     setBusy(true); setErr(null); setBad('');
     let place;
-    try { place = await ensurePlace({ classes, subjects: subjectList, sections: made ? sections.concat(made) : sections, cls: cls.id, subject, section: secName }, onMade); }
+    try { place = await ensurePlace({ classes, subjects: subjectList, sections: made ? sections.concat(made) : sections, cls: cls.id, subject, ...(make ? { group: OTHER, newSub: secName } : where) }, onMade); }
     catch (x) { setErr(problem(x)); setBusy(false); return; }
     if (make && place.section && !made) { setMade(place.section); if (onSection) onSection(place.section.id); }
     if (!files.length) { setBusy(false); toast('Section "' + place.section.label + '" added. Add its sheets any time.'); onClose(); return; }
@@ -243,12 +250,12 @@ function BulkUpload({ make, cls, section, sections, classes, subjects, subjectLi
             {st === 'ok' ? <Pill tone="ok">Added</Pill> : st === 'working' ? <Pill tone="info">Uploading…</Pill> : st ? <small className="bad">{st}</small>
               : busy ? null : <button type="button" className="link danger" onClick={() => setFiles(l => l.filter(x => x !== f))}>Remove</button>}</li>;
         })}</ul> : null}
+        {make ? null : <fieldset className="fs plain" disabled={busy}><div className="grid-3">
+          <SectionPicker id="bu" sections={sections} cls={cls.id} value={where} onChange={v => { setWhere(v); setPlaceErrs({}); }} errs={placeErrs} />
+        </div></fieldset>}
         <div className="grid-3">
           <div className="field"><label htmlFor="buSubj">Subject</label><input id="buSubj" list="buSubjList" value={subject} onChange={e => setSubject(e.target.value)} disabled={busy} maxLength={40} autoComplete="off" />
             <datalist id="buSubjList">{subjects.map(x => <option key={x} value={x} />)}</datalist></div>
-          {make ? null : <div className="field"><label htmlFor="buSec">Section</label><input id="buSec" list="buSecList" value={secName} onChange={e => setSecName(e.target.value)} disabled={busy} maxLength={60} placeholder="Pick or type a new one" autoComplete="off" />
-            <datalist id="buSecList">{classSecs.map(x => <option key={x.id} value={x.label} />)}</datalist>
-            <small>{secName.trim() && !classSecs.some(x => sameName(x.label, secName)) ? 'A new section is made.' : ''}</small></div>}
           <div className="field"><label htmlFor="buPrice">Price ₹ each</label><input id="buPrice" type="number" min="0" step="1" value={free ? '0' : price} onChange={e => setPrice(e.target.value)} disabled={busy || free || !canPrice} />
             <label className="check"><input type="checkbox" checked={free} onChange={e => setFree(e.target.checked)} disabled={busy || !canPrice} />Free</label></div>
         </div>

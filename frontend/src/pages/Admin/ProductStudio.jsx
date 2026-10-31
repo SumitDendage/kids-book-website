@@ -6,7 +6,8 @@ import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
 import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, localInput, fromLocalInput } from './common.js';
-import { ensurePlace, sectionFields, sectionsOfClass, sameName } from './place.js';
+import { ensurePlace, sectionFields } from './place.js';
+import SectionPicker, { NO_PLACE, placeOf, placeProblem, placePath } from './SectionPicker.jsx';
 import { ANY_ACCEPT, isPdfFile, isPictureFile, pictureToPdf, pdfToPictures } from '../../services/fileConvert.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
@@ -94,8 +95,9 @@ function Drop({ kind, current, picked, onPick, toast, disabled }) {
 
 /* "Upload new book" / "Edit book": cover and PDF, page pictures, details, where it goes, price,
    access and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its
-   PDF is uploaded. The class, subject and section can be picked or typed new (made on save).
-   preset = { cls, subject, section } for a new sheet started from a section. */
+   PDF is uploaded. Where it goes is the website's menu: class › section › sub-section, each picked
+   from a list or typed new (made on save), plus its subject.
+   preset = { cls, subject, section } for a new sheet started from a sub-section (section = its id). */
 export default function ProductStudio({ sheet, preset, all, classes, sections, subjectList, onSaved, onMade, onClose }) {
   const { toast, can, setEditing } = useDash();
   /* a file dropped beside a drop box must not open in the browser and leave the form */
@@ -135,12 +137,18 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
   const [when] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
   const [labels, setLabels] = useState(() => new Set((it.tags || []).filter(t => LABELS.some(([x]) => x === t) || t === HOME_TAG)));
   const toggleLabel = t => setLabels(cur => { const n = new Set(cur); if (n.has(t)) n.delete(t); else n.add(t); return n; });
-  /* where it goes: a class (or a new one), a subject and a section, picked or typed */
+  /* where it goes: a class (or a new one), a section and a sub-section in it, picked or typed */
   const start = isNew ? (preset || {}) : {};
   const [cls, setCls] = useState(it.cls || start.cls || (classes[0] && classes[0].id) || 'kg');
   const [newClass, setNewClass] = useState('');
-  const startSec = it.section ? (it.sectionLabel || ((sections || []).find(x => x.id === it.section) || {}).label || it.section) : (start.sectionLabel || '');
-  const [secName, setSecName] = useState(startSec);
+  /* the sheet's own sub-section is listed even if the server's list does not have it */
+  const pickList = useMemo(() => {
+    const list = sections || [];
+    if (!it.section || list.some(x => x.id === it.section)) return list;
+    const mate = it.group ? list.find(x => x.group === it.group) : null;
+    return list.concat({ id: it.section, label: it.sectionLabel || it.section, group: it.group || null, groupLabel: mate ? mate.groupLabel : null, cls: it.cls, sort: 0 });
+  }, [sections, it.section, it.sectionLabel, it.group, it.cls]);
+  const [where, setWhere] = useState(() => placeOf(pickList, isNew ? start.section : it.section));
   /* live preview of the shop card */
   const [look, setLook] = useState({ title: it.title || '', short: it.shortDescription || '' });
 
@@ -152,9 +160,9 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
     return list;
   }, [subjectList, all, it.subject]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
-  /* the sections of the chosen class, to pick from (a new class has none yet) */
-  const classSections = useMemo(() => (newClass ? [] : sectionsOfClass(sections, cls)).slice().sort((a, b) => a.label.localeCompare(b.label)), [sections, cls, newClass]);
-  const secIsNew = !!secName.trim() && !classSections.some(x => sameName(x.label, secName)) && !(it.section && sameName(secName, startSec));
+  /* "Kindergarten › Alphabet › A-Z Letter Tracing" under the drop lists */
+  const className = cls === '+new' ? newClass.trim() || 'New class' : (classes.find(c => c.id === cls) || { name: cls }).name;
+  const path = placePath(className, pickList, cls, where);
 
   /* page pictures: pictures as they are, and a PDF gives one picture per page (up to 50) */
   const choosePagePics = async list => {
@@ -202,6 +210,8 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
     if (canWrite && !body.title) { setErrs({ title: 'Give the sheet a title.' }); return; }
     if (canWrite && !body.subject) { setErrs({ subject: 'Give the sheet a subject.' }); return; }
     if (canWrite && cls === '+new' && !newClass.trim()) { setErrs({ cls: 'Type the name of the new class, e.g. Class 4.' }); return; }
+    const placeBad = canWrite && placeProblem(where);
+    if (placeBad) { setErrs(placeBad); return; }
     if (canWrite && canPrice && !free && (finalPrice == null || !(finalPrice >= 0) || !Number.isInteger(finalPrice))) { setErrs({ price: 'Enter the selling price in whole rupees.' }); return; }
     if (canWrite && canPrice && pct !== '' && !(num(pct) >= 0 && num(pct) <= 100)) { setErrs({ pct: 'A discount is from 0 to 100%.' }); return; }
     if (canWrite && vis === 'scheduled' && !(fromLocalInput(when) > Date.now())) { setErrs({ publishAt: 'Pick a time in the future.' }); return; }
@@ -211,13 +221,11 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
     try {
       if (canWrite) {
         step = 'details'; setBusy('Saving…');
-        /* a new class, subject or section is made first */
-        const sameSec = !isNew && it.section && cls === it.cls && sameName(secName, startSec);
-        const place = await ensurePlace({ classes, subjects: subjectList, sections, cls: cls === '+new' ? '' : cls, newClass: cls === '+new' ? newClass : '', subject: body.subject, section: sameSec ? '' : secName }, onMade);
+        /* a new class, subject, section or sub-section is made first; the sheet's own sub-section stays as it is when it was not changed */
+        const keep = !isNew && it.section && cls === it.cls && where.sub === it.section;
+        const place = await ensurePlace({ classes, subjects: subjectList, sections: pickList, cls: cls === '+new' ? '' : cls, newClass: cls === '+new' ? newClass : '', subject: body.subject, ...(keep ? NO_PLACE : where) }, onMade);
         if (cls === '+new') { setCls(place.cls); setNewClass(''); }
-        /* the sheet's own section stays when its name was not changed */
-        const keepSec = !isNew && it.section && place.cls === it.cls && sameName(secName, startSec) ? { id: it.section, group: it.group, label: it.sectionLabel || startSec } : null;
-        Object.assign(body, { cls: place.cls, subject: place.subject }, sectionFields(keepSec || place.section));
+        Object.assign(body, { cls: place.cls, subject: place.subject }, sectionFields(keep ? { id: it.section, group: it.group, label: it.sectionLabel || it.section } : place.section));
         setBusy(isNew ? 'Saving the draft…' : 'Saving…');
         ws = (isNew ? await staffApi('POST', '/api/admin/worksheets', body) : await staffApi('PUT', '/api/admin/worksheets/' + encodeURIComponent(it.id), body)).worksheet;
       }
@@ -280,7 +288,7 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
   return (
     <section className="panel studio" aria-label={isNew ? 'Upload new book' : 'Edit ' + it.title}>
       <div className="row-between"><div><p className="eyebrow">{isNew ? 'Upload new book' : canWrite ? 'Edit book' : 'Book'}</p>
-        <p className="auth-sub">{isNew ? 'Drop the PDF and the cover, give it a title, pick or type its section, then save.' : it.title}</p></div>
+        <p className="auth-sub">{isNew ? 'Drop the PDF and the cover, give it a title, pick its class, section and sub-section, then save.' : it.title}</p></div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} disabled={!!busy}><Icon id="x" /></button></div>
       {!isNew ? <div className="studio-status">
         <Pill tone={SHEET_TONE[status]}>{SHEET_STATUS_LABEL[status]}</Pill>
@@ -325,14 +333,15 @@ export default function ProductStudio({ sheet, preset, all, classes, sections, s
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Where it goes on the website</legend>
             <div className="grid-3">
-              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" value={cls} onChange={e => setCls(e.target.value)} aria-invalid={!!errs.cls}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}<option value="+new">+ New class…</option></select>
+              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" value={cls} onChange={e => { setCls(e.target.value); setWhere(NO_PLACE); }} aria-invalid={!!errs.cls}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}<option value="+new">+ New class…</option></select>
                 {cls === '+new' ? <input id="psNewCls" aria-label="New class name" value={newClass} onChange={e => setNewClass(e.target.value)} placeholder="e.g. Class 4" maxLength={40} autoFocus /> : null}
                 <small>{cls === '+new' ? 'Made when you save. It shows as "Coming soon" until you open it.' : 'Pick the class, or "+ New class" to add one.'}</small>{err1('cls')}</div>
+              <SectionPicker id="ps" sections={pickList} cls={cls} newClass={cls === '+new'} value={where} onChange={x => { setWhere(x); setErrs(({ group, sub, section, ...rest }) => rest); }} errs={{ group: errs.group, sub: errs.sub || errs.section }} />
+            </div>
+            <p className="place-path">On the website: <b>{path}</b>{where.group ? '' : ' (the class shelf only)'}</p>
+            <div className="grid-3">
               <div className="field"><label htmlFor="psSubj">Subject</label><input id="psSubj" name="subject" list="psSubjList" defaultValue={v('subject') || start.subject || (isNew ? subjects[0] || '' : '')} placeholder="e.g. English" maxLength={40} autoComplete="off" aria-invalid={!!errs.subject} />
                 <datalist id="psSubjList">{subjects.map(x => <option key={x} value={x} />)}</datalist><small>Pick one, or type a new subject.</small>{err1('subject')}</div>
-              <div className="field"><label htmlFor="psTopic">Section</label><input id="psTopic" list="psTopicList" value={secName} onChange={e => setSecName(e.target.value)} placeholder="e.g. Story time" maxLength={60} autoComplete="off" />
-                <datalist id="psTopicList">{classSections.map(x => <option key={x.id} value={x.label} />)}</datalist>
-                <small>{secIsNew ? 'New section "' + secName.trim() + '" is made when you save.' : secName.trim() ? 'Goes into this section.' : 'Pick a section or type a new name. Empty: the class shelf only.'}</small>{err1('section')}</div>
               <div className="field"><label htmlFor="psFor">For</label><select id="psFor" name="audience" defaultValue={it.audience || ''}><option value="">Everyone</option><option value="both">Parents and teachers</option><option value="parent">Parents</option><option value="teacher">Teachers</option></select></div>
             </div>
           </fieldset>
