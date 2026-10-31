@@ -557,6 +557,8 @@
 .dash .seg-opt:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 1px; }
 .dash .price-sum { margin: 2px 0 14px; font-size: 14px; color: var(--muted-foreground); }
 .dash .price-sum b { color: var(--foreground); }
+.dash .place-path { margin: -4px 0 16px; font-size: 14px; color: var(--muted-foreground); }
+.dash .place-path b { color: var(--foreground); font-weight: 600; }
 .dash .label-picks { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .dash .label-picks .pick { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px dashed var(--input); border-radius: calc(var(--radius) - 2px); cursor: pointer; }
 .dash .label-picks .pick.on { border-style: solid; border-color: var(--primary); background: color-mix(in oklab, var(--primary) 10%, transparent); }
