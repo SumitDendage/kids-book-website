@@ -149,7 +149,7 @@
 },
 {
 "q": "How do I find free sheets?",
-"a": "Choose the Free view in the shop. Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Choose the Free view in the shop. Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes, Animals, Animal Babies, Body Parts and Fruits in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Show me the free worksheets"
 ],
@@ -198,7 +198,7 @@
 },
 {
 "q": "How many worksheets are free?",
-"a": "Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes, Animals, Animal Babies, Body Parts and Fruits in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Are all worksheets free?",
 "Which two sheets are free?",
@@ -215,7 +215,7 @@
 },
 {
 "q": "Is the entire A–Z alphabet collection free?",
-"a": "No. Alphabet A and B tracing are the free alphabet samples (plus the first three Colours and first three Shapes sheets in Vocabulary). The remaining letters are paid unless your active class plan gives you access.",
+"a": "No. Alphabet A and B tracing are the free alphabet samples (plus the first three sheets of each Vocabulary topic that has sheets). The remaining letters are paid unless your active class plan gives you access.",
 "alt": [
 "Are all 26 letters free?",
 "Is Alphabet C free?"
@@ -2415,16 +2415,18 @@
 },
 {
 "q": "What is in Vocabulary?",
-"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours, Shapes, Sizes and Animals have 10 sheets each. The first three Colours and Shapes sheets are free, with no sign-in needed. Sizes and Animals are paid. The other topics say Coming soon.",
+"a": "Vocabulary is a Kindergarten section after Alphabet. It has picture cards for 12 topics. Colours, Shapes, Sizes, Animals, Animal Babies, Body Parts and Fruits have 10 sheets each. The first three sheets of each are free, with no sign-in needed. The other topics say Coming soon.",
 "alt": [
 "Colours and shapes sheets",
 "Do you have colour sheets?",
-"Do you have shapes worksheets?"
+"Do you have shapes worksheets?",
+"Do you have fruits worksheets?"
 ],
 "kw": [
 "vocabulary",
 "colours",
-"shapes"
+"shapes",
+"fruits"
 ]
 }
 ]
