@@ -82,7 +82,7 @@ export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'eleph
    Alphabet A and B tracing stay free (not on his list).
    Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
    FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
-export const FREE_PDFS = ['az-A', 'az-B', 'cl-A', 'cl-B', 'cl-C', 'mt-AE', 'mt-FJ', 'sp-AE', 'sp-FJ', 'sd-A', 'sd-B', 'bx-1', 'ex-1', 'vc-1', 'vc-2', 'vc-3', 'ms-U1', 'ms-L1', 'vs-1', 'vs-2', 'vs-3', 'vz-1', 'vz-2', 'vz-3', 'va-1', 'va-2', 'va-3', 'vp-1', 'vp-2', 'vp-3', 'vb-1', 'vb-2', 'vb-3'], SHEET_PRICE = 19;
+export const FREE_PDFS = ['az-A', 'az-B', 'cl-A', 'cl-B', 'cl-C', 'mt-AE', 'mt-FJ', 'sp-AE', 'sp-FJ', 'sd-A', 'sd-B', 'bx-1', 'ex-1', 'vc-1', 'vc-2', 'vc-3', 'ms-U1', 'ms-L1', 'vs-1', 'vs-2', 'vs-3', 'vz-1', 'vz-2', 'vz-3', 'va-1', 'va-2', 'va-3', 'vp-1', 'vp-2', 'vp-3', 'vb-1', 'vb-2', 'vb-3', 'vf-1', 'vf-2', 'vf-3'], SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
@@ -129,7 +129,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'vocab-animals': ['va'], 'vocab-body-parts': ['vp'], 'vocab-animal-babies': ['vb'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'vocab-animals': ['va'], 'vocab-body-parts': ['vp'], 'vocab-animal-babies': ['vb'], 'vocab-fruits': ['vf'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -142,7 +142,7 @@ export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.item
 export function topicSheets(id) {
   /* printable sets by id prefix, in the order TOPIC_SHEETS lists them; anything else is an item id */
   const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
-    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)), vz: () => VOCAB_NUMBERS.map(n => vocabItem('vz', n)), va: () => VOCAB_NUMBERS.map(n => vocabItem('va', n)), vp: () => VOCAB_NUMBERS.map(n => vocabItem('vp', n)), vb: () => VOCAB_NUMBERS.map(n => vocabItem('vb', n)) };
+    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)), vz: () => VOCAB_NUMBERS.map(n => vocabItem('vz', n)), va: () => VOCAB_NUMBERS.map(n => vocabItem('va', n)), vp: () => VOCAB_NUMBERS.map(n => vocabItem('vp', n)), vb: () => VOCAB_NUMBERS.map(n => vocabItem('vb', n)), vf: () => VOCAB_NUMBERS.map(n => vocabItem('vf', n)) };
   const out = [];
   /* a built-in sheet staff moved to another section (Admin → Products) leaves its own sections */
   (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !it.movedTo && !out.includes(it)) out.push(it); }); });
@@ -273,6 +273,18 @@ const VOCAB = {
     8: ['Who is my mommy?', 'I am a puppy, a kitten, a cub, a chick: read the baby name and circle its mommy.', 2],
     9: ['Who is my mommy? More babies', 'I am a calf, a lamb, a foal, a duckling: circle the correct mommy.', 2],
     10: ['Find the animal names', 'Find and circle the animal names hidden in the word search.', 2] } },
+  /* Fruits (Nov 1, Sumit's Fruits.zip); sheets 1 and 2 are one-page read-aloud charts */
+  vf: { name: 'Fruits', topic: 'vocab-fruits', folder: 'vocab-fruits', file: 'fruits', sheets: {
+    1: ['Read aloud', 'Say the names of eight fruits: apple, grapes, orange, watermelon, banana, pineapple, strawberry and cherry.', 1],
+    2: ['Read aloud: more fruits', 'Say the names of eight more fruits: papaya, kiwi, blueberries, fig, pear, peach, lemon and pomegranate.', 1],
+    3: ['Read and circle the correct fruit', 'Read each fruit name and circle its picture.', 2],
+    4: ['Match the fruit to its name', 'Draw a line from each fruit picture to its name.', 2],
+    5: ['Choose the fruit name', 'Look at each fruit and tick its correct name from three words.', 2],
+    6: ['Count the fruits', 'Count the fruits in each row and write the correct number.', 2],
+    7: ['True or false?', 'Read each sentence about fruits and tick true or false.', 2],
+    8: ['Fill in the missing letters', 'Complete the fruit names by writing the missing letters.', 2],
+    9: ['Cut and paste the names', 'Cut out the fruit names and paste each one under its picture.', 2],
+    10: ['Find the fruit names', 'Find and circle the fruit names hidden in the word search.', 2] } },
 };
 const lowerFirst = t => /^(I |2D|B )/.test(t) ? t : t[0].toLowerCase() + t.slice(1);   /* "I spy", "2D" and "B or S" keep their capitals */
 export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = VOCAB[set], s = v.sheets[n], id = set + '-' + n, price = sheetPrice(id);
@@ -283,17 +295,17 @@ export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = 
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
   MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])),
   SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem), MS_CODES.map(msItem),
-  VOCAB_NUMBERS.map(n => vocabItem('vc', n)), VOCAB_NUMBERS.map(n => vocabItem('vs', n)), VOCAB_NUMBERS.map(n => vocabItem('vz', n)), VOCAB_NUMBERS.map(n => vocabItem('va', n)), VOCAB_NUMBERS.map(n => vocabItem('vp', n)), VOCAB_NUMBERS.map(n => vocabItem('vb', n)));
+  VOCAB_NUMBERS.map(n => vocabItem('vc', n)), VOCAB_NUMBERS.map(n => vocabItem('vs', n)), VOCAB_NUMBERS.map(n => vocabItem('vz', n)), VOCAB_NUMBERS.map(n => vocabItem('va', n)), VOCAB_NUMBERS.map(n => vocabItem('vp', n)), VOCAB_NUMBERS.map(n => vocabItem('vb', n)), VOCAB_NUMBERS.map(n => vocabItem('vf', n)));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-const vocabOf = id => { const m = /^(vc|vs|vz|va|vp|vb)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
-const sheetOfRaw = id => /^v[cszapb]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+const vocabOf = id => { const m = /^(vc|vs|vz|va|vp|vb|vf)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
+const sheetOfRaw = id => /^v[cszapbf]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
 export const sheetOf = id => { try { const known = itemById(id); return known && known.dynamic ? known : sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
 /* only sheets with a real PDF are listed: the Colours and Shapes sheets are the newest, then the missing-letter and sound sheets; the A to Z set the favourites */
-export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vp-' + n), ...VOCAB_NUMBERS.map(n => 'vb-' + n), ...VOCAB_NUMBERS.map(n => 'va-' + n), ...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), ...VOCAB_NUMBERS.map(n => 'vz-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
+export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vf-' + n), ...VOCAB_NUMBERS.map(n => 'vp-' + n), ...VOCAB_NUMBERS.map(n => 'vb-' + n), ...VOCAB_NUMBERS.map(n => 'va-' + n), ...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), ...VOCAB_NUMBERS.map(n => 'vz-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
 export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
 /* the four sheets in the Sheets chapter's preview carousel */
 export const PLAYER_IDS = ['az-A', 'rc-A', 'cl-C', 'bx-1'];   /* the reading charts are A, I, N, P, S and T */
