@@ -6,7 +6,7 @@ import { subjectMatches } from './SheetCard.jsx';
 import Rise from '../common/Rise.jsx';
 import SheetCard from './SheetCard.jsx';
 import { AzTile } from './SheetTiles.jsx';
-import KgTopics, { kgSheetCount, alphaSheetCount, vocabSheetCount } from './KgTopics.jsx';
+import KgTopics, { PhonicsBoard, kgSheetCount, alphaSheetCount, vocabSheetCount, phonSheetCount } from './KgTopics.jsx';
 import VocabBoard from './VocabBoard.jsx';
 import vocabIcon from '../../assets/vocab/colours.webp';
 
@@ -79,11 +79,20 @@ export default function Shelf() {
     </button>
   );
 
+  /* Phonics, a row of its own after Vocabulary (Sumit, Nov 3: "make section like a vocab for phonics") */
+  const phonRow = (
+    <button key="phon" type="button" className={'side-item side-vocab' + (cat === 'phon' ? ' on' : '')} aria-current={cat === 'phon' ? 'true' : 'false'} onClick={() => pick('phon')}>
+      <span className="ic" aria-hidden="true">Ph</span><span className="lbl"><b>Phonics</b></span><span className="n">{phonSheetCount()}</span>
+    </button>
+  );
+
   let row = null, count;
   if (cat === 'kg') {   /* Kindergarten is organised by the content plan above — nothing to repeat here */
     count = 'Alphabet · ' + KG_TOPICS.find(g => g.id === 'alpha').items.length + ' sub-categories · ' + alphaSheetCount() + ' sheets';
   } else if (cat === 'vocab') {
     count = 'Vocabulary · ' + KG_TOPICS.find(g => g.id === 'vocab').items.length + ' topics · ' + vocabSheetCount() + ' sheets';
+  } else if (cat === 'phon') {
+    count = 'Phonics · ' + KG_TOPICS.find(g => g.id === 'phon').items.length + ' sections · ' + phonSheetCount() + ' sheets';
   } else if (soon(cat)) {
     row = <div className="ws-soon"><b>Coming soon</b><p>We are making {classById(cat).label} worksheets right now. Until then, Kindergarten has {kgSheetCount()} printable sheets ready.</p><button type="button" className="btn btn-primary" onClick={() => pick('kg')}>See Kindergarten sheets →</button></div>;
     count = classById(cat).label + ' · coming soon';
@@ -106,15 +115,15 @@ export default function Shelf() {
       <div className="ws-layout">
         <Rise as="aside" i={2} className="ws-side" id="chips" aria-label="Browse by class">
           <p className="side-title">By class</p>
-          {CLASSES.map(t => t.id === 'kg' ? [sideItem(t.id, t.label), ...kgParts, vocabRow] : sideItem(t.id, t.label))}
+          {CLASSES.map(t => t.id === 'kg' ? [sideItem(t.id, t.label), ...kgParts, vocabRow, phonRow] : sideItem(t.id, t.label))}
           <div className="side-sep" /><p className="side-title">By topic</p>
           {SUBJECTS.map(s => sideItem('subj:' + s.id, s.label))}
         </Rise>
         <div className="ws-main">
-          <div id="azBlock" hidden={!(cat === 'kg' || cat === 'vocab' || hasAZ(cat))}>
-            {cat === 'kg' ? <KgTopics open={kgOpen} onOpen={openTopic} /> : cat === 'vocab' ? <VocabBoard open={kgOpen} onOpen={openTopic} /> : hasAZ(cat) ? <AzBlock /> : null}
+          <div id="azBlock" hidden={!(cat === 'kg' || cat === 'vocab' || cat === 'phon' || hasAZ(cat))}>
+            {cat === 'kg' ? <KgTopics open={kgOpen} onOpen={openTopic} /> : cat === 'vocab' ? <VocabBoard open={kgOpen} onOpen={openTopic} /> : cat === 'phon' ? <PhonicsBoard open={kgOpen} onOpen={openTopic} /> : hasAZ(cat) ? <AzBlock /> : null}
           </div>
-          <Rise i={3} className="shop-grid" id="wsRow" hidden={cat === 'kg' || cat === 'vocab'}>{row}</Rise>
+          <Rise i={3} className="shop-grid" id="wsRow" hidden={cat === 'kg' || cat === 'vocab' || cat === 'phon'}>{row}</Rise>
           <Rise i={4} className="ws-nav"><span id="wsCount">{count}</span><button type="button" className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => openShop('all')}>See every sheet →</button></Rise>
         </div>
       </div>

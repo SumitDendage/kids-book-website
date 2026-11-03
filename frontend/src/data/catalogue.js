@@ -117,7 +117,15 @@ export const KG_TOPICS = [
     /* Beginning Sounds and Ending Sounds were taken off the website (Sumit, Nov 3) */
     ['missing-letters', 'Find the Missing Letters', 'Children complete alphabet sequences by writing the missing letters.'],
   ] },
-  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
+  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [   /* Sumit's seven sections, in his order (Nov 3): id, name, learning focus */
+    ['consonants', 'Consonants', 'Children learn the consonant letters and the sound each one makes.'],
+    ['vowels', 'Vowels', 'Children learn the five vowels a, e, i, o and u and their short sounds.'],
+    ['beginning-sounds', 'Beginning Sounds', 'Children hear and name the first sound in a word.'],
+    ['ending-sounds', 'Ending Sounds', 'Children hear and name the last sound in a word.'],
+    ['blending', 'Blending', 'Children join sounds together to read a word: c-a-t makes cat.'],
+    ['segmenting', 'Segmenting', 'Children break a word into its sounds: cat is c-a-t.'],
+    ['cvc-words', 'CVC Words', 'Children read and write three-letter words like cat, pen and sun.'],
+  ] },
   { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [   /* Sumit's twelve topics (Oct 6 picture): id, name, picture */
     ['vocab-colours', 'Colours', 'colours'], ['vocab-shapes', 'Shapes', 'shapes'], ['vocab-sizes', 'Sizes', 'sizes'], ['vocab-animals', 'Animals', 'animals'],
     ['vocab-animal-babies', 'Animal Babies', 'animal-babies'], ['vocab-transport', 'Transport', 'transport'], ['vocab-fruits', 'Fruits', 'fruits'], ['vocab-vegetables', 'Vegetables', 'vegetables'],
@@ -128,7 +136,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'vocab-animals': ['va'], 'vocab-body-parts': ['vp'], 'vocab-animal-babies': ['vb'], 'vocab-fruits': ['vf'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'vocab-animals': ['va'], 'vocab-body-parts': ['vp'], 'vocab-animal-babies': ['vb'], 'vocab-fruits': ['vf'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -378,10 +386,10 @@ export const homeRows = () => {
 };
 /* display order: the order staff set (Admin → Products), then the site's own order */
 export const byOrder = (a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9);
-/* the sections staff added in Admin (also new sub-sections of Alphabet and Vocabulary, which their
-   boards do not draw), and the website's own topics outside Alphabet and Vocabulary, that have
+/* the sections staff added in Admin (also new sub-sections of Alphabet, Vocabulary and Phonics, which their
+   boards do not draw), and the website's own topics outside those three boards, that have
    sheets: the shop lists them under "More sections" */
-export const extraSections = () => SERVER.sections.filter(x => !x.builtin || (x.group !== 'alpha' && x.group !== 'vocab'))
+export const extraSections = () => SERVER.sections.filter(x => !x.builtin || (x.group !== 'alpha' && x.group !== 'vocab' && x.group !== 'phon'))
   .map(x => ({ ...x, list: topicSheets(x.id).filter(it => it.pdf) }))
   /* a website topic joins the list once staff put a sheet in it (its own sheets are shown elsewhere already) */
   .filter(x => x.list.length && (!x.builtin || x.list.some(it => it.dynamic || it.movedTo === x.id)));
