@@ -4,6 +4,8 @@ import { classById, subjectById } from '../../data/content.js';
 import { cardLabel, discountPct, LABEL_COLOUR } from '../../data/catalogue.js';
 import { sheetState, openForText, cartable, picLocked } from './sheetAccess.js';
 import { CardRating } from '../reviews/Stars.jsx';
+import MotionCard from '../motion/MotionCard.jsx';
+import { flightFrom } from '../motion/SheetFlight.jsx';
 
 /* the line beside a card's button: free, bought, in a plan, ended, or how long a purchase stays open */
 export const priceLine = (st, it) => (st.kind === 'free' ? (st.open ? 'Free · ready to open' : 'Free access sheet')
@@ -41,7 +43,7 @@ export function CartButton({ it, st, className = 'btn btn-ghost' }) {
 }
 
 /* open the card with Enter or Space as well as a click (the card is focusable) */
-export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } };
+export const cardKeys = open => e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(e); } };
 
 /* A paper card on the shelf (Sheets chapter) or in the store: the printed page when there is a
    thumbnail; the store also shows the New / Bestseller tags. */
@@ -59,9 +61,9 @@ export default function SheetCard({ it, n, store = false }) {
     ? (it.cls ? classById(it.cls).label + ' · ' : '') + it.subject + (it.pages ? ' · ' + it.pages + ' pages' : '')
     : (it.cls ? classById(it.cls).label : it.cat || '') + (it.pages ? ' · ' + it.pages + ' pages' : '');
   const offLine = off && !mine ? ' · ' + off + '% off' : '';
-  const open = () => openSheet(it.id);
+  const open = e => openSheet(it.id, flightFrom(e && e.currentTarget));
   return (
-    <article className="shop-card" style={{ '--n': n }} tabIndex={0} aria-label={it.title} onClick={open} onKeyDown={cardKeys(open)}>
+    <MotionCard as="article" n={n} className="shop-card" style={{ '--n': n }} tabIndex={0} aria-label={it.title} onClick={open} onKeyDown={cardKeys(open)}>
       <div className={'paper' + (shot ? ' shot' : '') + (shot && picLocked(st) ? ' pic-locked' : '')}>
         {shot ? <img src={it.img} alt="" loading="lazy" draggable={false} /> : <><small>{it.subject}</small><div className="glyph">{it.glyph}</div><small>Learn With Why · PDF</small></>}
         {tag}
@@ -73,7 +75,7 @@ export default function SheetCard({ it, n, store = false }) {
         ? <div className="row has-cart"><span className="price">{priceLine(st, it)}</span><span className="card-btns"><CartButton it={it} st={st} /><CardAction it={it} st={st} /></span></div>
         : <div className="row"><span className={'price' + (free ? ' free' : '')}>{priceLine(st, it)}</span>
           <CardAction it={it} st={st} /></div>}
-    </article>
+    </MotionCard>
   );
 }
 

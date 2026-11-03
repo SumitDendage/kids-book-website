@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import AIChatHeader from './AIChatHeader.jsx';
 import AIChatMessages from './AIChatMessages.jsx';
 import AIChatInput from './AIChatInput.jsx';
+import { m } from 'framer-motion';
+import { PANEL } from '../motion/presets.js';
 
 /* the chat window: slides in from the right over the page, which stays where it is */
 export default function AIChatPanel({ open, messages, typing, onSend, onMinimize, onClose }) {
@@ -22,14 +24,15 @@ export default function AIChatPanel({ open, messages, typing, onSend, onMinimize
   const onKeyDown = e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); onMinimize(); } };
 
   return (
-    <section
+    <m.section
       id="ai-chat" ref={ref} className={'ai-panel' + (open ? ' open' : '')}
+      initial={false} animate={open ? { x: 0, y: 0, scale: 1 } : { x: 28, y: 18, scale: 0.94 }} transition={PANEL}
       role="dialog" aria-labelledby="ai-chat-title" inert={!open}
       onKeyDown={onKeyDown} onWheel={keep} onTouchStart={keep} onTouchMove={keep}
     >
       <AIChatHeader onMinimize={onMinimize} onClose={onClose} />
       <AIChatMessages messages={messages} typing={typing} />
       <AIChatInput ref={inputRef} busy={typing} onSend={onSend} />
-    </section>
+    </m.section>
   );
 }

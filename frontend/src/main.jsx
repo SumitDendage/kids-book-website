@@ -27,6 +27,8 @@ import './styles/39-slogans-motion.css';
 import './styles/39-reviews.css';
 /* paid sheets' pictures are blurred until bought (Oct 28) */
 import './styles/41-locked-preview.css';
+/* the Framer Motion pieces: it must come last, so it can quiet the older transitions */
+import './styles/40-motion.css';
 
 installTelemetry();
 

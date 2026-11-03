@@ -1,0 +1,89 @@
+/* ---------- Framer Motion (Sumit, Oct 24: "premium animation ... using framer") ----------
+   The springs themselves live in components/motion/. This file only steps the old CSS
+   transitions out of the way where Framer Motion now moves the same thing (two engines
+   moving one card makes it stutter), and draws the few new pieces: the sliding nav pill,
+   the account tab line and the light that follows the mouse across a card.
+   It is imported by MotionRoot.jsx, which comes before site.css, so the rules that must
+   win over the older files say so with !important. */
+
+/* ── cards and tiles (MotionCard.jsx): Framer does the pop-in, lift, tilt and squeeze ── */
+.mo-card { position: relative; animation: none !important; transition-property: border-color, background, box-shadow, filter !important; }
+#content .mo-card:hover, #shop .mo-card:hover { translate: none !important; rotate: none !important; }
+.mo-glare {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 58%);
+  opacity: 0; transition: opacity 0.35s ease;
+}
+@media (hover: hover) and (pointer: fine) { .mo-card:hover .mo-glare { opacity: 1; } }
+/* the press is shown by the card darkening a touch, not by shrinking: see CARD_TAP in presets.js */
+.mo-card:active { filter: brightness(0.96) saturate(1.06); }
+
+/* ── the nav: one coloured pill glides to the chapter you are on (Navbar.jsx) ── */
+.nav-links .nav-link { position: relative; isolation: isolate; }
+.nav-links .nav-link.on { background: transparent; }
+.nav-pill { position: absolute; inset: 0; z-index: -1; border-radius: var(--r-pill, 999px); background: linear-gradient(135deg, var(--mf-coral, #ff7a59), var(--mf-pink, #ff5fa2)); box-shadow: 0 6px 16px rgba(255, 95, 162, 0.35); }
+
+/* ── My Account tabs: the underline slides between them (Drawers.jsx) ── */
+.drawer .tab.on::after { display: none; }
+.tab-line { position: absolute; left: 4px; right: 4px; bottom: -1px; height: 2px; border-radius: 2px; background: currentColor; }
+
+/* ── panels Framer now slides on a spring ── */
+.drawer { transition: none !important; }
+.modal { transition: none !important; }
+.toast { transition: opacity 0.3s !important; }
+.ai-panel, .ai-panel.open { transition-property: opacity, visibility !important; }
+.ai-msg { animation: none !important; }
+.type-card { animation: none !important; }
+.quote-card { transition: filter 0.8s !important; }
+
+/* printing: every chapter line is shown, whatever Framer last set */
+@media print { .rise-m { opacity: 1 !important; transform: none !important; } }
+
+/* ── the slim bar along the top that fills as you move through the chapters (ScrollProgress.jsx) ── */
+.mo-progress { position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 260; pointer-events: none; background: rgba(255, 255, 255, 0.22); opacity: 0; transition: opacity 0.6s ease 0.4s; }
+[data-stage="site"] .mo-progress { opacity: 1; }
+.mo-progress span { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(var(--scroll, 0)); background: linear-gradient(90deg, var(--mf-lemon, #ffd977), var(--mf-coral, #ff7a59) 45%, var(--mf-pink, #ff5fa2) 70%, var(--mf-sky, #7fd4ff)); box-shadow: 0 0 10px rgba(255, 122, 89, 0.5); }
+@media print { .mo-progress { display: none; } }
+
+/* ── magnetic buttons (Magnetic.jsx): the wrapper must lay the label out exactly as the button did ── */
+.mo-magnet-in { display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; }
+.hero-peek .arrow-link > .mo-magnet-in { animation: none; }
+.btn.mo-magnet { transition-property: background, box-shadow, color !important; }
+
+/* ── chapter headings arrive word by word (RevealWords.jsx) ── */
+#content .h2 .rw { display: inline-block; opacity: 0; padding: 0.04em 0.04em 0.14em; margin: -0.04em -0.04em -0.14em; }
+/* a coloured word carries the candy gradient itself: its parent's clipped background cannot reach it */
+#content .h2 .rw-em .rw {
+  background: linear-gradient(100deg, #ff4f93 0%, #ff7a59 30%, #f5a300 55%, #b05cff 80%, #ff4f93 100%); background-size: 240% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+[data-stage="site"] .chapter.is-active .h2 .rw { animation: moWordIn 0.9s var(--ease) both; animation-delay: calc(var(--w) * 110ms + 320ms); }
+[data-stage="site"] .chapter.is-active .h2 .rw-em .rw { animation: moWordIn 0.9s var(--ease) both, storyShimmer 6s ease-in-out infinite alternate; animation-delay: calc(var(--w) * 110ms + 320ms), calc(var(--w) * -0.7s); }
+@keyframes moWordIn { from { opacity: 0; transform: translateY(0.4em) rotate(-3deg) scale(0.94); filter: blur(7px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-progress span { transition: none; }
+  #content .h2 .rw { opacity: 1; }
+  [data-stage="site"] .chapter.is-active .h2 .rw, [data-stage="site"] .chapter.is-active .h2 .rw-em .rw { animation: none; }
+}
+@media print { #content .h2 .rw { opacity: 1 !important; animation: none !important; } }
+
+/* ── the printed page flying from a card into the sheet window (SheetFlight.jsx) ── */
+.mo-flight { position: fixed; z-index: 480; margin: 0; object-fit: cover; border-radius: 10px; background: #fff; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45); pointer-events: none; will-change: left, top, width, height; }
+@media (prefers-reduced-motion: reduce) { .mo-flight { display: none; } }
+
+/* ── the shop's own scroll-driven pieces (ShopScrollFx.jsx) ── */
+.shop-progress { position: sticky; top: 0; z-index: 6; height: 3px; margin: 0 0 -3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.shop-progress span { display: block; height: 100%; transform: scaleX(0); transform-origin: 0 50%; background: linear-gradient(90deg, #ffd977, #ff7a59 55%, #ff5fa2); }
+.shop-scene img { will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .shop-progress { display: none; } }
+
+/* ── the light that follows the pointer across a card (Aurora.jsx) ── */
+.mo-aurora { position: relative; isolation: isolate; }
+/* z-index -1 lays the light over the card's frosted background but under the writing, so the text
+   stays as crisp as it was; the ring sits on top, because it only paints on the card's own edge. */
+.mo-aurora-glow { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; }
+.mo-aurora-edge { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; border: 1.5px solid rgba(255, 255, 255, 0.95); box-shadow: inset 0 0 22px rgba(255, 221, 140, 0.55); }
+@media (hover: none) { .mo-aurora-glow, .mo-aurora-edge { display: none; } }
+@media (prefers-reduced-motion: reduce) { .mo-aurora-glow, .mo-aurora-edge { display: none; } }
+@media print { .mo-aurora-glow, .mo-aurora-edge { display: none; } }

@@ -1,5 +1,6 @@
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
+import RevealWords from '../motion/RevealWords.jsx';
 import { accessSpan, TAGLINES } from '../../data/content.js';
 import { Sticker } from '../common/Slogans.jsx';
 import { getCoConfig } from '../../services/checkout.js';
@@ -11,7 +12,7 @@ export default function WhatWeDoChapter() {
   return (
     <Chapter index={2}>
       <Rise as="p" i={0} className="eyebrow">03 / What we do</Rise>
-      <Rise as="h2" i={1} className="h2">Make learning feel like <em>an adventure</em>.</Rise>
+      <Rise as="h2" i={1} className="h2"><RevealWords>Make learning feel like <em>an adventure</em>.</RevealWords></Rise>
       <Rise i={1} className="sticker-row"><Sticker tilt={3}>{TAGLINES.whatWeDo}</Sticker></Rise>
       <Rise as="p" i={2} className="lede">Discover printable worksheets and early-learning activities for Kindergarten to Class 3. From alphabet tracing and phonics to numbers, shapes and handwriting, give curious children a fun, focused way to practise new skills at home or in the classroom.</Rise>
       <Rise i={3} className="trio">

@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import SiteLayout from './layouts/SiteLayout.jsx';
+import MotionRoot from './components/motion/MotionRoot.jsx';
 
 /* the staff pages are only downloaded when someone opens them */
 const Portal = lazy(() => import('./pages/Portal/Portal.jsx'));
@@ -19,15 +20,17 @@ const NoIndex = () => <meta name="robots" content="noindex, nofollow" />;
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<SiteLayout />}>
-        <Route index element={null} />
-        <Route path="admin" element={<><NoIndex /><Portal kind="admin" /></>} />
-        <Route path="developer" element={<><NoIndex /><Portal kind="developer" /></>} />
-        <Route path="account-blocked" element={<><NoIndex /><AccountBlocked /></>} />
-      </Route>
-      <Route path="viewer" element={<ViewerRedirect />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <MotionRoot>
+      <Routes>
+        <Route element={<SiteLayout />}>
+          <Route index element={null} />
+          <Route path="admin" element={<><NoIndex /><Portal kind="admin" /></>} />
+          <Route path="developer" element={<><NoIndex /><Portal kind="developer" /></>} />
+          <Route path="account-blocked" element={<><NoIndex /><AccountBlocked /></>} />
+        </Route>
+        <Route path="viewer" element={<ViewerRedirect />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </MotionRoot>
   );
 }

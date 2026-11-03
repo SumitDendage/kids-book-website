@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { m } from 'framer-motion';
 import { useSite } from '../../context/SiteContext.jsx';
+import { PANEL, SPRING } from '../motion/presets.js';
 import { eventsApi } from '../../services/api.js';
 import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf, accessSpan } from '../../data/content.js';
@@ -73,15 +75,16 @@ function SheetDetail({ id }) {
             : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
   return (
     <>
-      <div className={'sheet-view' + (it.img && picLocked(st) ? ' pic-locked' : '')}>{pic}{it.img && picLocked(st) ? <span className="lock-note">🔒 Buy to see the whole sheet</span> : null}</div>
-      <div className="sheet-info">
+      {/* the printed page settles into place, then the words beside it */}
+      <m.div className={'sheet-view' + (it.img && picLocked(st) ? ' pic-locked' : '')} initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} transition={SPRING}>{pic}{it.img && picLocked(st) ? <span className="lock-note">🔒 Buy to see the whole sheet</span> : null}</m.div>
+      <m.div className="sheet-info" initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ ...SPRING, delay: 0.08 }}>
         <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3>{it.reviewCount && it.reviewAvg != null ? <p className="head-rating"><b>{it.reviewAvg.toFixed(1)}</b><StarRow value={it.reviewAvg} /><small>{it.reviewCount === 1 ? '1 review' : it.reviewCount + ' reviews'}</small></p> : null}</div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
         <p className="lead">{it.blurb}</p>
         <ul className="about">{about.map((l, i) => <li key={i}>{l}</li>)}</ul>
         <div className="rows"><div><span>Pages</span><b>{it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b id="sheetAccess">{accessLine}</b></div><div><span>Prints</span><b id="sheetPrints">{printsLine(it, site)}</b></div></div>
         <div className="sheet-actions">{actions}</div>
         <SheetRatings it={it} st={st} />
-      </div>
+      </m.div>
     </>
   );
 }
@@ -127,7 +130,8 @@ function PurchasePopup({ p }) {
   const it = lines.length > 1 || plan ? 'them' : 'it';
   return (
     <>
-      <div className="purchase-icon" aria-hidden="true">✓</div>
+      {/* the tick bounces in: the purchase went through */}
+      <m.div className="purchase-icon" aria-hidden="true" initial={{ scale: 0, rotate: -120 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 13, delay: 0.2 }}>✓</m.div>
       {orderId ? <p className="eyebrow">Order {orderId}</p> : null}
       <h3 id="modalTitle">Purchase Successful</h3>
       <p className="lead">{plan ? 'Your plan is ready.' : lines.length > 1 ? 'Your sheets are ready to open.' : 'Your sheet is ready to open.'}</p>
@@ -192,12 +196,14 @@ export default function SheetModal() {
   const cls = modal.kind === 'account' ? 'modal account' : modal.kind === 'purchase' ? 'modal purchase' : modal.kind === 'review' ? 'modal review' : 'modal sheet';
   return (
     <div className={'modal-scrim' + (modal.open ? ' open' : '')} id="modalScrim" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
-      <div className={cls} id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabIndex={-1} ref={box} style={{ outline: 'none' }} aria-hidden={modal.open ? undefined : 'true'}>
+      {/* the paper card springs up out of the page, tipping forward a little as it comes */}
+      <m.div className={cls} id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabIndex={-1} ref={box} style={{ outline: 'none', transformPerspective: 1200 }} aria-hidden={modal.open ? undefined : 'true'}
+        initial={false} animate={modal.open ? { y: 0, scale: 1, rotateX: 0 } : { y: 36, scale: 0.92, rotateX: 8 }} transition={PANEL}>
         {modal.kind === 'account' && <AccountPopup id={modal.id} />}
-        {modal.kind === 'sheet' && <SheetDetail id={modal.id} />}
+        {modal.kind === 'sheet' && <SheetDetail key={modal.id} id={modal.id} />}
         {modal.kind === 'purchase' && <PurchasePopup p={modal.purchase} />}
         {modal.kind === 'review' && <WriteReview />}
-      </div>
+      </m.div>
     </div>
   );
 }

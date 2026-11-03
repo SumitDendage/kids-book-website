@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import Chapter from '../layout/Chapter.jsx';
 import Rise from '../common/Rise.jsx';
+import RevealWords from '../motion/RevealWords.jsx';
 import { contactApi, sendContact } from '../../services/api.js';
 import { getCoConfig, loadCoConfig } from '../../services/checkout.js';
 import { isEmail } from '../../utils/format.js';
+import Magnetic from '../motion/Magnetic.jsx';
 import { Sticker } from '../common/Slogans.jsx';
 import { TAGLINES } from '../../data/content.js';
 
@@ -58,7 +60,7 @@ export default function ContactChapter() {
       <div className="contact-grid">
         <div>
           <Rise as="p" i={0} className="eyebrow">05 / Every good thing starts with hello</Rise>
-          <Rise as="h2" i={1} className="h2">A little question?<br />A big <em>idea</em>?</Rise>
+          <Rise as="h2" i={1} className="h2"><RevealWords>A little question?<br />A big <em>idea</em>?</RevealWords></Rise>
           <Rise i={1} className="sticker-row"><Sticker tilt={-3}>{TAGLINES.contact}</Sticker></Rise>
           <Rise as="p" i={2} className="lede">Tell us what your learners need. We&apos;d love to make their next discovery a little more wonderful.</Rise>
           <Rise as="p" i={2} className="whisper">Even the rabbit wrote in once. We answered before teatime.</Rise>
@@ -69,7 +71,7 @@ export default function ContactChapter() {
           {field('ctName', 'Your name', <input id="ctName" type="text" autoComplete="name" placeholder="Your name" value={f.name} onChange={set('name')} />)}
           {field('ctEmail', 'Email address', <input id="ctEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} />)}
           {field('ctMsg', 'Your message', <textarea id="ctMsg" placeholder="What's on your mind?" value={f.msg} onChange={set('msg')} />)}
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Sending…' : 'Send a little note →'}</button>
+          <Magnetic type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Sending…' : 'Send a little note →'}</Magnetic>
         </Rise>
       </div>
     </Chapter>

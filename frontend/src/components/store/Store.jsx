@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
+import ShopScrollFx from '../motion/ShopScrollFx.jsx';
 import { CLASSES, SUBJECTS, TAGLINES, classById, subjectById } from '../../data/content.js';
 import { Sticker } from '../common/Slogans.jsx';
 import { money, isIndia, setCurrencyFromCountry } from '../../services/currency.js';
@@ -195,6 +196,9 @@ export default function Store() {
   return (
     <div className={'shop' + (open ? ' open' : '')} id="shop" aria-hidden={open ? 'false' : 'true'} ref={shopRef} role="dialog" aria-label="Every sheet we have">
       <div className="shop-scene" aria-hidden="true"><img src="/shop/learn-with-why-wallpaper.webp" alt="" decoding="async" /></div>
+      {/* the wallpaper drifts and the bar below fills on the browser's own scroll timeline */}
+      <ShopScrollFx shopRef={shopRef} open={open} />
+      <div className="shop-progress" aria-hidden="true"><span /></div>
       <header className="shop-bar">
         <div><p className="eyebrow">The shelf</p><h2 className="card-title">Every sheet we have.</h2><Sticker tilt={-2} className="sticker-sm">{TAGLINES.shop}</Sticker></div>
         <div className="shop-actions">
