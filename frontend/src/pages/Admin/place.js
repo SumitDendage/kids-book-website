@@ -22,8 +22,8 @@ export const sectionsOfClass = (sections, cls) => (sections || []).filter(x => (
 
 /* sub-sections that sit in no section (made before sections had sub-sections) are listed as "Other" */
 export const OTHER = '~other';
-/* the website shows these two first: Kindergarten › Alphabet, Vocabulary */
-const FIRST = ['alpha', 'vocab'];
+/* the website shows these first: Kindergarten › Alphabet, Vocabulary, Phonics */
+const FIRST = ['alpha', 'vocab', 'phon'];
 /* the sections of one class, each with its sub-sections: Alphabet and Vocabulary first, then the
    rest in the order staff set (Admin → Categories), then "Other" */
 export function groupsOfClass(sections, cls) {
