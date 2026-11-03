@@ -1,0 +1,78 @@
+/* The payment page in white (Sumit, Oct 18: "the payment page is white and more attractive and good shad").
+   Loaded last, scoped to #checkout: white cards with soft lilac shadows on a near-white page,
+   the site's plum ink, and the shop's purple for what is picked. 14-checkout.css keeps the layout. */
+#checkout {
+  --fg: #2b1d4e; --fg-muted: #4a4360; --fg-dim: #6f6987; --glass: #fff; --glass-border: #e7e2f2;
+  --co-accent: #7c4fd6; --co-accent-soft: #f3eefe; --co-ok: #1f8a5b;
+  --co-shadow: 0 1px 2px rgba(60,40,110,0.05), 0 12px 32px rgba(60,40,110,0.09);
+  --co-shadow-lift: 0 2px 4px rgba(60,40,110,0.06), 0 18px 40px rgba(60,40,110,0.14);
+  background: #f7f6fb; color: var(--fg);
+}
+#checkout .shop-shade { background: radial-gradient(ellipse 80% 50% at 15% 0%, #efe9fd 0%, rgba(239,233,253,0) 60%), radial-gradient(ellipse 70% 50% at 100% 100%, #fdf1e7 0%, rgba(253,241,231,0) 60%), #f7f6fb !important; }
+
+/* header */
+#checkout .shop-bar { background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid #ece8f4; box-shadow: 0 6px 20px rgba(60,40,110,0.06); padding-bottom: 12px; }
+@media (max-width: 860px) { #checkout .shop-bar { background: #fff; } #checkout .shop-bar::after { background: linear-gradient(180deg, rgba(60,40,110,0.06), rgba(60,40,110,0)); } }
+#checkout .shop-bar .eyebrow { color: var(--co-accent); }
+#checkout .stepper li { color: var(--fg-dim); }
+#checkout .stepper li i { border-color: #d9d3e8; background: #fff; }
+#checkout .stepper li.on { color: var(--fg); } #checkout .stepper li.on i { border-color: var(--co-accent); background: var(--co-accent); color: #fff; }
+#checkout .stepper li.done { color: var(--co-ok); } #checkout .stepper li.done i { background: var(--co-ok); border-color: var(--co-ok); color: #fff; }
+#checkout .co-lock { color: var(--fg-dim); }
+#checkout .icon-btn { background: #fff; color: var(--fg); border-color: #e2ddef; box-shadow: 0 4px 12px rgba(60,40,110,0.08); backdrop-filter: none; }
+#checkout .icon-btn:hover { background: var(--co-accent-soft); }
+#checkout .checkout-body { margin-top: 22px; }
+
+/* cards */
+#checkout .panel, #checkout .co-summary { background: #fff; border: 1px solid #ece8f4; border-radius: 22px; box-shadow: var(--co-shadow); backdrop-filter: none; }
+#checkout .co-card.done { border-color: #cdeedd; }
+#checkout .co-card-head h3 { color: var(--fg); font-weight: 600; }
+#checkout .co-num { background: var(--co-accent); color: #fff; box-shadow: 0 4px 10px rgba(124,79,214,0.3); }
+#checkout .co-card.done .co-num { background: var(--co-ok); box-shadow: 0 4px 10px rgba(31,138,91,0.25); }
+#checkout .co-plans .co-num { background: linear-gradient(135deg, #f5b74f, #ef8f5c); box-shadow: 0 4px 10px rgba(239,143,92,0.35); }
+#checkout .region-chip { background: #f4f2f9; border-color: #e4dff0; color: var(--fg); }
+#checkout .region-chip.in { background: #fff4e3; border-color: #f6d9a6; }
+
+/* plan and payment choices */
+#checkout .method { background: #fff; border: 1.5px solid #e7e2f2; box-shadow: 0 2px 8px rgba(60,40,110,0.04); }
+#checkout .method:hover { border-color: #c9b8f2; transform: translateY(-2px); box-shadow: var(--co-shadow-lift); }
+#checkout .method .ring { border-color: #cfc8e0; }
+#checkout .method .mark { box-shadow: 0 2px 8px rgba(60,40,110,0.1); }
+#checkout .method.on { background: var(--co-accent-soft); border-color: var(--co-accent); box-shadow: 0 0 0 3px rgba(124,79,214,0.14), var(--co-shadow-lift); }
+#checkout .method.on .mark { box-shadow: 0 0 0 3px rgba(124,79,214,0.25); }
+#checkout .method.on::after { color: var(--co-accent); }
+#checkout .method.on .ring { border-color: var(--co-accent); box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 10px var(--co-accent); }
+#checkout .plan-grid .method .txt b { font-size: 1.05rem; color: var(--fg); }
+#checkout .plan-grid .method .txt small { font-size: 0.82rem; font-weight: 700; color: var(--co-accent); }
+#checkout .plan-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+#checkout .plan-grid .method { min-height: 96px; }
+
+/* form */
+#checkout .fl input, #checkout .fl select { background-color: #fbfaff; border: 1.5px solid #e4dff0; color: var(--fg); }
+#checkout .fl select { background-image: linear-gradient(45deg, transparent 50%, #7a7290 50%), linear-gradient(135deg, #7a7290 50%, transparent 50%); }
+#checkout .fl input:focus, #checkout .fl select:focus { background-color: #fff; border-color: var(--co-accent); box-shadow: 0 0 0 4px rgba(124,79,214,0.12); }
+#checkout .fl input:focus + label, #checkout .fl input:not(:placeholder-shown) + label, #checkout .fl select.filled + label, #checkout .fl select:focus + label { color: var(--co-accent); }
+#checkout .fl.bad input, #checkout .fl.bad select { border-color: #e36a6a; background-color: #fff7f7; }
+#checkout .err { color: #c43d3d; }
+#checkout .alert.err { color: #9b2c2c; background: #fff1f1; border-color: #f5c2c2; }
+#checkout .alert.ok, #checkout .co-note.ok, #checkout #coCouponMsg.ok { color: var(--co-ok); }
+#checkout .alert.ok { background: #ecf9f2; border-color: #bfe8d2; }
+#checkout .btn-ghost { background: #fff; color: var(--fg); border-color: #e2ddef; box-shadow: 0 2px 8px rgba(60,40,110,0.06); backdrop-filter: none; }
+#checkout .btn-ghost:hover { background: var(--co-accent-soft); }
+#checkout .link { color: var(--co-accent); border-bottom-color: rgba(124,79,214,0.35); }
+#checkout .pay-secure { background: #f6f4fb; border-color: #ece8f4; }
+
+/* order summary */
+#checkout .co-summary { padding: 24px; box-shadow: 0 2px 4px rgba(60,40,110,0.05), 0 24px 56px rgba(60,40,110,0.13); }
+#checkout .sum-head .eyebrow { color: var(--co-accent); }
+#checkout .sum-thumb { background: linear-gradient(135deg, #efe8ff, #ffeedd); color: var(--co-accent); font-weight: 600; box-shadow: inset 0 0 0 1px rgba(124,79,214,0.12); }
+#checkout .sum-item, #checkout .co-line, #checkout .co-head, #checkout .co-row { border-bottom-color: #efebf6; }
+#checkout .sum-total strong { color: var(--fg); }
+#checkout .sk-line { background: linear-gradient(90deg, #f1eef7, #e6e1f1, #f1eef7); background-size: 200% 100%; }
+#checkout .btn-pay { background: linear-gradient(135deg, #8d5ff0, #6b3fd0); color: #fff; box-shadow: 0 12px 28px rgba(107,63,208,0.35); }
+#checkout .btn-pay small { color: rgba(255,255,255,0.85); }
+#checkout .btn-pay:not(:disabled)::after { background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%); }
+#checkout .btn-pay:not(:disabled):hover { box-shadow: 0 16px 34px rgba(107,63,208,0.45); }
+#checkout .btn-pay:disabled { background: #ece9f3; color: #9a94ad; box-shadow: none; } #checkout .btn-pay:disabled small { color: #a7a1b9; }
+@keyframes co-bump-light { 0% { transform: scale(0.94); color: var(--co-accent); } 100% { transform: none; } }
+#checkout .sum-total.bump strong { animation-name: co-bump-light; }
