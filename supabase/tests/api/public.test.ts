@@ -1,5 +1,5 @@
 // Public routes (routes/public.ts) and the FAQ assistant (services/chatbot.ts).
-import { assert, assertEquals, assertMatch, assertStatus, randomIp, startHarness, test, uniqueEmail, type Harness } from './harness.ts';
+import { assert, assertEquals, assertMatch, assertStatus, freshWindow, randomIp, startHarness, test, uniqueEmail, type Harness } from './harness.ts';
 import { hasKeyword } from '../../functions/api/services/chatbot.ts';
 import { initials } from '../../functions/api/routes/public.ts';
 
@@ -210,6 +210,7 @@ test('chat: input checks and 30 per minute per IP', async () => {
   assertStatus(await chat('x'.repeat(1001)), 400);
   assertEquals((await chat('qwertyuiop asdfgh')).body.source, 'fallback');
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 30; i++) assertStatus(await chat('hello', ip), 200);
   const r = await chat('hello', ip);
   assertStatus(r, 429);
@@ -255,6 +256,7 @@ test('events: only the four client kinds; path without query; referrer host only
 
 test('events: 120 per minute per IP', async () => {
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 120; i++) assertStatus(await h.call('POST', '/api/events', { ip, body: { kind: 'search', meta: { q: 'tracing' } } }), 200);
   assertStatus(await h.call('POST', '/api/events', { ip, body: { kind: 'search' } }), 429);
 });

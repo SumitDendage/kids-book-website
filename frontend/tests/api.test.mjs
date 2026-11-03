@@ -40,6 +40,23 @@ test('missing functions surface 404 rather than returning fake catalogue data', 
   t.mock.method(globalThis, 'fetch', async () => Response.json({ message: 'Requested function was not found', code: 'NOT_FOUND' }, { status: 404 }));
   await assert.rejects(api.catalogueApi.worksheets(), { status: 404, code: 'NOT_FOUND' });
 });
+test('a GET is asked once more after a 503 or no answer; a POST never is', async t => {
+  let n = 0;
+  t.mock.method(globalThis, 'fetch', async () => (++n === 1 ? Response.json({ message: 'busy' }, { status: 503 }) : Response.json({ worksheets: [] })));
+  assert.deepEqual((await api.catalogueApi.worksheets()).worksheets, []);
+  assert.equal(n, 2);
+  n = 0;
+  t.mock.method(globalThis, 'fetch', async () => { if (++n === 1) throw new TypeError('Failed to fetch'); return Response.json({ country: 'IN' }); });
+  assert.equal((await api.fetchGeo()).country, 'IN');
+  assert.equal(n, 2);
+  n = 0;
+  t.mock.method(globalThis, 'fetch', async () => { n++; return Response.json({ message: 'busy' }, { status: 503 }); });
+  await assert.rejects(api.catalogueApi.worksheets(), { status: 503 });
+  assert.equal(n, 2, 'only one retry');
+  n = 0;
+  await assert.rejects(api.payApi.quote({ worksheet: 'az-C' }), { status: 503 });
+  assert.equal(n, 1, 'a POST is sent once');
+});
 test('HTML fallback with HTTP 200 is rejected, not treated as a working API', async t => {
   t.mock.method(globalThis, 'fetch', async () => new Response('<html>Vite fallback</html>'));
   await assert.rejects(api.meApi.orders(), { status: 502, code: 'invalid_response' });
