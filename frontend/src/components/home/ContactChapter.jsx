@@ -4,6 +4,8 @@ import Rise from '../common/Rise.jsx';
 import { contactApi, sendContact } from '../../services/api.js';
 import { getCoConfig, loadCoConfig } from '../../services/checkout.js';
 import { isEmail } from '../../utils/format.js';
+import { Sticker } from '../common/Slogans.jsx';
+import { TAGLINES } from '../../data/content.js';
 
 /* 05 · Contact us. The note goes to our own server first (POST /api/contact): it lands in the staff
    inbox and is emailed to the shop once email is set up there. While the server cannot send email yet
@@ -57,6 +59,7 @@ export default function ContactChapter() {
         <div>
           <Rise as="p" i={0} className="eyebrow">05 / Every good thing starts with hello</Rise>
           <Rise as="h2" i={1} className="h2">A little question?<br />A big <em>idea</em>?</Rise>
+          <Rise i={1} className="sticker-row"><Sticker tilt={-3}>{TAGLINES.contact}</Sticker></Rise>
           <Rise as="p" i={2} className="lede">Tell us what your learners need. We&apos;d love to make their next discovery a little more wonderful.</Rise>
           <Rise as="p" i={2} className="whisper">Even the rabbit wrote in once. We answered before teatime.</Rise>
         </div>

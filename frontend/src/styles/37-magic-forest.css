@@ -1,6 +1,6 @@
 /* ---------- magical forest: brighter, friendlier, readable (Sumit, Oct 16) ----------
    Same layout, same animations, same features. Only the look changes:
-   - rounded friendly letters (Fredoka for headings, Nunito for reading text)
+   - rounded friendly letters (Baloo 2 for headings since Oct 23, Nunito for reading text)
    - dark plum words everywhere, with a soft white glow where they sit on the picture
    - bright pastel cards (yellow, lime, sky, coral, pink, lavender) with white edges
    - candy buttons with dark words, a little bounce on hover
@@ -8,7 +8,8 @@
    Loaded last, so it wins over the older colour files without editing them. */
 
 :root {
-  --font-display: 'Fredoka Variable', 'Fredoka', 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-display: 'Baloo 2 Variable', 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-hand: 'Caveat Brush', 'Baloo 2 Variable', cursive;
   --font-body: 'Nunito Variable', 'Nunito', 'Baloo 2', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mf-ink: #2b1d4e;
   --mf-ink-soft: #46386b;
