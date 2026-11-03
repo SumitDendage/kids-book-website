@@ -1,6 +1,9 @@
 /* Moved verbatim from legacy/old-static-site/index.html (<style>). */
 /* ---------- nav ---------- */
 .nav-brand { display: inline-flex; align-items: center; gap: 12px; background: none; border: none; cursor: pointer; text-align: left; }
+/* the tree logo in a white circle with a soft gold glow */
+.nav-emblem { flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 0 0 4px rgba(255,217,119,0.32), 0 0 24px 4px rgba(255,217,119,0.5), 0 10px 26px rgba(0,0,0,0.3); }
+.nav-emblem img { width: 72%; height: auto; display: block; pointer-events: none; user-select: none; }
 .wordmark { font-family: var(--font-display); font-weight: 500; font-size: 1.45rem; line-height: 1; letter-spacing: 0.01em; color: var(--fg); text-shadow: 0 2px 14px rgba(0,0,0,0.6); }
 .wordmark small { display: block; margin-top: 5px; font: 600 0.58rem var(--font-body); letter-spacing: 0.3em; text-transform: uppercase; color: var(--fg-dim); }
 @media (max-width: 560px) { .wordmark { display: none; } }

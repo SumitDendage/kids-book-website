@@ -107,7 +107,7 @@ function CartDrawer({ open }) {
               const meta = [c ? c.label : null, l.subject || (it && it.subject) || null, l.problem ? null : 'open for ' + accessSpan(hoursOf(l) ? l : it)].filter(Boolean).join(' · ');
               return (
                 <div key={l.worksheet} className={'cart-row' + (l.problem ? ' has-problem' : '')} data-sheet={l.worksheet}>
-                  <div className="paper-mini">{thumb ? <img src={thumb} alt="" loading="lazy" /> : (it && (it.glyph || it.az)) || 'PDF'}</div>
+                  <div className={'paper-mini' + (thumb ? ' pic-locked' : '')}>{thumb ? <img src={thumb} alt="" loading="lazy" draggable={false} /> : (it && (it.glyph || it.az)) || 'PDF'}</div>
                   <div className="nm">{it ? <button type="button" className="link" onClick={() => openSheet(l.worksheet)}>{l.title || it.title}</button> : (l.title || l.worksheet)}
                     <span>{meta}</span>
                     {l.problem ? <span className="cart-problem">{(typeof l.note === 'string' && l.note) || PROBLEM[l.problem] || 'Cannot be bought right now'}</span> : null}

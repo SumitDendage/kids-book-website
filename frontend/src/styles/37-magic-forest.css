@@ -235,6 +235,7 @@ body, button, input, textarea, select { font-family: var(--font-body); }
 .nav-link.bag.cart b.has { background: var(--mf-yellow); color: var(--mf-ink); }
 .nav-brand { background: rgba(255, 255, 255, 0.88); border: 2px solid #fff; border-radius: 100px; padding: 4px 14px 4px 4px; box-shadow: 0 8px 24px rgba(60, 40, 120, 0.16); }
 .nav-brand, .nav-brand * { color: var(--mf-ink); text-shadow: none; }
+@media (max-width: 560px) { .nav-brand { background: none; border: none; padding: 0; box-shadow: none; } }   /* no wordmark on phones: just the round logo */
 body .counter, body .counter b, body .brandline { color: var(--mf-ink); font-weight: 800; text-shadow: var(--mf-halo-sm); }
 
 /* still pictures for people who ask for less motion */

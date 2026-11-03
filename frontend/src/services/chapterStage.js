@@ -1,4 +1,4 @@
-/* CHAPTERS — one continuous glide through six screens. Native scrolling is
+/* CHAPTERS — one continuous glide through seven screens. Native scrolling is
    replaced by an eased playhead in pixels through the chapter stack; the stack is
    moved with a transform and the landscape frame follows from how far along it
    we are. Moved from the page script in legacy/old-static-site/index.html; the numbers

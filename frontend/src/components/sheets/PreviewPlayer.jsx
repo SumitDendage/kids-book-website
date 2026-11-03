@@ -6,6 +6,7 @@ import { classById } from '../../data/content.js';
 import Rise from '../common/Rise.jsx';
 import { sheetState } from './sheetAccess.js';
 import { priceLine } from './SheetCard.jsx';
+import { CardRating } from '../reviews/Stars.jsx';
 
 /* The fox and rabbit preview (50 frames, 14 fps) with the sheet carousel on top.
    It plays only while the Sheets chapter is in view. */
@@ -34,7 +35,7 @@ export default function PreviewPlayer({ active }) {
       <div className="panel player-card" id="playerCard" aria-live="polite">
         <div className="slide-swap" key={slide}>
           <div className="glyph">{s.glyph || s.az || s.rc || s.letter || 'Aa'}</div><p className="eyebrow">Learn With Why · Preview</p><p className="meta">{classById(s.cls).label} · {s.subject}</p><h3 className="card-title">{s.title}</h3>
-          <p className={'price' + (s.price === 0 ? ' free' : '')}>{priceLine(st, s)}</p>
+          <p className={'price' + (s.price === 0 ? ' free' : '')}>{priceLine(st, s)}<CardRating it={s} /></p>
           {!st.ready ? <button type="button" className="btn btn-primary" disabled>Coming soon</button>
             : st.open ? <button type="button" className="btn btn-primary" onClick={() => openViewer(s.id)}>Open PDF ↗</button>
             : s.price === 0 ? <button type="button" className="btn btn-primary" onClick={() => unlock(s.id)}>Open it free →</button>

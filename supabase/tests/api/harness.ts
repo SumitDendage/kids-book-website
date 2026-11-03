@@ -145,6 +145,14 @@ export function randomIp(): string {
   return `10.${b[0]}.${b[1]}.${1 + (b[2] % 254)}`;
 }
 
+/** The rate limiter counts in fixed windows (private.rate_limit_hit). A test that fills a limit waits
+ *  here for a fresh window when the current one ends within `margin` seconds, so its hits can't be
+ *  split across two windows and the last call can't land in a new, empty one. */
+export async function freshWindow(seconds = 60, margin = 10): Promise<void> {
+  const ms = seconds * 1000, left = ms - (Date.now() % ms);
+  if (left < margin * 1000) await new Promise((r) => setTimeout(r, left + 250));
+}
+
 /** Deno.test with the op/resource sanitizers off (pools and the fake server stay open). */
 export function test(name: string, fn: () => Promise<void>): void {
   Deno.test({ name, fn, sanitizeOps: false, sanitizeResources: false, sanitizeExit: false });

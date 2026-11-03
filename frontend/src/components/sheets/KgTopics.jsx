@@ -4,20 +4,24 @@ import { AzTile, PicTile } from './SheetTiles.jsx';
 
 /* Kindergarten follows the Kindergarten content plan: one tile for each of the seven
    Alphabet sub-categories, in order. A tile opens to every sheet in it.
-   Vocabulary has its own board (VocabBoard.jsx); its sheets are not "More for Kindergarten". */
+   Vocabulary has its own board (VocabBoard.jsx); its sheets are not "More for Kindergarten".
+   Phonics (Sumit, Nov 3) is a board like Alphabet: seven numbered sections, Consonants to CVC Words.
+   A section with no sheets yet says "Coming soon" until staff add sheets to it in Admin → Products. */
 const ALPHA = KG_TOPICS.find(g => g.id === 'alpha');
 export const VOCAB = KG_TOPICS.find(g => g.id === 'vocab');
-const idsOf = g => new Set(g.items.flatMap(([id]) => topicSheets(id).map(it => it.id)));
-const inSections = () => new Set([...idsOf(ALPHA), ...idsOf(VOCAB)]);
+export const PHON = KG_TOPICS.find(g => g.id === 'phon');
+const idsOf = g => new Set(g.items.flatMap(([id]) => topicSheets(id).filter(it => it.pdf).map(it => it.id)));
+const inSections = () => new Set([...idsOf(ALPHA), ...idsOf(VOCAB), ...idsOf(PHON)]);
 /* the Kindergarten books and weekly sheets that are not in a sub-category */
 export const kgMore = () => { const seen = inSections(); return ITEMS.filter(it => it.pdf && isListed(it) && it.cls === 'kg' && !seen.has(it.id)); };
 export const kgSheetCount = () => inSections().size + kgMore().length;
 /* the Alphabet board shows the seven sub-categories and the "More" tile */
 export const alphaSheetCount = () => idsOf(ALPHA).size + kgMore().length;
 export const vocabSheetCount = () => idsOf(VOCAB).size;
+export const phonSheetCount = () => idsOf(PHON).size;
 const MORE = ['more', 'More for Kindergarten', 'Counting, colouring, first words and the weekly sheets.'];
-const sections = () => ALPHA.items.map((x, k) => ({ no: String(k + 1).padStart(2, '0'), id: x[0], label: x[1], focus: x[2], list: topicSheets(x[0]) }))
-  .concat(kgMore().length ? [{ no: '+', id: MORE[0], label: MORE[1], focus: MORE[2], list: kgMore() }] : []);
+const numbered = g => g.items.map((x, k) => ({ no: String(k + 1).padStart(2, '0'), id: x[0], label: x[1], focus: x[2], list: topicSheets(x[0]).filter(it => it.pdf) }));
+const sections = () => numbered(ALPHA).concat(kgMore().length ? [{ no: '+', id: MORE[0], label: MORE[1], focus: MORE[2], list: kgMore() }] : []);
 
 /* what can be opened free today, from the real prices (the server can change them) */
 function accessOf(list) {
@@ -28,12 +32,20 @@ function accessOf(list) {
 }
 
 export default function KgTopics({ open, onOpen }) {
-  const all = sections();
+  return <SectionBoard title="Alphabet" all={sections()} open={open} onOpen={onOpen} />;
+}
+
+/* Kindergarten › Phonics: the same numbered cards as Alphabet */
+export function PhonicsBoard({ open, onOpen }) {
+  return <SectionBoard title="Phonics" all={numbered(PHON)} open={open} onOpen={onOpen} />;
+}
+
+function SectionBoard({ title, all, open, onOpen }) {
   const s = open && all.find(x => x.id === open);
-  if (s) return <TopicOpen s={s} crumb="Kindergarten › Alphabet" back="← All sections" onBack={() => onOpen(null)} />;
+  if (s) return <TopicOpen s={s} crumb={'Kindergarten › ' + title} back="← All sections" onBack={() => onOpen(null)} />;
   return (
-    <section className="kg-topics rise" style={{ '--i': 3 }} aria-label="Kindergarten · Alphabet">
-      <div className="kg-head"><p className="eyebrow">Kindergarten · Main category</p><h3>Alphabet</h3></div>
+    <section className="kg-topics rise" style={{ '--i': 3 }} aria-label={'Kindergarten · ' + title}>
+      <div className="kg-head"><p className="eyebrow">Kindergarten · Main category</p><h3>{title}</h3></div>
       <div className="kg-tiles">
         {all.map((x, n) => {
           const acc = accessOf(x.list);

@@ -9,7 +9,7 @@ const hub = files['kindergarten-worksheets/index.html'];
 const tracing = files['kindergarten-worksheets/letter-tracing/index.html'];
 
 test('every topic with sheets gets its own page, and only classes on sale are listed', () => {
-  assert.ok(topics.length >= 10);
+  assert.ok(topics.length >= 8);   // Beginning Sounds, Ending Sounds and Picture reading left the site Nov 3
   for (const t of topics) {
     assert.ok(t.sheets.length, t.id + ' has sheets');
     assert.ok(files['kindergarten-worksheets/' + slugOf(t.id) + '/index.html'], t.id + ' has a page');

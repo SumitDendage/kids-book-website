@@ -1,6 +1,6 @@
-import logo from '../../assets/logo-emblem.png';
+import AIMark from './AIMark.jsx';
 
-/* the round logo button at the bottom right; it steps aside while the chat is open */
+/* the round robot button at the bottom right; it steps aside while the chat is open */
 export default function AIChatButton({ ref, open, unread, onClick }) {
   return (
     <button
@@ -9,7 +9,7 @@ export default function AIChatButton({ ref, open, unread, onClick }) {
       onClick={onClick}
       onKeyDown={e => e.stopPropagation()}   /* Space and Enter press the button, they do not turn the chapter */
     >
-      <img src={logo} alt="" draggable="false" />
+      <AIMark /><b aria-hidden="true">AI</b>
       {unread && <span className="ai-fab-dot" aria-hidden="true" />}
       <span className="ai-fab-tip" aria-hidden="true">Ask AI</span>
     </button>

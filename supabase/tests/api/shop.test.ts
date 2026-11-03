@@ -1,6 +1,6 @@
 // Shop routes (routes/shop.ts) and the pricing service (services/pricing.ts): the catalogue, quotes,
 // the order-time re-checks, and the customer's own orders and access records.
-import { assert, assertEquals, assertMatch, assertStatus, randomIp, startHarness, test, type Harness, type TestUser } from './harness.ts';
+import { assert, assertEquals, assertMatch, assertStatus, freshWindow, randomIp, startHarness, test, type Harness, type TestUser } from './harness.ts';
 import { tx } from '../../functions/api/lib/db.ts';
 import { HttpError } from '../../functions/api/lib/http.ts';
 import { loadQuote, revalidateQuote, type StoredQuote } from '../../functions/api/services/pricing.ts';
@@ -292,6 +292,7 @@ test('quote: class discount and coupons (active, dates, kind, class)', async () 
 
 test('quote: 60 per minute per IP', async () => {
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 60; i++) assertStatus(await quote({}, { ip }), 400);
   const r = await quote({}, { ip });
   assertStatus(r, 429);
