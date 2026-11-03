@@ -66,6 +66,9 @@ export const refreshTokens = async () => {
    which keeps them fresh (a refresh keeps the same sign-in, so the record stays valid). */
 async function serverLogin(body) {
   const r = await api('POST', '/api/auth/login', body);
+
+  if (r.otpRequired) return r;
+
   await sdkAuth.adoptSession(r.session);
   return r;
 }
@@ -95,6 +98,18 @@ function report(store, err) {
   if (err.code === 'account_suspended' || err.code === 'session_blocked') sdkAuth.logout().catch(() => {});
   if (onAuthProblem) { try { onAuthProblem(err.code, err); } catch (_) {} }
 }
+const RETRY_MS = 800;
+const pause = ms => new Promise(done => setTimeout(done, ms));
+/* a GET changes nothing, so a hiccup is asked once more after a moment: a 503 (the server was
+   starting or busy) or no answer at all (a failed preflight looks like that to the browser) */
+async function getTwice(call, statusOf) {
+  try {
+    const res = await call();
+    if (statusOf(res) !== 503) return res;
+  } catch (e) { if (e?.code !== 'network') throw e; }
+  await pause(RETRY_MS);
+  return call();
+}
 async function send(path, opt) {
   try {
     const headers = { ...idHeaders(), ...await sdkAuth.getHeaders(), ...opt.headers };
@@ -109,7 +124,8 @@ export const setUnauthorizedHandler = fn => { onUnauthorized = fn; };
 
 /* JSON calls to our own API */
 export async function api(method, path, body, store = customerTokens) {
-  const { r, stuck } = await send(path, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined }, store);
+  const opt = { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined };
+  const { r, stuck } = await (method === 'GET' ? getTwice(() => send(path, opt, store), x => x.r.status) : send(path, opt, store));
   const out = await bodyOf(r);
   if (r.ok) return validateResponse(path, out);
   /* the refresh could not reach the server: still signed in, try again later */
@@ -124,12 +140,18 @@ export async function api(method, path, body, store = customerTokens) {
   if (r.status === 403) report(store, err);
   throw err;
 }
-
+async function serverVerifyLoginOtp(body) {
+  const r = await api('POST', '/api/auth/verify-login-otp', body);
+  await sdkAuth.adoptSession(r.session);
+  return r;
+}
 /* Sign-up, sign-in, sign-out and the account go through our server; the Supabase client keeps the tokens fresh and runs the password-reset link. */
 export const authApi = {
   /* { name, email, password, timeZone? } → { email, ready }: Supabase Auth makes the account (no email
      service needed); ready means it can sign in at once */
   signup: body => sdkAuth.signUp(body),
+  /* { challengeId, code } → { user, session, staff, security }: the 6-digit code emailed after the password */
+  verifyLoginOtp: serverVerifyLoginOtp,
   /* { email, password, remember, agreement? } → { user, session, staff, security } */
   login: serverLogin,
   logout: serverLogout,
@@ -140,7 +162,8 @@ export const authApi = {
      409 { code: 'role_locked' } and only staff can change it */
   updateMe: body => api('PATCH', '/api/auth/me', body),
   verifyEmail: body => api('POST', '/api/auth/verify-email', body),                 /* { token } from the Accept & Continue link */
-  resendVerification: body => api('POST', '/api/auth/resend-verification', body),   /* { email }: unconfirmed accounts only; a fresh password comes with the link */
+  verifySignupCode: sdkAuth.verifySignupCode,    /* { email, code }: the 6-digit code from the sign-up email */
+  resendVerification: sdkAuth.resendVerification, /* { email }: Supabase emails a new sign-up code */
   forgotPassword: sdkAuth.forgotPassword,           /* { email }: a reset link is emailed */
   resetPassword: sdkAuth.resetPassword,             /* { token, password } */
   hasTokens: () => usable(customerTokens.get()),
@@ -161,6 +184,7 @@ export const meApi = {
   sessions: () => api('GET', '/api/me/sessions'),
   endSession: id => api('POST', '/api/me/sessions/' + enc(id) + '/end'),
   review: body => api('POST', '/api/me/reviews', body),                             /* { worksheet, rating, title?, body? } */
+  reviews: () => api('GET', '/api/me/reviews'),                                     /* my own reviews, any status */
 };
 
 /* ---------- the cart (kept on the server for a signed-in customer) ----------
@@ -188,8 +212,8 @@ export const catalogueApi = {
 
 /* ---------- public reads that need no sign-in ---------- */
 async function publicGet(path, fallback) {
-  let r;
-  try { r = await fetch(apiUrl(path), { headers: idHeaders(), credentials: CREDENTIALS }); } catch (e) { throw offline(e); }
+  const get = async () => { try { return await fetch(apiUrl(path), { headers: idHeaders(), credentials: CREDENTIALS }); } catch (e) { throw offline(e); } };
+  const r = await getTwice(get, x => x.status);
   const out = await bodyOf(r);
   if (!r.ok) throw httpError(r.status, out, fallback);
   return out;
@@ -207,6 +231,8 @@ export function fetchConfig() {
 export const fetchGeo = () => publicGet('/api/geo');
 export const fetchContent = () => publicGet('/api/content');
 export const fetchFaq = () => publicGet('/api/faq');
+/* the newest published reviews of every sheet, with the shop-wide { avg, count, stars: {1..5} } */
+export const fetchReviews = (limit = 12) => publicGet('/api/reviews?limit=' + limit);
 
 /* ---------- checkout: quote, order, verify ---------- */
 export const payApi = {
@@ -270,7 +296,14 @@ export const eventsApi = {
 
 /* Staff sign in through the server like customers (staff: true refuses a customer account). */
 export const staffAuth = {
-  login: async body => { await serverLogin({ ...body, staff: true }); return api('GET', '/api/admin/me'); },
+  /* the password step: { otpRequired, challengeId, email } when the server emails a sign-in code
+     (finish with verifyOtp), otherwise the staff account at once */
+  login: async body => {
+    const r = await serverLogin({ ...body, staff: true });
+    return r && r.otpRequired ? r : api('GET', '/api/admin/me');
+  },
+  /* { challengeId, code } → the staff account */
+  verifyOtp: async body => { await serverVerifyLoginOtp(body); return api('GET', '/api/admin/me'); },
   logout: serverLogout,
   me: () => api('GET', '/api/admin/me', undefined, staffTokens),
   signedIn: () => usable(staffTokens.get()),

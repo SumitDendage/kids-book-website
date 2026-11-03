@@ -26,6 +26,9 @@ const PERM_LABEL = {
   'staff.manage': 'Manage staff', 'developer.read': 'Open the developer panel', 'logs.read': 'See payment and sign-in logs',
 };
 const TOP = r => r === 'owner' || r === 'admin';
+/* administrators never open the Developer panel (the server and the database refuse it too) */
+const ADMIN_NOT = new Set(['developer.read']);
+const allowedFor = (role, list) => (role === 'admin' ? list.filter(p => !ADMIN_NOT.has(p)) : list);
 
 /* Roles: the staff list from the server, adding someone (a new account gets its password by
    email), changing a role or single permissions, and removing someone. Only an owner can give
@@ -54,7 +57,7 @@ export default function Roles() {
   return (
     <Guard state={staffQ} rows={6}>
       <section className="panel">
-        <div className="row-between"><div><p className="eyebrow">Staff</p><p className="auth-sub">Who can open this panel, and what each person may do. {isOwner ? '' : 'Only an owner can make someone an owner or administrator.'}</p></div>
+        <div className="row-between"><div><p className="eyebrow">Staff</p><p className="auth-sub">Who can open this panel. Add a person's email here after they make an account on the staff sign-in page.</p></div>
           <div className="btn-row">{gone ? <label className="check"><input type="checkbox" checked={showGone} onChange={e => setShowGone(e.target.checked)} />Show removed ({gone})</label> : null}
             {can('staff.manage') ? <button type="button" className="btn btn-primary" onClick={() => setEdit('new')}><Icon id="userplus" />Add staff member</button> : null}</div></div>
         {staffQ.error ? <ErrorNote error={staffQ.error} onRetry={staffQ.reload} compact /> : null}
@@ -69,11 +72,6 @@ export default function Roles() {
               : <small key="a" className="muted">{s.userId === myId ? 'Ask another staff manager' : 'Owner only'}</small>,
           ] }))} />
       </section>
-      <section className="panel"><p className="eyebrow">Roles</p><p className="auth-sub">A role is a starting set of permissions. You can add or remove single permissions for each person.</p>
-        {rolesQ.error ? <ErrorNote error={rolesQ.error} onRetry={rolesQ.reload} compact /> : null}
-        <DataTable plain head={['Role', 'What it can do']} empty={rolesQ.loading ? 'Loading…' : 'No roles.'}
-          rows={roles.map(r => ({ key: r.role, cells: [<b key="r">{r.label || ROLE_LABEL[r.role] || r.role}</b>, r.role === 'owner' ? 'Everything, and the only role that can give the owner or administrator role.' : r.permissions.map(p => PERM_LABEL[p] || p).join(', ')] }))} />
-      </section>
       {edit ? <StaffDialog row={edit === 'new' ? null : edit} roles={roles} info={info} isOwner={isOwner} myPerms={(me && me.staff && me.staff.permissions) || []} onClose={() => setEdit(null)}
         onDone={(s, msg) => { setEdit(null); put(s); toast(msg); }} /> : null}
       {drop ? <RemoveDialog row={drop} onClose={() => setDrop(null)} onDone={r => { setDrop(null); put(r.staff); toast(drop.email + ' was removed from the staff' + (r.sessionsEnded ? ' and signed out' : '')); }} /> : null}
@@ -83,7 +81,7 @@ export default function Roles() {
 
 function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
   const s = row || {};
-  const tpl = id => ((roles.find(r => r.role === id) || {}).permissions || []);
+  const tpl = id => allowedFor(id, (roles.find(r => r.role === id) || {}).permissions || []);
   const firstRole = (roles.find(r => !TOP(r.role)) || roles[0] || { role: 'support' }).role;
   const [role, setRole] = useState(s.role || firstRole);
   const [perms, setPerms] = useState(() => new Set(row ? (s.permissions || []) : tpl(s.role || firstRole)));
@@ -97,7 +95,7 @@ function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
 
   const submit = async e => {
     const f = new FormData(e.currentTarget);
-    const body = { role, permissions: role === 'owner' ? undefined : [...perms].sort(), note: String(f.get('note') || '').trim() || null };
+    const body = { role, permissions: role === 'owner' ? undefined : allowedFor(role, [...perms]).sort(), note: String(f.get('note') || '').trim() || null };
     if (!row) { body.email = String(f.get('email') || '').trim(); body.name = String(f.get('name') || '').trim() || undefined; }
     setBusy(true); setErr(null); setErrs({});
     try {
@@ -134,7 +132,7 @@ function StaffDialog({ row, roles, info, isOwner, myPerms, onClose, onDone }) {
         <small>{role === 'owner' ? 'An owner can do everything, including managing other owners.' : custom ? 'Changed from the role\'s usual permissions.' : 'The role\'s usual permissions are ticked. Change them below if needed.'}</small>{fe('role')}</div>
       {role === 'owner' ? null : <div className="perm-grid">{PERM_GROUPS.map(([g, list]) => (
         <fieldset key={g} className="fs"><legend>{g}</legend>
-          {list.map(p => <label key={p} className="check" title={info[p] || ''}><input type="checkbox" checked={perms.has(p)} disabled={!mayGive(p) && !perms.has(p)} onChange={e => toggle(p, e.target.checked)} />{PERM_LABEL[p] || p}{!mayGive(p) ? <small className="muted"> ({p === 'staff.manage' ? 'owner only' : 'you do not have it'})</small> : null}</label>)}
+          {allowedFor(role, list).map(p => <label key={p} className="check" title={info[p] || ''}><input type="checkbox" checked={perms.has(p)} disabled={!mayGive(p) && !perms.has(p)} onChange={e => toggle(p, e.target.checked)} />{PERM_LABEL[p] || p}{!mayGive(p) ? <small className="muted"> ({p === 'staff.manage' ? 'owner only' : 'you do not have it'})</small> : null}</label>)}
         </fieldset>))}</div>}
       <div className="field"><label htmlFor="stfNote">Note for staff</label><input id="stfNote" name="note" maxLength={300} defaultValue={s.note || ''} placeholder="e.g. Weekend support" /></div>
     </Modal>

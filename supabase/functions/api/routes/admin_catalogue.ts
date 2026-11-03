@@ -34,6 +34,11 @@ const SECTION_RE = /^[a-z0-9-]{1,60}$/;
 const GROUP_RE = /^[a-z0-9-]{1,40}$/;
 const TAG_RE = /^[a-z0-9][a-z0-9-]{0,29}$/;
 const STATUSES = ['draft', 'active', 'archived'] as const;
+const SKU_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
+const SESSION_RE = /^[a-z0-9-]{1,20}$/;
+// gallery pictures: <sheet id>/gallery/<stamp>.<ext> in the public "covers" bucket
+const GALLERY_RE = /^[A-Za-z0-9][A-Za-z0-9-]{1,63}\/gallery\/[a-z0-9]{6,40}\.(jpg|png|webp)$/;
+const GALLERY_MAX = 8;
 const AUDIENCES = ['parent', 'teacher', 'both'] as const;
 const CLASS_STATUSES = ['available', 'coming_soon', 'hidden'] as const;
 
@@ -74,6 +79,15 @@ function pctIn(v: unknown, max: number, label: string): Parsed<number> {
   return { ok: true, value: n };
 }
 
+/** Plain text up to max characters; nullable fields turn '' into null. */
+function textIn(v: unknown, max: number, label: string, nullable: boolean): Parsed<string | null> {
+  if (v === null || v === '') return { ok: true, value: nullable ? null : '' };
+  if (typeof v !== 'string') return { ok: false, error: `${label} must be text.` };
+  const t = cleanText(v, max + 1);
+  if (t.length > max) return { ok: false, error: `Keep ${label.toLowerCase()} under ${max} characters.` };
+  return { ok: true, value: nullable ? (t || null) : t };
+}
+
 /** A site path (/sheets/...) or an https URL; never javascript:, data: or a bare host. */
 function thumbIn(v: unknown): Parsed<string | null> {
   if (v === null || v === '') return { ok: true, value: null };
@@ -109,6 +123,8 @@ type SheetRow = {
   tags: string[]; sort: number; created_at: Date; updated_at: Date; updated_by: string | null;
   has_pdf: boolean; pdf_bytes: number; pdf_updated_at: Date | null; ordered: boolean;
   publish_at: Date | null; sold: number; revenue: number;
+  short_description: string; sku: string | null; language: string; age_group: string | null; gallery: string[];
+  seo_title: string | null; seo_description: string | null; sessions: string[];
 };
 
 const SHEET_COLUMNS = (q: Tx) => q`
@@ -117,6 +133,8 @@ const SHEET_COLUMNS = (q: Tx) => q`
   p.rating::float8 as rating, p.rating_count, p.review_avg::float8 as review_avg, p.review_count,
   p.print_limit, p.print_rule, p.download_limit, p.stock, p.access_days, p.landscape, p.tags, p.sort,
   p.created_at, p.updated_at, p.updated_by, p.publish_at,
+  p.short_description, p.sku, p.language, p.age_group, p.gallery, p.seo_title, p.seo_description,
+  coalesce((select array_agg(ps.session_id order by ps.session_id) from product_sessions ps where ps.product_id = p.id), '{}') as sessions,
   exists (select 1 from order_items it where it.product_id = p.id) as ordered,
   coalesce(st.sold, 0)::int as sold, coalesce(st.revenue, 0)::float8 as revenue`;
 
@@ -207,6 +225,16 @@ export function adminWorksheet(r: SheetRow, s: Settings) {
     revenue: Number(r.revenue) || 0,
     created: ms(r.created_at),
     updatedBy: r.updated_by,
+    // the admin panel's catalogue fields (Oct 22)
+    shortDescription: r.short_description,
+    sku: r.sku,
+    language: r.language,
+    ageGroup: r.age_group,
+    gallery: r.gallery,
+    galleryUrls: r.gallery.map((g) => publicUrl(COVERS, g)),
+    seoTitle: r.seo_title,
+    seoDescription: r.seo_description,
+    sessions: r.sessions,
   };
 }
 
@@ -219,6 +247,8 @@ type SheetFields = {
   status: 'draft' | 'active' | 'archived'; audience: string | null; print_limit: number; download_limit: number;
   stock: number | null; access_days: number | null; tags: string[]; sort: number; thumb_url: string | null; landscape: boolean;
   print_rule: PrintRule; publish_at: Date | null;
+  short_description: string; sku: string | null; language: string; age_group: string | null; gallery: string[];
+  seo_title: string | null; seo_description: string | null;
 };
 
 /** Reads the fields present in a body (old and new names). Missing fields are left out. */
@@ -320,6 +350,25 @@ function parseSheetFields(b: Record<string, unknown>): { set: Partial<SheetField
   }
   const pubKey = has(b, 'publishAt', 'publish_at');
   if (pubKey) put('publishAt', 'publish_at', timeIn(b[pubKey], 'The publish time'));
+  if (b.shortDescription !== undefined) put('shortDescription', 'short_description', textIn(b.shortDescription, 300, 'The short description', false));
+  if (b.sku !== undefined) {
+    const v = b.sku === null ? '' : typeof b.sku === 'string' ? b.sku.trim() : null;
+    if (v === null || (v && !SKU_RE.test(v))) errors.sku = 'An SKU is up to 40 letters, digits, dots, dashes or underscores.';
+    else set.sku = v || null;
+  }
+  if (b.language !== undefined) {
+    const l = cleanName(b.language);
+    if (!l || l.length > 40) errors.language = 'Give the language (up to 40 characters).'; else set.language = l;
+  }
+  if (b.ageGroup !== undefined) put('ageGroup', 'age_group', textIn(b.ageGroup, 40, 'The age group', true));
+  if (b.seoTitle !== undefined) put('seoTitle', 'seo_title', textIn(b.seoTitle, 70, 'The SEO title', true));
+  if (b.seoDescription !== undefined) put('seoDescription', 'seo_description', textIn(b.seoDescription, 170, 'The SEO description', true));
+  if (b.gallery !== undefined) {
+    const list = Array.isArray(b.gallery) ? b.gallery : b.gallery === null ? [] : null;
+    if (!list || list.length > GALLERY_MAX || !list.every((g) => typeof g === 'string' && GALLERY_RE.test(g) && !g.includes('..'))) {
+      errors.gallery = `The gallery holds up to ${GALLERY_MAX} uploaded pictures.`;
+    } else set.gallery = [...new Set(list as string[])];
+  }
   return { set, errors };
 }
 
@@ -328,6 +377,8 @@ const FIELD_NAMES: Record<keyof SheetFields, string> = {
   section_label: 'sectionLabel', pages: 'pages', price_inr: 'price', was_price_inr: 'wasPrice', status: 'status',
   audience: 'audience', print_limit: 'printLimit', download_limit: 'downloadLimit', stock: 'stock', access_days: 'accessDays',
   tags: 'tags', sort: 'sort', thumb_url: 'thumb', landscape: 'landscape', print_rule: 'printRule', publish_at: 'publishAt',
+  short_description: 'shortDescription', sku: 'sku', language: 'language', age_group: 'ageGroup', gallery: 'gallery',
+  seo_title: 'seoTitle', seo_description: 'seoDescription',
 };
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -351,6 +402,45 @@ async function sectionDetails(q: Tx, v: SheetFields, set: Partial<SheetFields>) 
   if (set.group_id === undefined) v.group_id = r[0].group_id;
   if (set.section_label === undefined) v.section_label = r[0].label;
 }
+
+/** A product's subject is one from Admin → Subjects (switched-off ones only when the sheet already has it). */
+async function checkSubject(q: Tx, name: string, current: string | null) {
+  const r = await q<{ active: boolean }[]>`select active from subjects where name = ${name}`;
+  if (!r.length || (!r[0].active && name !== current)) {
+    throw invalid({ subject: 'Pick a subject from the list. Add new subjects under Categories → Subjects.' });
+  }
+}
+
+/** The sessions a body names ({ sessions: ['2026-27'] }); undefined when it names none. */
+function parseSessions(b: Record<string, unknown>): string[] | undefined {
+  if (b.sessions === undefined) return undefined;
+  const list = Array.isArray(b.sessions) ? b.sessions : b.sessions === null ? [] : null;
+  if (!list || list.length > 20 || !list.every((x) => typeof x === 'string' && SESSION_RE.test(x))) {
+    throw invalid({ sessions: 'Pick academic sessions from the list.' });
+  }
+  return [...new Set(list as string[])].sort();
+}
+
+/** Puts a product in exactly these sessions; returns the change for the audit row, or null. */
+async function setSessions(q: Tx, id: string, want: string[], before: string[]) {
+  if (same(want, before)) return null;
+  if (want.length) {
+    const known = await q<{ id: string }[]>`select id from academic_sessions where id = any(${want}::text[])`;
+    if (known.length !== want.length) throw invalid({ sessions: 'Pick academic sessions from the list.' });
+  }
+  await q`delete from product_sessions where product_id = ${id} and not (session_id = any(${want}::text[]))`;
+  if (want.length) {
+    await q`insert into product_sessions (product_id, session_id) select ${id}, x from unnest(${want}::text[]) x on conflict do nothing`;
+  }
+  return { sessions: { before, after: want } };
+}
+
+/** The gallery may only be reordered or shortened through PUT (pictures come in through POST …/gallery). */
+function checkGallery(next: string[], cur: string[]) {
+  if (next.some((g) => !cur.includes(g))) throw invalid({ gallery: 'Upload a gallery picture before adding it.' });
+}
+
+const skuTaken = () => new HttpError(409, 'Another product already has that SKU.', { code: 'sku_taken', errors: { sku: 'That SKU is already used.' } });
 
 async function classExists(q: Tx, id: string): Promise<boolean> {
   return (await q`select 1 from classes where id = ${id}`).length > 0;
@@ -395,6 +485,7 @@ async function getSheet(ctx: Ctx) {
 
 async function createSheet(ctx: Ctx, id: string | null, b: Record<string, unknown>): Promise<Response> {
   const { set, errors } = parseSheetFields(b);
+  const sessions = parseSessions(b);
   if (!set.title && !errors.title) errors.title = 'Give the sheet a title.';
   if (!set.subject && !errors.subject) errors.subject = 'Give the sheet a subject.';
   if (!set.class_id && !errors.cls) errors.cls = 'Pick a known class.';
@@ -421,24 +512,32 @@ async function createSheet(ctx: Ctx, id: string | null, b: Record<string, unknow
       stock: set.stock ?? null, access_days: set.access_days ?? null, tags: set.tags ?? [], sort: set.sort ?? 0,
       thumb_url: set.thumb_url ?? null, landscape: set.landscape ?? false,
       print_rule: set.print_rule ?? 'account', publish_at: set.publish_at ?? null,
+      short_description: set.short_description ?? '', sku: set.sku ?? null, language: set.language ?? 'English',
+      age_group: set.age_group ?? null, gallery: [], seo_title: set.seo_title ?? null, seo_description: set.seo_description ?? null,
     };
+    if (set.gallery?.length) throw invalid({ gallery: 'Upload a gallery picture before adding it.' });
+    await checkSubject(q, v.subject, null);
     await sectionDetails(q, v, set);
     try {
       await q`
         insert into products (id, title, description, class_id, subject, group_id, section, section_label, pages,
                               price_inr, was_price_inr, status, audience, print_limit, download_limit, stock,
-                              access_days, tags, sort, thumb_url, landscape, print_rule, publish_at, updated_by)
+                              access_days, tags, sort, thumb_url, landscape, print_rule, publish_at, updated_by,
+                              short_description, sku, language, age_group, seo_title, seo_description)
         values (${finalId}, ${v.title}, ${v.description}, ${v.class_id}, ${v.subject}, ${v.group_id}, ${v.section},
                 ${v.section_label}, ${v.pages}, ${v.price_inr}, ${v.was_price_inr}, ${v.status}, ${v.audience},
                 ${v.print_limit}, ${v.download_limit}, ${v.stock}, ${v.access_days}, ${v.tags}::text[], ${v.sort},
-                ${v.thumb_url}, ${v.landscape}, ${v.print_rule}, ${v.publish_at}, ${ctx.user!.id})`;
+                ${v.thumb_url}, ${v.landscape}, ${v.print_rule}, ${v.publish_at}, ${ctx.user!.id},
+                ${v.short_description}, ${v.sku}, ${v.language}, ${v.age_group}, ${v.seo_title}, ${v.seo_description})`;
     } catch (e) {
       if (isUnique(e, 'products_pkey')) throw new HttpError(409, 'A worksheet with that id already exists.', { code: 'exists', errors: { id: 'That id is taken.' } });
+      if (isUnique(e, 'products_sku')) throw skuTaken();
       throw e;
     }
+    const sess = sessions ? await setSessions(q, finalId, sessions, []) : null;
     await audit(ctx, {
       action: 'worksheet.create', targetType: 'product', targetId: finalId,
-      detail: { before: null, after: diff({}, v).after, requestedStatus: set.status ?? null },
+      detail: { before: null, after: { ...diff({}, v).after, ...(sess ? { sessions: sessions } : {}) }, requestedStatus: set.status ?? null },
     }, q);
     return (await loadSheet(q, finalId))!;
   });
@@ -462,7 +561,9 @@ async function putSheet(ctx: Ctx) {
 
   const { set, errors } = parseSheetFields(b);
   if (Object.keys(errors).length) throw invalid(errors);
+  const sessions = parseSessions(b);
   const s = await getSettings();
+  let dropped: string[] = [];
   const row = await tx(async (q) => {
     const cur = await loadSheet(q, id, true);
     if (!cur) throw notFound('No such worksheet.');
@@ -491,10 +592,22 @@ async function putSheet(ctx: Ctx) {
       landscape: set.landscape ?? cur.landscape,
       print_rule: set.print_rule ?? cur.print_rule,
       publish_at: set.publish_at !== undefined ? set.publish_at : cur.publish_at,
+      short_description: set.short_description ?? cur.short_description,
+      sku: set.sku !== undefined ? set.sku : cur.sku,
+      language: set.language ?? cur.language,
+      age_group: set.age_group !== undefined ? set.age_group : cur.age_group,
+      gallery: set.gallery ?? cur.gallery,
+      seo_title: set.seo_title !== undefined ? set.seo_title : cur.seo_title,
+      seo_description: set.seo_description !== undefined ? set.seo_description : cur.seo_description,
     };
+    if (set.subject !== undefined && set.subject !== cur.subject) await checkSubject(q, next.subject, cur.subject);
+    if (set.gallery) checkGallery(next.gallery, cur.gallery);
     if (set.section !== undefined && set.section !== cur.section) await sectionDetails(q, next, set);
     const d = diff(cur, next);
+    const sess = sessions ? await setSessions(q, id, sessions, cur.sessions) : null;
+    if (sess) { d.before.sessions = sess.sessions.before; d.after.sessions = sess.sessions.after; }
     if (!Object.keys(d.after).length) return cur;   // nothing changed: no write, no audit row
+    try {
     await q`
       update products set
         title = ${next.title}, description = ${next.description}, class_id = ${next.class_id}, subject = ${next.subject},
@@ -503,11 +616,21 @@ async function putSheet(ctx: Ctx) {
         audience = ${next.audience}, print_limit = ${next.print_limit}, download_limit = ${next.download_limit},
         stock = ${next.stock}, access_days = ${next.access_days}, tags = ${next.tags}::text[], sort = ${next.sort},
         thumb_url = ${next.thumb_url}, landscape = ${next.landscape}, print_rule = ${next.print_rule},
-        publish_at = ${next.publish_at}, updated_by = ${ctx.user!.id}
+        publish_at = ${next.publish_at}, updated_by = ${ctx.user!.id},
+        short_description = ${next.short_description}, sku = ${next.sku}, language = ${next.language},
+        age_group = ${next.age_group}, gallery = ${next.gallery}::text[], seo_title = ${next.seo_title},
+        seo_description = ${next.seo_description}
       where id = ${id}`;
+    } catch (e) {
+      if (isUnique(e, 'products_sku')) throw skuTaken();
+      throw e;
+    }
     await audit(ctx, { action: 'worksheet.update', targetType: 'product', targetId: id, detail: d }, q);
+    dropped = cur.gallery.filter((g) => !next.gallery.includes(g));
     return (await loadSheet(q, id))!;
   });
+  // gallery pictures taken out of the list are removed from storage
+  await removeQuietly(COVERS, dropped);
   return { worksheet: adminWorksheet(row, s) };
 }
 
@@ -549,6 +672,7 @@ async function deleteSheet(ctx: Ctx) {
   const stale = gone.pdf_path === `uploads/${id}.pdf` ? [gone.pdf_path] : [];
   await removeQuietly(WORKSHEETS, stale);
   if (gone.cover_path) await removeQuietly(COVERS, [gone.cover_path]);
+  await removeQuietly(COVERS, gone.gallery);
   return { ok: true, archived: false, deleted: true };
 }
 
@@ -770,6 +894,69 @@ async function uploadCover(ctx: Ctx) {
   });
   if (old && old !== path) await removeQuietly(COVERS, [old]);
   return { worksheet: adminWorksheet(row, s) };
+}
+
+/** POST /api/admin/worksheets/:id/gallery — one more picture for the product's gallery (public
+ *  "covers" bucket, <id>/gallery/<stamp>.<ext>), added at the end; 8 at most. */
+async function uploadGallery(ctx: Ctx) {
+  const u = await requireStaff(ctx, 'files.upload');
+  const id = sheetId(ctx);
+  await rateLimit(ctx, 'admin_upload', u.id, 120, 3600);
+  const cur = (await tx((q) => q<{ gallery: string[] }[]>`select gallery from products where id = ${id}`))[0];
+  if (!cur) throw new HttpError(404, NO_SHEET, { code: 'not_found' });
+  if (cur.gallery.length >= GALLERY_MAX) throw new HttpError(409, `A product can have ${GALLERY_MAX} gallery pictures. Remove one first.`, { code: 'gallery_full' });
+  const { bytes, kind } = await readImage(ctx);
+  const stamp = Date.now().toString(36) + Array.from(randomBytes(3), (x) => x.toString(16).padStart(2, '0')).join('');
+  const path = `${id}/gallery/${stamp}.${kind.ext}`;
+  await upload(COVERS, path, bytes, kind.type);
+  const s = await getSettings();
+  let row: SheetRow;
+  try {
+    row = await tx(async (q) => {
+      const before = await loadSheet(q, id, true);
+      if (!before) throw new HttpError(404, NO_SHEET, { code: 'not_found' });
+      if (before.gallery.length >= GALLERY_MAX) throw new HttpError(409, `A product can have ${GALLERY_MAX} gallery pictures. Remove one first.`, { code: 'gallery_full' });
+      const gallery = [...before.gallery, path];
+      await q`update products set gallery = ${gallery}::text[], updated_by = ${ctx.user!.id} where id = ${id}`;
+      await audit(ctx, {
+        action: 'worksheet.gallery_upload', targetType: 'product', targetId: id,
+        detail: { before: { gallery: before.gallery }, after: { gallery, type: kind.type, bytes: bytes.length } },
+      }, q);
+      return (await loadSheet(q, id))!;
+    });
+  } catch (e) {
+    await removeQuietly(COVERS, [path]);
+    throw e;
+  }
+  return { worksheet: adminWorksheet(row, s), picture: { path, url: publicUrl(COVERS, path) } };
+}
+
+/** POST /api/admin/worksheets/:id/duplicate — a copy as a new draft: same details, prices, sessions and
+ *  cover picture link, "(copy)" after the title, no PDF, no gallery, no labels, no sales. */
+async function duplicateSheet(ctx: Ctx) {
+  await requireStaff(ctx, 'catalogue.write');
+  const id = sheetId(ctx);
+  const s = await getSettings();
+  const row = await tx(async (q) => {
+    const cur = await loadSheet(q, id);
+    if (!cur) throw notFound('No such worksheet.');
+    const newId = newSheetId(cur.title);
+    const title = (cur.title.length > 150 ? cur.title.slice(0, 150) : cur.title) + ' (copy)';
+    await q`
+      insert into products (id, title, description, class_id, subject, group_id, section, section_label, pages,
+                            price_inr, was_price_inr, status, audience, print_limit, download_limit, stock,
+                            access_days, tags, sort, thumb_url, landscape, print_rule, updated_by,
+                            short_description, language, age_group, seo_title, seo_description)
+      select ${newId}, ${title}, description, class_id, subject, group_id, section, section_label, pages,
+             price_inr, was_price_inr, 'draft', audience, print_limit, download_limit, stock,
+             access_days, '{}', sort, thumb_url, landscape, print_rule, ${ctx.user!.id},
+             short_description, language, age_group, seo_title, seo_description
+      from products where id = ${id}`;
+    if (cur.sessions.length) await setSessions(q, newId, cur.sessions, []);
+    await audit(ctx, { action: 'worksheet.duplicate', targetType: 'product', targetId: newId, detail: { from: id, before: null, after: { title, status: 'draft' } } }, q);
+    return (await loadSheet(q, newId))!;
+  });
+  return json(201, { worksheet: adminWorksheet(row, s), created: true, from: id });
 }
 
 // ── GET /api/admin/files ─────────────────────────────────────────────────────────────────
@@ -1062,6 +1249,8 @@ export function register(r: Router) {
   r.post('/api/admin/worksheets/:id/file', uploadPdf);
   r.post('/api/admin/worksheets/:id/pages/:n', uploadPage);
   r.post('/api/admin/worksheets/:id/cover', uploadCover);
+  r.post('/api/admin/worksheets/:id/gallery', uploadGallery);
+  r.post('/api/admin/worksheets/:id/duplicate', duplicateSheet);
   r.get('/api/admin/worksheets/:id', getSheet);
   r.put('/api/admin/worksheets/:id', putSheet);
   r.delete('/api/admin/worksheets/:id', deleteSheet);

@@ -167,6 +167,9 @@ export async function sweepIfDue(ctx: Ctx) {
       where private.job_marks.ran_at < now() - interval '1 hour'
       returning true as ok`);
     if (!hk.length) return;
+    // email sign-in codes are only needed for 10 minutes; keep a day of them for support questions
+    await tx((q) => q`delete from login_otp_challenges where expires_at < now() - interval '1 day'`)
+      .catch((err) => console.error('[sweep] old sign-in codes not removed:', (err as Error)?.message));
     try {
       await tx((q) => q`select private.housekeeping()`);
     } catch (err) {

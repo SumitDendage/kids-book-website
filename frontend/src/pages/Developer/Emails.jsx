@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { staffApi } from '../../services/api.js';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
+import { SplitBar } from '../../components/dashboard/Charts.jsx';
 import ConfirmDialog from '../../components/dashboard/ConfirmDialog.jsx';
 import { StaffStyles, CardTable, Chips, Tag, Missing, Loading, LoadError, Note, NoAccess, PanelHead, useServer, useStaffAccess, problem, qs, when, ago, count, plural } from './common.jsx';
 
@@ -107,6 +108,12 @@ export default function Emails() {
         <MetricCard label="Failed" value={data ? count(c.failed) : '…'} sub={data ? count(c.gaveUp) + ' gave up after retries' : ''} icon="errors" />
         <MetricCard label="Skipped" value={data ? count(c.skipped) : '…'} sub="left unsent by staff" icon="activity" />
       </div>
+      {data ? (
+        <section className="panel" aria-labelledby="lwMailSplit" data-section="email-chart">
+          <PanelHead id="lwMailSplit" title="Every email so far" sub="All emails the site has made, by what happened to them." />
+          <SplitBar parts={[['Sent', c.sent, 'var(--viz-1)'], ['Waiting', c.waiting, 'var(--viz-4)'], ['Failed', c.failed, 'var(--viz-2)'], ['Skipped', c.skipped, 'var(--viz-other)']]} empty="No emails yet." />
+        </section>
+      ) : null}
       <section className="panel" aria-labelledby="lwMailTitle" data-section="emails">
         <PanelHead id="lwMailTitle" title="Email outbox" sub="Every email the site sends, newest first. Failed emails are tried again a few times by themselves.">
           {canWrite ? <button type="button" className="btn btn-primary btn-sm" onClick={sendDue} disabled={run.busy || !data || !c.due} data-act="send-due">{run.busy ? <><span className="lw-spin" aria-hidden="true" />Sending…</> : 'Send due emails now'}</button> : null}

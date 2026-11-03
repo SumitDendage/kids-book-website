@@ -799,10 +799,10 @@ test('rules: read, change with validated params (audited)', async () => {
   assertEquals(r.body.rules.map((x: { id: string }) => x.id), ['concurrent_devices', 'manual_report', 'many_countries_day', 'many_devices_day', 'rapid_page_requests']);
   r = await h.call('GET', '/api/admin/security/rules/concurrent_devices', { token: support.token });
   assertStatus(r, 200);
-  assertEquals(r.body.rule.params, { devices: 3, networks: 2, windowMinutes: 15 });
+  assertEquals(r.body.rule.params, { devices: 2, networks: 2, windowMinutes: 15 });
   assertStatus(await h.call('GET', '/api/admin/security/rules/nope_rule', { token: support.token }), 404);
 
-  // a new IP or one device alone must never trip a rule: devices below 3 is refused
+  // a new IP or one device alone must never trip a rule: devices below 2 is refused
   r = await h.call('PUT', '/api/admin/security/rules/concurrent_devices', { token: admin.token, body: { params: { devices: 1 } } });
   assertStatus(r, 400);
   r = await h.call('PUT', '/api/admin/security/rules/concurrent_devices', { token: admin.token, body: { params: { hours: 3 } } });
@@ -821,7 +821,7 @@ test('rules: read, change with validated params (audited)', async () => {
   assertEquals(r.body.rule.severity, 'medium');
   const a = await audits('security.rule_update', 'concurrent_devices');
   assertEquals(a.length, 1);
-  assertEquals((a[0].detail?.before as { params: Record<string, number> }).params.devices, 3);
+  assertEquals((a[0].detail?.before as { params: Record<string, number> }).params.devices, 2);
 
   r = await h.call('PUT', '/api/admin/security/rules', { token: admin.token, body: { rules: [{ id: 'many_devices_day', enabled: false }, { id: 'concurrent_devices', autoConfirm: false }] } });
   assertStatus(r, 200);
@@ -833,15 +833,15 @@ test('rules: read, change with validated params (audited)', async () => {
   assertEquals(row[0].enabled, false);
 });
 
-test('rules: every limit holds — a rule can never need fewer than 3 devices or 2 networks', async () => {
+test('rules: every limit holds — a rule can never need fewer than 2 devices or 2 networks', async () => {
   const saved = await h.sql<{ id: string; enabled: boolean; auto_confirm: boolean; severity: string; params: Record<string, number> }[]>`
     select id, enabled, auto_confirm, severity, params from security_rules order by id`;
   const auditsBefore = (await audits('security.rule_update')).length;
   const r0 = await h.call('GET', '/api/admin/security/rules/concurrent_devices', { token: support.token });
-  assertEquals(r0.body.rule.limits, { devices: [3, 100], networks: [2, 100], windowMinutes: [1, 1440] });
+  assertEquals(r0.body.rule.limits, { devices: [2, 100], networks: [2, 100], windowMinutes: [1, 1440] });
 
   const refused: [string, unknown][] = [
-    ['concurrent_devices', { devices: 2 }],
+    ['concurrent_devices', { devices: 1 }],
     ['concurrent_devices', { devices: 0 }],
     ['concurrent_devices', { devices: -3 }],
     ['concurrent_devices', { networks: 1 }],

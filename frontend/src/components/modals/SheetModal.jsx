@@ -5,8 +5,11 @@ import { sheetOf, ABOUT } from '../../data/catalogue.js';
 import { classById, planOf, accessSpan } from '../../data/content.js';
 import Countdown from '../sheets/Countdown.jsx';
 import { dateTimeTz } from '../../utils/format.js';
-import { sheetState, openForText, printsLine } from '../sheets/sheetAccess.js';
+import { sheetState, openForText, printsLine, picLocked } from '../sheets/sheetAccess.js';
 import { CartButton } from '../sheets/SheetCard.jsx';
+import { StarRow } from '../reviews/Stars.jsx';
+import SheetRatings from '../reviews/SheetRatings.jsx';
+import WriteReview from '../reviews/WriteReview.jsx';
 
 const tzOf = access => (access && access.session && access.session.timeZone) || undefined;
 
@@ -42,7 +45,7 @@ function SheetDetail({ id }) {
   const span = accessSpan(it);
   const about = it.about || ABOUT[it.id] || it.bullets || [];
   const buyAgain = () => (site.buyAgain ? site.buyAgain(it.id) : (closeModal(), site.openCheckout({ worksheet: it.id, again: true })));
-  const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} />
+  const pic = it.img ? <img src={it.img} alt={it.title + ' — the printed page'} draggable={false} />
     : (
       <div className="sheet-mock" aria-hidden="true"><div className="brand"><b>Learn With Why</b><span>{it.subject}</span></div>
         <div className="boxes"><div><span className="glyph">{it.glyph}</span>{it.skills ? it.skills[0] : it.subject}</div><div><span className="pic">{it.pages ? it.pages : '✎'}</span>{it.pages ? 'A4 pages' : 'Activity'}</div></div>
@@ -52,7 +55,7 @@ function SheetDetail({ id }) {
     : st.kind === 'free' ? (session ? 'Free access · signed in' : 'Free access · no sign-in needed')
     : st.kind === 'bought' ? (st.until ? 'Open until ' + dateTimeTz(st.until, tz) : 'Open on your account')
     : st.kind === 'plan' ? 'In your ' + cls.label + ' plan' + (st.until ? ' · until ' + dateTimeTz(st.until, tz) : '')
-    : st.kind === 'ended' ? (st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) : 'Your access has ended')
+    : st.kind === 'ended' ? (st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) : 'Your access has expired')
     : openForText(it);
   /* one Open button for every sheet: it opens the protected full-screen viewer in a new tab */
   const actions = !st.ready
@@ -60,23 +63,24 @@ function SheetDetail({ id }) {
     : st.open && free
       ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">{session ? 'Free access sheet. No payment needed: it opens in a new tab in the protected viewer, with your name on every page.' : 'Free access sheet. No sign-in or payment needed: it opens in a new tab in the protected viewer.'}</span></>
     : st.open
-      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer, watermarked with your name. Close it to come back here.</span></>
+      ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open PDF · full screen ↗</button><span className="note">Opens in a new tab in the protected viewer. Close it to come back here.</span></>
       : !session
         ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Sign in to open</button>{free ? null : <CartButton it={it} st={st} />}<span className="note">{free ? 'Free access sheet. Sign in and it opens straight away.' : cart.has(it.id) ? 'It is in your cart. Sign in to pay for everything in your cart in one go.' : 'Sign in, then buy this PDF, or add it to your cart and buy a few together. It stays open for ' + span + ' from the day you pay.'}</span></>
         : free
           ? <><button type="button" className="btn btn-primary" onClick={() => openViewer(it.id)}>Open it free ↗</button><span className="note">Free access sheet. No payment needed, just open it.</span></>
           : st.kind === 'ended'
-            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access ended on ' + dateTimeTz(st.endedAt, tz) + '. ' : ''}Buy it again and it opens for another {span} from the day you pay.</span></>
+            ? <><button type="button" className="btn btn-primary" onClick={buyAgain}>Buy Access Again</button><CartButton it={it} st={st} /><span className="note">{st.endedAt ? 'Your access expired on ' + dateTimeTz(st.endedAt, tz) + '. ' : 'Your access has expired. '}Buy it again and it opens for another {span} from the day you pay.</span></>
             : <><button type="button" className="btn btn-primary" onClick={() => buy(it.id)}>Buy this PDF</button><CartButton it={it} st={st} /><span className="note">{cart.has(it.id) ? 'It is in your cart: pay for it with the rest of your cart, or buy it now on its own. ' : 'Buy it now, or add it to your cart and pay for a few sheets together. '}You see the full price at checkout. The sheet opens as soon as your payment is verified and stays open for {span}.</span></>;
   return (
     <>
-      <div className="sheet-view">{pic}</div>
+      <div className={'sheet-view' + (it.img && picLocked(st) ? ' pic-locked' : '')}>{pic}{it.img && picLocked(st) ? <span className="lock-note">🔒 Buy to see the whole sheet</span> : null}</div>
       <div className="sheet-info">
-        <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3></div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
+        <div className="modal-head"><div><p className="eyebrow">{cls.label} · {it.subject}</p><h3 id="modalTitle">{it.title}</h3>{it.reviewCount && it.reviewAvg != null ? <p className="head-rating"><b>{it.reviewAvg.toFixed(1)}</b><StarRow value={it.reviewAvg} /><small>{it.reviewCount === 1 ? '1 review' : it.reviewCount + ' reviews'}</small></p> : null}</div><button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>✕</button></div>
         <p className="lead">{it.blurb}</p>
         <ul className="about">{about.map((l, i) => <li key={i}>{l}</li>)}</ul>
         <div className="rows"><div><span>Pages</span><b>{it.pages || 1} · A4 · PDF</b></div><div><span>Access</span><b id="sheetAccess">{accessLine}</b></div><div><span>Prints</span><b id="sheetPrints">{printsLine(it, site)}</b></div></div>
         <div className="sheet-actions">{actions}</div>
+        <SheetRatings it={it} st={st} />
       </div>
     </>
   );
@@ -133,7 +137,7 @@ function PurchasePopup({ p }) {
           <div className="expiry" key={i} data-line={l.worksheet || l.cls || i}>
             <small>{l.kind === 'class' ? titleOfLine(l) + ': every ' + (c ? c.label : 'class') + ' sheet is open until' : titleOfLine(l) + ' is open until'}</small>
             <b>{end ? dateTimeTz(end, tz) : 'See My Worksheets'}</b>
-            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.now ? access.now - now : 0)} /> : null}
+            {l.kind !== 'class' && end ? <Countdown end={end} skew={(access && access.skew) || 0} /> : null}
             <small>{starts ? 'Starts ' + dateTimeTz(starts, tz) + ', when your current plan ends.' : end && l.kind !== 'class' ? 'Open it as often as you like until then. When the timer reaches zero, it is removed from your account.' : end ? 'Open it as often as you like until then.' : 'The end date is in My Account → My Worksheets.'}</small>
           </div>
         );
@@ -185,13 +189,14 @@ export default function SheetModal() {
     return () => removeEventListener('message', onMsg);
   }, [siteStage]);
 
-  const cls = modal.kind === 'account' ? 'modal account' : modal.kind === 'purchase' ? 'modal purchase' : 'modal sheet';
+  const cls = modal.kind === 'account' ? 'modal account' : modal.kind === 'purchase' ? 'modal purchase' : modal.kind === 'review' ? 'modal review' : 'modal sheet';
   return (
     <div className={'modal-scrim' + (modal.open ? ' open' : '')} id="modalScrim" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
       <div className={cls} id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabIndex={-1} ref={box} style={{ outline: 'none' }} aria-hidden={modal.open ? undefined : 'true'}>
         {modal.kind === 'account' && <AccountPopup id={modal.id} />}
         {modal.kind === 'sheet' && <SheetDetail id={modal.id} />}
         {modal.kind === 'purchase' && <PurchasePopup p={modal.purchase} />}
+        {modal.kind === 'review' && <WriteReview />}
       </div>
     </div>
   );

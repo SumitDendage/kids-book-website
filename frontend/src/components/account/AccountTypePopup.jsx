@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { useSite } from '../../context/SiteContext.jsx';
 import { ACCOUNT_TYPES, printsText } from '../../data/content.js';
 
-/* "Who will use these sheets?" Asked once, right after a customer signs in for the first time
-   (SiteContext's askRole: signed in, no account type yet, never staff). Parent, Teacher or
-   Organization, each with the prints per sheet it gets (GET /api/config prints, which staff change
-   in Admin → Settings). The choice is kept with PATCH /api/auth/me { role } and cannot be changed
-   here afterwards. There is no close button: Escape does nothing, Tab stays inside, the page behind
-   is inert, and the arrow keys move between the three choices (they are radio buttons). */
-export default function AccountTypePopup() {
+/* "Who will use these sheets?" Asked once, right after "Create my account" (AuthCard passes onChoose
+   and the new name; the choice is saved at the account's first sign-in), or, for an account that
+   still has no type, after it signs in (SiteContext's askRole: signed in, no account type yet, never
+   staff; saved here with PATCH /api/auth/me { role }). Parent, Teacher or Organization, each with the
+   prints per sheet it gets (GET /api/config prints, which staff change in Admin → Settings). It cannot
+   be changed here afterwards. There is no close button: Escape does nothing, Tab stays inside, the
+   page behind is inert, and the arrow keys move between the three choices (they are radio buttons). */
+export default function AccountTypePopup({ onChoose, name } = {}) {
   const { session, printsTable, chooseAccountType } = useSite();
   const uid = useId(), titleId = uid + 'title', bodyId = uid + 'body';
   const boxRef = useRef(null), firstRef = useRef(null);
@@ -48,6 +49,7 @@ export default function AccountTypePopup() {
     if (!pick || busy) { if (!pick) setError('Choose one of the three to carry on.'); return; }
     setBusy(true); setError('');
     try {
+      if (onChoose) { await onChoose(pick); return; }
       const ok = await chooseAccountType(pick);
       if (!ok) { setError('We could not save that just now. Please try again.'); setBusy(false); }
       /* saved: the popup closes by itself, the account now has a type */
@@ -57,7 +59,7 @@ export default function AccountTypePopup() {
     }
   };
 
-  const first = String((session && session.name) || '').trim().split(/\s+/)[0];
+  const first = String(name || (session && session.name) || '').trim().split(/\s+/)[0];
   return createPortal(
     <div className="type-scrim" onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
       <form className="panel type-card" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} ref={boxRef} onSubmit={save} noValidate>

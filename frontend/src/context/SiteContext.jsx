@@ -7,7 +7,7 @@ import {
   authApi, cartApi, catalogueApi, customerTokens, signedOutHere, eventsApi, fetchConfig, fetchContent, onCustomerTokensChange, payApi, setAuthProblemHandler, setUnauthorizedHandler,
 } from '../services/api.js';
 import { loadSession, rememberSession, storeSession, read, write } from '../services/storage.js';
-import { applyServerCatalogue, sheetOf, VIEWS } from '../data/catalogue.js';
+import { applyServerCatalogue, sheetOf, shopViews } from '../data/catalogue.js';
 import { WHYS, classById, planOf, accountTypeOf, DEFAULT_PRINTS, printsTableOf } from '../data/content.js';
 import { fmtCur, setCurrencyFromCountry } from '../services/currency.js';
 import { getCoConfig, loadCoConfig, initialAddress } from '../services/checkout.js';
@@ -137,7 +137,7 @@ export function makeAccess(session, ent, skew = 0) {
      spot); a paid sheet opens with a running class plan or its own live purchase. The server decides;
      this paints buttons. */
   const canOpen = it => (it.price === 0 ? true : !!(activeSub(it.cls) || itemEnt(it.id)));
-  return { session, ent: all, live, now, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
+  return { session, ent: all, live, now, skew: Number(skew) || 0, subsOf, activeSub, itemEnt, ownedOf, endedOf, endedPlans, canOpen };
 }
 
 const PAY_LABEL = { razorpay: 'Razorpay', stripe: 'Stripe', paypal: 'PayPal' };
@@ -207,6 +207,15 @@ export function SiteProvider({ children }) {
   const [sessionFresh, setSessionFresh] = useState(false);
   /* prints per sheet for each account type, from GET /api/config ({ parent, teacher, organization }) */
   const [printsTable, setPrintsTable] = useState(DEFAULT_PRINTS);
+  /* the account type picked in the popup right after "Create my account" ({ email, role, at }), kept in
+     this browser until the account's first sign-in saves it (the effect below). Older than 30 days, it
+     is forgotten. */
+  const [pendingType, _setPendingType] = useState(() => {
+    const p = read('lww_pending_type', null);
+    return p && p.email && p.role && Date.now() - (Number(p.at) || 0) < 30 * 864e5 ? p : null;
+  });
+  const setPendingType = useCallback(p => { write('lww_pending_type', p); _setPendingType(p); }, []);
+  const typeSaving = useRef(false);
 
   /* ---------- the cart ----------
      Signed in: the server's cart (serverCart, null until it answers or when the server has no cart yet).
@@ -248,9 +257,12 @@ export function SiteProvider({ children }) {
   /* the staff page registers its fade-out here, so Escape and ✕ close it the same way */
   const portalCloser = useRef(null);
   const portalKind = pathname === '/admin' ? 'admin' : pathname === '/developer' ? 'developer' : null;
-  /* Who will use these sheets? Asked once, when a signed-in customer (never staff) has no account type
-     yet, and only after the server confirmed who is signed in. It cannot be skipped. */
-  const askRole = !!(session && sessionFresh && !session.role && !session.staff && !portalKind && pathname !== '/account-blocked');
+  /* Who will use these sheets? Asked in a popup right after "Create my account" (AuthCard) and saved
+     at the first sign-in. After a sign-in the popup asks again only an account that still has no type
+     (one made before this, or one whose choice could not be saved), never staff, and only after the
+     server confirmed who is signed in. It cannot be skipped. */
+  const typeOnItsWay = !!(session && pendingType && pendingType.email === String(session.email || '').toLowerCase());
+  const askRole = !!(session && sessionFresh && !session.role && !session.staff && !typeOnItsWay && !portalKind && pathname !== '/account-blocked');
   const askRoleRef = useRef(false); askRoleRef.current = askRole;
 
   stage.onSection = setSection;
@@ -300,7 +312,7 @@ export function SiteProvider({ children }) {
       if (!force && Date.now() - catalogueAt < 60_000) return Promise.resolve(false);
       catalogueBusy = catalogueApi.worksheets().then(r => {
         catalogueAt = Date.now();
-        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes });
+        applyServerCatalogue(r.worksheets || [], { sections: r.sections, classes: r.classes, homeSections: r.homeSections });
         a.rerenderAll();
         return true;
       }).finally(() => { catalogueBusy = null; });
@@ -309,7 +321,7 @@ export function SiteProvider({ children }) {
     a.openShop = view => {
       setDrawer(null); a.closeModal();
       a.reloadCatalogue().catch(() => {});
-      setShop(s => (view && VIEWS.some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
+      setShop(s => (view && shopViews().some(v => v.id === view) ? { ...s, open: true, view, cls: 'all', subject: 'all', skill: null, q: '' } : { ...s, open: true }));
     };
     a.setShopFilter = patch => setShop(s => ({ ...s, ...patch }));
     /* token: the one from a password-reset link, kept while the reset form is showing;
@@ -369,6 +381,7 @@ export function SiteProvider({ children }) {
       else if (n.do === 'pay' && n.ret) a.finishPayment(n.ret, n.pending || null);
       else if (n.do === 'account') a.openAccount(n.tab || 'sheets');
       else if (n.do === 'cart') a.openCart();
+      else if (n.do === 'review') a.openReview();
     };
 
     /* ---------- the account type (asked once; only staff can change it afterwards) ----------
@@ -388,6 +401,10 @@ export function SiteProvider({ children }) {
       return !!(sessionRef.current && sessionRef.current.role);
     };
     a.setRole = role => { a.chooseAccountType(role).catch(err => toast(err.message)); };
+    /* the choice made right after sign-up, saved once that account first signs in */
+    a.rememberAccountType = (email, role) => {
+      if (email && role) setPendingType({ email: String(email).trim().toLowerCase(), role, at: Date.now() });
+    };
 
     /* ---------- the cart ---------- */
     const quietly = err => { if (err && err.status !== 401 && err.status !== 0) console.warn('cart', err.message); };
@@ -474,6 +491,12 @@ export function SiteProvider({ children }) {
       if (!sessionRef.current && it.price !== 0) { a.showAccountPopup(id); return; }
       setModal({ open: true, kind: 'sheet', id });
     };
+    /* "Write a review" (home page): pick one of your sheets and rate it; signed in only */
+    a.openReview = () => {
+      if (!sessionRef.current) { a.requireSignIn({ do: 'review' }, 'Sign in to write a review. Then pick the sheet you want to rate.', 'signin'); return; }
+      setDrawer(null);
+      setModal({ open: true, kind: 'review' });
+    };
     /* after a verified payment: the popup gets purchaseOf(...) (see above) */
     /* the server takes paid sheets out of the cart when an order is paid, so the cart is read again */
     a.showPurchasePopup = (p, method) => { setModal({ open: true, kind: 'purchase', purchase: purchaseOf(p, method) }); a.refreshCart(); };
@@ -507,8 +530,8 @@ export function SiteProvider({ children }) {
     a.renewPlan = (cls, plan) => { a.closeNotice(); a.openCheckout({ cls, plan: plan || 'm3', again: true }); };
     /* the time on a sheet bought on its own ran out: say when, and offer to buy access again */
     const endedNotice = (it, endedAt) => a.showNotice({
-      kind: 'expired', title: 'Your access has ended',
-      text: 'Your access to ' + it.title + (endedAt ? ' ended on ' + dateTimeTz(endedAt, tz()) : ' has ended') + '. You can buy access again to keep opening it.',
+      kind: 'expired', title: 'Your access has expired',
+      text: 'Your access to ' + it.title + (endedAt ? ' expired on ' + dateTimeTz(endedAt, tz()) : ' has expired') + '. You can buy access again to keep opening it.',
       actions: [{ label: 'Buy Access Again', primary: true, run: () => a.buyAgain(it.id) }, { label: 'Not now' }],
     });
     /* Open a sheet in the protected viewer (new tab, full screen). Paid sheets need sign-in; a free
@@ -571,6 +594,7 @@ export function SiteProvider({ children }) {
        sign-in; /?reset=… opens the new-password form. Both land on the sign-in card (chapter 01). */
     a.handleAuthLink = async () => {
       a.handleAccountLink();
+      a.handleSheetLink();
       const u = new URL(window.location.href), verify = u.searchParams.get('verify'), reset = u.searchParams.get('reset');
       if (isRecovery()) { a.forgetSession(); stage.goTo(0); a.setAuthView('reset', 'supabase'); return; }
       if (!verify && !reset) return;
@@ -610,6 +634,16 @@ export function SiteProvider({ children }) {
         if (go()) { clearInterval(t); return; }
         if (++n > 40 || !authApi.hasTokens()) { clearInterval(t); a.requireSignIn({ do: 'account', tab }, 'Sign in to see My Account.', 'signin'); }
       }, 250);
+    };
+    /* The worksheet pages for search engines (/kindergarten-worksheets/…) link each sheet to /?sheet=<id>:
+       go to the Sheets chapter and open that sheet's window once the catalogue from the server is in. */
+    a.handleSheetLink = () => {
+      const u = new URL(window.location.href), id = u.searchParams.get('sheet');
+      if (!id) return;
+      u.searchParams.delete('sheet');
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+      stage.goTo(3);
+      a.reloadCatalogue(true).catch(() => {}).finally(() => { if (sheetOf(id)) a.openSheet(id); else toast('That sheet is not in the shop any more. Here are the others.'); });
     };
     /* Confirmation resend never changes the password. */
     a.resendWelcome = email => authApi.resendVerification({ email })
@@ -684,6 +718,18 @@ export function SiteProvider({ children }) {
     });
     return () => setUnauthorizedHandler(null);
   }, [actions, stage]);
+
+  /* the first sign-in of an account made on this browser saves the type picked right after sign-up;
+     if that fails the popup asks instead (askRole) */
+  useEffect(() => {
+    if (!typeOnItsWay || !sessionFresh) return;
+    if (session.role || session.staff) { setPendingType(null); return; }
+    if (typeSaving.current) return;
+    typeSaving.current = true;
+    actions.chooseAccountType(pendingType.role)
+      .catch(err => console.warn('account type', err.message))
+      .finally(() => { typeSaving.current = false; setPendingType(null); });
+  }, [typeOnItsWay, sessionFresh, session, pendingType, actions, setPendingType]);
 
   /* the server blocked the account, stopped this sign-in, paused paid access or wants the email confirmed */
   useEffect(() => {

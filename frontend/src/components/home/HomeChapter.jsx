@@ -4,7 +4,8 @@ import WhyLine from './WhyLine.jsx';
 import AuthCard from './AuthCard.jsx';
 import { AnimatedHtml, AnimatedLetters, AnimatedWords } from './AnimatedText.jsx';
 import { useSite } from '../../context/SiteContext.jsx';
-import { HERO } from '../../data/content.js';
+import { HERO, TAGLINES } from '../../data/content.js';
+import { SloganRibbon } from '../common/Slogans.jsx';
 
 /* 01 · Landing — the headline, today's why, and the sign-up / sign-in card.
    The words move in one after another (AnimatedText.jsx, styles/31-landing-text.css). */
@@ -14,12 +15,13 @@ export default function HomeChapter() {
     <Chapter index={0}>
       <div className="start-grid">
         <div>
+          <Rise i={0} className="hero-ribbon"><SloganRibbon /></Rise>
           <Rise as="p" i={0} className="eyebrow hero-eyebrow"><AnimatedLetters text={content.badge || HERO.badge} /></Rise>
           {/* the admin's Content section may set this headline, HTML allowed (e.g. <em>why</em>) */}
           <Rise as="h1" i={1} className="display hero-title"><AnimatedHtml html={content.heroTitle || HERO.titleHtml} /></Rise>
           <Rise as="p" i={2} className="lede hero-lede"><AnimatedWords text={content.heroLede || HERO.lede} /></Rise>
           <Rise as="p" i={3} className="why-line" aria-live="polite"><span>Today&apos;s why:</span> <WhyLine whys={whys} /></Rise>
-          <Rise i={4} className="hero-peek"><button type="button" className="arrow-link" onClick={() => goTo(3)}>Take a peek at the collection <span aria-hidden="true">→</span></button></Rise>
+          <Rise i={4} className="hero-peek"><button type="button" className="free-pill" onClick={() => goTo(3)}><span aria-hidden="true">🎁</span> {TAGLINES.home}</button><button type="button" className="arrow-link" onClick={() => goTo(3)}>Take a peek at the collection <span aria-hidden="true">→</span></button></Rise>
         </div>
         <AuthCard />
       </div>

@@ -32,3 +32,7 @@
 @import './31-landing-text.css';
 @import './32-ai-assistant.css';
 @import './33-vocab.css';
+
+/* The last rule in the stylesheet: index.html loads this file without blocking the first paint,
+   and the opening veil stays up until this flag proves the look has arrived (layouts/SiteLayout.jsx). */
+:root { --css-ready: 1; }

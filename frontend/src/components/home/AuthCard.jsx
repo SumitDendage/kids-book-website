@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext.jsx';
 import { authApi } from '../../services/api.js';
@@ -8,20 +8,32 @@ import AcceptRules from '../security/AcceptRules.jsx';
 import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
 import { classById, printsText } from '../../data/content.js';
 
+const AccountTypePopup = lazy(() => import('../account/AccountTypePopup.jsx'));
+
 /* Two ways in: Sign up (name, email, a password the customer picks and the account rules; Supabase
-   Auth makes the account, then it signs in through our server at once) and Sign in. Forgot password emails a reset
+   Auth emails a 6-digit code, view 'verify' takes it, and only then is the account open and signed
+   in through our server) and Sign in. Forgot password emails a reset
    link; the link opens the new-password form here (view 'reset', token in auth.token). When the
    account rules change, sign-in asks for them once more (view 'agree'). Every branch is one call
-   to /api/auth/*; the server keeps the record of who signed in and when. */
+   to /api/auth/*; the server keeps the record of who signed in and when. Right after "Create my
+   account" the "Who will use these sheets?" popup asks Parent, Teacher or Organization once; the
+   choice is kept in this browser and saved to the account by itself at its first sign-in
+   (SiteContext, rememberAccountType), and only then does the sign-in code step follow. */
 const COPY = {
   signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, and choose a password.', submit: 'Create my account →' },
   signin: { title: 'Welcome back.', sub: 'Sign in to open your worksheets, plans and orders.', submit: 'Sign in →' },
+   loginOtp: {
+  title: 'Check your email.',
+  sub: 'Enter the 6-digit code we sent you to finish signing in.',
+  submit: 'Verify and sign in →'
+},
   forgot: { title: 'Forgot it? That happens.', sub: 'Tell us the email on the account and we will email you a link to choose a new password.', submit: 'Send reset link →' },
   reset: { title: 'Create a new password.', sub: 'Eight characters or more, with a number and a capital letter.', submit: 'Save new password →' },
+  verify: { title: 'Check your email.', sub: 'We sent a 6-digit code to your email. Type it here to finish making your account.', submit: 'Confirm and create account →' },
   agree: { title: 'One more step.', sub: 'Our account rules have changed. Please read them and tick the box to sign in.', submit: 'Accept and sign in →' },
 };
-const TAB_OF = { signup: 'signup', signin: 'signin', forgot: 'signin', reset: 'signin', agree: 'signin' };
-const EMPTY = { name: '', email: '', pass: '', confirm: '' };
+const TAB_OF = { signup: 'signup', loginOtp: 'signin', verify: 'signup', signin: 'signin', forgot: 'signin', reset: 'signin', agree: 'signin' };
+const EMPTY = { name: '', email: '', pass: '', confirm: '', code: '' };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (_) { return undefined; } };
 
 /* the server's words for most answers; our own for the ones a parent should read differently */
@@ -29,7 +41,7 @@ function friendly(err, email) {
   const c = err.code;
   if (err.status === 0) return err.message;
   if (c === 'email_taken') return 'That email already has an account. Sign in instead, or use Forgot password.';
-  if (c === 'email_unverified') return 'Please confirm your email first: open the email we sent' + (email ? ' to ' + email : '') + ' and press Accept & Continue.';
+  if (c === 'email_unverified') return 'Please confirm your email first with the 6-digit code we sent' + (email ? ' to ' + email : '') + '.';
   if (c === 'account_locked') {
     const until = err.body && Number(err.body.lockedUntil), mins = until ? Math.max(1, Math.ceil((until - Date.now()) / 60e3)) : null;
     return 'Too many wrong passwords, so this account is locked' + (mins ? ' for ' + mins + (mins === 1 ? ' more minute' : ' more minutes') : ' for a little while') + '. You can open it now by choosing a new password.';
@@ -52,17 +64,20 @@ function Field({ id, label, show, error, children }) {
 
 export default function AuthCard() {
   const site = useSite();
-  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet } = site;
+  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet, rememberAccountType } = site;
   const navigate = useNavigate();
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
   const [f, setF] = useState(EMPTY);
+   const [loginChallenge, setLoginChallenge] = useState(null);
   const remember = true;
   const [agreed, setAgreed] = useState(false);
   const [rules, setRules] = useState({ agreement: DEFAULT_AGREEMENT });
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  /* a sign-up that just worked, waiting for the account type: { email, pass, name, ready, to } */
+  const [typeAsk, setTypeAsk] = useState(null);
   const busyRef = useRef(false);
 
   /* the account rules as the server words them (GET /api/config) */
@@ -70,7 +85,7 @@ export default function AuthCard() {
   /* a new view clears the field errors (and the alert, in the store) and fills in the email it was given */
   useEffect(() => {
     setErrs({});
-    if (auth.email) setF(x => ({ ...x, email: auth.email }));
+    if (auth.email) setF(x => ({ ...x, email: auth.email, code: '' }));
     if (auth.view === 'agree' || auth.view === 'signup') setAgreed(false);
   }, [auth.nonce, auth.email, auth.view]);
   /* signed in: the form is emptied */
@@ -90,14 +105,52 @@ export default function AuthCard() {
         setAuthView('agree', null, { email, agreement: (err.body && err.body.agreement) || rules.agreement });
         return;
       }
-      if (code === 'email_unverified') { setAuthAlert({ type: 'err', msg: friendly(err, email), action: { label: 'Send the email again', run: () => resendWelcome(email) } }); return; }
+      if (code === 'email_unverified') {
+        setAuthView('verify', null, { email });
+        setTimeout(() => setAuthAlert({ type: 'err', msg: friendly(err, email), action: { label: 'Send a new code', run: () => resendWelcome(email) } }), 0);
+        return;
+      }
       if (code === 'account_locked') { setAuthAlert({ type: 'err', msg: friendly(err), action: { label: 'Choose a new password', run: () => setAuthView('forgot', null, { email }) } }); return; }
       if (code === 'account_suspended') { markAccountBlocked(email); navigate('/account-blocked'); setAuthAlert({ type: 'err', msg: friendly(err) }); return; }
       throw err;
     }
+     if (r.otpRequired) {
+  setLoginChallenge({
+    challengeId: r.challengeId,
+    email: r.email
+  });
+  setAuthView('loginOtp', null, { email });
+  setTimeout(() => setAuthAlert({
+    type: 'ok',
+    msg: 'We sent a 6-digit login code to ' + r.email + '. Check your inbox and Spam folder.'
+  }), 0);
+  return;
+}
     write('lww_seen', true);
     const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];
     await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
+  }
+
+  /* the account type was picked in the popup after "Create my account": keep it for the first
+     sign-in, then sign straight in (the ticked rules are recorded with it), or, while Supabase is
+     confirming emails, ask for the code it sent */
+  async function afterSignUp(role) {
+    const t = typeAsk; if (!t) return;
+    rememberAccountType(t.email, role);
+    setTypeAsk(null);
+    if (!t.ready) {
+      setAuthView('verify', null, { email: t.to });
+      setTimeout(() => setAuthAlert({
+        type: 'ok',
+        msg: 'We sent a 6-digit code to ' + t.to + '. It can take a minute. Look in Spam too.',
+        action: { label: 'No email? Send a new code', run: () => resendWelcome(t.to) },
+      }), 0);
+      return;
+    }
+    busyRef.current = true; setBusy(true);
+    try { await signInWith(t.email, t.pass, { agreement: true }); }
+    catch (err) { setAuthAlert({ type: 'err', msg: friendly(err, t.email) }); }
+    finally { busyRef.current = false; setBusy(false); }
   }
 
   async function onSubmit(e) {
@@ -129,16 +182,61 @@ export default function AuthCard() {
           throw err;
         }
         write('lww_seen', true);
-        /* ready: sign in now (the ticked rules are recorded with this first sign-in) */
-        if (r && r.ready) { await signInWith(email, pass, { agreement: true }); return; }
-        /* Supabase is confirming emails: the link is in the inbox, then sign in here */
+        /* the account is made: the popup asks who will use the sheets, then afterSignUp carries on */
+        setTypeAsk({ email, pass, name, ready: !!(r && r.ready), to: (r && r.email) || email });
+      } else if (view === 'verify') {
+        const code = f.code.replace(/\s+/g, '');
+        const b = bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')
+          | bad('auCode', /^\d{6,10}$/.test(code) ? '' : 'Type the 6 numbers from the email.');
+        setErrs(errors); if (b) return;
+        busyOn(true);
+        try { await authApi.verifySignupCode({ email, code }); }
+        catch (err) {
+          if (err.code === 'otp_invalid' || err.code === 'otp_format') {
+            setErrs({ auCode: err.message });
+            setAuthAlert({ type: 'err', msg: err.message, action: { label: 'Send a new code', run: () => resendWelcome(email) } }); return;
+          }
+          throw err;
+        }
+        write('lww_seen', true);
+        /* the password chosen a moment ago is still in the form: sign straight in */
+        if (pass) { await signInWith(email, pass, { agreement: true }); return; }
         setAuthView('signin', null, { email });
-        setTimeout(() => setAuthAlert({
-          type: 'ok',
-          msg: 'Account created! Open the email we sent to ' + ((r && r.email) || email) + ' and press the link to confirm your address, then sign in here with your password.',
-          action: { label: 'No email? Send it again', run: () => resendWelcome((r && r.email) || email) },
-        }), 0);
+        setTimeout(() => setAuthAlert({ type: 'ok', msg: 'Your email is confirmed and your account is ready. Sign in with your password.' }), 0);
+               } else if (view === 'loginOtp') {
+        const code = f.code.replace(/\s+/g, '');
+        const b = bad('auCode', /^\d{6}$/.test(code) ? '' : 'Enter the 6-digit code from your email.');
+        setErrs(errors);
+        if (b) return;
+        if (!loginChallenge?.challengeId) {
+          setAuthView('signin', null, { email });
+          setAuthAlert({ type: 'err', msg: 'Your login code has expired. Please sign in again.' });
+          return;
+        }
+        busyOn(true);
+        let r;
+        try {
+          r = await authApi.verifyLoginOtp({
+            challengeId: loginChallenge.challengeId,
+            code
+          });
+        } catch (err) {
+          /* only the newest email's code fits this sign-in; an expired or locked code means signing in again */
+          if (err.code === 'invalid_otp') { setAuthAlert({ type: 'err', msg: 'That code is not right. Use the code from the newest email we sent.' }); return; }
+          if (err.code === 'otp_expired' || err.code === 'otp_attempts_exceeded') {
+            setLoginChallenge(null);
+            setAuthView('signin', null, { email });
+            setTimeout(() => setAuthAlert({ type: 'err', msg: err.code === 'otp_expired' ? 'That code has expired or was already used. Sign in again to get a new one.' : 'Too many wrong codes. Sign in again to get a new one.' }), 0);
+            return;
+          }
+          throw err;
+        }
+        setLoginChallenge(null);
+        write('lww_seen', true);
+        const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];
+        await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
       } else if (view === 'signin') {
+         
         const b = bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.') | bad('auPass', pass ? '' : 'Enter your password.');
         setErrs(errors); if (b) return;
         busyOn(true);
@@ -179,7 +277,9 @@ export default function AuthCard() {
     signup: <>Already have an account? <Link to="signin">Sign in</Link> &nbsp;·&nbsp; <Link to="forgot">Forgot password?</Link></>,
     signin: <>New here? <Link to="signup">Sign up</Link></>,
     forgot: <>Remembered it? <Link to="signin">Sign in</Link></>,
+   loginOtp: <Link to="signin">Back to sign in</Link>,
     reset: <Link to="signin">Back to sign in</Link>,
+    verify: <>Wrong email? <Link to="signup">Start again</Link> &nbsp;·&nbsp; <button type="button" className="link" onClick={() => resendWelcome(f.email.trim().toLowerCase())}>Send a new code</button></>,
     agree: <Link to="signin">Back to sign in</Link>,
   }[view];
 
@@ -197,7 +297,8 @@ export default function AuthCard() {
           <div id="authAlert" aria-live="polite">{auth.alert && <div className={'alert ' + auth.alert.type}>{auth.alert.msg}{auth.alert.action && <> <button type="button" className="link" onClick={auth.alert.action.run}>{auth.alert.action.label}</button></>}</div>}</div>
           {view === 'agree' ? <p className="auth-note">Signing in as <b>{f.email}</b></p> : null}
           <Field id="auName" label="Your name" show={shows('signup')} error={errs.auName}><input id="auName" type="text" autoComplete="name" placeholder="Your name" maxLength={80} value={f.name} onChange={set('name')} /></Field>
-          <Field id="auEmail" label="Email address" show={shows('signup signin forgot')} error={errs.auEmail}><input id="auEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} /></Field>
+          <Field id="auEmail" label="Email address" show={shows('signup signin forgot verify')} error={errs.auEmail}><input id="auEmail" type="email" autoComplete="email" placeholder="you@example.com" value={f.email} onChange={set('email')} /></Field>
+          <Field id="auCode" label="6-digit code" show={shows('verify loginOtp')} error={errs.auCode}><input id="auCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" placeholder="123456" maxLength={10} value={f.code} onChange={e => setF(x => ({ ...x, code: e.target.value.replace(/[^0-9]/g, '') }))} /></Field>
           <Field id="auPass" label={view === 'reset' ? 'New password' : 'Password'} show={shows('signup signin reset')} error={errs.auPass}>
             <div className="pw-wrap"><input id="auPass" type={showPass ? 'text' : 'password'} autoComplete={view === 'signin' ? 'current-password' : 'new-password'} placeholder={view === 'signin' ? 'Your password' : 'At least 8 characters'} maxLength={128} value={f.pass} onChange={set('pass')} /><button type="button" className="pw-toggle" id="pwToggle" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(v => !v)}>{showPass ? 'HIDE' : 'SHOW'}</button></div>
           </Field>
@@ -209,6 +310,7 @@ export default function AuthCard() {
           <p className="switch" id="authSwitch">{switchLine}</p>
         </form>
       </div>
+      {typeAsk ? <Suspense fallback={null}><AccountTypePopup name={typeAsk.name} onChoose={afterSignUp} /></Suspense> : null}
       <div className="signed">
         <h2 className="card-title">You&apos;re in, <span id="signedName">{session ? session.name : ''}</span>.</h2>
         <p className="auth-sub" id="roleLine" hidden={!hasRole}><b id="signedRole">{hasRole ? accountType.label : ''}</b> account · {hasRole ? printsText(printsPerSheet).toLowerCase() : ''} per sheet. Your plans and sheets are kept with it.</p>

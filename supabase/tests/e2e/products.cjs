@@ -69,7 +69,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.locator('.studio #psTitle').waitFor({ timeout: 10000 });
     await page.fill('#psTitle', title);
     await page.fill('#psDesc', 'Made by the product manager test.');
-    await page.fill('#psSubj', 'English');
+    await page.selectOption('#psSubj', 'English');
     if (section) await option('#psTopic', section);
     if (free) await page.locator('.seg-opt', { hasText: 'Free' }).click();
     else { await page.fill('#psWas', String(orig)); await page.fill('#psPct', String(pct)); }
@@ -95,7 +95,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await step('Products: filters, sales and the Categories item in the menu', async () => {
     await go('Products');
     must(await page.locator('.sb .sb-item[title="Categories"]').count(), 'no Categories in the menu');
-    must(await page.locator('.filters-row select').count() === 3, 'section, label and sort filters');
+    must(await page.locator('.filters-row select').count() === 5, 'section, subject, session, label and sort filters');
     must(await page.locator('.tabs-s button', { hasText: 'Scheduled' }).count(), 'a Scheduled tab');
     await shot('01-products');
   });
@@ -169,6 +169,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     must(await page.locator('#shopGrid .shop-card', { hasText: BOOK }).count(), 'not under Featured');
     must(/20% off/i.test(await page.locator('#shopGrid .shop-card', { hasText: BOOK }).innerText()), 'no 20% off on the card');
     await shot('05-shop-featured');
+    /* Vocabulary's topics sit under it since Oct 20: open Vocabulary first */
+    await page.locator('#shopClasses .side-btn', { hasText: 'Vocabulary' }).click();
+    await sleep(300);
     await page.locator('#shopClasses .side-btn', { hasText: 'Animals' }).click();
     await sleep(400);
     must(await page.locator('#shopGrid .shop-card', { hasText: BOOK }).count(), 'not under Vocabulary › Animals');

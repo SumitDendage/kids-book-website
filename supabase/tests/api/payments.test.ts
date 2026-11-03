@@ -97,9 +97,9 @@ test('razorpay: order, then verify with a correct signature grants exactly once'
   assertEquals(v.body.entitlement.worksheet, 'az-C');
   assertEquals(v.body.entitlement.status, 'active');
   const hours = (v.body.entitlement.end - Date.now()) / 3_600_000;
-  assert(hours > 23.9 && hours <= 24.01, `a bought sheet is open for 24 hours, got ${hours}`);
+  assert(hours > 0.95 && hours <= 1.01, `a bought sheet is open for 1 hour, got ${hours}`);
   const line = (await h.sql<{ access_days: number; access_hours: number }[]>`select access_days, access_hours from order_items where order_id = ${orderId}`)[0];
-  assertEquals([line.access_hours, line.access_days], [24, 1], 'the order line keeps the hours it was sold with');
+  assertEquals([line.access_hours, line.access_days], [1, 1], 'the order line keeps the hours it was sold with');
   assertEquals(h.fake.calls(`/v1/payments/${pay.paymentId}`, 'GET').length, fetchesBefore + 1, 'the payment is fetched from Razorpay');
 
   const ents = await entsOf(c.id);

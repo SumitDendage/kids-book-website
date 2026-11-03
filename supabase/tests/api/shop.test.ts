@@ -1,6 +1,6 @@
 // Shop routes (routes/shop.ts) and the pricing service (services/pricing.ts): the catalogue, quotes,
 // the order-time re-checks, and the customer's own orders and access records.
-import { assert, assertEquals, assertMatch, assertStatus, randomIp, startHarness, test, type Harness, type TestUser } from './harness.ts';
+import { assert, assertEquals, assertMatch, assertStatus, freshWindow, randomIp, startHarness, test, type Harness, type TestUser } from './harness.ts';
 import { tx } from '../../functions/api/lib/db.ts';
 import { HttpError } from '../../functions/api/lib/http.ts';
 import { loadQuote, revalidateQuote, type StoredQuote } from '../../functions/api/services/pricing.ts';
@@ -81,7 +81,7 @@ test('catalogue: active sheets only, never a storage path, available follows the
   assertEquals(d.available, false);
   assertEquals(d.real, false);
   assertEquals(d.onSale, false);
-  assertEquals([d.accessDays, d.accessHours], [1, 24]);
+  assertEquals([d.accessDays, d.accessHours], [1, 1]);
   for (const k of ['printLimit', 'downloadLimit', 'rating', 'ratingCount', 'reviewAvg', 'reviewCount', 'audience', 'stock', 'thumb']) assert(k in d, `field ${k}`);
   assertEquals(all.find((w) => w.id === 'az-A')!.free, true);
   // classes and plans ride along; Class 1 is coming soon
@@ -130,14 +130,14 @@ test('quote: India — base, GST 18% and fee from database prices; stored as quo
   assertMatch(b.quoteId, /^[0-9a-f-]{36}$/);
   assertEquals(b.sig, b.quoteId);
   assert(b.expiresAt === b.exp && b.exp > Date.now() + 14 * 60_000 && b.exp <= Date.now() + 15 * 60_000 + 5000, 'expires in 15 minutes');
-  assertEquals([b.accessDays, b.accessHours], [1, 24]);
-  assertMatch(b.items[0].expiry, /Open for 24 hours from payment — until .* After that it is removed from your account\./);
+  assertEquals([b.accessDays, b.accessHours], [1, 1]);
+  assertMatch(b.items[0].expiry, /Open for 1 hour from payment — until .* After that it is removed from your account\./);
   assertEquals(b.methods, [], 'no gateway is configured in the test env');
 
   const row = (await h.sql`select * from quotes where id = ${b.quoteId}`)[0];
   assertEquals([row.kind, row.product_id, row.country, row.currency, Number(row.total), Number(row.amount_minor), row.valid], ['worksheet', 'az-C', 'IN', 'INR', 25.8, 2580, true]);
   assertEquals(row.payload.lines[0].unitPriceInr, 19);
-  assertEquals([row.payload.lines[0].accessDays, row.payload.lines[0].accessHours], [1, 24]);
+  assertEquals([row.payload.lines[0].accessDays, row.payload.lines[0].accessHours], [1, 1]);
 
   const s = await stored(b.quoteId);
   assertEquals([s.amountMinor, s.total, s.currency, s.rate, s.lines.length, s.lines[0].productId, s.title], [2580, 25.8, 'INR', 1, 1, 'az-C', 'Alphabet C — tracing sheet']);
@@ -292,6 +292,7 @@ test('quote: class discount and coupons (active, dates, kind, class)', async () 
 
 test('quote: 60 per minute per IP', async () => {
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 60; i++) assertStatus(await quote({}, { ip }), 400);
   const r = await quote({}, { ip });
   assertStatus(r, 429);
@@ -496,7 +497,7 @@ test('me/entitlements: every record of the caller with its status (expired, revo
   assertMatch(get(live).expiresAt, /^\d{4}-/);
   assert(typeof get(live).end === 'number' && typeof get(live).start === 'number');
   assert(!/revoke_reason|refund|user_id/.test(r.text));
-  assertEquals([r.body.accessDays, r.body.accessHours, r.body.accessStatus], [1, 24, 'active']);
+  assertEquals([r.body.accessDays, r.body.accessHours, r.body.accessStatus], [1, 1, 'active']);
   assert(Math.abs(r.body.now - Date.now()) < 60_000);
 
   // works while paid access is suspended, and says so

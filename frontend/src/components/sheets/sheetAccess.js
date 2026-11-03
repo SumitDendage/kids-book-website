@@ -21,6 +21,10 @@ export function sheetState(access, it) {
   return { kind: 'buy', ready, open: false };
 }
 
+/* A paid sheet's picture stays blurred until the customer can open it (bought, or in a plan).
+   Free sheets always show clearly. */
+export const picLocked = st => !st.open && st.kind !== 'free';
+
 /* "Open for 24 hours once bought", "Open for 3 days once bought" */
 export const openForText = it => 'Open for ' + accessSpan(it) + ' once bought';
 
@@ -35,7 +39,7 @@ export function printsLine(it, site) {
   /* a free sheet opens without an account, view only: printing comes with an account */
   if (it && it.price === 0 && !(site && site.session)) return 'View only · sign in to print';
   if (it && it.printRule === 'sheet') { const n = Number(it.printLimit) || 0; return n > 0 ? printsText(n) + ' with this sheet' : 'View only, no printing'; }
-  const t = (site && site.printsTable) || { parent: 2, teacher: 4, organization: 300 };
+  const t = (site && site.printsTable) || { parent: 2, teacher: 3, organization: 300 };
   if (site && site.session) return printsText(site.printsPerSheet != null ? site.printsPerSheet : t.parent) + ' with your account';
   return 'Parent ' + t.parent + ' · Teacher ' + t.teacher + ' · Organization ' + t.organization;
 }

@@ -7,6 +7,10 @@ name: Publish the website
 
 on:
   workflow_dispatch:
+  # once a day too, so the worksheet pages for Google (scripts/build-seo-pages.mjs) pick up sheets
+  # and prices changed in Admin; nothing is pushed when the build is the same
+  schedule:
+    - cron: '30 0 * * *'
   push:
     branches: [main]
     paths: ['frontend/**', '.github/workflows/publish-website.yml']

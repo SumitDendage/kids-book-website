@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Rise from '../common/Rise.jsx';
 import { QUOTES, THANKS } from '../../data/content.js';
 
-/* CHAPTER 06 — testimonials coverflow with pause; auto-advances every 4.5 s while
+/* CHAPTER 07 — testimonials coverflow with pause; auto-advances every 4.5 s while
    the chapter is in view (never with reduced motion). */
 export default function Testimonials({ active }) {
   const [idx, setIdx] = useState(0);

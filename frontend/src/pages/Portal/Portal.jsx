@@ -5,6 +5,7 @@ import { staffAuth } from '../../services/api.js';
 import StaffLogin, { STAFF } from './StaffLogin.jsx';
 import Dashboard from './Dashboard.jsx';
 import { canWith, panelAllowed, problem, ROLE_LABEL } from './dashboard.js';
+import '../../styles/admin.css';   /* the staff look, downloaded with these pages and not before */
 
 const FADE_MS = 450;   /* .shop fades out in 0.45 s */
 

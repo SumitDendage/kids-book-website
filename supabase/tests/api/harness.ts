@@ -53,6 +53,8 @@ export type LoginResult = {
   text: string;
   token?: string;
   refreshToken?: string;
+  /** the email-code step, when the password was accepted (code = the one in the email) */
+  challenge?: { challengeId: string; code: string | null };
 };
 
 export type TestUser = { id: string; email: string; password: string; token: string; refreshToken: string; sessionId: string; name: string };
@@ -87,7 +89,9 @@ export type Harness = {
   customer(o?: { email?: string; name?: string; verified?: boolean; agreement?: boolean; remember?: boolean; ip?: string; device?: string }): Promise<TestUser>;
   staff(role: StaffRole, permissions?: string[], o?: { email?: string; name?: string; remember?: boolean }): Promise<TestUser>;
   /** POST /api/auth/login (the real route); token/refreshToken come from body.session. */
-  login(email: string, password: string, o?: { remember?: boolean; staff?: boolean; agreement?: boolean; ip?: string; device?: string })
+  /** POST /api/auth/login, then (unless `otp: false`) the emailed 6-digit code through
+   *  POST /api/auth/verify-login-otp, as the website does. `challenge` is the first answer. */
+  login(email: string, password: string, o?: { remember?: boolean; staff?: boolean; agreement?: boolean; ip?: string; device?: string; otp?: boolean })
     : Promise<LoginResult>;
   /** Merges over the test env (undefined removes a name) and clears the env/auth/settings caches. */
   setEnv(vars: Record<string, string | undefined>): void;
@@ -139,6 +143,14 @@ export function randomIp(): string {
   const b = new Uint8Array(3);
   crypto.getRandomValues(b);
   return `10.${b[0]}.${b[1]}.${1 + (b[2] % 254)}`;
+}
+
+/** The rate limiter counts in fixed windows (private.rate_limit_hit). A test that fills a limit waits
+ *  here for a fresh window when the current one ends within `margin` seconds, so its hits can't be
+ *  split across two windows and the last call can't land in a new, empty one. */
+export async function freshWindow(seconds = 60, margin = 10): Promise<void> {
+  const ms = seconds * 1000, left = ms - (Date.now() % ms);
+  if (left < margin * 1000) await new Promise((r) => setTimeout(r, left + 250));
 }
 
 /** Deno.test with the op/resource sanitizers off (pools and the fake server stay open). */
@@ -225,6 +237,7 @@ export async function startHarness(): Promise<Harness> {
     MAIL_API_BASE: fake.url,
     SITE_URL: 'http://localhost:5173',
     LWW_VERSION: 'test',
+    LOGIN_OTP_ENCRYPTION_KEY: btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))),
   };
   let currentEnv = { ...baseEnv };
   const applyEnv = () => {
@@ -383,8 +396,14 @@ export async function startHarness(): Promise<Harness> {
       const body: Record<string, unknown> = { email, password, remember: o.remember ?? false };
       if (o.staff !== undefined) body.staff = o.staff;
       if (o.agreement !== undefined) body.agreement = o.agreement;
-      const r = await call('POST', '/api/auth/login', { body, ip: o.ip, device: o.device });
-      return { status: r.status, body: r.body, text: r.text, token: r.body?.session?.accessToken, refreshToken: r.body?.session?.refreshToken };
+      let r = await call('POST', '/api/auth/login', { body, ip: o.ip, device: o.device });
+      let challenge: { challengeId: string; code: string | null } | undefined;
+      if (r.status === 200 && r.body?.otpRequired && o.otp !== false) {
+        const m = mail.last(email)?.text.match(/code is: (\d{6})/);
+        challenge = { challengeId: r.body.challengeId, code: m ? m[1] : null };
+        r = await call('POST', '/api/auth/verify-login-otp', { body: { challengeId: challenge.challengeId, code: challenge.code ?? '' }, ip: o.ip, device: o.device });
+      }
+      return { status: r.status, body: r.body, text: r.text, token: r.body?.session?.accessToken, refreshToken: r.body?.session?.refreshToken, challenge };
     },
     setEnv(vars) {
       for (const [k, v] of Object.entries(vars)) {

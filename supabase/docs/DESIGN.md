@@ -473,7 +473,7 @@ Migration `20261015090000_accounts_prints_cart.sql` (additive only). Tests:
   `{ before: {role, accountType}, after: {role, accountType} }`, security event
   `account_type.changed_by_staff {by, before, after}`. 400 `errors.role` for a missing or unknown type,
   404 for an unknown customer.
-- **`settings.prints`** `{"parent":2,"teacher":4,"organization":300}`: whole numbers 0 to 1000, edited
+- **`settings.prints`** `{"parent":2,"teacher":3,"organization":300}`: whole numbers 0 to 1000, edited
   with `PUT /api/admin/settings/prints {value: {parent?, teacher?, organization?}}` (`pricing.write`;
   400 `errors.<field>` for a bad or unknown field; audited `settings.update`). Public in
   `GET /api/config` as `prints`. FAQ answers may use `{printsParent}`, `{printsTeacher}`,

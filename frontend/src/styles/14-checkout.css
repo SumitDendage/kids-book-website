@@ -137,3 +137,108 @@
 
 /* the coupon line under the code box: red when the code did not work, green once it is applied */
 #coCouponMsg.ok { color: #8fe8b4; }
+
+/* White checkout: calm surfaces, readable form states and a clear payment action. */
+#checkout {
+  --fg: #263044;
+  --fg-muted: #455269;
+  --fg-dim: #647084;
+  --glass-border: #dce3ec;
+  color-scheme: light;
+  color: var(--fg);
+  background: #fff;
+}
+#checkout .shop-shade { background: #fff; }
+#checkout .shop-bar {
+  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid #e8edf3;
+  box-shadow: 0 4px 24px rgba(31, 48, 76, 0.04);
+}
+#checkout .shop-bar::after { display: none; }
+#checkout .eyebrow { color: #9d2460; }
+#checkout .checkout-body { gap: 24px; margin-top: 28px; }
+#checkout .panel, #checkout .co-summary {
+  background: #fff;
+  border: 1px solid #e5eaf1;
+  border-radius: 24px;
+  box-shadow: 0 10px 36px rgba(38, 48, 68, 0.07), 0 2px 6px rgba(38, 48, 68, 0.03);
+  backdrop-filter: none;
+  color: var(--fg);
+}
+#checkout .co-summary { border-top: 4px solid #ae2869; }
+#checkout .co-card.done { border-color: #acd7bf; }
+#checkout .co-card-head h3 { color: #263044; }
+#checkout .co-num { background: #f8eaf1; color: #9d2460; }
+#checkout .co-card.done .co-num { background: #e8f5ee; color: #21643f; }
+#checkout .stepper li i { border-color: #ced6e1; background: #f7f9fc; }
+#checkout .stepper li.on { color: #9d2460; }
+#checkout .stepper li.on i { background: #ae2869; color: #fff; border-color: #ae2869; }
+#checkout .stepper li.done { color: #21643f; }
+#checkout .stepper li.done i { background: #21643f; color: #fff; border-color: #21643f; }
+#checkout .fl input, #checkout .fl select, #checkout .field select {
+  background-color: #f8fafc;
+  border-color: #d5dde8;
+  color: #263044;
+}
+#checkout .fl select {
+  background-image: linear-gradient(45deg, transparent 50%, #647084 50%), linear-gradient(135deg, #647084 50%, transparent 50%);
+}
+#checkout .fl input:focus, #checkout .fl select:focus {
+  background-color: #fff;
+  border-color: #ae2869;
+  box-shadow: 0 0 0 3px rgba(174, 40, 105, 0.12);
+}
+#checkout .fl.bad input, #checkout .fl.bad select { border-color: #b42336; }
+#checkout .err, #checkout .alert.err { color: #a51c30; }
+#checkout .alert.err { background: #fff0f2; border-color: #f2c3cb; }
+#checkout .alert.ok { background: #edf8f1; border-color: #b7dec6; color: #21643f; }
+#checkout .co-note.ok, #checkout #coCouponMsg.ok { color: #21643f; }
+#checkout .region-chip { background: #f3f6fa; border-color: #dce3ec; color: #455269; }
+#checkout .region-chip.in { background: #fff7e8; border-color: #eeddbb; color: #75531c; }
+#checkout .method, #checkout .plan-card, #checkout .class-pill, #checkout .pay {
+  background: #fff;
+  border-color: #dce3ec;
+  color: #263044;
+  box-shadow: 0 2px 8px rgba(38, 48, 68, 0.03);
+}
+#checkout .method:not(.off):hover, #checkout .plan-card:hover, #checkout .class-pill:hover { border-color: #bc6490; }
+#checkout .method.on, #checkout .plan-card.on, #checkout .class-pill.on, #checkout .pay.on {
+  background: #fff5fa;
+  border-color: #ae2869;
+  box-shadow: 0 0 0 1px #ae2869, 0 6px 18px rgba(174, 40, 105, 0.08);
+}
+#checkout .method .ring, #checkout .plan-card .tick { border-color: #aab5c5; }
+#checkout .method.on .ring { border-color: #ae2869; box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 10px #ae2869; }
+#checkout .method.on .mark { box-shadow: 0 0 0 3px #f4dce8; }
+#checkout .method.on::after { color: #9d2460; }
+#checkout .plan-card.on .tick { background: #ae2869; border-color: #ae2869; color: #fff; }
+#checkout .method:focus-within, #checkout .plan-card:focus-within { outline: 3px solid #8c3266; outline-offset: 3px; }
+#checkout .method.off { opacity: 0.65; background: #f5f6f8; }
+#checkout .pay-secure { background: #f0f8f4; border-color: #d7eade; color: #42644e; }
+#checkout .pay-secure b { color: #21643f; }
+#checkout .co-row, #checkout .co-head, #checkout .co-line, #checkout .sum-item { border-color: #e8edf3; }
+#checkout .sum-thumb { background: #f8eaf1; color: #9d2460; flex-shrink: 0; }
+#checkout .sum-total { margin-top: 10px; padding: 18px 14px; background: #f8fafc; border-radius: 16px; gap: 12px; flex-wrap: wrap; }
+#checkout .sum-total strong { color: #263044; }
+#checkout .sk-line { background-image: linear-gradient(90deg, #edf1f6, #dce3ec, #edf1f6); }
+#checkout .btn-ghost, #checkout .icon-btn { background: #fff; color: #455269; border: 1px solid #d5dde8; box-shadow: none; }
+#checkout .btn-ghost:hover, #checkout .icon-btn:hover { background: #f8eaf1; border-color: #bc6490; }
+#checkout .link { color: #9d2460; }
+#checkout .btn-pay {
+  background: linear-gradient(135deg, #b82470, #94245f);
+  color: #fff;
+  border: 1px solid #94245f;
+  min-height: 62px;
+  box-shadow: 0 8px 20px rgba(157, 36, 96, 0.2);
+}
+#checkout .btn-pay small { color: #fff; }
+#checkout .btn-pay:not(:disabled):hover { background: #94245f; box-shadow: 0 10px 24px rgba(157, 36, 96, 0.25); }
+#checkout .btn-pay:not(:disabled)::after { display: none; }
+#checkout .btn-pay:disabled { background: #e9edf3; border-color: #dce3ec; color: #687386; opacity: 1; box-shadow: none; }
+#checkout .btn-pay:disabled small { color: #687386; }
+#checkout button:focus-visible { outline: 3px solid #8c3266; outline-offset: 3px; }
+@media (max-width: 640px) {
+  #checkout .checkout-body { width: calc(100% - 24px); gap: 16px; margin-top: 18px; }
+  #checkout .panel, #checkout .co-summary { padding: 18px; border-radius: 20px; }
+  #checkout .sum-head { align-items: flex-start; flex-wrap: wrap; }
+}

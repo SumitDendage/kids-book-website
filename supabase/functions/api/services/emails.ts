@@ -180,3 +180,21 @@ export function staffAlert(o: { title: string; lines: string[]; link?: string })
   const html = layout(o.title, o.lines.map((l) => p(escapeHtml(l))).join('') + (o.link ? btn(o.link, 'Open the staff panel') : ''));
   return { subject, html, text: `${o.title}\n\n${o.lines.join('\n')}\n${o.link ?? ''}\n` };
 }
+
+
+export function loginOtpEmail(o: { name: string; code: string; minutes: number }): Email {
+  const subject = `${BRAND}: your sign-in verification code`;
+
+  const html = layout('Verify your sign-in', [
+    p(`Hello ${escapeHtml(o.name || 'there')},`),
+    p('Use this code to finish signing in to your account:'),
+    `<p style="font-size:28px;font-weight:bold;letter-spacing:8px;font-family:Consolas,Menlo,monospace;background:#f1efe6;padding:16px;text-align:center;border-radius:10px">${escapeHtml(o.code)}</p>`,
+    p(`This code expires in ${o.minutes} minutes and can only be used once.`),
+    p('If you did not try to sign in, ignore this email. Never share this code with anyone.'),
+  ].join(''));
+
+  const text = `Hello ${o.name || 'there'},\n\nYour sign-in verification code is: ${o.code}\nIt expires in ${o.minutes} minutes and can only be used once.\n\nIf you did not try to sign in, ignore this email. Never share this code.\n`;
+
+  return { subject, html, text };
+}
+

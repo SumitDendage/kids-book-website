@@ -1,5 +1,5 @@
 // Public routes (routes/public.ts) and the FAQ assistant (services/chatbot.ts).
-import { assert, assertEquals, assertMatch, assertStatus, randomIp, startHarness, test, uniqueEmail, type Harness } from './harness.ts';
+import { assert, assertEquals, assertMatch, assertStatus, freshWindow, randomIp, startHarness, test, uniqueEmail, type Harness } from './harness.ts';
 import { hasKeyword } from '../../functions/api/services/chatbot.ts';
 import { initials } from '../../functions/api/routes/public.ts';
 
@@ -37,7 +37,7 @@ test('config: the old checkout shape plus the new fields; public keys only', asy
     assert(b.currencies.includes('JPY'));
     assertEquals(b.gateways, { razorpay: 'test', stripe: false, paypal: 'sandbox' });
     assertEquals(b.keys.razorpay, 'rzp_test_publicid');
-    assertEquals([b.server, b.version, b.accessDays, b.accessHours, b.supportEmail], ['learn-with-why', '4', 1, 24, INBOX]);
+    assertEquals([b.server, b.version, b.accessDays, b.accessHours, b.supportEmail], ['learn-with-why', '4', 1, 1, INBOX]);
     assertEquals(b.agreement.version, '2026-10-07');
     assertEquals(b.features, { email: true, payments: { razorpay: true, stripe: false, paypal: true, any: true } });
     assertEquals([b.security.maxWarnings, b.viewer.recheckSeconds], [3, 60]);
@@ -59,7 +59,7 @@ test('config: settings changes show up (access days, coming soon)', async () => 
     const r = await h.call('GET', '/api/config');
     assertEquals([r.body.accessDays, r.body.classStatus.c1], [200, 'available']);
   } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 24 });
+    await h.setSetting('worksheet_access', { days: 1, hours: 1 });
     await h.sql`update classes set status = 'coming_soon' where id = 'c1'`;
   }
 });
@@ -161,10 +161,10 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   const free = await chat('Which sheets are FREE?');
   assertStatus(free, 200);
   assertEquals(free.body.source, 'faq');
-  assertMatch(free.body.reply, /^Eight sheets are free to try/);
+  assertMatch(free.body.reply, /^Free sheets to try in every section/);
 
   const days = await chat('how long does my access last after I buy?');
-  assertEquals(days.body.reply, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.body.reply, 'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
   assert(!days.body.reply.includes('{accessDays}'));
   await h.setSetting('worksheet_access', { days: 200 });
   try {
@@ -175,7 +175,7 @@ test('chat: answers from the published public FAQ and fills {accessDays}', async
   try {
     assertMatch((await chat('when does it expire?')).body.reply, /stays open for 6 hours, counted from your verified payment/);
   } finally {
-    await h.setSetting('worksheet_access', { days: 1, hours: 24 });
+    await h.setSetting('worksheet_access', { days: 1, hours: 1 });
   }
 
   assertMatch((await chat('hi')).body.reply, /^Hello!/);
@@ -210,6 +210,7 @@ test('chat: input checks and 30 per minute per IP', async () => {
   assertStatus(await chat('x'.repeat(1001)), 400);
   assertEquals((await chat('qwertyuiop asdfgh')).body.source, 'fallback');
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 30; i++) assertStatus(await chat('hello', ip), 200);
   const r = await chat('hello', ip);
   assertStatus(r, 429);
@@ -255,6 +256,7 @@ test('events: only the four client kinds; path without query; referrer host only
 
 test('events: 120 per minute per IP', async () => {
   const ip = randomIp();
+  await freshWindow();
   for (let i = 0; i < 120; i++) assertStatus(await h.call('POST', '/api/events', { ip, body: { kind: 'search', meta: { q: 'tracing' } } }), 200);
   assertStatus(await h.call('POST', '/api/events', { ip, body: { kind: 'search' } }), 429);
 });
@@ -276,7 +278,7 @@ test('faq: published public answers only, with {accessDays} filled', async () =>
   assert(list.length >= 10);
   assert(!list.some((f) => /Admin →|Refund policy is being written/.test(f.answer)));
   const days = list.find((f) => f.question.startsWith('How long can I open'))!;
-  assertEquals(days.answer, 'Each sheet you buy stays open for 24 hours, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
+  assertEquals(days.answer, 'Each sheet you buy stays open for 1 hour, counted from your verified payment. My Account → My Worksheets shows the time left. When the time is up, the sheet is removed from your account, and you can buy it again from the shop.');
 });
 
 test('reviews: published only, initials instead of names, never ids or emails', async () => {
@@ -291,8 +293,30 @@ test('reviews: published only, initials instead of names, never ids or emails', 
   assertEquals(r.body.reviews.length, 1);
   assertEquals([r.body.reviews[0].name, r.body.reviews[0].rating, r.body.reviews[0].title], ['P. S.', 5, 'Lovely']);
   assertEquals([r.body.count, r.body.avg], [1, 5]);
+  assertEquals(r.body.stars, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 });
   assert(!r.text.includes(a.id) && !r.text.includes(a.email) && !r.text.includes('Priya') && !r.text.includes('Pending one'));
   assertStatus(await h.call('GET', '/api/worksheets/no-such/reviews'), 404);
   assertStatus(await h.call('GET', '/api/worksheets/' + encodeURIComponent('../x') + '/reviews'), 404);
   assertEquals([initials('Priya Sharma'), initials(''), initials('  émile  zola '), initials('a b c d')], ['P. S.', 'A customer', 'É. Z.', 'A. B. C.']);
+});
+
+test('GET /api/reviews: newest published reviews of listed sheets, with the shop-wide stars', async () => {
+  const a = await h.customer({ name: 'Meera Joshi' });
+  const b = await h.customer({ name: 'Arjun' });
+  const c = await h.customer({ name: 'Hidden Person' });
+  await h.sql`
+    insert into reviews (product_id, user_id, rating, title, body, status) values
+      ('az-D', ${a.id}, 5, 'Great', 'We print it every week.', 'published'),
+      ('az-E', ${b.id}, 3, null, null, 'published'),
+      ('az-F', ${c.id}, 1, 'Waiting', 'Not checked yet.', 'pending')`;
+  await h.sql`update products set status = 'draft' where id = 'az-E'`;
+  const r = await h.call('GET', '/api/reviews');
+  assertStatus(r, 200);
+  const mine = r.body.reviews.filter((x: { worksheet: string }) => x.worksheet === 'az-D');
+  assertEquals(mine.length, 1);
+  assertEquals([mine[0].name, mine[0].rating, mine[0].body, typeof mine[0].worksheetTitle], ['M. J.', 5, 'We print it every week.', 'string']);
+  assert(!r.body.reviews.some((x: { worksheet: string }) => x.worksheet === 'az-E' || x.worksheet === 'az-F'));
+  assert(r.body.count >= 1 && r.body.stars[5] >= 1);
+  assert(!r.text.includes(a.id) && !r.text.includes(a.email) && !r.text.includes('Meera') && !r.text.includes('Waiting'));
+  assertStatus(await h.call('GET', '/api/reviews?limit=1'), 200);
 });

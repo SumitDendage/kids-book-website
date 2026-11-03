@@ -77,11 +77,12 @@ export const ABOUT = {
 };
 /* The free A to Z demo sheets (Kindergarten): the "Say it" picture on each one. */
 export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'elephant', F: 'fish', G: 'grapes', H: 'house', I: 'igloo', J: 'jam', K: 'kite', L: 'lion', M: 'monkey', N: 'nest', O: 'orange', P: 'parrot', Q: 'quilt', R: 'rabbit', S: 'snake', T: 'tiger', U: 'umbrella', V: 'van', W: 'whale', X: 'x-ray', Y: 'yak', Z: 'zebra' };
-/* Eight printable PDFs are free: the Alphabet A and B tracing sheets (Sumit, Oct 6), and the
-   first three Colours and first three Shapes sheets in Vocabulary (Sumit, Oct 7).
+/* Free sheets per section (Sumit, Oct 22): Colour A to Z 3, Matching 2, Uppercase & Lowercase 2,
+   Sounds 2, Sounds Exercise 2, Missing letters 2, and Colours, Shapes, Sizes and Animals 3 each;
+   Alphabet A and B tracing stay free (not on his list).
    Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
    FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
-export const FREE_PDFS = ['az-A', 'az-B', 'vc-1', 'vc-2', 'vc-3', 'vs-1', 'vs-2', 'vs-3'], SHEET_PRICE = 19;
+export const FREE_PDFS = ['ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(L => 'az-' + L), 'cl-A', 'cl-B', 'cl-C', 'mt-AE', 'mt-FJ', 'sp-AE', 'sp-FJ', 'vc-1', 'vc-2', 'vc-3', 'ms-U1', 'ms-L1', 'vs-1', 'vs-2', 'vs-3', 'vz-1', 'vz-2', 'vz-3', 'va-1', 'va-2', 'va-3', 'vp-1', 'vp-2', 'vp-3', 'vb-1', 'vb-2', 'vb-3', 'vf-1', 'vf-2', 'vf-3'].flat(), SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
@@ -95,8 +96,8 @@ const keepSheet = (id, build) => PDF_CACHE[id] || (PDF_CACHE[id] = build());
 export const azItem = L => keepSheet('az-' + L, () => { const price = sheetPrice('az-' + L); return ({ id: 'az-' + L, az: L, cls: 'kg', subject: 'English', subjectId: 'english', title: 'Alphabet ' + L + ' — tracing sheet', pages: 1, price, free: price === 0, real: true, img: '/sheets/a-to-z/thumb/' + L + '.jpg',
   blurb: 'Trace the big ' + L + ' and the small ' + L.toLowerCase() + ', then say it: ' + L + ' is for ' + AZ_WORDS[L] + '.',
   about: ['A "Trace it" box with the letter ' + L + ' and ' + L.toLowerCase() + ' — numbered arrows show where to start.', 'A "Say it" picture: ' + L + ' is for ' + AZ_WORDS[L] + '.', 'Seven rows of dotted ' + L + L.toLowerCase() + ' on red and blue guide lines to trace.', 'One A4 page, opens full screen in the protected viewer.', accessLine(price)] }); });
-/* Kindergarten's A to Z section: 26 tracing sheets, real PDFs in sheets/a-to-z/. A and B are free (they open
-   without signing in); the others are bought one at a time or open with the Kindergarten plan. The server's prices decide. */
+/* Kindergarten's A to Z section: 26 tracing sheets, real PDFs in sheets/a-to-z/. All 26 are free (Sumit, Nov 3: they open
+   without signing in). The server's prices decide. */
 export const AZ_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /* Kindergarten topics: seven groups, every sub-topic is a shelf of its own.
    Sheets reach a sub-topic through TOPIC_SHEETS below or a `topic` field on the product
@@ -113,11 +114,18 @@ export const KG_TOPICS = [
     ['letter-recognition', 'A-Z Letter Recognition', 'Children identify and recognise letters from A to Z.'],
     ['match-upper-lower', 'Match Uppercase and Lowercase Letters', 'Children match each capital letter with its corresponding small letter.'],
     ['before-after-letters', 'Letters Before and After', 'Children identify the letter that comes before or after the given letter.'],
-    ['beginning-sounds', 'Beginning Sounds', 'Children identify the first sound heard in a pictured word.'],
-    ['ending-sounds', 'Ending Sounds', 'Children identify the final sound heard in a pictured word.'],
+    /* Beginning Sounds and Ending Sounds were taken off the website (Sumit, Nov 3) */
     ['missing-letters', 'Find the Missing Letters', 'Children complete alphabet sequences by writing the missing letters.'],
   ] },
-  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [['short-vowels', 'Short vowels'], ['cvc-words', 'CVC words'], ['word-families', 'Word families'], ['blending-segmenting', 'Blending and segmenting'], ['ccvc-cvcc', 'CCVC and CVCC words'], ['blends', 'Beginning and ending blends'], ['digraphs', 'Digraphs: sh, ch, th, wh, ph, ck, ng, qu'], ['double-letters', 'Double letters'], ['magic-e', 'Magic e'], ['long-vowels', 'Long vowels'], ['vowel-teams', 'Simple vowel teams'], ['rhyming-words', 'Rhyming words'], ['spelling-rules', 'Simple spelling rules']] },
+  { id: 'phon', title: 'Phonics', tone: 'yellow', items: [   /* Sumit's seven sections, in his order (Nov 3): id, name, learning focus */
+    ['consonants', 'Consonants', 'Children learn the consonant letters and the sound each one makes.'],
+    ['vowels', 'Vowels', 'Children learn the five vowels a, e, i, o and u and their short sounds.'],
+    ['beginning-sounds', 'Beginning Sounds', 'Children hear and name the first sound in a word.'],
+    ['ending-sounds', 'Ending Sounds', 'Children hear and name the last sound in a word.'],
+    ['blending', 'Blending', 'Children join sounds together to read a word: c-a-t makes cat.'],
+    ['segmenting', 'Segmenting', 'Children break a word into its sounds: cat is c-a-t.'],
+    ['cvc-words', 'CVC Words', 'Children read and write three-letter words like cat, pen and sun.'],
+  ] },
   { id: 'vocab', title: 'Vocabulary', tone: 'pink', items: [   /* Sumit's twelve topics (Oct 6 picture): id, name, picture */
     ['vocab-colours', 'Colours', 'colours'], ['vocab-shapes', 'Shapes', 'shapes'], ['vocab-sizes', 'Sizes', 'sizes'], ['vocab-animals', 'Animals', 'animals'],
     ['vocab-animal-babies', 'Animal Babies', 'animal-babies'], ['vocab-transport', 'Transport', 'transport'], ['vocab-fruits', 'Fruits', 'fruits'], ['vocab-vegetables', 'Vegetables', 'vegetables'],
@@ -128,7 +136,7 @@ export const KG_TOPICS = [
   { id: 'read', title: 'Reading', tone: 'teal', items: [['picture-reading', 'Picture reading'], ['read-match', 'Read and match'], ['read-colour', 'Read and colour'], ['decodable-sentences', 'Simple and decodable sentences'], ['picture-comprehension', 'Picture comprehension'], ['short-passages', 'Short passages'], ['yes-no', 'Yes/no questions'], ['multiple-choice', 'Multiple choice'], ['story-sequencing', 'Story sequencing'], ['wh-questions', 'Who, what and where questions']] },
   { id: 'more', title: 'Maths & the world', tone: 'blue', items: [['numbers-counting', 'Numbers and counting'], ['shapes-patterns', 'Shapes and patterns'], ['animals-nature', 'Animals and nature'], ['my-world', 'My body, family and home']] },
 ];
-export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az', 'rc'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'cvc-words': ['kg-eng-cvc', 'ws-phon'], 'blending-segmenting': ['kg-eng-cvc', 'ws-phon'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
+export const TOPIC_SHEETS = { 'vocab-colours': ['vc'], 'vocab-shapes': ['vs'], 'vocab-sizes': ['vz'], 'vocab-animals': ['va'], 'vocab-body-parts': ['vp'], 'vocab-animal-babies': ['vb'], 'vocab-fruits': ['vf'], 'picture-reading': ['rc'], 'beginning-sounds': ['bx', 'sd'], 'ending-sounds': ['ex', 'sd'], 'letter-recognition': ['cl'], 'match-upper-lower': ['mt'], 'before-after-letters': ['sp'], 'missing-letters': ['ms'], 'numbers-counting': ['kg-mat-cnt'], 'animals-nature': ['kg-evs-ani', 'ws-nature'], 'letter-tracing': ['az'], 'upper-lower': ['mt', 'sp'], 'letter-formation': ['az'], 'letter-sounds': ['rc'], 'word-families': ['ws-phon'], 'rhyming-words': ['kg-eng-rhy'], 'oral-blending': ['kg-eng-cvc'] };
 const KG_ORDER = ['pre', 'vocab', 'alpha', 'sight', 'gram', 'phon', 'read', 'more'];   /* packs into columns like the reference */
 export const kgOrdered = () => KG_ORDER.map(id => KG_TOPICS.find(g => g.id === id)).filter(Boolean);
 /* every sheet inside a whole topic group (for "Browse worksheets") */
@@ -141,7 +149,7 @@ export const topicLabel = id => { for (const g of KG_TOPICS) { const it = g.item
 export function topicSheets(id) {
   /* printable sets by id prefix, in the order TOPIC_SHEETS lists them; anything else is an item id */
   const SETS = { az: () => AZ_LETTERS.map(azItem), rc: () => RC_LETTERS.map(rcItem), cl: () => CL_LETTERS.map(clItem), mt: () => MT_RANGES.map(r => mtItem(r[0])), sp: () => MT_RANGES.map(r => spItem(r[0])),
-    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)), vz: () => VOCAB_NUMBERS.map(n => vocabItem('vz', n)) };
+    bx: () => SOUND_EXERCISES.map(bxItem), sd: () => SD_LETTERS.map(sdItem), ex: () => SOUND_EXERCISES.map(exItem), ms: () => MS_CODES.map(msItem), vc: () => VOCAB_NUMBERS.map(n => vocabItem('vc', n)), vs: () => VOCAB_NUMBERS.map(n => vocabItem('vs', n)), vz: () => VOCAB_NUMBERS.map(n => vocabItem('vz', n)), va: () => VOCAB_NUMBERS.map(n => vocabItem('va', n)), vp: () => VOCAB_NUMBERS.map(n => vocabItem('vp', n)), vb: () => VOCAB_NUMBERS.map(n => vocabItem('vb', n)), vf: () => VOCAB_NUMBERS.map(n => vocabItem('vf', n)) };
   const out = [];
   /* a built-in sheet staff moved to another section (Admin → Products) leaves its own sections */
   (TOPIC_SHEETS[id] || []).forEach(x => { (SETS[x] ? SETS[x]() : [itemById(x)]).forEach(it => { if (it && !it.movedTo && !out.includes(it)) out.push(it); }); });
@@ -237,6 +245,53 @@ const VOCAB = {
     8: ['B or S: food', 'Write B for the bigger picture and S for the smaller picture.', 2],
     9: ['Circle big or small', 'Look at each picture and circle big or small.', 2],
     10: ['Big or small?', 'Look at each picture, from a basket to a hippo, and circle big or small.', 2] } },
+  va: { name: 'Animals', topic: 'vocab-animals', folder: 'vocab-animals', file: 'animals', sheets: {
+    1: ["Name the farm animals", "Use the word bank to name the hen, horse, sheep, buffalo, goat and cow.", 2],
+    2: ["More farm animals", "Use the word bank to name the pig, rabbit, donkey, turkey, duck and camel.", 2],
+    3: ["Name the pet animals", "Use the word bank to name the cat, hamster, fish, rabbit, dog and parrot.", 2],
+    4: ["More pet animals", "Use the word bank to name the gecko, hamster, turtle, rat, canary and goldfish.", 2],
+    5: ["Choose the wild animal name", "Look at each wild animal picture and choose the correct name.", 2],
+    6: ["Match the wild animals", "Match each wild animal picture to its correct name.", 2],
+    7: ["Under the sea", "Circle the animals that live under the sea.", 2],
+    8: ["Match the sea animals", "Draw a line from each sea animal to its name.", 2],
+    9: ["Animals that can fly", "Circle the animals that can fly.", 2],
+    10: ["Match the birds", "Match each bird picture to its correct name.", 2]
+  } },
+  /* Body Parts and Animal Babies (Oct 28, Sumit's "Parts of the body" and "Animals and their babies" zips) */
+  vp: { name: 'Body Parts', topic: 'vocab-body-parts', folder: 'vocab-body-parts', file: 'body', sheets: {
+    1: ['Label the parts of the body', 'Use the word box to label the hair, eyes, nose, ears, mouth, hands, legs and feet.', 2],
+    2: ['Circle the correct word', 'Look at each picture and circle the word for that part of the body.', 2],
+    3: ['Match the picture to the word', 'Draw a line from each body part picture to its word: mouth, ear, foot, eyes, nose.', 2],
+    4: ['Read and circle the picture', 'Read each word, such as eye, hair, leg, chin and hand, and circle the right picture.', 2],
+    5: ['Count the body parts', 'Count the fingers, eyes, ears, hands and nose, and fill in the blanks.', 2],
+    6: ['I use my … to …', 'Fill in the blanks: I use my eyes to see, my legs to walk, my nose to smell.', 2],
+    7: ['Fill in the missing letters', 'Complete the names of the body parts by writing the missing letters.', 2],
+    8: ['Match the body part to the action', 'Draw a line from each body part to what it does: seeing, hearing, smelling, touching, walking.', 2],
+    9: ['Which is not a body part?', 'Read each group of words and circle the one that is not a body part.', 2],
+    10: ['Right or wrong?', 'Read each sentence about the body and tick Right or Wrong.', 2] } },
+  vb: { name: 'Animal Babies', topic: 'vocab-animal-babies', folder: 'vocab-animal-babies', file: 'babies', sheets: {
+    1: ['Match mommy and baby', 'Draw a line to match each mommy animal with its baby: duck, hen, goat and cow.', 2],
+    2: ['Circle the baby name', 'Look at each animal and circle the correct name of its baby.', 2],
+    3: ['Choose the baby name', 'A baby hen is a chick, cub or calf? Circle the correct baby name.', 2],
+    4: ['A baby dog is called a …', 'Use the word box to fill in the name of each baby animal.', 2],
+    5: ['Right or wrong?', 'Read each sentence about a baby animal and tick Right or Wrong.', 2],
+    6: ['Tick the correct pair', 'Tick the correct animal and baby pair in each row.', 2],
+    7: ['Odd one out', 'Circle the animal that does not belong to the animal and baby pair.', 2],
+    8: ['Who is my mommy?', 'I am a puppy, a kitten, a cub, a chick: read the baby name and circle its mommy.', 2],
+    9: ['Who is my mommy? More babies', 'I am a calf, a lamb, a foal, a duckling: circle the correct mommy.', 2],
+    10: ['Find the animal names', 'Find and circle the animal names hidden in the word search.', 2] } },
+  /* Fruits (Nov 1, Sumit's Fruits.zip); sheets 1 and 2 are one-page read-aloud charts */
+  vf: { name: 'Fruits', topic: 'vocab-fruits', folder: 'vocab-fruits', file: 'fruits', sheets: {
+    1: ['Read aloud', 'Say the names of eight fruits: apple, grapes, orange, watermelon, banana, pineapple, strawberry and cherry.', 1],
+    2: ['Read aloud: more fruits', 'Say the names of eight more fruits: papaya, kiwi, blueberries, fig, pear, peach, lemon and pomegranate.', 1],
+    3: ['Read and circle the correct fruit', 'Read each fruit name and circle its picture.', 2],
+    4: ['Match the fruit to its name', 'Draw a line from each fruit picture to its name.', 2],
+    5: ['Choose the fruit name', 'Look at each fruit and tick its correct name from three words.', 2],
+    6: ['Count the fruits', 'Count the fruits in each row and write the correct number.', 2],
+    7: ['True or false?', 'Read each sentence about fruits and tick true or false.', 2],
+    8: ['Fill in the missing letters', 'Complete the fruit names by writing the missing letters.', 2],
+    9: ['Cut and paste the names', 'Cut out the fruit names and paste each one under its picture.', 2],
+    10: ['Find the fruit names', 'Find and circle the fruit names hidden in the word search.', 2] } },
 };
 const lowerFirst = t => /^(I |2D|B )/.test(t) ? t : t[0].toLowerCase() + t.slice(1);   /* "I spy", "2D" and "B or S" keep their capitals */
 export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = VOCAB[set], s = v.sheets[n], id = set + '-' + n, price = sheetPrice(id);
@@ -247,20 +302,20 @@ export const vocabItem = (set, n) => keepSheet(set + '-' + n, () => { const v = 
 export const PDF_SHEETS = [].concat(AZ_LETTERS.map(azItem), RC_LETTERS.map(rcItem), CL_LETTERS.map(clItem),
   MT_RANGES.map(r => mtItem(r[0])), MT_RANGES.map(r => spItem(r[0])),
   SOUND_EXERCISES.map(bxItem), SD_LETTERS.map(sdItem), SOUND_EXERCISES.map(exItem), MS_CODES.map(msItem),
-  VOCAB_NUMBERS.map(n => vocabItem('vc', n)), VOCAB_NUMBERS.map(n => vocabItem('vs', n)), VOCAB_NUMBERS.map(n => vocabItem('vz', n)));
+  VOCAB_NUMBERS.map(n => vocabItem('vc', n)), VOCAB_NUMBERS.map(n => vocabItem('vs', n)), VOCAB_NUMBERS.map(n => vocabItem('vz', n)), VOCAB_NUMBERS.map(n => vocabItem('va', n)), VOCAB_NUMBERS.map(n => vocabItem('vp', n)), VOCAB_NUMBERS.map(n => vocabItem('vb', n)), VOCAB_NUMBERS.map(n => vocabItem('vf', n)));
 PDF_SHEETS.forEach(it => { it.pdf = true; if (!itemById(it.id)) ITEMS.push(it); });
 /* any sheet by id: the printable PDFs are built on demand, everything else is in ITEMS */
-const vocabOf = id => { const m = /^(vc|vs|vz)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
-const sheetOfRaw = id => /^v[csz]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
+const vocabOf = id => { const m = /^(vc|vs|vz|va|vp|vb|vf)-(\d+)$/.exec(id || ''); return m && VOCAB_NUMBERS.includes(+m[2]) ? vocabItem(m[1], +m[2]) : undefined; };
+const sheetOfRaw = id => /^v[cszapbf]-/.test(id || '') ? vocabOf(id) : id && id.startsWith('ms-') ? (MS_CODES.includes(id.slice(3)) ? msItem(id.slice(3)) : undefined) : id && id.startsWith('sd-') ? sdItem(id.slice(3)) : id && id.startsWith('bx-') ? bxItem(+id.slice(3)) : id && id.startsWith('ex-') ? exItem(+id.slice(3)) : id && id.startsWith('az-') ? azItem(id.slice(3)) : id && id.startsWith('rc-') ? rcItem(id.slice(3)) : id && id.startsWith('cl-') ? clItem(id.slice(3)) : id && id.startsWith('mt-') ? mtItem(id.slice(3)) : id && id.startsWith('sp-') ? spItem(id.slice(3)) : itemById(id);
 /* an id the catalogue cannot build (e.g. bx-9 from an old entitlement) is simply unknown, never a crash */
 export const sheetOf = id => { try { const known = itemById(id); return known && known.dynamic ? known : sheetOfRaw(id); } catch (_) { return undefined; } };
 
 /* ---------- the store: views and skill groups ---------- */
 /* only sheets with a real PDF are listed: the Colours and Shapes sheets are the newest, then the missing-letter and sound sheets; the A to Z set the favourites */
-export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), ...VOCAB_NUMBERS.map(n => 'vz-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
-export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'rc-A', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
+export const NEW_IDS = [...VOCAB_NUMBERS.map(n => 'vf-' + n), ...VOCAB_NUMBERS.map(n => 'vp-' + n), ...VOCAB_NUMBERS.map(n => 'vb-' + n), ...VOCAB_NUMBERS.map(n => 'va-' + n), ...VOCAB_NUMBERS.map(n => 'vc-' + n), ...VOCAB_NUMBERS.map(n => 'vs-' + n), ...VOCAB_NUMBERS.map(n => 'vz-' + n), 'ms-U1', 'ms-U2', 'ms-U3', 'ms-L1', 'ms-L2', 'ms-L3', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3', 'sd-A', 'sd-B', 'sd-C', 'sd-D', 'sd-E'];
+export const BEST_IDS = ['az-A', 'az-B', 'az-C', 'cl-A', 'mt-' + MT_RANGES[0][0], 'sp-' + MT_RANGES[0][0]];
 /* the four sheets in the Sheets chapter's preview carousel */
-export const PLAYER_IDS = ['az-A', 'rc-A', 'cl-C', 'bx-1'];   /* the reading charts are A, I, N, P, S and T */
+export const PLAYER_IDS = ['az-A', 'cl-C', 'mt-AE', 'vc-1'];
 export const VIEWS = [
   { id: 'all', label: 'All sheets' }, { id: 'new', label: 'New', note: 'just drawn' }, { id: 'best', label: 'Bestselling', note: 'parents love these' },
   { id: 'featured', label: 'Featured', note: 'our picks', label_: true }, { id: 'popular', label: 'Popular', label_: true }, { id: 'recommended', label: 'Recommended', label_: true },
@@ -273,9 +328,38 @@ export const VIEWS = [
 export const LABELS = [['bestseller', 'Best Seller'], ['featured', 'Featured'], ['new', 'New Arrival'], ['popular', 'Popular'], ['recommended', 'Recommended']];
 const VIEW_TAG = { new: 'new', best: 'bestseller', featured: 'featured', popular: 'popular', recommended: 'recommended' };
 const tagsOf = it => (Array.isArray(it.tags) ? it.tags : []);
-export const hasLabel = (it, tag) => (SERVER.ready ? tagsOf(it).includes(tag) : tag === 'new' ? NEW_IDS.includes(it.id) : tag === 'bestseller' ? BEST_IDS.includes(it.id) : false);
+/* The website's lists (Admin → Homepage) once the server sends them: each label belongs to one list,
+   picked by staff or filled by itself (best sellers from paid orders, the newest, ...). A list staff
+   hid is not sent, so its label and its shop view go away. Before that, the labels are tags. */
+const LIST_TAGS = ['new', 'bestseller', 'featured', 'popular', 'recommended', 'home'];
+const listByTag = tag => (SERVER.lists ? SERVER.lists.find(x => x.label === tag) : undefined);
+export const hasLabel = (it, tag) => {
+  if (SERVER.lists && LIST_TAGS.includes(tag)) { const l = listByTag(tag); return !!l && l.has.has(it.id); }
+  return SERVER.ready ? tagsOf(it).includes(tag) : tag === 'new' ? NEW_IDS.includes(it.id) : tag === 'bestseller' ? BEST_IDS.includes(it.id) : false;
+};
+/* a list of staff's own that shows in the shop is a view of its own: 'list:<id>' */
+const ownList = vw => (SERVER.lists && String(vw).startsWith('list:') ? SERVER.lists.find(x => 'list:' + x.id === vw) : undefined);
 /* the sheets a Browse view lists (free and paid by price; the label views by label) */
-export const inView = (vw, it) => vw === 'all' || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0) || (VIEW_TAG[vw] ? hasLabel(it, VIEW_TAG[vw]) : false);
+export const inView = (vw, it) => vw === 'all' || (vw === 'free' && it.price === 0) || (vw === 'paid' && it.price > 0) || (VIEW_TAG[vw] ? hasLabel(it, VIEW_TAG[vw]) : false)
+  || (ownList(vw) ? ownList(vw).has.has(it.id) : false);
+/* the views the shop offers now: the built-in ones (a hidden list's view left out, headings from
+   Admin → Homepage) and the lists staff added to the shop */
+export function shopViews() {
+  if (!SERVER.lists) return VIEWS;
+  const out = [];
+  VIEWS.forEach(v => {
+    if (!VIEW_TAG[v.id]) { out.push(v); return; }
+    const l = listByTag(VIEW_TAG[v.id]);
+    if (l) out.push({ ...v, label: l.title || v.label, note: l.subtitle || v.note });
+  });
+  SERVER.lists.filter(l => l.placement === 'shop' && !l.label).forEach(l => out.push({ id: 'list:' + l.id, label: l.title, note: l.subtitle || undefined, label_: true }));
+  return out;
+}
+/* the order a list view shows its sheets in (the list's own order), or null for the shop's usual order */
+export function viewRank(vw) {
+  const l = VIEW_TAG[vw] ? listByTag(VIEW_TAG[vw]) : ownList(vw);
+  return l ? l.rank : null;
+}
 /* the label a card shows (one, the first that applies) */
 const CARD_ORDER = ['new', 'bestseller', 'featured', 'popular', 'recommended'];
 const CARD_TEXT = { new: 'New', bestseller: 'Bestseller', featured: 'Featured', popular: 'Popular', recommended: 'Recommended' };
@@ -286,14 +370,26 @@ export const discountPct = it => (it.wasPrice && it.wasPrice > it.price ? Math.r
 /* is this sheet in the shop now? (the server's list says; hidden, draft and scheduled sheets are not) */
 export function isListed(it) { return !!it && !it.unlisted; }
 /* the server's view of the catalogue beyond the sheets: its sections and which classes are open */
-export const SERVER = { ready: false, sections: [], classStatus: {} };
-/* the sheets on the home page ("Picked for you"): labelled 'home', in display order */
-export const homeSheets = () => (SERVER.ready ? ITEMS.filter(it => it.pdf && isListed(it) && tagsOf(it).includes('home')).sort(byOrder) : []);
+export const SERVER = { ready: false, sections: [], classStatus: {}, lists: null };
+/* the sheets of one list, in its order (only sheets the website lists) */
+const listSheets = l => l.products.map(id => itemById(id)).filter(it => it && it.pdf && isListed(it));
+/* the sheets on the home page ("Picked for you"): its list in Admin → Homepage; before the server sends
+   lists, the sheets labelled 'home', in display order */
+export const homeSheets = () => {
+  if (SERVER.lists) { const l = listByTag('home'); return l ? listSheets(l) : []; }
+  return SERVER.ready ? ITEMS.filter(it => it.pdf && isListed(it) && tagsOf(it).includes('home')).sort(byOrder) : [];
+};
+/* every row on the home page, in order: "Picked for you" and the lists staff added there */
+export const homeRows = () => {
+  if (!SERVER.lists) { const list = homeSheets(); return list.length ? [{ id: 'picked', title: 'Picked for you', subtitle: '', list }] : []; }
+  return SERVER.lists.filter(l => l.placement === 'home').map(l => ({ id: l.id, title: l.title, subtitle: l.subtitle, list: listSheets(l) })).filter(r => r.list.length);
+};
 /* display order: the order staff set (Admin → Products), then the site's own order */
 export const byOrder = (a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9);
-/* the sections staff added in Admin → Categories, and the website's own topics outside Alphabet and
-   Vocabulary, that have sheets: the shop lists them under "More sections" */
-export const extraSections = () => SERVER.sections.filter(x => x.group !== 'alpha' && x.group !== 'vocab')
+/* the sections staff added in Admin (also new sub-sections of Alphabet, Vocabulary and Phonics, which their
+   boards do not draw), and the website's own topics outside those three boards, that have
+   sheets: the shop lists them under "More sections" */
+export const extraSections = () => SERVER.sections.filter(x => !x.builtin || (x.group !== 'alpha' && x.group !== 'vocab' && x.group !== 'phon'))
   .map(x => ({ ...x, list: topicSheets(x.id).filter(it => it.pdf) }))
   /* a website topic joins the list once staff put a sheet in it (its own sheets are shown elsewhere already) */
   .filter(x => x.list.length && (!x.builtin || x.list.some(it => it.dynamic || it.movedTo === x.id)));
@@ -328,6 +424,12 @@ function serverItem(w) {
 }
 export function applyServerCatalogue(worksheets, extra) {
   const byId = {}; (worksheets || []).forEach(w => { byId[w.id] = w; });
+  /* classes staff added in Admin (Class 4, Class 5 …) join the shelf, and renamed ones take their new name */
+  if (extra && Array.isArray(extra.classes)) extra.classes.forEach(c => {
+    if (!c || typeof c.id !== 'string') return;
+    const name = c.name || c.label || c.id, old = CLASSES.find(x => x.id === c.id);
+    if (old) old.label = name; else CLASSES.push({ id: c.id, label: name });
+  });
   /* sheets added in Admin → Products join the shelf (a class the website does not draw is left out) */
   (worksheets || []).forEach(w => { if (!itemById(w.id) && CLASSES.some(c => c.id === w.cls)) { const it = serverItem(w); ITEMS.push(it); PDF_SHEETS.push(it); } });
   ITEMS.forEach(it => { const w = byId[it.id]; if (!w) return; it.price = w.price; it.real = w.real; if (w.pages) it.pages = w.pages;
@@ -349,6 +451,9 @@ export function applyServerCatalogue(worksheets, extra) {
     it.sort = Number.isFinite(w.sort) ? w.sort : it.sort;
     it.wasPrice = w.wasPrice != null && w.wasPrice > w.price ? w.wasPrice : null;
     it.section = w.section || null;
+    /* customers' star ratings (published reviews only): the card's "4.6 ★" */
+    it.reviewAvg = w.reviewAvg != null && Number(w.reviewCount) > 0 ? Number(w.reviewAvg) : null;
+    it.reviewCount = Number(w.reviewCount) || 0;
     if (it.pdf) {
       /* the title, words and picture staff set; the site's own words stay when the server has none */
       if (typeof w.title === 'string' && w.title.trim()) it.title = w.title;
@@ -370,6 +475,11 @@ export function applyServerCatalogue(worksheets, extra) {
   SERVER.ready = !!(worksheets && worksheets.length && extra && Array.isArray(extra.sections));
   if (extra && Array.isArray(extra.sections)) SERVER.sections = extra.sections.slice().sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(b.id));
   if (extra && Array.isArray(extra.classes)) SERVER.classStatus = Object.fromEntries(extra.classes.map(c => [c.id, c.status]));
+  /* the website's lists (a server without Admin → Homepage sends none: the labels stay tags) */
+  SERVER.lists = SERVER.ready && extra && Array.isArray(extra.homeSections)
+    ? extra.homeSections.filter(l => l && l.id && Array.isArray(l.products)).sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(b.id))
+      .map(l => ({ ...l, has: new Set(l.products), rank: new Map(l.products.map((id, i) => [id, i])) }))
+    : null;
   countSkills();
 }
 /* products edited in the admin's book studio */

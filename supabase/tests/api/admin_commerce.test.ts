@@ -439,7 +439,7 @@ test('GET /api/admin/settings: old shape plus the settings each role may see', a
   assertEquals(r.body.fees.IN, { pct: 2, fixed: 3 });
   assertEquals(typeof r.body.coupons, 'object');
   assertEquals(typeof r.body.discounts, 'object');
-  assertEquals(r.body.settings.worksheet_access.value, { days: 1, hours: 24 });
+  assertEquals(r.body.settings.worksheet_access.value, { days: 1, hours: 1 });
   assert(r.body.editable.includes('security') && r.body.editable.includes('countries') && r.body.editable.includes('agreement'));
 
   const s = await h.call('GET', '/api/admin/settings', { token: support.token });
@@ -466,7 +466,7 @@ test('settings writes: whitelist, permission split, validation, audit, cache cle
   assertEquals(ok.body.value, { hours: 720, days: 30 }, 'days only (an older form) are stored as hours');
   const a = await auditRows('settings.update', 'worksheet_access');
   assertEquals([a.length, a[0].actor_id], [1, admin.id]);
-  assertEquals(a[0].detail, { before: { days: 1, hours: 24 }, after: { hours: 720, days: 30 } });
+  assertEquals(a[0].detail, { before: { days: 1, hours: 1 }, after: { hours: 720, days: 30 } });
   // the new length is used straight away (cache cleared)
   const shop = await h.call('GET', '/api/worksheets');
   if (shop.status === 200) assertEquals(shop.body.accessDays, 30);

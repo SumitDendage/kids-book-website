@@ -76,3 +76,20 @@ test('failed logout reports failure rather than claiming success', async () => {
   await assert.rejects(mod.logout(), { message: 'Offline' });
   assert.ok(mod.snapshot());
 });
+test('sign-up code is checked by Supabase as a signup OTP, then the SDK session is dropped', async () => {
+  const { mod, calls } = await fixture({
+    async verifyOtp(body) { calls.push(['verify', body]); return { data: { session: { access_token: 'x' } } }; },
+  });
+  assert.deepEqual(await mod.verifySignupCode({ email: 'parent@example.test', code: ' 123 456 ' }), { ok: true });
+  assert.deepEqual(calls[0], ['verify', { email: 'parent@example.test', token: '123456', type: 'signup' }]);
+  assert.equal(calls[1][0], 'logout');
+});
+test('a malformed sign-up code never reaches Supabase', async () => {
+  const { mod, calls } = await fixture({ async verifyOtp() { calls.push(['verify']); return { data: {} }; } });
+  await assert.rejects(mod.verifySignupCode({ email: 'a@b.test', code: '12ab' }), { code: 'otp_format' });
+  assert.equal(calls.length, 0);
+});
+test('a wrong or expired sign-up code reads as otp_invalid', async () => {
+  const { mod } = await fixture({ async verifyOtp() { return { data: {}, error: { message: 'Token has expired or is invalid', status: 403, code: 'otp_expired' } }; } });
+  await assert.rejects(mod.verifySignupCode({ email: 'a@b.test', code: '123456' }), { code: 'otp_invalid' });
+});

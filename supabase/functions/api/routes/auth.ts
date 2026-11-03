@@ -7,7 +7,7 @@ import { tx } from '../lib/db.ts';
 import { HttpError, json, ms, readJson } from '../lib/http.ts';
 import { analytics, loginActivity, rateLimit, securityEvent } from '../lib/guard.ts';
 import { enqueue, kickOutbox, sendSensitive } from '../lib/mail.ts';
-import { mailReady } from '../lib/env.ts';
+import { env, mailReady } from '../lib/env.ts';
 import { getSettings } from '../lib/settings.ts';
 import {
   adminCreateUser, adminDeleteUser, adminUpdateUser, AuthApiError, logoutSession, passwordGrant, refreshGrant,
@@ -17,14 +17,60 @@ import {
   BLOCKED_MESSAGE, bearer, effectivePermissions, loadAccount, publicUser, requireUser, SIGN_IN, UNVERIFIED_MESSAGE, verifyAccessToken,
 } from '../lib/auth.ts';
 import { cleanName, generatePassword, isTimeZone, LINK_TOKEN_RE, normEmail, passwordProblem, sha256Hex, validEmail } from '../lib/util.ts';
-import { passwordChanged, resendVerification as resendVerificationMail, welcome } from '../services/emails.ts';
+import {
+  loginOtpEmail,
+  passwordChanged,
+  resendVerification as resendVerificationMail,
+  staffAlert,
+  welcome,
+} from '../services/emails.ts';
 import { endAllSessions, issueLinkToken, linkUrl, openSession, sendResetLink, sessionBody } from '../services/accounts.ts';
 import { evaluateRules, securityStatus, type SecurityStatus } from '../services/sharing.ts';
 import { ROLE_LOCKED, roleFromInput } from '../services/entitlements.ts';
+import {
+  decryptLoginSession,
+  encryptLoginSession,
+  generateLoginOtp,
+  hashLoginOtp,
+} from '../lib/loginOtp.ts';
 const BAD_LOGIN = 'We could not match that email and password. New here? Sign up instead.';
 const SESSION_BLOCKED = 'This sign-in was stopped by Learn With Why. Sign in again on your own device, or write to us if you think this is a mistake.';
 const AGREEMENT_NEEDED = 'Please accept the agreement: your account is personal and must not be shared.';
 const MAIL_OFF = 'The server cannot send email yet. Please try again later.';
+const LOGIN_OTP_MINUTES = 10;
+const LOGIN_OTP_MAX_ATTEMPTS = 5;
+const LOGIN_OTP_MAX_RESENDS = 3;
+const LOGIN_OTP_CHALLENGE_TTL_SECONDS = LOGIN_OTP_MINUTES * 60;
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return 'your email';
+  const visible = local.length <= 2 ? local[0] : local.slice(0, 2);
+  return `${visible}***@${domain}`;
+}
+async function sendLoginCode(
+  email: string,
+  userId: string,
+  name: string,
+  code: string,
+) {
+  if (!mailReady()) {
+    return { ok: false as const, error: MAIL_OFF };
+  }
+
+  return await sendSensitive({
+    ...loginOtpEmail({
+      name: name || 'there',
+      code,
+      minutes: LOGIN_OTP_MINUTES,
+    }),
+    to: email,
+    template: 'login_otp',
+    userId,
+    relatedType: 'profile',
+    relatedId: userId,
+  });
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ipKey = (ctx: Ctx) => ctx.ip ?? '-';
@@ -430,49 +476,327 @@ async function login(ctx: Ctx) {
     });
   }
 
+  
   const textHash = reaccept ? await sha256Hex(agreement.text) : null;
-  let done: { profile: Profile; expiresAt: Date; keys: string[] };
+
+  // Keep the temporary Supabase session encrypted until the email OTP is verified.
+  const challengeId = crypto.randomUUID();
+  const code = generateLoginOtp();
+  const otpHash = await hashLoginOtp(challengeId, code);
+  const encryptedSession = await encryptLoginSession(s);
+
   try {
-    done = await tx(async (q) => {
-      const { expiresAt } = await openSession(q, ctx, { userId, sessionId: s.sessionId, remember, isStaff: !!staff });
-      const rows = await q<Profile[]>`
-        update profiles set failed_login_attempts = 0, locked_until = null, last_login_at = now(),
-          agreement_version = case when ${reaccept}::boolean then ${agreement.version}::text else agreement_version end,
-          agreement_accepted_at = case when ${reaccept}::boolean then now() else agreement_accepted_at end
-        where id = ${userId} returning *`;
-      if (reaccept) {
-        await q`
-          insert into agreement_acceptances (user_id, version, text_sha256, context, ip, user_agent)
-          values (${userId}, ${agreement.version}, ${textHash}, 'reaccept', ${ctx.ip}, ${ctx.ua || null})`;
-      }
-      await loginActivity(ctx, { userId, email, success: true, sessionId: s.sessionId }, q);
-      await analytics(q, ctx, { kind: 'login', userId, meta: staff ? { staff: true } : undefined });
-      const keys = staff ? (await q<{ id: string }[]>`select id from staff_permissions order by id`).map((r) => r.id) : [];
-      return { profile: rows[0], expiresAt, keys };
+    await tx(async (q) => {
+      await q`
+        insert into login_otp_challenges (
+          id, user_id, email, otp_hash, encrypted_session, remember,
+          is_staff, agreement_version, agreement_text_sha256,
+          agreement_reaccept, ip, ip_network, country, user_agent,
+          device_label, device_id_hash, expires_at
+        ) values (
+          ${challengeId}, ${userId}, ${email}, ${otpHash}, ${encryptedSession},
+          ${remember}, ${!!staff},
+          ${reaccept ? agreement.version : null},
+          ${textHash}, ${reaccept}, ${ctx.ip}, ${ctx.ipNetwork},
+          ${ctx.country}, ${(ctx.ua || '').slice(0, 400)},
+          ${(ctx.deviceLabel || '').slice(0, 80)}, ${ctx.deviceIdHash},
+          now() + make_interval(secs => ${LOGIN_OTP_CHALLENGE_TTL_SECONDS})
+        )
+      `;
     });
+
+    const sent = await sendLoginCode(email, userId, profile.name || 'there', code);
+    if (!sent.ok) {
+      await tx((q) => q`
+        delete from login_otp_challenges where id = ${challengeId}
+      `);
+      await endGrant();
+      throw new HttpError(503, MAIL_OFF, { code: 'mail_unavailable' });
+    }
   } catch (e) {
-    await endGrant();
+    await endGrant().catch(() => {});
     throw e;
   }
 
-  if (isCustomer) {
-    // sharing rules look at the new sign-in after the response; a rule problem never blocks sign-in
+  return {
+    otpRequired: true,
+    challengeId,
+    email: maskEmail(email),
+    expiresIn: LOGIN_OTP_MINUTES * 60,
+  };
+}
+// ── POST /api/auth/verify-login-otp ─────────────────────────────────────────
+async function verifyLoginOtp(ctx: Ctx) {
+  await rateLimit(ctx, 'auth_token', ipKey(ctx), 30, 900);
+
+  const b = await readJson(ctx.req);
+  const challengeId = str(b.challengeId).trim();
+  const code = str(b.code).trim();
+
+  if (!UUID_RE.test(challengeId) || !/^\d{6}$/.test(code)) {
+    throw new HttpError(400, 'Enter the 6-digit code from your email.', {
+      code: 'invalid_otp',
+    });
+  }
+
+  type Challenge = {
+    id: string;
+    user_id: string;
+    email: string;
+    otp_hash: string;
+    encrypted_session: string;
+    remember: boolean;
+    is_staff: boolean;
+    agreement_version: string | null;
+    agreement_text_sha256: string | null;
+    agreement_reaccept: boolean;
+    expires_at: Date;
+    consumed_at: Date | null;
+    attempts: number;
+  };
+
+  const challenge = await tx(async (q) => {
+    const rows = await q<Challenge[]>`
+      select id, user_id, email, otp_hash, encrypted_session, remember,
+        is_staff, agreement_version, agreement_text_sha256,
+        agreement_reaccept, expires_at, consumed_at, attempts
+      from login_otp_challenges
+      where id = ${challengeId}
+      for update
+    `;
+
+    if (!rows.length) return { error: 'invalid' as const };
+
+    const c = rows[0];
+
+    if (c.consumed_at || new Date(c.expires_at).getTime() <= Date.now()) {
+      return { error: 'expired' as const };
+    }
+
+    if (c.attempts >= LOGIN_OTP_MAX_ATTEMPTS) {
+      return { error: 'locked' as const };
+    }
+
+    const expectedHash = await hashLoginOtp(challengeId, code);
+
+    if (expectedHash !== c.otp_hash) {
+      await q`
+        update login_otp_challenges
+        set attempts = attempts + 1
+        where id = ${challengeId}
+      `;
+      return { error: 'wrong' as const };
+    }
+
+    await q`
+      update login_otp_challenges
+      set consumed_at = now()
+      where id = ${challengeId}
+    `;
+
+    return { challenge: c };
+  });
+
+  if ('error' in challenge) {
+    if (challenge.error === 'wrong') {
+      throw new HttpError(400, 'That code is incorrect. Check your email and try again.', {
+        code: 'invalid_otp',
+      });
+    }
+    if (challenge.error === 'locked') {
+      throw new HttpError(429, 'Too many incorrect codes. Sign in again to request a new code.', {
+        code: 'otp_attempts_exceeded',
+      });
+    }
+    throw new HttpError(400, 'That code has expired or was already used. Sign in again to get a new one.', {
+      code: 'otp_expired',
+    });
+  }
+
+  const c = challenge.challenge;
+  let s: AuthSession;
+
+  try {
+    s = await decryptLoginSession<AuthSession>(c.encrypted_session);
+  } catch {
+    throw new HttpError(503, 'Sign-in is temporarily unavailable. Please try again.', {
+      code: 'auth_unavailable',
+    });
+  }
+
+  if (
+    s.userId !== c.user_id ||
+    !UUID_RE.test(s.userId) ||
+    !UUID_RE.test(s.sessionId)
+  ) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(401, 'Please sign in again.', { code: 'signin' });
+  }
+
+  const acct = await loadAccount(c.user_id, null);
+  if (!acct || acct.profile.blocked_at || !acct.profile.email_verified_at) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(403, 'This account cannot sign in right now.', {
+      code: 'account_unavailable',
+    });
+  }
+
+  const { profile, staff } = acct;
+
+  if (!!staff !== c.is_staff) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(403, 'Please sign in again.', { code: 'signin' });
+  }
+
+  const settings = await getSettings();
+  const agreement = settings.agreement;
+
+  if (
+    c.agreement_reaccept &&
+    c.agreement_version !== agreement.version
+  ) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw new HttpError(409, 'The agreement has changed. Sign in again and accept the latest version.', {
+      code: 'agreement_updated',
+    });
+  }
+
+  let done: { profile: Profile; expiresAt: Date; keys: string[] };
+  let previousLoginIp: string | null = null;
+
+  try {
+    done = await tx(async (q) => {
+        
+const previousSessions = await q<{ ip: string | null }[]>`
+  select ip
+  from app_sessions
+  where user_id = ${c.user_id}
+  order by created_at desc
+  limit 1
+`;
+
+      previousLoginIp = previousSessions[0]?.ip ?? null;
+      const { expiresAt } = await openSession(q, ctx, {
+        userId: c.user_id,
+        sessionId: s.sessionId,
+        remember: c.remember,
+        isStaff: !!staff,
+      });
+
+      const rows = await q<Profile[]>`
+        update profiles
+        set failed_login_attempts = 0,
+            locked_until = null,
+            last_login_at = now(),
+            agreement_version = case
+              when ${c.agreement_reaccept}::boolean then ${c.agreement_version}::text
+              else agreement_version
+            end,
+            agreement_accepted_at = case
+              when ${c.agreement_reaccept}::boolean then now()
+              else agreement_accepted_at
+            end
+        where id = ${c.user_id}
+        returning *
+      `;
+
+      if (!rows.length) throw new Error('Profile missing after OTP verification');
+
+      if (c.agreement_reaccept) {
+        await q`
+          insert into agreement_acceptances
+            (user_id, version, text_sha256, context, ip, user_agent)
+          values (
+            ${c.user_id},
+            ${c.agreement_version},
+            ${c.agreement_text_sha256},
+            'reaccept',
+            ${ctx.ip},
+            ${ctx.ua || null}
+          )
+        `;
+      }
+
+      await loginActivity(ctx, {
+        userId: c.user_id,
+        email: c.email,
+        success: true,
+        sessionId: s.sessionId,
+      }, q);
+
+      await analytics(q, ctx, {
+        kind: 'login',
+        userId: c.user_id,
+        meta: staff ? { staff: true } : undefined,
+      });
+
+      const keys = staff
+        ? (await q<{ id: string }[]>`
+            select id from staff_permissions order by id
+          `).map((r) => r.id)
+        : [];
+
+      return { profile: rows[0], expiresAt, keys };
+    });
+  } catch (e) {
+    await logoutSession(s.accessToken).catch(() => {});
+    throw e;
+  }
+  if (previousLoginIp && ctx.ip && previousLoginIp !== ctx.ip) {
     ctx.later(async () => {
       try {
-        await evaluateRules(ctx, userId);
+        const alert = staffAlert({
+          title: 'Login from a different IP address',
+          lines: [
+            `Account email: ${c.email}`,
+            `Previous IP: ${previousLoginIp}`,
+            `New IP: ${ctx.ip}`,
+            'The login passed email OTP verification. Please review if needed.',
+          ],
+        });
+
+        const sent = await sendSensitive({
+          ...alert,
+          to: env().adminSecurityEmail || 'dendagesumit@gmail.com',
+          template: 'login_ip_change_alert',
+          userId: c.user_id,
+          relatedType: 'profile',
+          relatedId: c.user_id,
+        });
+
+        if (!sent.ok) {
+          console.error('[auth] IP-change alert email failed:', sent.error);
+        }
+      } catch (e) {
+        console.error(
+          '[auth] IP-change alert error:',
+          (e as Error)?.message ?? e,
+        );
+      }
+    });
+  }
+  if (!staff) {
+    ctx.later(async () => {
+      try {
+        await evaluateRules(ctx, c.user_id);
       } catch (e) {
         console.error('[auth] sharing rules not evaluated:', (e as Error)?.message ?? e);
       }
     });
   }
+
   return {
-    user: publicUser(done.profile, staff, isCustomer ? settings.security.maxWarnings : undefined, settings.prints),
+    user: publicUser(
+      done.profile,
+      staff,
+      staff ? undefined : settings.security.maxWarnings,
+      settings.prints,
+    ),
     session: sessionBody(s, done.expiresAt),
     staff: staffBody(staff, done.keys),
-    security: isCustomer ? await securityFor(userId) : null,
+    security: staff ? null : await securityFor(c.user_id),
   };
 }
-
 // ── POST /api/auth/logout (alias /api/auth/signout) ──────────────────────────────────────
 async function endAppSession(ctx: Ctx, userId: string, sessionId: string) {
   await tx(async (q) => {
@@ -697,6 +1021,7 @@ export function register(r: Router) {
   r.post('/api/auth/resend-verification', resendVerification);
   r.post('/api/auth/login', login);
   r.post('/api/auth/signin', login);
+  r.post('/api/auth/verify-login-otp', verifyLoginOtp);
   r.post('/api/auth/logout', logout);
   r.post('/api/auth/signout', logout);
   r.get('/api/auth/me', me);
