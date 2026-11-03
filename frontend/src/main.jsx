@@ -21,6 +21,10 @@ import './styles/37-magic-forest.css';
 import './styles/38-countdown.css';
 /* slogans, stickers, fonts and the extra playful motion (Oct 23) */
 import './styles/39-slogans-motion.css';
+/* customer reviews and star ratings (Oct 26) */
+import './styles/39-reviews.css';
+/* paid sheets' pictures are blurred until bought (Oct 28) */
+import './styles/41-locked-preview.css';
 
 installTelemetry();
 

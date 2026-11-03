@@ -157,7 +157,7 @@ function CustomerDetail({ id, seed, canWrite, canAccount, max, version, onChange
       <section className="panel">
         <div className="lw-actions"><button type="button" className="btn btn-ghost btn-sm" onClick={onBack}><Icon id="left" size={14} />All customers</button></div>
         {one.loading ? <Loading>Loading the customer…</Loading> : <LoadError error={one.error} what="the customer" onRetry={one.reload} />}
-        {one.data && !fresh ? <Note tone="neutral">This customer could not be found. Staff accounts are managed under Roles, not here.</Note> : null}
+        {one.data && !fresh ? <Note tone="neutral">This customer could not be found. Staff accounts are managed at the bottom of Settings, not here.</Note> : null}
       </section>
     );
   }

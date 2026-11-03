@@ -1,3 +1,7 @@
+> **Historical record (15 October 2026), no longer current.** The site runs on the Mumbai project, the
+> `api` function is deployed, and the current state is described in the [README](README.md) and
+> [supabase/docs/MISSING-CONFIG.md](supabase/docs/MISSING-CONFIG.md).
+
 # Supabase integration status — 15 October 2026
 
 > Current project update: the user selected `wjqmrcglzqemrvafjeel` on 15 October 2026.

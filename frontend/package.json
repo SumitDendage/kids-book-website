@@ -2,7 +2,7 @@
   "name": "learn-with-why",
   "private": true,
   "version": "2026.9.17",
-  "description": "Learn With Why â€” printable worksheets for Kindergarten to Class 3 (Vite + React front end).",
+  "description": "Learn With Why: printable worksheets for Kindergarten to Class 3 (Vite + React front end).",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {

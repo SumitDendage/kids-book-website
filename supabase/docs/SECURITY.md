@@ -22,10 +22,14 @@ deliberately does not claim to do.
 
 ## Sign-in
 
-- Passwords are stored by Supabase Auth only. The server generates the customer's first password
-  (16 characters, no look-alike letters) and emails it once; it is never stored or logged in plain
-  text, and the welcome email's text is not kept in the email log. It works until the customer
-  resets it — there is no forced change at first sign-in.
+- Passwords are stored by Supabase Auth only, and are never logged or kept anywhere else. Customers
+  choose their own password at sign-up, and the account opens only after they confirm their email
+  with the 6-digit code Supabase sends.
+- Sign-in has two steps for customers and staff: the password, then a 6-digit code the API emails.
+  Until the code is entered, the new Supabase session is kept encrypted (AES-GCM, key from the
+  `LOGIN_OTP_ENCRYPTION_KEY` secret) and the code only as a hash, in `login_otp_challenges`. A
+  sign-in that passes the code from a different IP address than the previous one sends an alert to
+  the security contact (`ADMIN_SECURITY_EMAIL`).
 - Every API request checks the token **and** the database: the sign-in session must be one the API
   opened, not ended, not blocked and not past its end (12 hours, or 30 days with "Keep me signed
   in", never more than 90 days — the settings cannot raise this and the database refuses a longer
@@ -35,8 +39,7 @@ deliberately does not claim to do.
   reason it failed).
 - Customers accept the account-sharing agreement when they sign up; the version and the exact text
   they accepted are recorded. When the agreement changes, they accept it again at their next sign-in.
-- Staff sign in with their own accounts. The old shared admin key and the browser-only staff demo
-  are gone. Only an owner can create owners and admins or give the right to manage staff; the last
+- Staff sign in with their own accounts. Administrators cannot open the Developer panel. Only an owner can create owners and admins or give the right to manage staff; the last
   owner cannot be removed. Every staff change is written to the audit log, which cannot be edited.
 
 ## Payments
@@ -61,8 +64,8 @@ deliberately does not claim to do.
 
 ## Worksheet access
 
-- A bought sheet opens for the number of days set by staff (365 by default), counted from the
-  moment the payment is verified. Class plans last their months. Dates are stored in UTC and shown
+- A bought sheet opens for the number of hours set by staff (1 by default), counted from the
+  moment the payment is verified, with a live countdown; it leaves the account when the time is up. Class plans last their months. Dates are stored in UTC and shown
   with the time zone named.
 - Expired sheets disappear from the active list but stay in order history and staff records, with
   **Buy Access Again**.
@@ -96,8 +99,9 @@ deliberately does not claim to do.
   browser blocks site data).
 - **Rules** (staff can switch each on or off, change its limits and choose whether it confirms
   itself):
-  - several devices on different networks opening paid sheets within 15 minutes (at least 3
-    devices and 2 networks by default);
+  - several devices on different networks opening paid sheets within 15 minutes (2 devices on
+    networks they never shared by default; this rule confirms itself, so a passed-on sign-in code
+    gives a warning at once);
   - more than 6 devices in a day (signed in or opening sheets);
   - paid sheets opened from more than 3 countries in a day;
   - more than 600 viewer requests in an hour;

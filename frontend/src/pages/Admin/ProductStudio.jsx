@@ -1,25 +1,27 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/dashboard/Icon.jsx';
 import Pill from '../../components/dashboard/Pill.jsx';
 import Modal from '../../components/dashboard/Modal.jsx';
 import { useDash } from '../Portal/DashContext.js';
 import { size, dateOnly, problem, fieldErrors, plural } from '../Portal/dashboard.js';
 import { staffApi, staffFetch } from '../../services/api.js';
-import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, VISIBILITY, localInput, fromLocalInput } from './common.js';
-import { spanText } from '../../data/content.js';
+import { SHEET_STATUS_LABEL, SHEET_TONE, LABELS, HOME_TAG, visibilityOf, localInput, fromLocalInput } from './common.js';
+import { ensurePlace, sectionFields } from './place.js';
+import SectionPicker, { NO_PLACE, placeOf, placeProblem, placePath } from './SectionPicker.jsx';
+import { ANY_ACCEPT, isPdfFile, isPictureFile, pictureToPdf, pdfToPictures } from '../../services/fileConvert.js';
 
 const PDF_MAX = 40 * 1024 * 1024, IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /* sends one file as the raw request body (the server reads PDFs and pictures this way) */
-async function sendRaw(path, file) {
+export async function sendRaw(path, file) {
   const r = await staffFetch(path, { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
   let b = {}; try { b = await r.json(); } catch (_) { /* not JSON */ }
   if (!r.ok) throw Object.assign(new Error(String(b.error || 'The upload did not work.').replace(/\s+—\s+/g, ', ')), { status: r.status, code: b.code || null, body: b });
   return b;
 }
 /* upload problems in plain words */
-function uploadProblem(e, what) {
+export function uploadProblem(e, what) {
   if (e.status === 413 || e.code === 'too_large') return what === 'pdf' ? 'That PDF is too big. A PDF can be up to 40 MB.' : 'That picture is too big. A picture can be up to 5 MB.';
   if (e.code === 'not_pdf') return 'That file is not a PDF.';
   if (e.code === 'pdf_incomplete') return 'The PDF looks incomplete. Please upload it again.';
@@ -27,49 +29,83 @@ function uploadProblem(e, what) {
   return problem(e);
 }
 
-/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it */
+/* a drop zone for the cover picture or the PDF: click to choose, or drag a file on it. The box keeps
+   its size while a file is dragged over it (a count of enter and leave, so passing over its own
+   text does not make it flicker), and once a file is there it folds into one short line: a small
+   picture, the file's name and "Change" (Sumit, Oct 28). Both boxes take a PDF, JPG or PNG: a PDF
+   dropped on the cover gives its first page as the picture, and a picture dropped on the book file
+   becomes a one-page PDF (services/fileConvert.js). */
 function Drop({ kind, current, picked, onPick, toast, disabled }) {
   const input = useRef(null);
+  const depth = useRef(0);
   const [over, setOver] = useState(false);
-  const accept = f => {
-    if (!f) return;
-    const ok = kind === 'image' ? IMAGE_TYPES.includes(f.type) : (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-    if (!ok) { toast(kind === 'image' ? 'Choose a JPG, PNG or WebP picture' : 'Choose a PDF file'); return; }
-    if (f.size > (kind === 'image' ? IMAGE_MAX : PDF_MAX)) { toast(kind === 'image' ? 'That picture is over 5 MB' : 'That PDF is over 40 MB'); return; }
-    onPick(f);
+  const [making, setMaking] = useState(false);   /* turning a PDF into a picture, or a picture into a PDF */
+  const [from, setFrom] = useState('');          /* the name of the file it was made from */
+  const accept = async f => {
+    if (!f || making) return;
+    const pdfIn = isPdfFile(f);
+    if (!pdfIn && !isPictureFile(f)) { toast('Choose a PDF, JPG or PNG file'); return; }
+    if (f.size > PDF_MAX) { toast('That file is over 40 MB'); return; }
+    const same = kind === 'image' ? !pdfIn : pdfIn;
+    if (same) {
+      if (kind === 'image' && f.size > IMAGE_MAX) { toast('That picture is over 5 MB'); return; }
+      setFrom(''); onPick(f); return;
+    }
+    setMaking(true);
+    try {
+      const made = kind === 'image' ? (await pdfToPictures(f, { count: 1, maxBytes: IMAGE_MAX }))[0] : await pictureToPdf(f);
+      if (!made) throw new Error('empty');
+      setFrom(f.name); onPick(made);
+    } catch (_) { toast(kind === 'image' ? 'That PDF could not be turned into a cover picture' : 'That picture could not be turned into a PDF'); }
+    finally { setMaking(false); }
   };
-  const drag = on => e => { e.preventDefault(); if (!disabled) setOver(on); };
+  const off = disabled || making;
+  const enter = e => { e.preventDefault(); if (off) return; depth.current += 1; setOver(true); };
+  const leave = e => { e.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); };
+  const url = kind === 'image' ? (picked ? picked.url : current) : null;
+  const has = !!(picked || current);
   const zone = {
-    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (over ? ' over' : '') + (disabled ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: disabled ? -1 : 0, 'aria-disabled': disabled || undefined,
-    onClick: e => { if (!disabled && !e.target.closest('input')) input.current.click(); },
-    onKeyDown: e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current.click(); } },
-    onDragEnter: drag(true), onDragOver: drag(true), onDragLeave: drag(false),
-    onDrop: e => { e.preventDefault(); setOver(false); if (!disabled) accept(e.dataTransfer.files[0]); },
+    className: 'drop' + (kind === 'pdf' ? ' small' : '') + (has || making ? ' compact' : '') + (over ? ' over' : '') + (off ? ' off' : ''), 'data-drop': kind, role: 'button', tabIndex: off ? -1 : 0, 'aria-disabled': off || undefined, 'aria-busy': making || undefined,
+    onClick: e => { if (!off && !e.target.closest('input')) input.current.click(); },
+    onKeyDown: e => { if (!off && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current.click(); } },
+    onDragEnter: enter, onDragOver: e => { e.preventDefault(); if (off) e.dataTransfer.dropEffect = 'none'; }, onDragLeave: leave,
+    onDrop: e => { e.preventDefault(); depth.current = 0; setOver(false); if (!off) accept(e.dataTransfer.files[0]); },
+    'aria-label': kind === 'image' ? 'Choose the cover picture' : 'Choose the book file',
   };
-  const pick = <input ref={input} type="file" accept={kind === 'image' ? IMAGE_TYPES.join(',') : 'application/pdf,.pdf'} hidden onChange={e => { accept(e.target.files[0]); e.target.value = ''; }} />;
-  if (kind === 'image') {
-    const url = picked ? picked.url : current;
+  const pick = <input ref={input} type="file" accept={ANY_ACCEPT} hidden onChange={e => { accept(e.target.files[0]); e.target.value = ''; }} />;
+  if (has || making) {
+    const name = making ? 'Getting it ready…' : picked ? picked.file.name : kind === 'image' ? 'Cover picture' : 'PDF attached';
+    const note = making ? '' : picked ? size(picked.file.size) + (from ? ' · made from ' + from : '') + ' · uploads when you save' : kind === 'pdf' && current ? current : '';
     return (
-      <div {...zone} aria-label="Choose the cover picture">{pick}
-        <div className="drop-preview" style={url ? { backgroundImage: 'url("' + url + '")' } : undefined}>{url ? null : <><span className="drop-icon"><Icon id="image" size={28} /></span><b>Drop the cover picture here</b><small>or click to choose · JPG, PNG or WebP · up to 5 MB</small></>}</div>
-        <p className="drop-name">{picked ? picked.file.name + ' · ' + size(picked.file.size) + ' · uploads when you save' : current ? (disabled ? 'Cover picture' : 'Cover set. Drop a new one to replace it.') : ''}</p>
+      <div {...zone}>{pick}
+        <span className={'drop-thumb' + (url ? '' : ' icon')} style={url ? { backgroundImage: 'url("' + url + '")' } : undefined} aria-hidden="true">{url ? null : <Icon id={kind === 'image' ? 'image' : 'file'} size={20} />}</span>
+        <span className="drop-line"><b>{over ? 'Drop to replace it' : name}</b>{note ? <small>{note}</small> : null}</span>
+        {off ? null : <span className="drop-change">Change</span>}
       </div>
     );
   }
   return (
-    <div {...zone} aria-label="Choose the PDF">{pick}
-      <div className="drop-preview"><span className="drop-icon"><Icon id="file" size={24} /></span>
-        <b>{picked ? picked.file.name : current ? 'PDF attached' : 'Drop the PDF here'}</b>
-        <small>{picked ? size(picked.file.size) + ' · uploads when you save' : current ? current + (disabled ? '' : ' · drop a new file to replace it') : 'or click to choose · up to 40 MB'}</small></div>
+    <div {...zone}>{pick}
+      <div className="drop-preview"><span className="drop-icon"><Icon id={kind === 'image' ? 'image' : 'file'} size={kind === 'image' ? 28 : 24} /></span>
+        <b>{over ? 'Drop it here' : kind === 'image' ? 'Drop the cover here' : 'Drop the book file here'}</b>
+        <small>{kind === 'image' ? 'or click to choose · PDF, JPG or PNG' : 'or click to choose · PDF, JPG or PNG · up to 40 MB'}</small></div>
     </div>
   );
 }
 
-/* "Upload new book" / "Edit book": cover and PDF, page pictures, details, category, price, access
-   and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its PDF is
-   uploaded. */
-export default function ProductStudio({ sheet, all, classes, sections, subjectList, sessionList, onSaved, onClose }) {
+/* "Upload new book" / "Edit book": cover and PDF, page pictures, details, where it goes, price,
+   access and limits. Saved on the server: a new sheet starts as a draft and goes on sale once its
+   PDF is uploaded. Where it goes is the website's menu: class › section › sub-section, each picked
+   from a list or typed new (made on save), plus its subject.
+   preset = { cls, subject, section } for a new sheet started from a sub-section (section = its id). */
+export default function ProductStudio({ sheet, preset, all, classes, sections, subjectList, onSaved, onMade, onClose }) {
   const { toast, can, setEditing } = useDash();
+  /* a file dropped beside a drop box must not open in the browser and leave the form */
+  useEffect(() => {
+    const stop = e => { if (!(e.target.closest && e.target.closest('.drop')) && e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'none'; } };
+    addEventListener('dragover', stop); addEventListener('drop', stop);
+    return () => { removeEventListener('dragover', stop); removeEventListener('drop', stop); };
+  }, []);
   const it = sheet || {};
   const isNew = !sheet;
   const canWrite = can('catalogue.write'), canPrice = can('pricing.write'), canUpload = can('files.upload');
@@ -81,7 +117,6 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState(null), [errs, setErrs] = useState({});
   const [dialog, setDialog] = useState(null);     /* 'archive' | 'restore' | 'delete' */
-  const [printRule, setPrintRule] = useState(it.printRule === 'sheet' ? 'sheet' : 'account');
   /* price: original price, discount and selling price work each other out; Free makes it 0 */
   const startPrice = it.price == null ? 19 : it.price;
   const [free, setFree] = useState(startPrice === 0);
@@ -95,13 +130,25 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
   const finalPrice = free ? 0 : num(sell);
   const origPrice = num(orig);
   /* where and when it shows */
-  const [vis, setVis] = useState(isNew ? 'draft' : visibilityOf(it));
-  const [when, setWhen] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
+  /* no Visibility box (Sumit, Oct 27): a new sheet goes on the website once its PDF is there, and
+     a saved sheet keeps how it shows now (Hide and Restore change that). Access days, prints and
+     downloads come from Settings; a sheet that already has its own numbers keeps them. */
+  const vis = isNew ? 'published' : visibilityOf(it);
+  const [when] = useState(it.publishAt && it.publishAt > Date.now() ? localInput(it.publishAt) : localInput(Date.now() + 86400000));
   const [labels, setLabels] = useState(() => new Set((it.tags || []).filter(t => LABELS.some(([x]) => x === t) || t === HOME_TAG)));
   const toggleLabel = t => setLabels(cur => { const n = new Set(cur); if (n.has(t)) n.delete(t); else n.add(t); return n; });
-  /* academic sessions it belongs to (Categories → Academic sessions) */
-  const [sess, setSess] = useState(() => new Set(it.sessions || (isNew ? (sessionList || []).filter(x => x.current).map(x => x.id) : [])));
-  const toggleSess = id => setSess(cur => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  /* where it goes: a class (or a new one), a section and a sub-section in it, picked or typed */
+  const start = isNew ? (preset || {}) : {};
+  const [cls, setCls] = useState(it.cls || start.cls || (classes[0] && classes[0].id) || 'kg');
+  const [newClass, setNewClass] = useState('');
+  /* the sheet's own sub-section is listed even if the server's list does not have it */
+  const pickList = useMemo(() => {
+    const list = sections || [];
+    if (!it.section || list.some(x => x.id === it.section)) return list;
+    const mate = it.group ? list.find(x => x.group === it.group) : null;
+    return list.concat({ id: it.section, label: it.sectionLabel || it.section, group: it.group || null, groupLabel: mate ? mate.groupLabel : null, cls: it.cls, sort: 0 });
+  }, [sections, it.section, it.sectionLabel, it.group, it.cls]);
+  const [where, setWhere] = useState(() => placeOf(pickList, isNew ? start.section : it.section));
   /* live preview of the shop card */
   const [look, setLook] = useState({ title: it.title || '', short: it.shortDescription || '' });
 
@@ -112,24 +159,24 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     if (it.subject && !list.includes(it.subject)) list.push(it.subject);
     return list;
   }, [subjectList, all, it.subject]);
-  const topics = useMemo(() => {
-    const m = new Map();
-    (all || []).forEach(s => { if (s.section) { const k = (s.group || '') + '|' + s.section; if (!m.has(k)) m.set(k, { group: s.group || '', section: s.section, label: s.sectionLabel || s.section, cls: s.cls }); } });
-    return [...m.values()].sort((a, b) => a.label.localeCompare(b.label));
-  }, [all]);
   /* the prints each account type gets (Settings → Prints per sheet), as the server worked them out for a sheet that follows the account type */
-  const typePrints = useMemo(() => { const s = (all || []).find(x => x.printRule !== 'sheet' && x.prints); return s ? s.prints : null; }, [all]);
-  const shopSpan = useMemo(() => { const s = (all || []).find(x => x.accessDays == null && (x.effectiveAccessHours || x.effectiveAccessDays)); return s ? (s.effectiveAccessHours ? spanText(s.effectiveAccessHours) : s.effectiveAccessDays + ' days') : null; }, [all]);
-  const topicValue = it.section ? (it.group || '') + '|' + it.section : '';
-  /* the website's sections (Admin → Categories), by group; the sheets' own sections if they could not load */
-  const sectionGroups = useMemo(() => {
-    const list = (sections && sections.length ? sections.map(x => ({ group: x.group || '', section: x.id, label: x.label, groupLabel: x.groupLabel || (x.builtin ? '' : 'Your sections'), visible: x.visible })) : topics.map(t => ({ ...t, groupLabel: '' })));
-    if (it.section && !list.some(x => x.section === it.section)) list.push({ group: it.group || '', section: it.section, label: it.sectionLabel || it.section, groupLabel: '' });
-    const m = new Map();
-    list.forEach(x => { const k = x.groupLabel || 'Other'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); });
-    return [...m.entries()];
-  }, [sections, topics, it.section, it.group, it.sectionLabel]);
+  /* "Kindergarten › Alphabet › A-Z Letter Tracing" under the drop lists */
+  const className = cls === '+new' ? newClass.trim() || 'New class' : (classes.find(c => c.id === cls) || { name: cls }).name;
+  const path = placePath(className, pickList, cls, where);
 
+  /* page pictures: pictures as they are, and a PDF gives one picture per page (up to 50) */
+  const choosePagePics = async list => {
+    const out = []; let skipped = 0;
+    if (list.some(isPdfFile)) setBusy('Getting the pages ready…');
+    for (const f of list) {
+      if (isPictureFile(f) && !isPdfFile(f) && f.size <= IMAGE_MAX) out.push(f);
+      else if (isPdfFile(f) && f.size <= PDF_MAX) { try { out.push(...await pdfToPictures(f, { count: 50 - out.length, maxBytes: IMAGE_MAX })); } catch (_) { skipped++; } }
+      else skipped++;
+      if (out.length >= 50) break;
+    }
+    setBusy(''); setPagePics(out.slice(0, 50));
+    if (skipped) toast('Some files were skipped: use a PDF, JPG or PNG (pictures up to 5 MB)');
+  };
   const pickCover = f => { const r = new FileReader(); r.onload = () => setCover({ file: f, url: r.result }); r.readAsDataURL(f); };
   const v = k => (it[k] == null ? '' : it[k]);
   const err1 = k => (errs[k] ? <small className="bad">{errs[k]}</small> : null);
@@ -140,30 +187,16 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const body = {
       title: String(f.get('title') || '').trim(),
       description: String(f.get('description') || '').trim(),
-      cls: f.get('cls'),
+      cls,
       subject: String(f.get('subject') || '').trim(),
       pages: n('pages') || 1,
       audience: f.get('audience') || null,
-      stock: n('stock'),
-      accessDays: n('accessDays'),
-      printRule: f.get('printRule') === 'sheet' ? 'sheet' : 'account',
-      printLimit: n('printLimit') ?? 0,
-      downloadLimit: n('downloadLimit') ?? 0,
       landscape: f.get('landscape') === 'on',
-      /* the free words people search by, plus the labels ticked above */
-      tags: [...new Set(String(f.get('tags') || '').split(/[,\s]+/).map(t => t.trim().toLowerCase()).filter(t => t && !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
-      sort: n('sort') ?? 0,
+      /* the labels ticked below; any older words on the sheet are kept as they were */
+      tags: [...new Set((it.tags || []).filter(t => !LABELS.some(([x]) => x === t) && t !== HOME_TAG).concat([...labels]))],
       shortDescription: String(f.get('shortDescription') || '').trim(),
-      sku: String(f.get('sku') || '').trim() || null,
       language: String(f.get('language') || '').trim() || 'English',
-      ageGroup: String(f.get('ageGroup') || '').trim() || null,
-      seoTitle: String(f.get('seoTitle') || '').trim() || null,
-      seoDescription: String(f.get('seoDescription') || '').trim() || null,
     };
-    if (sessionList) body.sessions = [...sess];
-    const t = sectionGroups.flatMap(([, l]) => l).find(x => x.group + '|' + x.section === f.get('topic'));
-    if (t) { body.group = t.group || null; body.section = t.section; body.sectionLabel = t.label; }
-    else if (f.get('topic') === '') { body.group = null; body.section = null; body.sectionLabel = null; }
     if (canPrice) { body.price = finalPrice ?? 0; body.wasPrice = !free && origPrice != null && origPrice > (finalPrice ?? 0) ? origPrice : null; }
     return body;
   }
@@ -176,6 +209,9 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const body = fieldsOf(form);
     if (canWrite && !body.title) { setErrs({ title: 'Give the sheet a title.' }); return; }
     if (canWrite && !body.subject) { setErrs({ subject: 'Give the sheet a subject.' }); return; }
+    if (canWrite && cls === '+new' && !newClass.trim()) { setErrs({ cls: 'Type the name of the new class, e.g. Class 4.' }); return; }
+    const placeBad = canWrite && placeProblem(where);
+    if (placeBad) { setErrs(placeBad); return; }
     if (canWrite && canPrice && !free && (finalPrice == null || !(finalPrice >= 0) || !Number.isInteger(finalPrice))) { setErrs({ price: 'Enter the selling price in whole rupees.' }); return; }
     if (canWrite && canPrice && pct !== '' && !(num(pct) >= 0 && num(pct) <= 100)) { setErrs({ pct: 'A discount is from 0 to 100%.' }); return; }
     if (canWrite && vis === 'scheduled' && !(fromLocalInput(when) > Date.now())) { setErrs({ publishAt: 'Pick a time in the future.' }); return; }
@@ -184,7 +220,13 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
     const notes = [];
     try {
       if (canWrite) {
-        step = 'details'; setBusy(isNew ? 'Saving the draft…' : 'Saving…');
+        step = 'details'; setBusy('Saving…');
+        /* a new class, subject, section or sub-section is made first; the sheet's own sub-section stays as it is when it was not changed */
+        const keep = !isNew && it.section && cls === it.cls && where.sub === it.section;
+        const place = await ensurePlace({ classes, subjects: subjectList, sections: pickList, cls: cls === '+new' ? '' : cls, newClass: cls === '+new' ? newClass : '', subject: body.subject, ...(keep ? NO_PLACE : where) }, onMade);
+        if (cls === '+new') { setCls(place.cls); setNewClass(''); }
+        Object.assign(body, { cls: place.cls, subject: place.subject }, sectionFields(keep ? { id: it.section, group: it.group, label: it.sectionLabel || it.section } : place.section));
+        setBusy(isNew ? 'Saving the draft…' : 'Saving…');
         ws = (isNew ? await staffApi('POST', '/api/admin/worksheets', body) : await staffApi('PUT', '/api/admin/worksheets/' + encodeURIComponent(it.id), body)).worksheet;
       }
       const base = '/api/admin/worksheets/' + encodeURIComponent(ws.id);
@@ -205,7 +247,7 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
       }
       /* visibility last: a sheet goes on sale only once its PDF is there */
       const want = publish ? 'published' : vis;
-      if (canWrite && want !== visibilityOf(ws)) {
+      if (canWrite && want !== visibilityOf(ws) && !(want === 'published' && !ws.available)) {
         step = 'publish'; setBusy(want === 'hidden' ? 'Hiding it…' : want === 'draft' ? 'Taking it off the shop…' : 'Publishing…');
         const v = { draft: { status: 'draft' }, published: { status: 'active', publishAt: null }, scheduled: { status: 'active', publishAt: new Date(fromLocalInput(when)).toISOString() }, hidden: { status: 'archived' } }[want];
         ws = (await staffApi('PUT', base, v)).worksheet;
@@ -246,7 +288,7 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
   return (
     <section className="panel studio" aria-label={isNew ? 'Upload new book' : 'Edit ' + it.title}>
       <div className="row-between"><div><p className="eyebrow">{isNew ? 'Upload new book' : canWrite ? 'Edit book' : 'Book'}</p>
-        <p className="auth-sub">{isNew ? 'Fill in the details, drop the cover and the PDF, pick its section, price and visibility, then save.' : it.title}</p></div>
+        <p className="auth-sub">{isNew ? 'Drop the PDF and the cover, give it a title, pick its class, section and sub-section, then save.' : it.title}</p></div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} disabled={!!busy}><Icon id="x" /></button></div>
       {!isNew ? <div className="studio-status">
         <Pill tone={SHEET_TONE[status]}>{SHEET_STATUS_LABEL[status]}</Pill>
@@ -261,7 +303,7 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
             <Drop kind="image" current={it.thumb} picked={cover} onPick={pickCover} toast={toast} disabled={!!busy} />
             <Drop kind="pdf" current={it.available ? size(it.pdfBytes) : ''} picked={pdf} onPick={f => setPdf({ file: f })} toast={toast} disabled={!!busy} />
             <div className="field"><label htmlFor="psPics">Page pictures (optional)</label>
-              <input id="psPics" type="file" multiple accept={IMAGE_TYPES.join(',')} disabled={!!busy} onChange={e => { const fs = Array.from(e.target.files || []).filter(f => IMAGE_TYPES.includes(f.type) && f.size <= IMAGE_MAX); setPagePics(fs); if (fs.length !== (e.target.files || []).length) toast('Some files were skipped: use JPG, PNG or WebP up to 5 MB'); }} />
+              <input id="psPics" type="file" multiple accept={ANY_ACCEPT} disabled={!!busy} onChange={e => { choosePagePics(Array.from(e.target.files || [])); e.target.value = ''; }} />
               <div className="inline-field"><label htmlFor="psFirst">Starting at page</label><input id="psFirst" type="number" min="1" max="500" value={firstPage} onChange={e => setFirstPage(Math.max(1, parseInt(e.target.value, 10) || 1))} disabled={!!busy} /></div>
               <small>{pagePics.length ? plural(pagePics.length, 'picture') + ' for pages ' + firstPage + (pagePics.length > 1 ? ' to ' + (Number(firstPage) + pagePics.length - 1) : '') + ', uploaded when you save.' : donePages ? 'Pages with a picture: ' + (donePages.length ? donePages.join(', ') : 'none') + '.' : 'Pictures of each page, shown in the viewer. A new picture replaces the old one for that page.'}</small>
             </div>
@@ -285,28 +327,23 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
             <div className="field"><label htmlFor="psDesc">Description</label><textarea id="psDesc" name="description" placeholder="One or two lines parents will read on the card" defaultValue={v('description')} maxLength={2000} />{err1('description')}</div>
             <div className="grid-3">
               <div className="field"><label htmlFor="psPages">Pages</label><input id="psPages" name="pages" type="number" min="1" max="500" defaultValue={it.pages || 1} /><small>Counted from the PDF when you upload it.</small>{err1('pages')}</div>
-              <div className="field"><label htmlFor="psTags">Tags</label><input id="psTags" name="tags" defaultValue={(it.tags || []).join(', ')} placeholder="e.g. best, new" />{err1('tags')}</div>
+              <div className="field"><label htmlFor="psLang">Language</label><input id="psLang" name="language" defaultValue={it.language || 'English'} maxLength={40} />{err1('language')}</div>
               <label className="check"><input type="checkbox" name="landscape" defaultChecked={!!it.landscape} />Pages are landscape</label>
             </div>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psLang">Language</label><input id="psLang" name="language" defaultValue={it.language || 'English'} maxLength={40} />{err1('language')}</div>
-              <div className="field"><label htmlFor="psAge">Age group</label><input id="psAge" name="ageGroup" defaultValue={v('ageGroup')} placeholder="e.g. 4 to 6 years" maxLength={40} />{err1('ageGroup')}</div>
-              <div className="field"><label htmlFor="psSku">SKU (optional)</label><input id="psSku" name="sku" defaultValue={v('sku')} placeholder="e.g. KG-ENG-001" maxLength={40} /><small>Your own product code. Never shown to customers.</small>{err1('sku')}</div>
-            </div>
           </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Category</legend>
+          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Where it goes on the website</legend>
             <div className="grid-3">
-              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" name="cls" defaultValue={it.cls || (classes[0] && classes[0].id) || 'kg'}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}</select>{err1('cls')}</div>
-              <div className="field"><label htmlFor="psSubj">Subject</label><select id="psSubj" name="subject" defaultValue={v('subject') || (isNew ? subjects[0] || '' : '')} aria-invalid={!!errs.subject}>{subjects.map(s => <option key={s} value={s}>{s}</option>)}</select><small>Add subjects in Categories.</small>{err1('subject')}</div>
-              <div className="field"><label htmlFor="psTopic">Website section</label><select id="psTopic" name="topic" defaultValue={topicValue}><option value="">None (the class shelf only)</option>
-                {sectionGroups.map(([g, l]) => <optgroup key={g} label={g}>{l.map(t => <option key={t.group + '|' + t.section} value={t.group + '|' + t.section}>{t.label}{t.visible === false ? ' (hidden)' : ''}</option>)}</optgroup>)}</select>
-                <small>Where it shows on the website. Add or rename sections in Categories.</small>{err1('section')}</div>
+              <div className="field"><label htmlFor="psCls">Class</label><select id="psCls" value={cls} onChange={e => { setCls(e.target.value); setWhere(NO_PLACE); }} aria-invalid={!!errs.cls}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.status !== 'available' ? ' (not open yet)' : ''}</option>)}<option value="+new">+ New class…</option></select>
+                {cls === '+new' ? <input id="psNewCls" aria-label="New class name" value={newClass} onChange={e => setNewClass(e.target.value)} placeholder="e.g. Class 4" maxLength={40} autoFocus /> : null}
+                <small>{cls === '+new' ? 'Made when you save. It shows as "Coming soon" until you open it.' : 'Pick the class, or "+ New class" to add one.'}</small>{err1('cls')}</div>
+              <SectionPicker id="ps" sections={pickList} cls={cls} newClass={cls === '+new'} value={where} onChange={x => { setWhere(x); setErrs(({ group, sub, section, ...rest }) => rest); }} errs={{ group: errs.group, sub: errs.sub || errs.section }} />
+            </div>
+            <p className="place-path">On the website: <b>{path}</b>{where.group ? '' : ' (the class shelf only)'}</p>
+            <div className="grid-3">
+              <div className="field"><label htmlFor="psSubj">Subject</label><input id="psSubj" name="subject" list="psSubjList" defaultValue={v('subject') || start.subject || (isNew ? subjects[0] || '' : '')} placeholder="e.g. English" maxLength={40} autoComplete="off" aria-invalid={!!errs.subject} />
+                <datalist id="psSubjList">{subjects.map(x => <option key={x} value={x} />)}</datalist><small>Pick one, or type a new subject.</small>{err1('subject')}</div>
               <div className="field"><label htmlFor="psFor">For</label><select id="psFor" name="audience" defaultValue={it.audience || ''}><option value="">Everyone</option><option value="both">Parents and teachers</option><option value="parent">Parents</option><option value="teacher">Teachers</option></select></div>
             </div>
-            {sessionList && sessionList.length ? <div className="field"><label>Academic sessions</label>
-              <div className="label-picks" role="group" aria-label="Academic sessions">
-                {sessionList.filter(x => x.active || sess.has(x.id)).map(x => <label key={x.id} className={'check pick' + (sess.has(x.id) ? ' on' : '')}><input type="checkbox" checked={sess.has(x.id)} onChange={() => toggleSess(x.id)} />{x.label}{x.current ? ' (current)' : ''}</label>)}
-              </div><small>Which school years this sheet is for. Add sessions in Categories.</small>{err1('sessions')}</div> : null}
           </fieldset>
           <fieldset className="fs" disabled={lockAll || !!busy}><legend>Price</legend>
             <div className="seg" role="radiogroup" aria-label="Free or paid">
@@ -320,42 +357,16 @@ export default function ProductStudio({ sheet, all, classes, sections, subjectLi
             </div>
             <p className="price-sum">{!canPrice ? 'Your role cannot change prices.' : free ? 'Free: anyone can open it, no sign-in needed.' : finalPrice == null ? 'Enter the selling price.'
               : <>Customers pay <b>₹{finalPrice}</b>{origPrice > finalPrice ? <> instead of <s>₹{origPrice}</s> ({Math.round((1 - finalPrice / origPrice) * 100)}% off, they save ₹{origPrice - finalPrice})</> : null}, before tax and fees.</>}</p>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psStock">Stock</label><input id="psStock" name="stock" type="number" min="0" defaultValue={v('stock')} placeholder="No limit" /><small>Leave empty for no limit.</small>{err1('stock')}</div>
-            </div>
           </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Labels and placement</legend>
+          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Home page lists</legend>
             <div className="label-picks" role="group" aria-label="Labels">
               {LABELS.map(([t, name]) => <label key={t} className={'check pick' + (labels.has(t) ? ' on' : '')}><input type="checkbox" checked={labels.has(t)} onChange={() => toggleLabel(t)} />{name}</label>)}
             </div>
-            <div className="grid-3">
-              <label className="check"><input type="checkbox" checked={labels.has(HOME_TAG)} onChange={() => toggleLabel(HOME_TAG)} />Show on the home page</label>
-              <div className="field"><label htmlFor="psSort">Display order</label><input id="psSort" name="sort" type="number" min="-1000000" max="1000000" step="1" defaultValue={it.sort == null ? 0 : it.sort} /><small>Smaller numbers come first in a list.</small>{err1('sort')}</div>
-            </div>
-          </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Search engines (optional)</legend>
-            <div className="field"><label htmlFor="psSeoT">SEO title</label><input id="psSeoT" name="seoTitle" defaultValue={v('seoTitle')} placeholder={look.title || 'Uses the title'} maxLength={70} /><small>Up to 70 letters. Empty uses the title.</small>{err1('seoTitle')}</div>
-            <div className="field"><label htmlFor="psSeoD">SEO description</label><textarea id="psSeoD" name="seoDescription" defaultValue={v('seoDescription')} placeholder="Uses the short description" maxLength={170} rows={2} /><small>Up to 170 letters.</small>{err1('seoDescription')}</div>
-          </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Visibility</legend>
-            <div className="seg" role="radiogroup" aria-label="Visibility">
-              {VISIBILITY.map(([id, name]) => <label key={id} className={'seg-opt' + (vis === id ? ' on' : '')}><input type="radio" name="visibility" value={id} checked={vis === id} onChange={() => setVis(id)} />{name}</label>)}
-            </div>
-            {vis === 'scheduled' ? <div className="grid-3"><div className="field"><label htmlFor="psWhen">Publish on</label><input id="psWhen" type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} aria-invalid={!!errs.publishAt} />{err1('publishAt')}</div></div> : null}
-            <small className="muted">{{ draft: 'Not on the website. Only staff can see it.', published: hasPdf ? 'On the website as soon as you save.' : 'Add the PDF first: a sheet goes on the website only with its PDF.', scheduled: 'Goes on the website by itself at the time you pick.', hidden: 'Taken off the website. Customers who bought it keep their access until it ends.' }[vis]}</small>
-          </fieldset>
-          <fieldset className="fs" disabled={lockAll || !!busy}><legend>Access and limits per customer</legend>
-            <div className="grid-3">
-              <div className="field"><label htmlFor="psDays">Access days</label><input id="psDays" name="accessDays" type="number" min="1" max="3650" defaultValue={v('accessDays')} placeholder={shopSpan ? 'Shop setting: ' + shopSpan : 'Shop setting'} /><small>How long a buyer can open it, in days. Empty uses the shop setting{shopSpan ? ' (' + shopSpan + ')' : ''}, set in hours under Settings.</small>{err1('accessDays')}</div>
-              <div className="field"><label htmlFor="psRule">Prints come from</label><select id="psRule" name="printRule" value={printRule} onChange={e => setPrintRule(e.target.value)}><option value="account">The account type</option><option value="sheet">This sheet only</option></select>
-                <small>{printRule === 'sheet' ? 'Every customer gets the number below.' : typePrints ? 'Parents ' + typePrints.parent + ' · Teachers ' + typePrints.teacher + ' · Organizations ' + typePrints.organization + '. Change these in Settings.' : 'The numbers in Settings → Prints per sheet.'}</small>{err1('printRule')}</div>
-              <div className="field"><label htmlFor="psPrint">Prints with this sheet only</label><input id="psPrint" name="printLimit" type="number" min="0" max="100" defaultValue={it.printLimit == null ? 0 : it.printLimit} aria-describedby="psPrintHelp" /><small id="psPrintHelp">{printRule === 'sheet' ? '0 means view only.' : 'Used only when prints come from this sheet.'}</small>{err1('printLimit')}</div>
-              <div className="field"><label htmlFor="psDl">Downloads</label><input id="psDl" name="downloadLimit" type="number" min="0" max="100" defaultValue={it.downloadLimit == null ? 0 : it.downloadLimit} /><small>0 means view only.</small>{err1('downloadLimit')}</div>
-            </div>
+            <label className="check"><input type="checkbox" checked={labels.has(HOME_TAG)} onChange={() => toggleLabel(HOME_TAG)} />Show on the home page</label>
           </fieldset>
           {err ? <div className="st-note err" role="alert"><Icon id="alert" size={16} /><span>{err}</span></div> : null}
           <div className="btn-row studio-actions">
-            {canWrite || canUpload ? <button type="submit" value="save" className="btn btn-primary" disabled={!!busy}>{busy ? <><span className="dm-spin" aria-hidden="true" />{busy}</> : isNew ? (vis === 'draft' ? 'Save as draft' : 'Save') : canWrite ? 'Save changes' : 'Upload the files'}</button> : null}
+            {canWrite || canUpload ? <button type="submit" value="save" className="btn btn-primary" disabled={!!busy}>{busy ? <><span className="dm-spin" aria-hidden="true" />{busy}</> : isNew ? 'Save' : canWrite ? 'Save changes' : 'Upload the files'}</button> : null}
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={!!busy}>{canWrite ? 'Cancel' : 'Close'}</button>
             {!isNew && canWrite ? <span className="studio-more">
               <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={duplicate}><Icon id="copy" />Duplicate</button>

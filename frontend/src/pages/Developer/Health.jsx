@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { authFetch } from '../../services/api.js';
 import { SITE_VERSION } from '../../data/content.js';
 import MetricCard from '../../components/dashboard/MetricCard.jsx';
+import { Donut, SplitBar, Meter, RankBars } from '../../components/dashboard/Charts.jsx';
+import { eventLabel } from './Logs.jsx';
 import { StaffStyles, CardTable, KV, Tag, Missing, Loading, LoadError, Note, NoAccess, PanelHead, Where, useServer, useGo, useStaffAccess, when, ago, count, plural, ms } from './common.jsx';
 
 /* Developer → Dashboard: how the live system is doing, from the server's own report
@@ -84,6 +86,15 @@ export default function Health() {
   const issues = warnings.length + (pub.loading || pubOk ? 0 : 1) + (ob.failed24h ? 1 : 0) + (pay.notOk24h ? 1 : 0);
   const buildName = siteBuild();
   const errs = (d.errors && d.errors.byType) || [];
+  const checks = [
+    ['Database', d.db && d.db.ok, d.db ? 'Postgres ' + String(d.db.serverVersion || '').split(' ')[0] + ', answered in ' + ms(d.db.latencyMs) : ''],
+    ['Public health check', pub.loading ? null : pubOk, pub.loading ? 'Measuring…' : pubOk ? 'Answered in ' + ms(pub.ms) + ' from this browser' : pub.status ? 'Answered ' + pub.status : 'Could not be reached from this browser'],
+    ['Worksheet files', !files.onSaleWithoutPdf, count(files.withPdf) + ' of ' + plural(files.products || 0, 'sheet') + ' have a PDF in storage' + (files.onSaleWithoutPdf ? '; ' + files.onSaleWithoutPdf + ' on sale without one' : '')],
+    ['Email', !!(d.mail && d.mail.ready), d.mail && d.mail.ready ? 'Sent by ' + (MAILER[d.mail.provider] || d.mail.provider) + (d.mail.fromSet ? '' : '; the from address is not set up') : 'Not set up: emails wait in the queue until it is'],
+    ['Email queue', !ob.gaveUp, count(ob.waiting || 0) + ' waiting, ' + count(ob.due || 0) + ' due now' + (ob.gaveUp ? ', ' + ob.gaveUp + ' gave up' : '') + (ob.oldestWaitingAt ? '; oldest waiting since ' + ago(ob.oldestWaitingAt) : '')],
+    ['Payment notifications', !pay.notOk24h, pay.lastEvent ? 'Last one ' + ago(pay.lastEvent.at) + ' (' + pay.lastEvent.provider + '); ' + count(pay.events24h) + ' in 24 hours' : 'None received yet'],
+  ];
+  const envSet = ENV_HELP.flatMap(([, list]) => list).filter(([n]) => env[n]).length, envAll = ENV_HELP.flatMap(([, list]) => list).length;
 
   return (
     <>
@@ -111,17 +122,29 @@ export default function Health() {
         ) : <Note tone="ok">Nothing needs attention. The database, email and payments all answer as expected.</Note>}
       </section>
 
+      <div className="viz-grid three" data-section="health-charts">
+        <section className="panel" aria-labelledby="lwHealthRing">
+          <PanelHead id="lwHealthRing" title="Checks at a glance" sub="How many of the server’s checks pass right now." />
+          <Donut parts={[['OK', checks.filter(c => c[1] === true).length, 'var(--ok)'], ['Look at this', checks.filter(c => c[1] === false).length, 'var(--bad)'], ['Still checking', checks.filter(c => c[1] == null).length, 'var(--viz-other)']]} center={checks.filter(c => c[1] === true).length + '/' + checks.length} sub="checks pass" />
+        </section>
+        <section className="panel" aria-labelledby="lwHealthMail24">
+          <PanelHead id="lwHealthMail24" title="Emails, last 24 hours" sub="Sent, failed, and still waiting in the queue." />
+          <SplitBar parts={[['Sent', ob.sent24h, 'var(--viz-1)'], ['Failed', ob.failed24h, 'var(--viz-2)'], ['Waiting', ob.waiting, 'var(--viz-4)']]} empty="No emails in the last 24 hours." />
+          <div className="meters" style={{ marginTop: 20 }}>
+            <Meter label="Sheets with a PDF in storage" value={files.withPdf} max={files.products} />
+            <Meter label="Server settings set up" value={envSet} max={envAll} tone="ok" />
+          </div>
+        </section>
+        <section className="panel" aria-labelledby="lwHealthErr7">
+          <PanelHead id="lwHealthErr7" title="Problems, last 7 days" sub="What the server logged, by kind." />
+          <RankBars rows={errs.map(e => [eventLabel(e.type)[0], e.last7d, e.last24h ? count(e.last24h) + ' today' : ''])} color="var(--viz-2)" empty="No problems logged in the last 7 days." limit={6} />
+        </section>
+      </div>
+
       <div className="grid-2">
         <section className="panel" aria-labelledby="lwHealthChecks">
           <PanelHead id="lwHealthChecks" title="Checks" />
-          <CardTable caption="Checks" rowKey={r => r[0]} rows={[
-            ['Database', d.db && d.db.ok, d.db ? 'Postgres ' + String(d.db.serverVersion || '').split(' ')[0] + ', answered in ' + ms(d.db.latencyMs) : ''],
-            ['Public health check', pub.loading ? null : pubOk, pub.loading ? 'Measuring…' : pubOk ? 'Answered in ' + ms(pub.ms) + ' from this browser' : pub.status ? 'Answered ' + pub.status : 'Could not be reached from this browser'],
-            ['Worksheet files', !files.onSaleWithoutPdf, count(files.withPdf) + ' of ' + plural(files.products || 0, 'sheet') + ' have a PDF in storage' + (files.onSaleWithoutPdf ? '; ' + files.onSaleWithoutPdf + ' on sale without one' : '')],
-            ['Email', !!(d.mail && d.mail.ready), d.mail && d.mail.ready ? 'Sent by ' + (MAILER[d.mail.provider] || d.mail.provider) + (d.mail.fromSet ? '' : '; the from address is not set up') : 'Not set up: emails wait in the queue until it is'],
-            ['Email queue', !ob.gaveUp, count(ob.waiting || 0) + ' waiting, ' + count(ob.due || 0) + ' due now' + (ob.gaveUp ? ', ' + ob.gaveUp + ' gave up' : '') + (ob.oldestWaitingAt ? '; oldest waiting since ' + ago(ob.oldestWaitingAt) : '')],
-            ['Payment notifications', !pay.notOk24h, pay.lastEvent ? 'Last one ' + ago(pay.lastEvent.at) + ' (' + pay.lastEvent.provider + '); ' + count(pay.events24h) + ' in 24 hours' : 'None received yet'],
-          ]} cols={[
+          <CardTable caption="Checks" rowKey={r => r[0]} rows={checks} cols={[
             ['Check', r => <b>{r[0]}</b>],
             ['Status', r => (r[1] == null ? <Tag tone="neutral">Checking</Tag> : r[1] ? <Tag tone="ok">OK</Tag> : <Tag tone="bad">Look at this</Tag>)],
             ['Detail', r => <span className="lw-small" style={{ color: 'var(--foreground)' }}>{r[2]}</span>],
