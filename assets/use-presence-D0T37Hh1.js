@@ -1,0 +1,1 @@
+import{n as e,s as t}from"./jsx-runtime-Dq06mWxz.js";import{Pt as n}from"./is-ref-object-DlFEFwSS.js";var r=t(e(),1);function i(e=!0){let t=(0,r.useContext)(n);if(t===null)return[!0,null];let{isPresent:i,onExitComplete:a,register:o}=t,s=(0,r.useId)();(0,r.useEffect)(()=>{if(e)return o(s)},[e]);let c=(0,r.useCallback)(()=>e&&a&&a(s),[s,a,e]);return!i&&a?[!1,c]:[!0]}export{i as t};
