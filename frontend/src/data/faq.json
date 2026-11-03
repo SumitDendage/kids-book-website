@@ -149,7 +149,7 @@
 },
 {
 "q": "How do I find free sheets?",
-"a": "Choose the Free view in the shop. Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Choose the Free view in the shop. Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits). Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Show me the free worksheets"
 ],
@@ -198,7 +198,7 @@
 },
 {
 "q": "How many worksheets are free?",
-"a": "Free sheets to try in every section: Alphabet A and B tracing, Colour A to Z (A, B and C), Matching (2), Uppercase and Lowercase (2), Sounds (A and B), Sounds Exercise (2), Missing Uppercase and Lowercase (2), and the first three sheets of Colours, Shapes, Sizes and Animals in Vocabulary. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits). Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Are all worksheets free?",
 "Which two sheets are free?",
@@ -215,7 +215,7 @@
 },
 {
 "q": "Is the entire A–Z alphabet collection free?",
-"a": "No. Alphabet A and B tracing are the free alphabet samples (plus the first three Colours and first three Shapes sheets in Vocabulary). The remaining letters are paid unless your active class plan gives you access.",
+"a": "Yes. All 26 A to Z Letter Tracing sheets are free and open without signing in.",
 "alt": [
 "Are all 26 letters free?",
 "Is Alphabet C free?"
@@ -755,7 +755,7 @@
 },
 {
 "q": "Which worksheet should I start with?",
-"a": "For a learner beginning letter tracing, try the free Alphabet A and B sheets first. Choose the next activity according to the child’s current skills and comfort, rather than age alone.",
+"a": "For a learner beginning letter tracing, try the free A to Z tracing sheets first. Choose the next activity according to the child’s current skills and comfort, rather than age alone.",
 "alt": [],
 "kw": [
 "start here",
@@ -799,39 +799,12 @@
 ]
 },
 {
-"q": "What are beginning-sound activities?",
-"a": "The current listings include writing a missing beginning sound, circling a pictured word’s starting sound, and finding words with the same beginning sound.",
-"alt": [],
-"kw": [
-"beginning sound",
-"first sound"
-]
-},
-{
-"q": "What are ending-sound activities?",
-"a": "The current listings include choosing or writing a pictured word’s ending sound and finding words with the same ending sound.",
-"alt": [],
-"kw": [
-"ending sound",
-"last sound"
-]
-},
-{
 "q": "What are missing-letter activities?",
 "a": "Children fill gaps in alphabet sequences. The uploaded collection includes uppercase and lowercase versions using apples, an alphabet path, or short rows with pictures.",
 "alt": [],
 "kw": [
 "missing letters",
 "alphabet sequence"
-]
-},
-{
-"q": "Which picture-reading letters are listed?",
-"a": "The uploaded picture-reading charts cover A, I, N, P, S and T. Each chart uses pictures and words to help a child spot the letter’s sound.",
-"alt": [],
-"kw": [
-"picture reading",
-"letters"
 ]
 },
 {
@@ -865,7 +838,7 @@
 },
 {
 "q": "Which worksheets suit a five-year-old?",
-"a": "If the child is beginning to recognise or trace letters, try the free A and B tracing sheets, letter recognition, matching, or simple sound activities. Tell me what the child can already do so I can suggest a more suitable next step.",
+"a": "If the child is beginning to recognise or trace letters, try the free A to Z tracing sheets, letter recognition or matching. Tell me what the child can already do so I can suggest a more suitable next step.",
 "alt": [],
 "kw": [
 "age 5",
