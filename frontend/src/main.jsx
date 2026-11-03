@@ -4,7 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { installTelemetry } from './services/telemetry.js';
 import App from './App.jsx';
-import '@fontsource-variable/fredoka';
+import '@fontsource-variable/baloo-2';
+import '@fontsource/caveat-brush';
 import '@fontsource-variable/nunito';
 import './styles/site.css';
 /* styles/admin.css is loaded by the staff pages themselves (pages/Portal/Portal.jsx): it is a
@@ -18,6 +19,14 @@ import './styles/36-readable-auth.css';
 /* the brighter magical forest look (Oct 16): loaded last */
 import './styles/37-magic-forest.css';
 import './styles/38-countdown.css';
+/* the payment page in white with soft shadows (Oct 18) */
+import './styles/39-checkout-light.css';
+/* slogans, stickers, fonts and the extra playful motion (Oct 23) */
+import './styles/39-slogans-motion.css';
+/* customer reviews and star ratings (Oct 26) */
+import './styles/39-reviews.css';
+/* paid sheets' pictures are blurred until bought (Oct 28) */
+import './styles/41-locked-preview.css';
 /* the Framer Motion pieces: it must come last, so it can quiet the older transitions */
 import './styles/40-motion.css';
 

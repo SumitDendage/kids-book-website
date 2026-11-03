@@ -1,7 +1,6 @@
 import { NAV, IDS } from '../../data/content.js';
 import { useSite } from '../../context/SiteContext.jsx';
 import { m } from 'framer-motion';
-import LogoTile from '../common/LogoTile.jsx';
 import { SNAPPY } from '../motion/presets.js';
 
 /* a small basket for the Cart buttons */
@@ -19,7 +18,7 @@ export default function Navbar() {
   return (
     <nav className="navbar" aria-label="Main">
       <button type="button" className="nav-brand" onClick={() => goTo(0)} aria-label="Learn With Why home">
-        <LogoTile as="span" /><span className="wordmark">Learn With Why<small>Print · Play · Ask why</small></span>
+        <span className="nav-emblem" aria-hidden="true"><img src="/logo.png" alt="" draggable="false" /></span><span className="wordmark">Learn With Why<small>Print · Play · Ask why</small></span>
       </button>
       <div className="nav-links" id="navLinks">
         {NAV.map((l, i) => <a key={IDS[i]} className={'nav-link' + (section === i ? ' on' : '')} href={'#' + IDS[i]} aria-current={section === i ? 'true' : undefined} onClick={go(i)}>

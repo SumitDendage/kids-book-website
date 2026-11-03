@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useSite } from '../../context/SiteContext.jsx';
 import { classById, subjectById } from '../../data/content.js';
 import { cardLabel, discountPct, LABEL_COLOUR } from '../../data/catalogue.js';
-import { sheetState, openForText, cartable } from './sheetAccess.js';
+import { sheetState, openForText, cartable, picLocked } from './sheetAccess.js';
+import { CardRating } from '../reviews/Stars.jsx';
 import MotionCard from '../motion/MotionCard.jsx';
 import { flightFrom } from '../motion/SheetFlight.jsx';
 
@@ -63,11 +64,11 @@ export default function SheetCard({ it, n, store = false }) {
   const open = e => openSheet(it.id, flightFrom(e && e.currentTarget));
   return (
     <MotionCard as="article" n={n} className="shop-card" style={{ '--n': n }} tabIndex={0} aria-label={it.title} onClick={open} onKeyDown={cardKeys(open)}>
-      <div className={'paper' + (shot ? ' shot' : '')}>
-        {shot ? <img src={it.img} alt="" loading="lazy" /> : <><small>{it.subject}</small><div className="glyph">{it.glyph}</div><small>Learn With Why · PDF</small></>}
+      <div className={'paper' + (shot ? ' shot' : '') + (shot && picLocked(st) ? ' pic-locked' : '')}>
+        {shot ? <img src={it.img} alt="" loading="lazy" draggable={false} /> : <><small>{it.subject}</small><div className="glyph">{it.glyph}</div><small>Learn With Why · PDF</small></>}
         {tag}
       </div>
-      <p className="meta">{meta}{offLine}</p>
+      <p className="meta">{meta}{offLine}<CardRating it={it} /></p>
       <h3 className="card-title">{it.title}</h3>
       <p>{it.blurb}</p>
       {store && cartable(it, st)

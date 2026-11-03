@@ -534,7 +534,7 @@ async function decideAppeal(ctx: Ctx) {
 
 // What each rule's params may hold (same limits sharing.ts applies when it reads them).
 const RULE_PARAMS: Record<string, Record<string, [number, number]>> = {
-  concurrent_devices: { devices: [3, 100], networks: [2, 100], windowMinutes: [1, 1440] },
+  concurrent_devices: { devices: [2, 100], networks: [2, 100], windowMinutes: [1, 1440] },
   many_devices_day: { devices: [3, 100], windowHours: [1, 168] },
   many_countries_day: { countries: [3, 50], windowHours: [1, 168] },
   rapid_page_requests: { requests: [50, 100000], windowMinutes: [1, 1440] },

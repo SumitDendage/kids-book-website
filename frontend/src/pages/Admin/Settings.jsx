@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import DataTable from '../../components/dashboard/DataTable.jsx';
 import Icon from '../../components/dashboard/Icon.jsx';
 import { Guard, ErrorNote } from '../../components/dashboard/States.jsx';
 import { useDash } from '../Portal/DashContext.js';
+
+/* the staff list, for the owner only (there is no Roles item in the menu) */
+const Staff = lazy(() => import('./Roles.jsx'));
 import { useStaffGet, fmt, problem, fieldErrors } from '../Portal/dashboard.js';
 import { staffApi } from '../../services/api.js';
 
@@ -54,6 +57,7 @@ export default function Settings() {
         {has('security') ? <SettingCard q={q} k="security" title="Sharing warnings" intro="Warnings for account sharing. When a customer reaches the limit, their paid access can pause on its own."
           fields={[{ name: 'maxWarnings', label: 'Warnings before paid access pauses', type: 'int', min: 1, max: 20 }, { name: 'warningExpiryDays', label: 'A warning stops counting after: days', type: 'int', min: 1, max: 3650 }, { name: 'autoSuspend', label: 'Pause paid access on its own at the limit', type: 'bool' }]} /> : null}
       </> : null}
+      <StaffPart />
     </Guard>
   );
 }
@@ -222,5 +226,20 @@ function Taxes({ q }) {
       {err ? <div className="st-note err compact" role="alert"><Icon id="alert" size={16} /><span>{err}</span></div> : null}
       {!ro && Object.keys(vals).length ? <div className="btn-row"><button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save taxes'}</button><button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setVals({}); setErr(null); }}>Undo</button></div> : null}
     </section>
+  );
+}
+
+/* the owner adds or removes staff here; it stays closed until asked for */
+function StaffPart() {
+  const { me } = useDash();
+  const [open, setOpen] = useState(false);
+  if (!(me && me.staff && me.staff.role === 'owner')) return null;
+  return (
+    <>
+      <p className="eyebrow group-head">Staff</p>
+      {open ? <Suspense fallback={<p className="muted">Loading…</p>}><Staff /></Suspense>
+        : <section className="panel setting"><div className="row-between"><div><p className="eyebrow">Who can open this panel</p><p className="auth-sub">Only you see this. Add a helper's email so they can sign in to the admin panel.</p></div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}><Icon id="userplus" size={14} />Show staff</button></div></section>}
+    </>
   );
 }

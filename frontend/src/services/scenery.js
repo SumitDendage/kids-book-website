@@ -118,13 +118,16 @@ function dropTile(w, h) {
 export function createScenery(canvas) {
   const ctx = canvas.getContext('2d');
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lite = typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 820px)').matches;
   const flyer = { purple: load(flySrc), blue: load(flyBlueSrc) }, cut = {};
   const mask = load(waterSrc);
   let W = 0, H = 0, dpr = 1, tile = null, drops = null, water = null, lastI = -1;
   const t0 = performance.now();
 
   function resize() {
-    dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+    W = innerWidth; H = innerHeight;
+    /* no sharper than the picture the birds and water belong to (see frameEngine.js) */
+    dpr = Math.min(devicePixelRatio || 1, 2, Math.max(1, 1 / Math.max(W / FW, H / FH)));
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); lastI = -1;
   }
 
@@ -192,31 +195,47 @@ export function createScenery(canvas) {
     ctx.restore();
   }
 
-  /* the water: streaks slide down through the waterfall mask */
-  function drawWater(t) {
+  /* the water: streaks slide down through the waterfall mask. Only the part of the falls that is
+     on the screen is worked out (v, in picture pixels): on a phone held upright that is about half
+     of it, and none at all once the camera has panned past */
+  function drawWater(t, v) {
     if (!ready(mask)) return;
-    if (!tile) { tile = streakTile(WATER.w, WATER.tile); drops = dropTile(WATER.w, WATER.tile); water = document.createElement('canvas'); water.width = WATER.w; water.height = WATER.h; }
+    const x0 = Math.max(0, Math.floor(v.x0 - WATER.x)), y0 = Math.max(0, Math.floor(v.y0 - WATER.y));
+    const x1 = Math.min(WATER.w, Math.ceil(v.x1 - WATER.x)), y1 = Math.min(WATER.h, Math.ceil(v.y1 - WATER.y));
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return;
+    /* on phones the water is worked out at half size and stretched: a quarter of the work, and on
+       a small screen the streaks look the same */
+    const q = lite ? 0.5 : 1;
+    if (!tile) { tile = streakTile(WATER.w, WATER.tile); drops = dropTile(WATER.w, WATER.tile); water = document.createElement('canvas'); water.width = Math.ceil(WATER.w * q); water.height = Math.ceil(WATER.h * q); }
     const g = water.getContext('2d');
-    g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, WATER.w, WATER.h);
+    g.setTransform(q, 0, 0, q, 0, 0);
+    g.globalCompositeOperation = 'source-over'; g.clearRect(x0, y0, w, h);
+    g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip();
     const off = (t * WATER.speed) % WATER.tile, off2 = (t * WATER.drops) % WATER.tile;
-    for (let y = off - WATER.tile; y < WATER.h; y += WATER.tile) g.drawImage(tile, 0, y);
-    for (let y = off2 - WATER.tile; y < WATER.h; y += WATER.tile) g.drawImage(drops, 0, y);
-    g.globalCompositeOperation = 'destination-in'; g.drawImage(mask, 0, 0, WATER.w, WATER.h);
-    g.globalCompositeOperation = 'source-over';
-    ctx.drawImage(water, WATER.x, WATER.y);
+    for (let y = off - WATER.tile; y < y1; y += WATER.tile) if (y + WATER.tile > y0) g.drawImage(tile, 0, y);
+    for (let y = off2 - WATER.tile; y < y1; y += WATER.tile) if (y + WATER.tile > y0) g.drawImage(drops, 0, y);
+    const mx = mask.naturalWidth / WATER.w, my = mask.naturalHeight / WATER.h;
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(mask, x0 * mx, y0 * my, w * mx, h * my, x0, y0, w, h);
+    g.restore();
+    ctx.drawImage(water, x0 * q, y0 * q, w * q, h * q, WATER.x + x0, WATER.y + y0, w, h);
   }
 
-  /* one animation frame; i is the frame the background is showing (0…959) */
+  /* one animation frame; i is the frame the background is showing (0…959). On phones the birds
+     and the water move at 30 frames a second instead of 60: the eye can't tell on a small screen,
+     and it leaves the phone half its time free for the finger's scrolling */
+  let skip = false;
   function paint(i) {
     if (!W) resize();
     if (still && i === lastI) return;
+    if (lite && !still && (skip = !skip)) return;
     lastI = i;
     const t = (performance.now() - t0) / 1000;
     const cam = camera(Math.max(0, Math.min(FRAMES - 1, i)));
     const S = Math.max(W / FW, H / FH), sc = cam.k * S, ox = (W - FW * S) / 2, oy = (H - FH * S) / 2;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * (ox - cam.x0 * sc), dpr * (oy - cam.y0 * sc));
-    if (!still) { drawWater(t); drawCrossers(t); }
+    if (!still) { drawWater(t, { x0: cam.x0 - ox / sc, y0: cam.y0 - oy / sc, x1: cam.x0 + (W - ox) / sc, y1: cam.y0 + (H - oy) / sc }); drawCrossers(t); }
     if (still) BIRDS.slice(0, 4).forEach((b, j) => { const p = along(b, 0.25 + 0.15 * j); flying(b.fly, p.x, p.y, b.w, p.dir, { pos: 0.6, lift: 0 }, 0, 1); });
     else BIRDS.forEach((b, j) => drawBird(b, t, j));
   }

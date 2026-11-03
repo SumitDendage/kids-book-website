@@ -37,9 +37,6 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 .stage { position: fixed; inset: 0; overflow: auto; padding: 64px 16px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .page { position: relative; flex: none; width: min(100%, var(--w)); aspect-ratio: 1 / 1.414; background: var(--paper); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden; }
 .page canvas { display: block; width: 100%; height: 100%; }
-/* the customer's name and email are stamped diagonally over every page (and baked into the pixels too) */
-.wm { position: absolute; inset: -40%; pointer-events: none; display: grid; grid-template-columns: repeat(3, 1fr); align-content: space-evenly; justify-items: center; transform: rotate(-30deg); opacity: 0.11; }
-.wm span { font-size: clamp(11px, 1.4vw, 16px); font-weight: 700; color: var(--green); white-space: nowrap; letter-spacing: 0.06em; padding: 22px 0; }
 .pn { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: #8a8f96; }
 .foot { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: linear-gradient(0deg, rgba(11,16,23,0.92), rgba(11,16,23,0)); font-size: 0.76rem; color: var(--dim); transition: opacity 0.3s; flex-wrap: wrap; text-align: center; }
 .foot.hide { opacity: 0; pointer-events: none; }
@@ -56,7 +53,7 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 .toast.show { opacity: 1; }
 .spin { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #fff; border-radius: 50%; margin: 0 auto 18px; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* Printing shows nothing, except after the Print button (a counted print): then only the pages, with their watermark */
+/* Printing shows nothing, except after the Print button (a counted print): then only the pages */
 @media print {
   body:not(.printing), body:not(.printing) * { display: none !important; visibility: hidden !important; }
   html, body.printing { height: auto !important; overflow: visible !important; background: #fff !important; }

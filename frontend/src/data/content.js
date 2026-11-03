@@ -11,9 +11,9 @@ export const INSTAGRAM = 'https://www.instagram.com/learnwithwhy_01';
    is meant to sit in the page: it can only send notes to that one inbox. */
 export const WEB3FORMS_KEY = '5b22ccce-85d2-48af-82e1-6523e1b2bd87';
 
-export const NAV = ['Home', 'About us', 'What we do', 'Sheets', 'Contact us', 'Testimonials'];
+export const NAV = ['Home', 'About us', 'What we do', 'Worksheets', 'Contact us', 'Reviews', 'Testimonials'];
 /* the chapter anchors: /#home, /#about, … /#testimonials */
-export const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'testimonials'];
+export const IDS = ['home', 'about', 'what-we-do', 'sheets', 'contact', 'reviews', 'testimonials'];
 
 /* The account type, asked once after the first sign-in (Sumit, 15 Oct): Parent, Teacher or
    Organization. id is what the server keeps (profiles.role): Organization is stored as 'school',
@@ -111,7 +111,31 @@ export const THANKS = ['Books bhut aachi hai apki 💛 — Sanvi Gahlyan', 'Yes,
 export const WHYS = ['Why do foxes have such fluffy tails?', 'Why is the sky blue and not green?', 'Why do leaves change colour?', 'Why does the moon follow us home?', 'Why do rabbits have long ears?', 'Why does bread rise?', 'Why do we have to sleep?', 'Why is the sea salty?'];
 /* the first screen's lines (the admin's Content section can replace them) */
 export const HERO = {
-  badge: 'Small questions, extraordinary discoveries',
-  titleHtml: 'Every great adventure begins with <em>why</em>.',
-  lede: 'A little wonder for every learner. Beautiful printable activity sheets and playful worksheets from Kindergarten to Class 3 — for families, classrooms, and curious minds.',
+  badge: 'Big curiosity starts with little questions',
+  titleHtml: 'Little learners. <em>Big discoveries.</em>',
+  lede: 'Turn curious moments into confident learning. Explore playful, printable phonics, alphabet, maths and activity worksheets for Kindergarten to Class 3 — made for parents, teachers and little minds that love to ask why.',
+};
+/* Catchy lines (Sumit, Oct 23: "more slogans so it is attractive and customers get involved").
+   SLOGANS run along the ribbons on the first and last screens; TAGLINES are the little hand-written
+   stickers beside each chapter's heading, the shop and the checkout. */
+export const SLOGANS = [
+  'Little hands. Big whys. Bright minds.',
+  'From ABC to “Aha!” — one sheet at a time.',
+  'Print it. Play it. Learn it. Love it.',
+  'Every “why” deserves a “wow”.',
+  'Kindergarten worksheets kids actually ask for.',
+  'Five minutes a day. One big smile every day.',
+  'Seekho, khelo, poocho — kyun?',
+  'Curiosity is our favourite subject.',
+  'Ask why. Find wow. Learn With Why.',
+];
+export const TAGLINES = {
+  home: 'Free sheets inside — try one now!',
+  about: 'Curiosity is our favourite subject.',
+  whatWeDo: 'Print it. Play it. Learn it. Love it.',
+  sheets: 'From ABC to “Aha!”',
+  contact: 'We reply faster than a fox can blink!',
+  testimonials: 'Loved by parents. Trusted by teachers.',
+  shop: 'Pick a sheet, spark a “why”!',
+  checkout: 'Almost there — a world of “wow” awaits!',
 };

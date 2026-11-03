@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext.jsx';
 import { authApi } from '../../services/api.js';
@@ -9,12 +9,17 @@ import { isEmail, strongPass, dateTimeTz } from '../../utils/format.js';
 import { classById, printsText } from '../../data/content.js';
 import Aurora from '../motion/Aurora.jsx';
 
+const AccountTypePopup = lazy(() => import('../account/AccountTypePopup.jsx'));
+
 /* Two ways in: Sign up (name, email, a password the customer picks and the account rules; Supabase
    Auth emails a 6-digit code, view 'verify' takes it, and only then is the account open and signed
    in through our server) and Sign in. Forgot password emails a reset
    link; the link opens the new-password form here (view 'reset', token in auth.token). When the
    account rules change, sign-in asks for them once more (view 'agree'). Every branch is one call
-   to /api/auth/*; the server keeps the record of who signed in and when. */
+   to /api/auth/*; the server keeps the record of who signed in and when. Right after "Create my
+   account" the "Who will use these sheets?" popup asks Parent, Teacher or Organization once; the
+   choice is kept in this browser and saved to the account by itself at its first sign-in
+   (SiteContext, rememberAccountType), and only then does the sign-in code step follow. */
 const COPY = {
   signup: { title: 'Let curiosity in.', sub: 'Tell us your name and email, and choose a password.', submit: 'Create my account →' },
   signin: { title: 'Welcome back.', sub: 'Sign in to open your worksheets, plans and orders.', submit: 'Sign in →' },
@@ -60,7 +65,7 @@ function Field({ id, label, show, error, children }) {
 
 export default function AuthCard() {
   const site = useSite();
-  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet } = site;
+  const { auth, access, setAuthView, setAuthAlert, signedIn, signOut, openShop, openAccount, resendWelcome, accountType, printsPerSheet, rememberAccountType } = site;
   const navigate = useNavigate();
   const session = access.session;
   const view = COPY[auth.view] ? auth.view : 'signin';
@@ -72,6 +77,8 @@ export default function AuthCard() {
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  /* a sign-up that just worked, waiting for the account type: { email, pass, name, ready, to } */
+  const [typeAsk, setTypeAsk] = useState(null);
   const busyRef = useRef(false);
 
   /* the account rules as the server words them (GET /api/config) */
@@ -125,6 +132,28 @@ export default function AuthCard() {
     await signedIn(r.user, first ? 'Welcome back, ' + first + '!' : 'Welcome back!', remember, r.security || null);
   }
 
+  /* the account type was picked in the popup after "Create my account": keep it for the first
+     sign-in, then sign straight in (the ticked rules are recorded with it), or, while Supabase is
+     confirming emails, ask for the code it sent */
+  async function afterSignUp(role) {
+    const t = typeAsk; if (!t) return;
+    rememberAccountType(t.email, role);
+    setTypeAsk(null);
+    if (!t.ready) {
+      setAuthView('verify', null, { email: t.to });
+      setTimeout(() => setAuthAlert({
+        type: 'ok',
+        msg: 'We sent a 6-digit code to ' + t.to + '. It can take a minute. Look in Spam too.',
+        action: { label: 'No email? Send a new code', run: () => resendWelcome(t.to) },
+      }), 0);
+      return;
+    }
+    busyRef.current = true; setBusy(true);
+    try { await signInWith(t.email, t.pass, { agreement: true }); }
+    catch (err) { setAuthAlert({ type: 'err', msg: friendly(err, t.email) }); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+
   async function onSubmit(e) {
     e.preventDefault(); setAuthAlert(null); if (busyRef.current) return;
     const email = f.email.trim().toLowerCase(), pass = f.pass, confirm = f.confirm, name = f.name.trim();
@@ -154,16 +183,8 @@ export default function AuthCard() {
           throw err;
         }
         write('lww_seen', true);
-        /* ready: sign in now (the ticked rules are recorded with this first sign-in) */
-        if (r && r.ready) { await signInWith(email, pass, { agreement: true }); return; }
-        /* Supabase is confirming emails: the code is in the inbox, and the account opens once it is typed here */
-        const to = (r && r.email) || email;
-        setAuthView('verify', null, { email: to });
-        setTimeout(() => setAuthAlert({
-          type: 'ok',
-          msg: 'We sent a 6-digit code to ' + to + '. It can take a minute. Look in Spam too.',
-          action: { label: 'No email? Send a new code', run: () => resendWelcome(to) },
-        }), 0);
+        /* the account is made: the popup asks who will use the sheets, then afterSignUp carries on */
+        setTypeAsk({ email, pass, name, ready: !!(r && r.ready), to: (r && r.email) || email });
       } else if (view === 'verify') {
         const code = f.code.replace(/\s+/g, '');
         const b = bad('auEmail', isEmail(email) ? '' : 'Enter a valid email address.')
@@ -194,10 +215,23 @@ export default function AuthCard() {
           return;
         }
         busyOn(true);
-        const r = await authApi.verifyLoginOtp({
-          challengeId: loginChallenge.challengeId,
-          code
-        });
+        let r;
+        try {
+          r = await authApi.verifyLoginOtp({
+            challengeId: loginChallenge.challengeId,
+            code
+          });
+        } catch (err) {
+          /* only the newest email's code fits this sign-in; an expired or locked code means signing in again */
+          if (err.code === 'invalid_otp') { setAuthAlert({ type: 'err', msg: 'That code is not right. Use the code from the newest email we sent.' }); return; }
+          if (err.code === 'otp_expired' || err.code === 'otp_attempts_exceeded') {
+            setLoginChallenge(null);
+            setAuthView('signin', null, { email });
+            setTimeout(() => setAuthAlert({ type: 'err', msg: err.code === 'otp_expired' ? 'That code has expired or was already used. Sign in again to get a new one.' : 'Too many wrong codes. Sign in again to get a new one.' }), 0);
+            return;
+          }
+          throw err;
+        }
         setLoginChallenge(null);
         write('lww_seen', true);
         const first = String((r.user && r.user.name) || '').trim().split(/\s+/)[0];
@@ -278,6 +312,7 @@ export default function AuthCard() {
           <p className="switch" id="authSwitch">{switchLine}</p>
         </form>
       </div>
+      {typeAsk ? <Suspense fallback={null}><AccountTypePopup name={typeAsk.name} onChoose={afterSignUp} /></Suspense> : null}
       <div className="signed">
         <h2 className="card-title">You&apos;re in, <span id="signedName">{session ? session.name : ''}</span>.</h2>
         <p className="auth-sub" id="roleLine" hidden={!hasRole}><b id="signedRole">{hasRole ? accountType.label : ''}</b> account · {hasRole ? printsText(printsPerSheet).toLowerCase() : ''} per sheet. Your plans and sheets are kept with it.</p>

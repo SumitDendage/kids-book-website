@@ -12,7 +12,7 @@ const PLACE = {
   hidden: { x: '-50%', y: '-50%', z: -400, rotateY: 0, scale: 0.7, opacity: 0 },
 };
 
-/* CHAPTER 06 — testimonials coverflow with pause; auto-advances every 4.5 s while
+/* CHAPTER 07 — testimonials coverflow with pause; auto-advances every 4.5 s while
    the chapter is in view (never with reduced motion). */
 export default function Testimonials({ active }) {
   const [idx, setIdx] = useState(0);

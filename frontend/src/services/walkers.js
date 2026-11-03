@@ -42,7 +42,7 @@ export function createWalkers(canvas) {
   document.body.appendChild(probe);
 
   function resize() {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);   /* like the magic layer: sharp enough for the sprites, much less work on phones */
     W = innerWidth; H = innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

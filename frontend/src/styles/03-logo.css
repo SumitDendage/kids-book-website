@@ -2,7 +2,6 @@
 /* ---------- logo tile (white square, as in the reference) ---------- */
 .logo-tile { display: grid; place-items: center; gap: 1px; width: 54px; height: 54px; border-radius: 14px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.22); backdrop-filter: blur(14px); box-shadow: 0 10px 30px rgba(0,0,0,0.25); text-decoration: none; cursor: pointer; }
 .veil-inner .logo-tile, .logo-round { background: #fff; color: #14181c; border: none; backdrop-filter: none; --bg-tile: #fff; }
-.navbar .logo-tile { --bg-tile: #0b1420; }
 .logo-tile svg { width: 60%; height: auto; }
 .logo-tile b { font: 700 0.36rem var(--font-display); letter-spacing: 0.12em; }
 .logo-tile small { font: 600 0.22rem var(--font-body); letter-spacing: 0.32em; margin-top: -1px; }

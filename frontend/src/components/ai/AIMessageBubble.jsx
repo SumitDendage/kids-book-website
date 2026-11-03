@@ -1,13 +1,13 @@
 import { m } from 'framer-motion';
-import logo from '../../assets/logo-emblem.png';
 import { SNAPPY } from '../motion/presets.js';
+import AIMark from './AIMark.jsx';
 
-/* the logo in a small white circle, beside every answer and in the header */
+/* the robot in a small dark circle, beside every answer and in the header */
 export function AIAvatar({ size }) {
-  return <span className={'ai-avatar' + (size ? ' ' + size : '')} aria-hidden="true"><img src={logo} alt="" draggable="false" /></span>;
+  return <span className={'ai-avatar' + (size ? ' ' + size : '')} aria-hidden="true"><AIMark /></span>;
 }
 
-/* one message: answers on the left with the logo, the visitor's on the right */
+/* one message: answers on the left with the robot, the visitor's on the right */
 export default function AIMessageBubble({ from, text, file, typing }) {
   const ai = from === 'ai';
   return (

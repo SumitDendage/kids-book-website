@@ -1,4 +1,4 @@
-/* CHAPTERS — one continuous glide through six screens. Native scrolling is
+/* CHAPTERS — one continuous glide through seven screens. Native scrolling is
    replaced by an eased playhead in pixels through the chapter stack; the stack is
    moved with a transform and the landscape frame follows from how far along it
    we are. Moved from the page script in legacy/old-static-site/index.html; the numbers
@@ -33,27 +33,36 @@ export function createStage() {
     if (s.site && location.pathname === '/') history.replaceState(history.state, '', '#' + IDS[n]);
     s.onSection(n);
   };
-  /* Once per frame: move the stack, soften the chapters leaving the screen, pick the one in the middle. */
+  /* Once per frame: move the stack, soften the chapters leaving the screen, pick the one in the middle.
+     Phones (Oct 25): every size is read first and everything is written after, so the browser
+     works out the page's layout once per frame instead of once per chapter, and how far along we
+     are goes only to the progress bars that show it (not the whole page, which made the browser
+     restyle every element on every frame of a scroll). */
+  let bars = [];
+  const progressBars = () => (bars.length && bars.every(b => b.isConnected) ? bars : (bars = Array.from(document.querySelectorAll('.progress, .mo-progress'))));
   s.onFrame = () => {
     if (!s.site || !s.stack) return;
     const p = Math.min(1, Math.max(0, s.current / s.maxScroll));
-    if (Math.abs(p - s.lastProgress) > 0.0004) { s.lastProgress = p; document.documentElement.style.setProperty('--scroll', p); }
+    if (Math.abs(p - s.lastProgress) > 0.0004) { s.lastProgress = p; progressBars().forEach(b => b.style.setProperty('--scroll', p)); }
     if (Math.abs(s.current - s.lastY) < 0.01) return;
     s.lastY = s.current;
+    const mid = innerHeight / 2;
+    const spots = s.chapters.map(c => (c ? [c.offsetTop - s.current, c.offsetHeight] : null));
     s.stack.style.transform = 'translate3d(0,' + (-s.current).toFixed(2) + 'px,0)';
     let nearest = 0, nearestD = Infinity;
-    const mid = innerHeight / 2;
     s.chapters.forEach((c, i) => {
       if (!c) return;
-      const top = c.offsetTop - s.current, bottom = top + c.offsetHeight;
+      const [top, height] = spots[i], bottom = top + height;
       /* 0 while the middle of the screen is inside the chapter, ±1 a screen away */
       const d = top > mid ? (top - mid) / innerHeight : bottom < mid ? (bottom - mid) / innerHeight : 0;
       const a = Math.min(1, Math.abs(d));
       /* no tilt or shrink — text stays flat and readable; chapters only soften a little as they
-         leave the screen, and drift a touch behind the glide (parallax) so the story has depth */
+         leave the screen, and drift a touch behind the glide (parallax) so the story has depth.
+         Styles are written only when they change (phone speed). */
       if (!s.reduceMotion && s.inners[i]) {
-        s.inners[i].style.opacity = (1 - a * 0.35).toFixed(3);
-        s.inners[i].style.transform = a < 0.001 ? '' : 'translate3d(0,' + (d * 26).toFixed(1) + 'px,0)';
+        const st = s.inners[i].style, o = String(+(1 - a * 0.35).toFixed(3)), t = a < 0.001 ? '' : 'translate3d(0,' + (d * 26).toFixed(1) + 'px,0)';
+        if (st.opacity !== o) st.opacity = o;
+        if (st.transform !== t) st.transform = t;
       }
       if (a < nearestD) { nearestD = a; nearest = i; }
       c.classList.toggle('is-active', a < 0.62 || (c.classList.contains('is-active') && a < 0.9));

@@ -1,7 +1,7 @@
 import { AI_NAME } from '../../data/aiAssistant.js';
 import { AIAvatar } from './AIMessageBubble.jsx';
 
-/* logo, name, "Online", and the minimize and close buttons */
+/* robot, name, "Online", and the minimize and close buttons */
 export default function AIChatHeader({ onMinimize, onClose }) {
   return (
     <header className="ai-head">

@@ -21,6 +21,10 @@ export function sheetState(access, it) {
   return { kind: 'buy', ready, open: false };
 }
 
+/* A paid sheet's picture stays blurred until the customer can open it (bought, or in a plan).
+   Free sheets always show clearly. */
+export const picLocked = st => !st.open && st.kind !== 'free';
+
 /* "Open for 24 hours once bought", "Open for 3 days once bought" */
 export const openForText = it => 'Open for ' + accessSpan(it) + ' once bought';
 
