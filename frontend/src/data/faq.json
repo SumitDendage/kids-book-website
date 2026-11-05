@@ -149,7 +149,7 @@
 },
 {
 "q": "How do I find free sheets?",
-"a": "Choose the Free view in the shop. Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits). Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Choose the Free view in the shop. Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits), and in Phonics the Sound A, B and C charts and all six Beginning and Ending Sound exercises. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Show me the free worksheets"
 ],
@@ -198,7 +198,7 @@
 },
 {
 "q": "How many worksheets are free?",
-"a": "Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits). Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
+"a": "Free sheets to try: all 26 A to Z Letter Tracing sheets, Letter Recognition (A, B and C), Matching (2), Letters Before and After (2), Missing Letters (2), and the first three sheets of every Vocabulary set (Colours, Shapes, Sizes, Animals, Body Parts, Animal Babies and Fruits), and in Phonics the Sound A, B and C charts and all six Beginning and Ending Sound exercises. Pick Free in the shop and tap Open it free. No sign-in is needed. Every other sheet is bought on its own or opens with a class plan.",
 "alt": [
 "Are all worksheets free?",
 "Which two sheets are free?",
@@ -796,6 +796,24 @@
 "uppercase",
 "lowercase",
 "matching"
+]
+},
+{
+"q": "What are beginning-sound activities?",
+"a": "In Phonics → Beginning Sounds: Sound charts A to E (say each picture and hear the letter at the start or end of the word) and three exercises: write the missing beginning sound, circle the starting sound, and find words with the same beginning sound. The three exercises and Sound A, B and C are free.",
+"alt": [],
+"kw": [
+"beginning sound",
+"first sound"
+]
+},
+{
+"q": "What are ending-sound activities?",
+"a": "In Phonics → Ending Sounds: three free exercises (choose the ending sound, write the ending sound, and find words with the same ending sound) and the Sound A to E charts.",
+"alt": [],
+"kw": [
+"ending sound",
+"last sound"
 ]
 },
 {
