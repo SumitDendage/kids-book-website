@@ -83,8 +83,9 @@ export const AZ_WORDS = { A: 'apple', B: 'boy', C: 'cloud', D: 'drum', E: 'eleph
    Every other PDF is a single sheet to buy. The server's catalogue is the source of truth —
    FREE_PDFS and SHEET_PRICE are only the built-in fallback until /api/worksheets answers. */
 export const FREE_PDFS = ['ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(L => 'az-' + L), 'cl-A', 'cl-B', 'cl-C', 'mt-AE', 'mt-FJ', 'sp-AE', 'sp-FJ', 'vc-1', 'vc-2', 'vc-3', 'ms-U1', 'ms-L1', 'vs-1', 'vs-2', 'vs-3', 'vz-1', 'vz-2', 'vz-3', 'va-1', 'va-2', 'va-3', 'vp-1', 'vp-2', 'vp-3', 'vb-1', 'vb-2', 'vb-3', 'vf-1', 'vf-2', 'vf-3',
-  /* Phonics sounds (Sumit, Nov 5): Sound A, B and C free, D and E paid; all six Beginning and Ending Sound exercises free */
-  'sd-A', 'sd-B', 'sd-C', 'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3'].flat(), SHEET_PRICE = 19;
+  /* Phonics sounds (Sumit, Nov 7): 3 free sheets in each section, the rest paid. Beginning Sound 1-3 and
+     Ending Sound 1-3 are free; the Sound A to E charts (shown in both sections) are paid. */
+  'bx-1', 'bx-2', 'bx-3', 'ex-1', 'ex-2', 'ex-3'].flat(), SHEET_PRICE = 19;
 export const AZ_FREE = FREE_PDFS.filter(id => id.startsWith('az-')).map(id => id.slice(3));
 const sheetPrice = id => (SERVER_PRICE[id] != null ? SERVER_PRICE[id] : (FREE_PDFS.includes(id) ? 0 : SHEET_PRICE));
 /* the last line of every printable sheet's "what is inside": free, or how long a purchase stays open
