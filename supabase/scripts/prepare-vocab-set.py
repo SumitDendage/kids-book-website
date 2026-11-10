@@ -4,6 +4,7 @@ Requires: pip install pymupdf. Run from repo root, e.g.
   python supabase/scripts/prepare-vocab-set.py "Parts of the body.zip" vocab-body-parts body
   python supabase/scripts/prepare-vocab-set.py "Animals and their babies.zip" vocab-animal-babies babies
   python supabase/scripts/prepare-vocab-set.py Fruits.zip vocab-fruits fruits
+  python supabase/scripts/prepare-vocab-set.py Vegetables.zip vocab-vegetables vegetables
 Any PDF in the zip whose name ends in its number ("My body 3 .pdf") becomes <file>-<number>.pdf.
 Full worksheets stay in git-ignored backend/protected; only small previews are public.
 """
