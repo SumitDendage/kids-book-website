@@ -59,7 +59,12 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
   html, body.printing { height: auto !important; overflow: visible !important; background: #fff !important; }
   body.printing .bar, body.printing .foot, body.printing .veil, body.printing .toast, body.printing .stage::after { display: none !important; }
   body.printing .stage { position: static !important; inset: auto !important; overflow: visible !important; padding: 0 !important; display: block !important; }
-  body.printing .page { width: 100% !important; margin: 0 auto !important; border-radius: 0 !important; box-shadow: none !important; filter: none !important; break-inside: avoid; break-after: page; }
+  /* each sheet page fills exactly one sheet of paper, whatever paper the printer uses (A4, Letter, Legal…):
+     the box is one printed page tall (100vh is the paper's printable height when printing) and the drawing
+     shrinks to fit inside it, so nothing spills onto a second, nearly blank page (Sumit, Nov 12).
+     A landscape sheet fits across the page; choosing Landscape in the print window makes it bigger. */
+  body.printing .page { width: 100% !important; height: calc(100vh - 1px) !important; aspect-ratio: auto !important; margin: 0 !important; background: #fff !important; border-radius: 0 !important; box-shadow: none !important; filter: none !important; overflow: hidden !important; break-inside: avoid; break-after: page; }
+  body.printing .page canvas { object-fit: contain; }
   body.printing .page:last-child { break-after: auto; }
   body.printing .pn { display: none !important; }
 }
