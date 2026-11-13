@@ -68,7 +68,7 @@ img, canvas { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
   body.printing .page:last-child { break-after: auto; }
   body.printing .pn { display: none !important; }
 }
-@page { margin: 10mm; }
+@page { margin: 4mm; }   /* a thin edge, so the sheet prints as big as the paper allows (Sumit, Nov 13) */
 @media (max-width: 640px) { .bar { padding: 8px 10px; gap: 5px; } .btn span.l { display: none; } .bar > .btn.ic, #fs { width: 32px; padding: 0; justify-content: center; } #close { padding: 0 12px; }
   .stage { padding: 56px 8px 48px; } .brand span { display: none; } .lic { padding: 0 9px; gap: 6px; } .lic .l { display: none; } .lic .s { display: inline; } .toast { white-space: normal; width: max-content; max-width: calc(100vw - 32px); text-align: center; border-radius: 18px; } }
 /* tablets with Print / Download in the bar: the logo, the pill and Full screen go short so everything fits */
