@@ -7,6 +7,7 @@ Requires: pip install pymupdf. Run from repo root, e.g.
   python supabase/scripts/prepare-vocab-set.py Vegetables.zip vocab-vegetables vegetables
   python supabase/scripts/prepare-vocab-set.py Consonant.zip phonics-consonants consonant
   python supabase/scripts/prepare-vocab-set.py Vowels.zip phonics-vowels vowels
+  python supabase/scripts/prepare-vocab-set.py Blending.zip phonics-blending blending
 Any PDF in the zip whose name ends in its number ("My body 3 .pdf") becomes <file>-<number>.pdf.
 Full worksheets stay in git-ignored backend/protected; only small previews are public.
 """
